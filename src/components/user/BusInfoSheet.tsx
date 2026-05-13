@@ -1,127 +1,96 @@
 'use client'
-
 import { motion } from 'framer-motion'
-import { Bus, AlertTriangle, Users, Clock, MapPin, Star, X, ChevronRight } from 'lucide-react'
+import { Bus, AlertTriangle, Users, Clock, MapPin, X, Star, Gauge } from 'lucide-react'
 import type { BusPosition } from '@/types'
 
-interface Props {
-  bus: BusPosition
-  onClose: () => void
-  onReport: () => void
-}
+interface Props { bus: BusPosition; onClose: () => void; onReport: () => void }
 
 export default function BusInfoSheet({ bus, onClose, onReport }: Props) {
-  const statusConfig = {
-    moving:   { label: 'En movimiento',  color: 'text-moving',     dot: 'bg-moving' },
-    stopped:  { label: 'Detenido',       color: 'text-stopped',    dot: 'bg-stopped' },
-    at_stop:  { label: 'En parada',      color: 'text-approaching', dot: 'bg-approaching' },
-    offline:  { label: 'Sin señal',      color: 'text-night-400',  dot: 'bg-night-400' },
+  const statusMap = {
+    moving:  { label:'En movimiento', cls:'status-moving',  dot:'#22D3A0' },
+    stopped: { label:'Detenido',      cls:'status-stopped', dot:'#FF4D6A' },
+    at_stop: { label:'En parada',     cls:'status-at_stop', dot:'#F0B429' },
+    offline: { label:'Sin señal',     cls:'status-offline', dot:'#4A5568' },
   }
-  const status = statusConfig[bus.status] || statusConfig.offline
+  const s = statusMap[bus.status] || statusMap.offline
 
   return (
-    <motion.div
-      className="bottom-sheet safe-bottom"
-      initial={{ y: '100%' }}
-      animate={{ y: 0 }}
-      exit={{ y: '100%' }}
-      transition={{ type: 'spring', damping: 28, stiffness: 200 }}
-    >
+    <motion.div className="bottom-sheet safe-bottom" initial={{y:'100%'}} animate={{y:0}} exit={{y:'100%'}} transition={{type:'spring',damping:28,stiffness:200}}>
       {/* Handle */}
-      <div className="flex justify-center pt-3 pb-1">
-        <div className="w-10 h-1 rounded-full bg-night-700" />
+      <div style={{display:'flex',justifyContent:'center',paddingTop:'12px',paddingBottom:'4px'}}>
+        <div style={{width:'36px',height:'4px',borderRadius:'2px',background:'rgba(184,200,224,0.15)'}} />
       </div>
 
-      <div className="px-5 pb-6 pt-2">
+      <div style={{padding:'16px 20px 24px'}}>
         {/* Header */}
-        <div className="flex items-start justify-between mb-5">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-bus-500/15 border border-bus-500/25 flex items-center justify-center">
-              <Bus size={22} className="text-bus-400" />
+        <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:'20px'}}>
+          <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
+            <div style={{width:'52px',height:'52px',borderRadius:'14px',background:'linear-gradient(145deg,#1E2638,#131921)',border:'1px solid rgba(184,200,224,0.15)',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 4px 16px rgba(0,0,0,0.6), inset 0 1px 0 rgba(184,200,224,0.08)'}}>
+              <Bus size={22} style={{color:'var(--platinum)'}} />
             </div>
             <div>
-              <h2 className="text-white font-bold text-lg leading-tight">
-                Unidad {bus.bus_unit}
-              </h2>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <div className={`w-2 h-2 rounded-full ${status.dot} animate-pulse`} />
-                <span className={`text-sm ${status.color}`}>{status.label}</span>
+              <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'4px'}}>
+                <h2 className="font-display" style={{color:'var(--text-primary)',fontWeight:700,fontSize:'18px'}}>Unidad {bus.bus_unit}</h2>
               </div>
+              <span className={`status-pill ${s.cls}`}>
+                <span style={{width:'6px',height:'6px',borderRadius:'50%',background:s.dot,display:'inline-block'}} />
+                {s.label}
+              </span>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full bg-night-700 flex items-center justify-center"
-          >
-            <X size={16} className="text-night-300" />
+          <button onClick={onClose} style={{width:'34px',height:'34px',borderRadius:'50%',background:'rgba(184,200,224,0.06)',border:'1px solid rgba(184,200,224,0.1)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+            <X size={15} style={{color:'var(--text-secondary)'}} />
           </button>
         </div>
 
         {/* Driver info */}
-        <div className="bg-night-900/60 rounded-xl p-4 mb-4">
-          <div className="text-xs font-medium text-night-400 uppercase tracking-wider mb-3">
-            Información del chofer
-          </div>
-          <div className="flex items-center justify-between">
+        <div className="platinum-card" style={{borderRadius:'var(--r-md)',padding:'14px 16px',marginBottom:'14px'}}>
+          <div style={{fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.1em',color:'var(--text-muted)',textTransform:'uppercase',marginBottom:'10px'}}>Chofer</div>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
             <div>
-              <div className="text-white font-semibold">{bus.driver_name}</div>
-              <div className="text-night-300 text-sm mt-0.5">Chofer verificado</div>
+              <div style={{color:'var(--text-primary)',fontWeight:600,fontSize:'15px'}}>{bus.driver_name}</div>
+              <div style={{color:'var(--text-muted)',fontSize:'12px',marginTop:'2px'}}>Verificado ✓</div>
             </div>
-            <div className="flex items-center gap-1 bg-night-800 rounded-lg px-3 py-1.5">
-              <Star size={14} className="text-bus-400 fill-bus-400" />
-              <span className="text-white text-sm font-medium">4.8</span>
+            <div style={{display:'flex',alignItems:'center',gap:'5px',background:'rgba(184,200,224,0.06)',border:'1px solid rgba(184,200,224,0.12)',borderRadius:'10px',padding:'6px 12px'}}>
+              <Star size={13} style={{color:'var(--near)',fill:'var(--near)'}} />
+              <span style={{color:'var(--text-primary)',fontWeight:700,fontSize:'14px',fontFamily:'DM Mono'}}>4.8</span>
             </div>
           </div>
         </div>
 
-        {/* Stats row */}
-        <div className="grid grid-cols-3 gap-3 mb-5">
-          {bus.speed_kmh > 0 && (
-            <div className="bg-night-900/60 rounded-xl p-3 text-center">
-              <div className="text-white font-bold text-lg">{bus.speed_kmh}</div>
-              <div className="text-night-400 text-xs mt-0.5">km/h</div>
+        {/* Stats */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'8px',marginBottom:'14px'}}>
+          {[
+            { icon: Gauge, label: 'km/h', value: bus.speed_kmh ?? 0 },
+            { icon: Clock, label: 'min prox.', value: bus.eta_minutes ?? '—' },
+            { icon: Users, label: 'a bordo', value: bus.passenger_count },
+          ].map(({ icon: Icon, label, value }) => (
+            <div key={label} style={{background:'rgba(6,8,16,0.6)',border:'1px solid rgba(184,200,224,0.07)',borderRadius:'var(--r-md)',padding:'12px',textAlign:'center'}}>
+              <div className="font-display" style={{color:'var(--text-primary)',fontWeight:700,fontSize:'22px',lineHeight:1}}>{value}</div>
+              <div style={{color:'var(--text-muted)',fontSize:'10px',fontFamily:'DM Mono',marginTop:'4px',letterSpacing:'0.06em'}}>{label}</div>
             </div>
-          )}
-          {bus.eta_minutes !== undefined && (
-            <div className="bg-night-900/60 rounded-xl p-3 text-center">
-              <div className="text-white font-bold text-lg">{bus.eta_minutes}</div>
-              <div className="text-night-400 text-xs mt-0.5">min próx. parada</div>
-            </div>
-          )}
-          <div className="bg-night-900/60 rounded-xl p-3 text-center">
-            <div className="text-white font-bold text-lg">{bus.passenger_count}</div>
-            <div className="text-night-400 text-xs mt-0.5">usuarios a bordo</div>
-          </div>
+          ))}
         </div>
 
         {/* Next stop */}
         {bus.next_stop_name && (
-          <div className="flex items-center gap-3 bg-bus-500/10 border border-bus-500/20 rounded-xl p-3.5 mb-5">
-            <MapPin size={18} className="text-bus-400 shrink-0" />
-            <div>
-              <div className="text-xs text-night-300">Próxima parada</div>
-              <div className="text-white font-medium text-sm">{bus.next_stop_name}</div>
+          <div style={{display:'flex',alignItems:'center',gap:'12px',background:'rgba(34,211,160,0.06)',border:'1px solid rgba(34,211,160,0.15)',borderRadius:'var(--r-md)',padding:'12px 14px',marginBottom:'16px'}}>
+            <MapPin size={16} style={{color:'var(--go)',flexShrink:0}} />
+            <div style={{flex:1}}>
+              <div style={{fontSize:'10px',color:'var(--go)',fontFamily:'DM Mono',letterSpacing:'0.06em',marginBottom:'2px'}}>PRÓXIMA PARADA</div>
+              <div style={{color:'var(--text-primary)',fontWeight:500,fontSize:'14px'}}>{bus.next_stop_name}</div>
             </div>
-            {bus.eta_minutes !== undefined && (
-              <div className="ml-auto text-bus-400 font-semibold text-sm">
-                {bus.eta_minutes} min
-              </div>
-            )}
+            {bus.eta_minutes != null && <div className="font-display" style={{color:'var(--go)',fontWeight:700,fontSize:'16px',flexShrink:0}}>{bus.eta_minutes}m</div>}
           </div>
         )}
 
         {/* Actions */}
-        <div className="flex gap-3">
-          <button
-            onClick={onReport}
-            className="flex-1 flex items-center justify-center gap-2 bg-stopped/10 border border-stopped/30 text-stopped rounded-xl py-3 font-medium text-sm transition-colors hover:bg-stopped/20"
-          >
-            <AlertTriangle size={16} />
-            Denunciar
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
+          <button className="btn-danger" onClick={onReport}>
+            <AlertTriangle size={15} /> Denunciar
           </button>
-          <button className="flex-1 flex items-center justify-center gap-2 bg-night-800 text-night-200 rounded-xl py-3 font-medium text-sm transition-colors hover:bg-night-700">
-            <Users size={16} />
-            Estoy en este colectivo
+          <button className="btn-glass">
+            <Users size={15} /> Estoy a bordo
           </button>
         </div>
       </div>

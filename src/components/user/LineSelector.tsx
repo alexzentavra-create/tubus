@@ -1,102 +1,63 @@
 'use client'
-
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Search, X, Bus } from 'lucide-react'
+import { Search, X, Bus, Check } from 'lucide-react'
 import type { BusLine } from '@/types'
 
-interface Props {
-  lines: BusLine[]
-  selectedLine: BusLine | null
-  onSelect: (line: BusLine) => void
-  onClose: () => void
-}
+interface Props { lines: BusLine[]; selectedLine: BusLine|null; onSelect:(l:BusLine)=>void; onClose:()=>void }
 
 export default function LineSelector({ lines, selectedLine, onSelect, onClose }: Props) {
-  const [query, setQuery] = useState('')
-  const filtered = lines.filter(l =>
-    l.line_number.includes(query) ||
-    l.name.toLowerCase().includes(query.toLowerCase()) ||
-    l.company?.toLowerCase().includes(query.toLowerCase())
-  )
+  const [q, setQ] = useState('')
+  const filtered = lines.filter(l => l.line_number.includes(q) || l.name.toLowerCase().includes(q.toLowerCase()))
 
   return (
-    <motion.div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-    >
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-
+    <motion.div style={{position:'fixed',inset:0,zIndex:50,display:'flex',alignItems:'flex-end',justifyContent:'center'}} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
+      <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.7)',backdropFilter:'blur(8px)'}} onClick={onClose} />
       <motion.div
-        className="relative w-full max-w-md glass-panel mx-4 mb-4 sm:mb-0 overflow-hidden"
-        initial={{ y: 60, scale: 0.97, opacity: 0 }}
-        animate={{ y: 0, scale: 1, opacity: 1 }}
-        exit={{ y: 60, opacity: 0 }}
-        transition={{ type: 'spring', damping: 28 }}
-        style={{ maxHeight: '80vh' }}
+        className="glass-dark"
+        style={{position:'relative',width:'100%',maxWidth:'420px',margin:'0 16px 16px',overflow:'hidden',borderRadius:'var(--r-xl)'}}
+        initial={{y:80,opacity:0}} animate={{y:0,opacity:1}} exit={{y:80,opacity:0}}
+        transition={{type:'spring',damping:28}}
       >
-        <div className="flex items-center justify-between p-5 border-b border-night-700">
-          <h3 className="text-white font-bold text-lg">Elegí una línea</h3>
-          <button onClick={onClose} className="w-8 h-8 rounded-full bg-night-700 flex items-center justify-center">
-            <X size={16} className="text-night-300" />
+        {/* Header */}
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'20px 20px 14px'}}>
+          <h3 className="font-display" style={{color:'var(--text-primary)',fontWeight:700,fontSize:'17px',letterSpacing:'-0.01em'}}>Elegí una línea</h3>
+          <button onClick={onClose} style={{width:'32px',height:'32px',borderRadius:'50%',background:'rgba(184,200,224,0.06)',border:'1px solid rgba(184,200,224,0.1)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+            <X size={14} style={{color:'var(--text-secondary)'}} />
           </button>
         </div>
 
-        <div className="p-4">
-          <div className="relative">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-night-400" />
-            <input
-              autoFocus
-              type="text"
-              className="bus-input pl-10"
-              placeholder="Buscá por número o destino..."
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-            />
+        {/* Search */}
+        <div style={{padding:'0 16px 12px'}}>
+          <div style={{position:'relative'}}>
+            <Search size={14} style={{position:'absolute',left:'13px',top:'50%',transform:'translateY(-50%)',color:'var(--text-muted)'}} />
+            <input autoFocus className="input-dark" style={{paddingLeft:'38px',fontSize:'13px'}} placeholder="Buscar por número o recorrido..." value={q} onChange={e=>setQ(e.target.value)} />
           </div>
         </div>
 
-        <div className="overflow-y-auto scroll-panel px-4 pb-5" style={{ maxHeight: '55vh' }}>
+        {/* List */}
+        <div className="scroll-panel" style={{maxHeight:'55vh',padding:'4px 12px 16px'}}>
           {filtered.length === 0 ? (
-            <div className="text-center py-8">
-              <Bus size={32} className="text-night-600 mx-auto mb-2" />
-              <p className="text-night-400 text-sm">No encontramos esa línea</p>
+            <div style={{textAlign:'center',padding:'40px 20px'}}>
+              <Bus size={28} style={{color:'var(--text-muted)',margin:'0 auto 8px'}} />
+              <p style={{color:'var(--text-muted)',fontSize:'13px'}}>Sin resultados</p>
             </div>
-          ) : (
-            <div className="space-y-2">
-              {filtered.map(line => (
-                <button
-                  key={line.id}
-                  onClick={() => onSelect(line)}
-                  className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${
-                    selectedLine?.id === line.id
-                      ? 'border-bus-500 bg-bus-500/10'
-                      : 'border-night-700 bg-night-900/60 hover:border-night-500'
-                  }`}
-                >
-                  <div
-                    className="w-11 h-11 rounded-xl flex items-center justify-center font-bold text-white text-sm shrink-0"
-                    style={{ background: line.color }}
-                  >
-                    {line.line_number}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-white font-medium text-sm truncate">
-                      {line.name.split(' - ')[1] || line.name}
-                    </div>
-                    <div className="text-night-400 text-xs mt-0.5">{line.company}</div>
-                  </div>
-                  {selectedLine?.id === line.id && (
-                    <div className="ml-auto w-5 h-5 rounded-full bg-bus-500 flex items-center justify-center shrink-0">
-                      <div className="w-2 h-2 rounded-full bg-white" />
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
+          ) : filtered.map(line => (
+            <button key={line.id} onClick={()=>onSelect(line)} style={{width:'100%',display:'flex',alignItems:'center',gap:'14px',padding:'12px 14px',borderRadius:'var(--r-md)',border:`1px solid ${selectedLine?.id===line.id ? 'rgba(184,200,224,0.2)' : 'rgba(184,200,224,0.05)'}`,background: selectedLine?.id===line.id ? 'rgba(184,200,224,0.06)' : 'rgba(6,8,16,0.4)',marginBottom:'6px',cursor:'pointer',transition:'all 200ms',textAlign:'left'}}>
+              <div style={{width:'40px',height:'40px',borderRadius:'10px',background:line.color,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,boxShadow:`0 4px 12px ${line.color}40`}}>
+                <span className="font-display" style={{color:'#fff',fontWeight:800,fontSize:'13px'}}>{line.line_number}</span>
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{color:'var(--text-primary)',fontWeight:500,fontSize:'14px',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{line.name.split(' - ')[1] || line.name}</div>
+                <div style={{color:'var(--text-muted)',fontSize:'11px',fontFamily:'DM Mono',marginTop:'2px'}}>{line.company}</div>
+              </div>
+              {selectedLine?.id === line.id && (
+                <div style={{width:'22px',height:'22px',borderRadius:'50%',background:'rgba(184,200,224,0.15)',border:'1px solid rgba(184,200,224,0.3)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  <Check size={12} style={{color:'var(--platinum)'}} />
+                </div>
+              )}
+            </button>
+          ))}
         </div>
       </motion.div>
     </motion.div>

@@ -1,0 +1,37 @@
+# ── Build ────────────────────────────────────────────────────────────────────
+[build]
+  command   = "npm run build"
+  publish   = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# ── Netlify Next.js plugin (handles App Router, SSR, API routes, etc.) ────────
+# This single line is what makes Next.js work properly on Netlify.
+# Do NOT remove it.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# ── Headers ──────────────────────────────────────────────────────────────────
+# Service worker must be served from root with no cache
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control         = "public, max-age=0, must-revalidate"
+    Service-Worker-Allowed = "/"
+
+# Security headers on all routes
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options        = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection       = "1; mode=block"
+    Referrer-Policy        = "strict-origin-when-cross-origin"
+    Permissions-Policy     = "geolocation=(self), camera=(), microphone=()"
+
+# Cache static assets forever (they have content hashes in their filenames)
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

@@ -1,5 +1,4 @@
 'use client'
-
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { X, AlertTriangle, CheckCircle } from 'lucide-react'
@@ -7,24 +6,19 @@ import { createClient } from '@/lib/supabase'
 import type { BusPosition, ReportType } from '@/types'
 import toast from 'react-hot-toast'
 
-const REPORT_TYPES: { value: ReportType; label: string; emoji: string }[] = [
-  { value: 'no_paro',               label: 'No paró en la parada',      emoji: '🚌' },
-  { value: 'conduccion_peligrosa',  label: 'Conducción peligrosa',       emoji: '⚠️' },
-  { value: 'mal_trato',             label: 'Mal trato al pasajero',      emoji: '😤' },
-  { value: 'vehiculo_defectuoso',   label: 'Vehículo en mal estado',     emoji: '🔧' },
-  { value: 'no_llego',              label: 'No llegó / se saltó el turno', emoji: '❓' },
-  { value: 'otro',                  label: 'Otro problema',              emoji: '📋' },
+const TYPES: {value:ReportType;label:string;emoji:string}[] = [
+  {value:'no_paro',label:'No paró en la parada',emoji:'🚌'},
+  {value:'conduccion_peligrosa',label:'Conducción peligrosa',emoji:'⚠️'},
+  {value:'mal_trato',label:'Mal trato',emoji:'😤'},
+  {value:'vehiculo_defectuoso',label:'Vehículo defectuoso',emoji:'🔧'},
+  {value:'no_llego',label:'No llegó',emoji:'❓'},
+  {value:'otro',label:'Otro',emoji:'📋'},
 ]
 
-interface Props {
-  bus: BusPosition
-  onClose: () => void
-}
-
-export default function ReportModal({ bus, onClose }: Props) {
+export default function ReportModal({ bus, onClose }: { bus: BusPosition; onClose: () => void }) {
   const supabase = createClient()
-  const [type, setType] = useState<ReportType | null>(null)
-  const [description, setDescription] = useState('')
+  const [type, setType] = useState<ReportType|null>(null)
+  const [desc, setDesc] = useState('')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
 
@@ -32,113 +26,60 @@ export default function ReportModal({ bus, onClose }: Props) {
     if (!type) return
     setLoading(true)
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { toast.error('Tenés que estar logueado para denunciar'); setLoading(false); return }
-
-    const { error } = await supabase.from('reports').insert({
-      reporter_id: user.id,
-      driver_id: bus.driver_id,
-      line_id: bus.line_id,
-      bus_unit: bus.bus_unit,
-      type,
-      description: description || REPORT_TYPES.find(r => r.value === type)!.label,
-    })
-
+    if (!user) { toast.error('Tenés que estar logueado'); setLoading(false); return }
+    const { error } = await supabase.from('reports').insert({ reporter_id:user.id, driver_id:bus.driver_id, line_id:bus.line_id, bus_unit:bus.bus_unit, type, description:desc||TYPES.find(r=>r.value===type)!.label })
     setLoading(false)
-    if (error) { toast.error('No se pudo enviar la denuncia'); return }
+    if (error) { toast.error('No se pudo enviar'); return }
     setDone(true)
   }
 
   return (
-    <motion.div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-    >
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-
-      <motion.div
-        className="relative w-full max-w-md glass-panel mx-4 mb-4 sm:mb-0 overflow-hidden"
-        initial={{ y: 60, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 60, opacity: 0 }}
-        transition={{ type: 'spring', damping: 28 }}
-      >
+    <motion.div style={{position:'fixed',inset:0,zIndex:50,display:'flex',alignItems:'flex-end',justifyContent:'center'}} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}}>
+      <div style={{position:'absolute',inset:0,background:'rgba(0,0,0,0.75)',backdropFilter:'blur(10px)'}} onClick={onClose} />
+      <motion.div className="glass-dark" style={{position:'relative',width:'100%',maxWidth:'420px',margin:'0 16px 16px',borderRadius:'var(--r-xl)',overflow:'hidden'}} initial={{y:60,opacity:0}} animate={{y:0,opacity:1}} exit={{y:60,opacity:0}} transition={{type:'spring',damping:28}}>
         {done ? (
-          <div className="p-8 text-center">
-            <div className="w-16 h-16 rounded-full bg-moving/15 flex items-center justify-center mx-auto mb-4">
-              <CheckCircle size={32} className="text-moving" />
+          <div style={{padding:'40px 24px',textAlign:'center'}}>
+            <div style={{width:'64px',height:'64px',borderRadius:'50%',background:'rgba(34,211,160,0.1)',border:'1px solid rgba(34,211,160,0.25)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
+              <CheckCircle size={28} style={{color:'var(--go)'}} />
             </div>
-            <h3 className="text-white font-bold text-xl mb-2">¡Denuncia enviada!</h3>
-            <p className="text-night-300 text-sm mb-6">
-              Gracias por reportar. El equipo de administración va a revisar tu denuncia.
-            </p>
-            <button className="btn-primary" onClick={onClose}>Cerrar</button>
+            <h3 className="font-display" style={{color:'var(--text-primary)',fontWeight:700,fontSize:'20px',marginBottom:'8px'}}>Denuncia enviada</h3>
+            <p style={{color:'var(--text-muted)',fontSize:'13px',marginBottom:'24px'}}>El equipo de administración va a revisar tu reporte.</p>
+            <button className="btn-platinum" onClick={onClose}>Cerrar</button>
           </div>
-        ) : (
-          <>
-            <div className="flex items-center justify-between p-5 border-b border-night-700">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-stopped/15 flex items-center justify-center">
-                  <AlertTriangle size={18} className="text-stopped" />
-                </div>
-                <div>
-                  <h3 className="text-white font-bold">Denunciar colectivo</h3>
-                  <p className="text-night-400 text-xs">Unidad {bus.bus_unit} · {bus.driver_name}</p>
-                </div>
+        ) : (<>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'18px 20px',borderBottom:'1px solid rgba(184,200,224,0.07)'}}>
+            <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
+              <div style={{width:'36px',height:'36px',borderRadius:'10px',background:'rgba(255,77,106,0.1)',border:'1px solid rgba(255,77,106,0.2)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                <AlertTriangle size={16} style={{color:'#FF4D6A'}} />
               </div>
-              <button onClick={onClose} className="w-8 h-8 rounded-full bg-night-700 flex items-center justify-center">
-                <X size={16} className="text-night-300" />
-              </button>
-            </div>
-
-            <div className="p-5 space-y-4">
               <div>
-                <label className="text-xs font-medium text-night-400 uppercase tracking-wider mb-3 block">
-                  ¿Cuál es el problema?
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {REPORT_TYPES.map(rt => (
-                    <button
-                      key={rt.value}
-                      onClick={() => setType(rt.value)}
-                      className={`p-3 rounded-xl border text-left transition-all ${
-                        type === rt.value
-                          ? 'border-bus-500 bg-bus-500/15 text-white'
-                          : 'border-night-700 bg-night-900/60 text-night-300 hover:border-night-500'
-                      }`}
-                    >
-                      <div className="text-lg mb-1">{rt.emoji}</div>
-                      <div className="text-xs font-medium leading-tight">{rt.label}</div>
-                    </button>
-                  ))}
-                </div>
+                <div className="font-display" style={{color:'var(--text-primary)',fontWeight:600,fontSize:'15px'}}>Denunciar</div>
+                <div style={{color:'var(--text-muted)',fontSize:'11px',fontFamily:'DM Mono'}}>Unidad {bus.bus_unit}</div>
               </div>
-
-              <div>
-                <label className="text-xs font-medium text-night-400 uppercase tracking-wider mb-2 block">
-                  Descripción (opcional)
-                </label>
-                <textarea
-                  className="bus-input resize-none"
-                  rows={3}
-                  placeholder="Contanos más detalles sobre lo que pasó..."
-                  value={description}
-                  onChange={e => setDescription(e.target.value)}
-                />
-              </div>
-
-              <button
-                className="btn-primary"
-                onClick={submit}
-                disabled={!type || loading}
-              >
-                {loading ? 'Enviando...' : 'Enviar denuncia'}
-              </button>
             </div>
-          </>
-        )}
+            <button onClick={onClose} style={{width:'32px',height:'32px',borderRadius:'50%',background:'rgba(184,200,224,0.06)',border:'1px solid rgba(184,200,224,0.1)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+              <X size={14} style={{color:'var(--text-secondary)'}} />
+            </button>
+          </div>
+          <div style={{padding:'16px 20px 20px',display:'flex',flexDirection:'column',gap:'14px'}}>
+            <div>
+              <div style={{fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.1em',color:'var(--text-muted)',textTransform:'uppercase',marginBottom:'10px'}}>Tipo de problema</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'7px'}}>
+                {TYPES.map(rt => (
+                  <button key={rt.value} onClick={()=>setType(rt.value)} style={{padding:'12px',borderRadius:'var(--r-sm)',border:`1px solid ${type===rt.value ? 'rgba(184,200,224,0.25)' : 'rgba(184,200,224,0.07)'}`,background: type===rt.value ? 'rgba(184,200,224,0.08)' : 'rgba(6,8,16,0.5)',textAlign:'left',cursor:'pointer',transition:'all 200ms'}}>
+                    <div style={{fontSize:'18px',marginBottom:'4px'}}>{rt.emoji}</div>
+                    <div style={{color: type===rt.value ? 'var(--platinum)' : 'var(--text-secondary)',fontSize:'11px',fontWeight:500,lineHeight:1.3}}>{rt.label}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.1em',color:'var(--text-muted)',textTransform:'uppercase',marginBottom:'8px'}}>Descripción (opcional)</div>
+              <textarea className="input-dark" rows={3} style={{resize:'none'}} placeholder="Contanos más sobre lo que pasó..." value={desc} onChange={e=>setDesc(e.target.value)} />
+            </div>
+            <button className="btn-platinum" onClick={submit} disabled={!type||loading}>{loading ? 'Enviando...' : 'Enviar denuncia'}</button>
+          </div>
+        </>)}
       </motion.div>
     </motion.div>
   )
