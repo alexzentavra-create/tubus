@@ -23,12 +23,14 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get: (name) => request.cookies.get(name)?.value,
-        set: (name, value, options) => {
-          response.cookies.set({ name, value, ...options })
+        get(name: string) {
+          return request.cookies.get(name)?.value
         },
-        remove: (name, options) => {
-          response.cookies.set({ name, value: '', ...options })
+        set(name: string, value: string, options: Record<string, unknown>) {
+          response.cookies.set({ name, value, ...options } as Parameters<typeof response.cookies.set>[0])
+        },
+        remove(name: string, options: Record<string, unknown>) {
+          response.cookies.set({ name, value: '', ...options } as Parameters<typeof response.cookies.set>[0])
         },
       },
     }
@@ -42,7 +44,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Role-based access
+  // Role-based access for admin routes
   if (pathname.startsWith('/admin')) {
     const { data: profile } = await supabase
       .from('profiles')
@@ -55,6 +57,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Role-based access for driver routes
   if (pathname.startsWith('/driver')) {
     const { data: profile } = await supabase
       .from('profiles')
