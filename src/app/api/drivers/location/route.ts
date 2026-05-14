@@ -1,19 +1,5 @@
 import { createServerSupabase } from '@/lib/supabase-server'
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-
-const LocationSchema = z.object({
-  line_id: z.string().uuid(),
-  bus_unit: z.string(),
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
-  heading: z.number().min(0).max(360).default(0),
-  speed_kmh: z.number().min(0).default(0),
-  status: z.enum(['moving', 'stopped', 'at_stop', 'offline']).default('moving'),
-  next_stop_id: z.string().uuid().optional(),
-  eta_minutes: z.number().optional(),
-  passenger_count: z.number().min(0).default(0),
-})
 
 export async function POST(request: NextRequest) {
   const supabase = createServerSupabase()
@@ -21,31 +7,48 @@ export async function POST(request: NextRequest) {
 
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
 
-  // Verify driver role
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'driver') return NextResponse.json({ error: 'Solo choferes pueden enviar ubicación' }, { status: 403 })
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
 
-  const body = await request.json()
-  const parsed = LocationSchema.safeParse(body)
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues }, { status: 422 })
-
-  const payload = {
-    driver_id: user.id,
-    ...parsed.data,
-    timestamp: new Date().toISOString(),
+  if (profile?.role !== 'driver') {
+    return NextResponse.json({ error: 'Solo choferes pueden enviar ubicación' }, { status: 403 })
   }
 
-  // Upsert: one row per driver (their "current" position)
+  const body = await request.json()
+
+  if (!body.line_id || !body.bus_unit || body.latitude == null || body.longitude == null) {
+    return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 422 })
+  }
+
+  const validStatuses = ['moving', 'stopped', 'at_stop', 'offline']
+  const status = validStatuses.includes(body.status) ? body.status : 'moving'
+
   const { error } = await supabase
     .from('bus_positions')
-    .upsert(payload, { onConflict: 'driver_id' })
+    .upsert({
+      driver_id:       user.id,
+      line_id:         body.line_id,
+      bus_unit:        body.bus_unit,
+      latitude:        body.latitude,
+      longitude:       body.longitude,
+      heading:         body.heading    || 0,
+      speed_kmh:       body.speed_kmh  || 0,
+      status,
+      next_stop_id:    body.next_stop_id  || null,
+      eta_minutes:     body.eta_minutes   || null,
+      passenger_count: body.passenger_count || 0,
+      timestamp:       new Date().toISOString(),
+    }, { onConflict: 'driver_id' })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Keep driver_profiles.is_online in sync
+  // Keep is_online in sync
   await supabase
     .from('driver_profiles')
-    .update({ is_online: parsed.data.status !== 'offline' })
+    .update({ is_online: status !== 'offline' })
     .eq('id', user.id)
 
   return NextResponse.json({ success: true })
