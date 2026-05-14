@@ -1,11 +1,10 @@
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
 
 const PUBLIC_ROUTES = ['/login', '/auth/callback', '/api/auth']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  const response = NextResponse.next()
 
   // Skip public routes and static files
   if (
@@ -15,8 +14,12 @@ export async function middleware(request: NextRequest) {
     pathname === '/sw.js' ||
     pathname === '/manifest.json'
   ) {
-    return response
+    return NextResponse.next()
   }
+
+  let response = NextResponse.next({
+    request: { headers: request.headers },
+  })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,11 +29,19 @@ export async function middleware(request: NextRequest) {
         get(name: string) {
           return request.cookies.get(name)?.value
         },
-        set(name: string, value: string, options: Record<string, unknown>) {
-          response.cookies.set({ name, value, ...options } as Parameters<typeof response.cookies.set>[0])
+        set(name: string, value: string, options: CookieOptions) {
+          request.cookies.set({ name, value, ...options })
+          response = NextResponse.next({
+            request: { headers: request.headers },
+          })
+          response.cookies.set({ name, value, ...options })
         },
-        remove(name: string, options: Record<string, unknown>) {
-          response.cookies.set({ name, value: '', ...options } as Parameters<typeof response.cookies.set>[0])
+        remove(name: string, options: CookieOptions) {
+          request.cookies.set({ name, value: '', ...options })
+          response = NextResponse.next({
+            request: { headers: request.headers },
+          })
+          response.cookies.set({ name, value: '', ...options })
         },
       },
     }
@@ -44,7 +55,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Role-based access for admin routes
+  // Admin route protection
   if (pathname.startsWith('/admin')) {
     const { data: profile } = await supabase
       .from('profiles')
@@ -57,7 +68,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Role-based access for driver routes
+  // Driver route protection
   if (pathname.startsWith('/driver')) {
     const { data: profile } = await supabase
       .from('profiles')

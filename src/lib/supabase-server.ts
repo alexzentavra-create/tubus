@@ -1,8 +1,8 @@
-import { createServerClient } from '@supabase/ssr'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
 
-// For use in Server Components, Route Handlers, Server Actions
+// For use in Server Components and Route Handlers
 export function createServerSupabase() {
   const cookieStore = cookies()
   return createServerClient(
@@ -13,10 +13,10 @@ export function createServerSupabase() {
         get(name: string) {
           return cookieStore.get(name)?.value
         },
-        set(name: string, value: string, options: Record<string, unknown>) {
+        set(name: string, value: string, options: CookieOptions) {
           cookieStore.set({ name, value, ...options })
         },
-        remove(name: string, options: Record<string, unknown>) {
+        remove(name: string, options: CookieOptions) {
           cookieStore.set({ name, value: '', ...options })
         },
       },
@@ -24,7 +24,7 @@ export function createServerSupabase() {
   )
 }
 
-// Admin client — bypasses RLS, use only in trusted server contexts
+// Admin client — bypasses RLS, server only
 export function createAdminSupabase() {
   return createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
