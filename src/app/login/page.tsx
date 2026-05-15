@@ -9,8 +9,8 @@ import toast from 'react-hot-toast'
 type Role = 'user' | 'driver' | null
 type Mode = 'login' | 'register'
 
-// ─── Animated street grid canvas ─────────────────────────────────────────────
-function BusGridBackground() {
+// ─── Street grid + bus animation ─────────────────────────────────────────────
+function StreetBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -26,178 +26,275 @@ function BusGridBackground() {
     resize()
     window.addEventListener('resize', resize)
 
-    const CELL = 48        // grid cell size
-    const BUS_W = 18       // bus rectangle width
-    const BUS_H = 9        // bus rectangle height
-    const SPEED_MIN = 0.4
-    const SPEED_MAX = 1.4
+    // Street grid — every 120px a two-way street
+    const STREET_GAP = 130
+    const LANE_W     = 12   // each lane width
+    const ROAD_W     = LANE_W * 2 + 6  // total road = 2 lanes + divider
 
-    // Build street grid — horizontal and vertical lanes
-    interface Bus {
+    // Bus dimensions
+    const BUS_LEN = 32
+    const BUS_WID = 10
+
+    interface BusObj {
       x: number; y: number
       vx: number; vy: number
-      color: string; opacity: number
-      w: number; h: number
+      lane: number   // pixel center of lane
+      color: string
+      opacity: number
+      glowColor: string
     }
 
-    const COLORS = [
-      'rgba(184,200,224,',   // platinum
-      'rgba(34,211,160,',    // teal
-      'rgba(148,163,184,',   // slate
-      'rgba(100,116,139,',   // muted
+    const BUS_COLORS = [
+      { body: 'rgba(194,200,212,', glow: 'rgba(184,200,224,' },
+      { body: 'rgba(34,211,160,',  glow: 'rgba(34,211,160,' },
+      { body: 'rgba(148,163,184,', glow: 'rgba(148,163,184,' },
+      { body: 'rgba(100,116,139,', glow: 'rgba(100,116,139,' },
     ]
 
-    const buses: Bus[] = []
+    // Compute street center positions
+    const hStreets: number[] = []
+    const vStreets: number[] = []
 
-    const spawnBus = () => {
-      const isHoriz = Math.random() > 0.5
-      const color   = COLORS[Math.floor(Math.random() * COLORS.length)]
-      const speed   = SPEED_MIN + Math.random() * (SPEED_MAX - SPEED_MIN)
-      const op      = 0.25 + Math.random() * 0.45
+    const buildStreets = () => {
+      hStreets.length = 0
+      vStreets.length = 0
+      for (let y = STREET_GAP; y < canvas.height; y += STREET_GAP) hStreets.push(y)
+      for (let x = STREET_GAP; x < canvas.width;  x += STREET_GAP) vStreets.push(x)
+    }
+    buildStreets()
 
-      if (isHoriz) {
-        const row = Math.floor(Math.random() * Math.floor(canvas.height / CELL)) * CELL + CELL / 2
-        const dir = Math.random() > 0.5 ? 1 : -1
-        buses.push({
-          x: dir > 0 ? -BUS_W : canvas.width + BUS_W,
-          y: row,
-          vx: speed * dir, vy: 0,
-          color, opacity: op,
-          w: BUS_W, h: BUS_H,
-        })
-      } else {
-        const col = Math.floor(Math.random() * Math.floor(canvas.width / CELL)) * CELL + CELL / 2
-        const dir = Math.random() > 0.5 ? 1 : -1
-        buses.push({
-          x: col,
-          y: dir > 0 ? -BUS_H : canvas.height + BUS_H,
-          vx: 0, vy: speed * dir,
-          color, opacity: op,
-          w: BUS_H, h: BUS_W,
-        })
-      }
+    const buses: BusObj[] = []
+
+    const spawnHBus = (streetY: number, dir: 1 | -1) => {
+      const c = BUS_COLORS[Math.floor(Math.random() * BUS_COLORS.length)]
+      const lane = streetY + (dir > 0 ? -LANE_W / 2 - 1 : LANE_W / 2 + 1)
+      buses.push({
+        x: dir > 0 ? -BUS_LEN : canvas.width + BUS_LEN,
+        y: lane,
+        vx: dir * (0.5 + Math.random() * 0.8),
+        vy: 0,
+        lane,
+        color: c.body,
+        glowColor: c.glow,
+        opacity: 0.55 + Math.random() * 0.35,
+      })
     }
 
-    // Pre-spawn buses
-    for (let i = 0; i < 28; i++) spawnBus()
+    const spawnVBus = (streetX: number, dir: 1 | -1) => {
+      const c = BUS_COLORS[Math.floor(Math.random() * BUS_COLORS.length)]
+      const lane = streetX + (dir > 0 ? -LANE_W / 2 - 1 : LANE_W / 2 + 1)
+      buses.push({
+        x: lane,
+        y: dir > 0 ? -BUS_LEN : canvas.height + BUS_LEN,
+        vx: 0,
+        vy: dir * (0.5 + Math.random() * 0.8),
+        lane,
+        color: c.body,
+        glowColor: c.glow,
+        opacity: 0.55 + Math.random() * 0.35,
+      })
+    }
 
-    let spawnTimer = 0
+    // Seed initial buses
+    hStreets.forEach(sy => {
+      if (Math.random() > 0.3) spawnHBus(sy,  1)
+      if (Math.random() > 0.3) spawnHBus(sy, -1)
+    })
+    vStreets.forEach(sx => {
+      if (Math.random() > 0.3) spawnVBus(sx,  1)
+      if (Math.random() > 0.3) spawnVBus(sx, -1)
+    })
+
+    let frame = 0
     let animId: number
+
+    // Draw a bus rectangle with proper detail
+    const drawBus = (b: BusObj) => {
+      ctx.save()
+      ctx.translate(b.x, b.y)
+
+      const isH = b.vx !== 0
+      const dir = isH ? Math.sign(b.vx) : Math.sign(b.vy)
+      if (isH && dir < 0) ctx.rotate(Math.PI)
+      if (!isH && dir > 0) ctx.rotate(Math.PI / 2)
+      if (!isH && dir < 0) ctx.rotate(-Math.PI / 2)
+
+      const L = BUS_LEN / 2
+      const W = BUS_WID / 2
+      const r = 2.5
+
+      // Glow
+      ctx.shadowColor = b.glowColor + '0.8)'
+      ctx.shadowBlur  = 14
+
+      // Body
+      ctx.beginPath()
+      ctx.moveTo(-L + r, -W)
+      ctx.lineTo( L - r, -W)
+      ctx.arcTo(  L, -W,  L,  -W + r, r)
+      ctx.lineTo( L,  W - r)
+      ctx.arcTo(  L,  W,  L - r, W, r)
+      ctx.lineTo(-L + r,  W)
+      ctx.arcTo( -L,  W, -L,  W - r, r)
+      ctx.lineTo(-L, -W + r)
+      ctx.arcTo( -L, -W, -L + r, -W, r)
+      ctx.closePath()
+      ctx.fillStyle   = b.color + b.opacity + ')'
+      ctx.strokeStyle = b.color + Math.min(b.opacity + 0.25, 1) + ')'
+      ctx.lineWidth   = 0.8
+      ctx.fill()
+      ctx.stroke()
+
+      // Windows row — top strip
+      ctx.shadowBlur = 0
+      ctx.fillStyle  = b.color + Math.min(b.opacity + 0.3, 0.95) + ')'
+      // 3 windows
+      const winW = 5, winH = 3, winY = -W + 1.5
+      for (let i = 0; i < 3; i++) {
+        const wx = -L + 5 + i * (winW + 3)
+        ctx.beginPath()
+        ctx.roundRect(wx, winY, winW, winH, 0.8)
+        ctx.fill()
+      }
+
+      // Rear lights (left side = back)
+      ctx.fillStyle = 'rgba(255,80,80,0.85)'
+      ctx.shadowColor = 'rgba(255,80,80,0.8)'
+      ctx.shadowBlur  = 6
+      ctx.beginPath()
+      ctx.roundRect(-L + 0.5, -W + 1, 2.5, W * 2 - 2, 0.5)
+      ctx.fill()
+
+      // Headlights (right side = front)
+      ctx.fillStyle   = 'rgba(255,255,200,0.95)'
+      ctx.shadowColor = 'rgba(255,255,200,0.9)'
+      ctx.shadowBlur  = 10
+      ctx.beginPath()
+      ctx.arc(L - 2, -W + 2,   1.4, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.beginPath()
+      ctx.arc(L - 2,  W - 2,   1.4, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Headlight beam
+      const beam = ctx.createLinearGradient(L, 0, L + 30, 0)
+      beam.addColorStop(0,   'rgba(255,255,200,0.18)')
+      beam.addColorStop(1,   'rgba(255,255,200,0)')
+      ctx.fillStyle   = beam
+      ctx.shadowBlur  = 0
+      ctx.beginPath()
+      ctx.moveTo(L, -W)
+      ctx.lineTo(L + 30, -W - 10)
+      ctx.lineTo(L + 30,  W + 10)
+      ctx.lineTo(L,  W)
+      ctx.closePath()
+      ctx.fill()
+
+      ctx.restore()
+    }
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-      // ── Grid lines ──
-      ctx.lineWidth = 0.5
+      // ── Draw streets ──
+      hStreets.forEach(sy => {
+        // Road fill
+        ctx.fillStyle = 'rgba(20,28,40,0.85)'
+        ctx.fillRect(0, sy - ROAD_W/2, canvas.width, ROAD_W)
 
-      // Horizontal lines
-      for (let y = 0; y < canvas.height; y += CELL) {
-        const grad = ctx.createLinearGradient(0, 0, canvas.width, 0)
-        grad.addColorStop(0,   'rgba(184,200,224,0)')
-        grad.addColorStop(0.3, 'rgba(184,200,224,0.07)')
-        grad.addColorStop(0.7, 'rgba(184,200,224,0.07)')
-        grad.addColorStop(1,   'rgba(184,200,224,0)')
-        ctx.strokeStyle = grad
-        ctx.beginPath()
-        ctx.moveTo(0, y)
-        ctx.lineTo(canvas.width, y)
-        ctx.stroke()
-      }
+        // Road edges
+        ctx.strokeStyle = 'rgba(184,200,224,0.18)'
+        ctx.lineWidth = 0.8
+        ctx.beginPath(); ctx.moveTo(0, sy - ROAD_W/2); ctx.lineTo(canvas.width, sy - ROAD_W/2); ctx.stroke()
+        ctx.beginPath(); ctx.moveTo(0, sy + ROAD_W/2); ctx.lineTo(canvas.width, sy + ROAD_W/2); ctx.stroke()
 
-      // Vertical lines
-      for (let x = 0; x < canvas.width; x += CELL) {
-        const grad = ctx.createLinearGradient(0, 0, 0, canvas.height)
-        grad.addColorStop(0,   'rgba(184,200,224,0)')
-        grad.addColorStop(0.3, 'rgba(184,200,224,0.07)')
-        grad.addColorStop(0.7, 'rgba(184,200,224,0.07)')
-        grad.addColorStop(1,   'rgba(184,200,224,0)')
-        ctx.strokeStyle = grad
-        ctx.beginPath()
-        ctx.moveTo(x, 0)
-        ctx.lineTo(x, canvas.height)
-        ctx.stroke()
-      }
+        // Center dashed divider
+        ctx.strokeStyle = 'rgba(240,180,41,0.35)'
+        ctx.lineWidth   = 1
+        ctx.setLineDash([8, 10])
+        ctx.beginPath(); ctx.moveTo(0, sy); ctx.lineTo(canvas.width, sy); ctx.stroke()
+        ctx.setLineDash([])
 
-      // ── Intersection dots ──
-      for (let x = 0; x < canvas.width; x += CELL) {
-        for (let y = 0; y < canvas.height; y += CELL) {
-          ctx.beginPath()
-          ctx.arc(x, y, 1, 0, Math.PI * 2)
+        // Lane markings (dashed white)
+        ctx.strokeStyle = 'rgba(184,200,224,0.08)'
+        ctx.lineWidth   = 0.5
+        ctx.setLineDash([12, 16])
+        ctx.beginPath(); ctx.moveTo(0, sy - LANE_W/2); ctx.lineTo(canvas.width, sy - LANE_W/2); ctx.stroke()
+        ctx.beginPath(); ctx.moveTo(0, sy + LANE_W/2); ctx.lineTo(canvas.width, sy + LANE_W/2); ctx.stroke()
+        ctx.setLineDash([])
+      })
+
+      vStreets.forEach(sx => {
+        ctx.fillStyle = 'rgba(20,28,40,0.85)'
+        ctx.fillRect(sx - ROAD_W/2, 0, ROAD_W, canvas.height)
+
+        ctx.strokeStyle = 'rgba(184,200,224,0.18)'
+        ctx.lineWidth = 0.8
+        ctx.beginPath(); ctx.moveTo(sx - ROAD_W/2, 0); ctx.lineTo(sx - ROAD_W/2, canvas.height); ctx.stroke()
+        ctx.beginPath(); ctx.moveTo(sx + ROAD_W/2, 0); ctx.lineTo(sx + ROAD_W/2, canvas.height); ctx.stroke()
+
+        ctx.strokeStyle = 'rgba(240,180,41,0.35)'
+        ctx.lineWidth   = 1
+        ctx.setLineDash([8, 10])
+        ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx, canvas.height); ctx.stroke()
+        ctx.setLineDash([])
+
+        ctx.strokeStyle = 'rgba(184,200,224,0.08)'
+        ctx.lineWidth   = 0.5
+        ctx.setLineDash([12, 16])
+        ctx.beginPath(); ctx.moveTo(sx - LANE_W/2, 0); ctx.lineTo(sx - LANE_W/2, canvas.height); ctx.stroke()
+        ctx.beginPath(); ctx.moveTo(sx + LANE_W/2, 0); ctx.lineTo(sx + LANE_W/2, canvas.height); ctx.stroke()
+        ctx.setLineDash([])
+      })
+
+      // ── Intersections ──
+      hStreets.forEach(sy => {
+        vStreets.forEach(sx => {
+          ctx.fillStyle = 'rgba(30,38,56,0.9)'
+          ctx.fillRect(sx - ROAD_W/2, sy - ROAD_W/2, ROAD_W, ROAD_W)
+          // Corner dots
           ctx.fillStyle = 'rgba(184,200,224,0.12)'
+          ;[[sx-ROAD_W/2, sy-ROAD_W/2],[sx+ROAD_W/2, sy-ROAD_W/2],[sx-ROAD_W/2, sy+ROAD_W/2],[sx+ROAD_W/2, sy+ROAD_W/2]].forEach(([cx,cy]) => {
+            ctx.beginPath(); ctx.arc(cx, cy, 1.5, 0, Math.PI*2); ctx.fill()
+          })
+        })
+      })
+
+      // ── Sidewalk dots (city feel) ──
+      for (let x = 0; x < canvas.width; x += STREET_GAP) {
+        for (let y = 0; y < canvas.height; y += STREET_GAP) {
+          ctx.fillStyle = 'rgba(184,200,224,0.04)'
+          ctx.beginPath()
+          ctx.arc(x + STREET_GAP/2, y + STREET_GAP/2, 1, 0, Math.PI*2)
           ctx.fill()
         }
       }
 
-      // ── Buses ──
-      buses.forEach((b, i) => {
+      // ── Move + draw buses ──
+      for (let i = buses.length - 1; i >= 0; i--) {
+        const b = buses[i]
         b.x += b.vx
         b.y += b.vy
 
         // Remove off-screen
-        if (
-          b.x < -60 || b.x > canvas.width  + 60 ||
-          b.y < -60 || b.y > canvas.height + 60
-        ) {
+        if (b.x < -80 || b.x > canvas.width+80 || b.y < -80 || b.y > canvas.height+80) {
           buses.splice(i, 1)
-          return
+          continue
         }
+        drawBus(b)
+      }
 
-        ctx.save()
-        ctx.translate(b.x, b.y)
-
-        // Glow
-        ctx.shadowColor  = b.color + '0.6)'
-        ctx.shadowBlur   = 8
-
-        // Body
-        ctx.fillStyle    = b.color + b.opacity + ')'
-        ctx.strokeStyle  = b.color + Math.min(b.opacity + 0.2, 0.9) + ')'
-        ctx.lineWidth    = 0.5
-
-        const r = 2
-        const hw = b.w / 2, hh = b.h / 2
-        ctx.beginPath()
-        ctx.moveTo(-hw + r, -hh)
-        ctx.lineTo( hw - r, -hh)
-        ctx.quadraticCurveTo( hw, -hh,  hw, -hh + r)
-        ctx.lineTo( hw,  hh - r)
-        ctx.quadraticCurveTo( hw,  hh,  hw - r,  hh)
-        ctx.lineTo(-hw + r,  hh)
-        ctx.quadraticCurveTo(-hw,  hh, -hw,  hh - r)
-        ctx.lineTo(-hw, -hh + r)
-        ctx.quadraticCurveTo(-hw, -hh, -hw + r, -hh)
-        ctx.closePath()
-        ctx.fill()
-        ctx.stroke()
-
-        // Window stripe
-        ctx.fillStyle = b.color + Math.min(b.opacity + 0.3, 0.95) + ')'
-        if (b.vx !== 0) {
-          // horizontal bus — windows on top
-          ctx.fillRect(-hw + 3, -hh + 1.5, b.w - 6, 2)
-        } else {
-          // vertical bus — windows on side
-          ctx.fillRect(-hw + 1.5, -hh + 3, 2, b.h - 6)
+      // ── Respawn buses ──
+      frame++
+      if (frame % 80 === 0 && buses.length < 60) {
+        const isH = Math.random() > 0.5
+        if (isH && hStreets.length) {
+          const sy  = hStreets[Math.floor(Math.random() * hStreets.length)]
+          spawnHBus(sy, Math.random() > 0.5 ? 1 : -1)
+        } else if (vStreets.length) {
+          const sx = vStreets[Math.floor(Math.random() * vStreets.length)]
+          spawnVBus(sx, Math.random() > 0.5 ? 1 : -1)
         }
-
-        // Headlight dot
-        ctx.shadowBlur  = 12
-        ctx.fillStyle   = 'rgba(255,255,255,0.7)'
-        ctx.beginPath()
-        if (b.vx > 0) ctx.arc( hw - 1.5, 0, 1.2, 0, Math.PI * 2)
-        if (b.vx < 0) ctx.arc(-hw + 1.5, 0, 1.2, 0, Math.PI * 2)
-        if (b.vy > 0) ctx.arc(0,  hh - 1.5, 1.2, 0, Math.PI * 2)
-        if (b.vy < 0) ctx.arc(0, -hh + 1.5, 1.2, 0, Math.PI * 2)
-        ctx.fill()
-
-        ctx.restore()
-      })
-
-      // ── Spawn new buses periodically ──
-      spawnTimer++
-      if (spawnTimer > 40) {
-        spawnBus()
-        spawnTimer = 0
       }
 
       animId = requestAnimationFrame(draw)
@@ -211,15 +308,46 @@ function BusGridBackground() {
     }
   }, [])
 
+  return <canvas ref={canvasRef} style={{ position:'fixed', inset:0, width:'100%', height:'100%', zIndex:0 }} />
+}
+
+// ─── Input component ──────────────────────────────────────────────────────────
+function GlassInput({ type='text', placeholder, value, onChange, icon: Icon, rightEl }: {
+  type?: string; placeholder: string; value: string
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  icon: React.ElementType; rightEl?: React.ReactNode
+}) {
   return (
-    <canvas
-      ref={canvasRef}
-      style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', zIndex: 0 }}
-    />
+    <div style={{ position:'relative', width:'100%' }}>
+      <input
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        required
+        style={{
+          width:'100%', padding:'13px 44px 13px 16px',
+          background:'rgba(255,255,255,0.05)',
+          border:'1px solid rgba(255,255,255,0.1)',
+          borderRadius:'10px',
+          color:'#E8ECF2', fontSize:'14px',
+          fontFamily:'DM Sans, sans-serif',
+          outline:'none',
+          backdropFilter:'blur(8px)',
+          transition:'border-color 200ms, background 200ms',
+          boxSizing:'border-box',
+        }}
+        onFocus={e => { e.target.style.borderColor='rgba(255,255,255,0.25)'; e.target.style.background='rgba(255,255,255,0.08)' }}
+        onBlur={e  => { e.target.style.borderColor='rgba(255,255,255,0.1)';  e.target.style.background='rgba(255,255,255,0.05)' }}
+      />
+      <div style={{ position:'absolute', right:'14px', top:'50%', transform:'translateY(-50%)', color:'rgba(255,255,255,0.3)', display:'flex', alignItems:'center' }}>
+        {rightEl || <Icon size={16} />}
+      </div>
+    </div>
   )
 }
 
-// ─── Main login page ──────────────────────────────────────────────────────────
+// ─── Main page ────────────────────────────────────────────────────────────────
 export default function LoginPage() {
   const supabase = createClient()
   const [role, setRole]         = useState<Role>(null)
@@ -227,141 +355,107 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading]   = useState(false)
   const [form, setForm] = useState({
-    email:'', password:'', name:'',
-    age:'', weeklyTrips:'', driverNumber:'', busUnit:'',
+    email:'', password:'', name:'', age:'',
+    weeklyTrips:'', driverNumber:'', busUnit:'',
   })
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }))
 
   const loginWithGoogle = async () => {
     await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${location.origin}/auth/callback` },
+      provider:'google', options:{ redirectTo:`${location.origin}/auth/callback` },
     })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-
+    e.preventDefault(); setLoading(true)
     if (mode === 'login') {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: form.email, password: form.password,
-      })
+      const { error } = await supabase.auth.signInWithPassword({ email:form.email, password:form.password })
       if (error) { toast.error('Email o contraseña incorrectos'); setLoading(false); return }
-      const { data: p } = await supabase.from('profiles').select('role').eq('email', form.email).single()
-      window.location.href = p?.role === 'driver' ? '/driver' : p?.role === 'admin' ? '/admin' : '/'
+      const { data:p } = await supabase.from('profiles').select('role').eq('email', form.email).single()
+      window.location.href = p?.role==='driver' ? '/driver' : p?.role==='admin' ? '/admin' : '/'
     } else {
       const { data, error } = await supabase.auth.signUp({
-        email: form.email, password: form.password,
-        options: { data: { name: form.name, role } },
+        email:form.email, password:form.password,
+        options:{ data:{ name:form.name, role } },
       })
       if (error) { toast.error(error.message); setLoading(false); return }
-      if (data.user && role === 'user') {
-        await supabase.from('user_profiles').insert({
-          id: data.user.id,
-          age: parseInt(form.age) || 0,
-          weekly_trips: parseInt(form.weeklyTrips) || 0,
-        })
-      }
-      if (data.user && role === 'driver') {
-        await supabase.from('driver_profiles').insert({
-          id: data.user.id,
-          driver_number: form.driverNumber,
-          bus_unit: form.busUnit,
-        })
-      }
-      toast.success('¡Cuenta creada! Revisá tu email para confirmar.')
-      setMode('login')
+      if (data.user && role==='user')   await supabase.from('user_profiles').insert({ id:data.user.id, age:parseInt(form.age)||0, weekly_trips:parseInt(form.weeklyTrips)||0 })
+      if (data.user && role==='driver') await supabase.from('driver_profiles').insert({ id:data.user.id, driver_number:form.driverNumber, bus_unit:form.busUnit })
+      toast.success('¡Cuenta creada! Revisá tu email.'); setMode('login')
     }
     setLoading(false)
   }
 
-  const accentColor = role === 'user' ? '#22D3A0' : role === 'driver' ? '#C2C8D4' : '#B8C8E0'
-
   return (
-    <div style={{
-      minHeight: '100vh', width: '100vw',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '24px 16px',
-      background: '#060810',
-      fontFamily: 'DM Sans, sans-serif',
-      position: 'relative', overflow: 'hidden',
-    }}>
+    <div style={{ minHeight:'100vh', width:'100vw', display:'flex', alignItems:'center', justifyContent:'center', padding:'24px 16px', background:'#07090F', fontFamily:'DM Sans, sans-serif', position:'relative', overflow:'hidden' }}>
 
-      {/* Animated bus grid */}
-      <BusGridBackground />
+      <StreetBackground />
 
-      {/* Deep vignette so card pops */}
-      <div style={{ position: 'fixed', inset: 0, background: 'radial-gradient(ellipse at center, transparent 20%, rgba(6,8,16,0.75) 100%)', zIndex: 1, pointerEvents: 'none' }} />
+      {/* Vignette */}
+      <div style={{ position:'fixed', inset:0, background:'radial-gradient(ellipse at center, rgba(7,9,15,0.1) 0%, rgba(7,9,15,0.65) 100%)', zIndex:1, pointerEvents:'none' }} />
 
-      {/* Card */}
       <motion.div
-        initial={{ opacity: 0, y: 28, scale: 0.97 }}
-        animate={{ opacity: 1, y: 0,  scale: 1 }}
-        transition={{ duration: 0.5, ease: [0.22,1,0.36,1] }}
-        style={{
-          width: '100%', maxWidth: '380px',
-          position: 'relative', zIndex: 2,
-        }}
+        initial={{ opacity:0, y:24, scale:0.97 }}
+        animate={{ opacity:1, y:0, scale:1 }}
+        transition={{ duration:0.5, ease:[0.22,1,0.36,1] }}
+        style={{ width:'100%', maxWidth:'360px', position:'relative', zIndex:2 }}
       >
-        {/* Logo above card */}
-        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+        {/* Logo */}
+        <div style={{ textAlign:'center', marginBottom:'22px' }}>
           <motion.div
-            style={{ width: '52px', height: '52px', borderRadius: '15px', background: 'linear-gradient(145deg, rgba(34,211,160,0.18), rgba(184,200,224,0.08))', border: '1px solid rgba(34,211,160,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', boxShadow: '0 0 32px rgba(34,211,160,0.15)' }}
-            animate={{ boxShadow: ['0 0 16px rgba(34,211,160,0.1)', '0 0 40px rgba(34,211,160,0.25)', '0 0 16px rgba(34,211,160,0.1)'] }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ width:'54px', height:'54px', borderRadius:'16px', background:'linear-gradient(145deg,rgba(34,211,160,0.2),rgba(34,211,160,0.05))', border:'1px solid rgba(34,211,160,0.35)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 12px', boxShadow:'0 0 32px rgba(34,211,160,0.2)' }}
+            animate={{ boxShadow:['0 0 16px rgba(34,211,160,0.15)','0 0 40px rgba(34,211,160,0.3)','0 0 16px rgba(34,211,160,0.15)'] }}
+            transition={{ duration:3, repeat:Infinity, ease:'easeInOut' }}
           >
-            <Bus size={24} style={{ color: '#22D3A0' }} />
+            <Bus size={26} style={{ color:'#22D3A0' }} />
           </motion.div>
-          <h1 style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: '24px', color: '#E8ECF2', letterSpacing: '-0.02em', margin: 0, textShadow: '0 2px 20px rgba(0,0,0,0.8)' }}>
+          <h1 style={{ fontFamily:'Syne,sans-serif', fontWeight:800, fontSize:'28px', color:'#ffffff', letterSpacing:'-0.02em', margin:0, textShadow:'0 2px 24px rgba(0,0,0,0.9)' }}>
             Bien Parada
           </h1>
-          <p style={{ color: '#4A5568', fontSize: '12px', marginTop: '3px' }}>
+          <p style={{ color:'rgba(255,255,255,0.3)', fontSize:'12px', marginTop:'4px' }}>
             Seguí tu colectivo en tiempo real
           </p>
         </div>
 
-        {/* Glass card */}
+        {/* Glass card — matches reference style */}
         <div style={{
-          background: 'rgba(13,17,23,0.72)',
-          backdropFilter: 'blur(40px)',
-          WebkitBackdropFilter: 'blur(40px)',
-          border: '1px solid rgba(184,200,224,0.13)',
-          borderRadius: '20px',
-          overflow: 'hidden',
-          boxShadow: '0 32px 80px rgba(0,0,0,0.7), 0 1px 0 rgba(184,200,224,0.1) inset, 0 -1px 0 rgba(0,0,0,0.5) inset',
-          position: 'relative',
+          background:'rgba(15,18,28,0.75)',
+          backdropFilter:'blur(48px)',
+          WebkitBackdropFilter:'blur(48px)',
+          border:'1px solid rgba(255,255,255,0.1)',
+          borderRadius:'20px',
+          boxShadow:'0 32px 80px rgba(0,0,0,0.75), 0 1px 0 rgba(255,255,255,0.08) inset',
+          overflow:'hidden', position:'relative',
         }}>
-          {/* Top shimmer */}
-          <div style={{ position: 'absolute', top: 0, left: '20%', right: '20%', height: '1px', background: `linear-gradient(90deg, transparent, ${accentColor}50, transparent)`, transition: 'background 400ms' }} />
+          {/* Subtle top line */}
+          <div style={{ position:'absolute', top:0, left:'25%', right:'25%', height:'1px', background:'linear-gradient(90deg,transparent,rgba(255,255,255,0.2),transparent)' }} />
 
           <AnimatePresence mode="wait">
 
-            {/* STEP 1 — Role picker */}
+            {/* ── Role picker ── */}
             {!role && (
-              <motion.div key="role" initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-10 }} transition={{ duration:0.2 }} style={{ padding:'28px 24px 30px' }}>
-                <h2 style={{ fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:'19px', color:'#E8ECF2', textAlign:'center', margin:'0 0 4px' }}>
+              <motion.div key="role" initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-8 }} transition={{ duration:0.18 }} style={{ padding:'30px 26px 28px' }}>
+                <h2 style={{ fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:'22px', color:'#ffffff', textAlign:'center', margin:'0 0 6px', letterSpacing:'-0.01em' }}>
                   Bienvenido
                 </h2>
-                <p style={{ color:'#4A5568', fontSize:'12px', textAlign:'center', marginBottom:'24px' }}>
+                <p style={{ color:'rgba(255,255,255,0.35)', fontSize:'13px', textAlign:'center', marginBottom:'26px' }}>
                   ¿Cómo querés ingresar?
                 </p>
 
-                <div style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
+                <div style={{ display:'flex', flexDirection:'column', gap:'10px', marginBottom:'24px' }}>
                   {/* Usuario */}
                   <motion.button
                     onClick={() => setRole('user')}
-                    whileHover={{ scale:1.02, borderColor:'rgba(34,211,160,0.4)' }}
-                    whileTap={{ scale:0.98 }}
-                    style={{ display:'flex', alignItems:'center', gap:'14px', padding:'16px 18px', background:'linear-gradient(135deg, rgba(34,211,160,0.07), rgba(34,211,160,0.02))', border:'1px solid rgba(34,211,160,0.18)', borderRadius:'14px', cursor:'pointer', textAlign:'left' }}
+                    whileHover={{ scale:1.015 }} whileTap={{ scale:0.985 }}
+                    style={{ display:'flex', alignItems:'center', gap:'14px', padding:'15px 18px', background:'rgba(34,211,160,0.08)', border:'1px solid rgba(34,211,160,0.22)', borderRadius:'12px', cursor:'pointer', textAlign:'left', transition:'all 220ms' }}
                   >
-                    <div style={{ width:'44px', height:'44px', borderRadius:'12px', background:'rgba(34,211,160,0.1)', border:'1px solid rgba(34,211,160,0.2)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                      <User size={20} style={{ color:'#22D3A0' }} />
+                    <div style={{ width:'42px', height:'42px', borderRadius:'11px', background:'rgba(34,211,160,0.12)', border:'1px solid rgba(34,211,160,0.25)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                      <User size={19} style={{ color:'#22D3A0' }} />
                     </div>
                     <div style={{ flex:1 }}>
-                      <div style={{ fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:'15px', color:'#E8ECF2' }}>Soy Usuario</div>
-                      <div style={{ fontSize:'11px', color:'#4A5568', marginTop:'1px' }}>Ver colectivos en tiempo real</div>
+                      <div style={{ fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:'15px', color:'#ffffff' }}>Soy Usuario</div>
+                      <div style={{ fontSize:'11px', color:'rgba(255,255,255,0.35)', marginTop:'1px' }}>Ver colectivos en tiempo real</div>
                     </div>
                     <ArrowRight size={16} style={{ color:'#22D3A0', flexShrink:0 }} />
                   </motion.button>
@@ -369,130 +463,122 @@ export default function LoginPage() {
                   {/* Chofer */}
                   <motion.button
                     onClick={() => setRole('driver')}
-                    whileHover={{ scale:1.02, borderColor:'rgba(184,200,224,0.3)' }}
-                    whileTap={{ scale:0.98 }}
-                    style={{ display:'flex', alignItems:'center', gap:'14px', padding:'16px 18px', background:'linear-gradient(135deg, rgba(184,200,224,0.06), rgba(184,200,224,0.02))', border:'1px solid rgba(184,200,224,0.13)', borderRadius:'14px', cursor:'pointer', textAlign:'left' }}
+                    whileHover={{ scale:1.015 }} whileTap={{ scale:0.985 }}
+                    style={{ display:'flex', alignItems:'center', gap:'14px', padding:'15px 18px', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'12px', cursor:'pointer', textAlign:'left', transition:'all 220ms' }}
                   >
-                    <div style={{ width:'44px', height:'44px', borderRadius:'12px', background:'rgba(184,200,224,0.07)', border:'1px solid rgba(184,200,224,0.15)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                      <Bus size={20} style={{ color:'#C2C8D4' }} />
+                    <div style={{ width:'42px', height:'42px', borderRadius:'11px', background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.12)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                      <Bus size={19} style={{ color:'rgba(194,200,212,0.9)' }} />
                     </div>
                     <div style={{ flex:1 }}>
-                      <div style={{ fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:'15px', color:'#E8ECF2' }}>Soy Chofer</div>
-                      <div style={{ fontSize:'11px', color:'#4A5568', marginTop:'1px' }}>Transmitir mi ubicación GPS</div>
+                      <div style={{ fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:'15px', color:'#ffffff' }}>Soy Chofer</div>
+                      <div style={{ fontSize:'11px', color:'rgba(255,255,255,0.35)', marginTop:'1px' }}>Transmitir mi ubicación GPS</div>
                     </div>
-                    <ArrowRight size={16} style={{ color:'#C2C8D4', flexShrink:0 }} />
+                    <ArrowRight size={16} style={{ color:'rgba(194,200,212,0.7)', flexShrink:0 }} />
                   </motion.button>
                 </div>
 
-                <p style={{ textAlign:'center', fontSize:'10px', color:'#1E2638', marginTop:'20px', fontFamily:'DM Mono', letterSpacing:'0.04em' }}>
+                <div style={{ height:'1px', background:'rgba(255,255,255,0.06)', margin:'0 0 16px' }} />
+                <p style={{ textAlign:'center', fontSize:'10px', color:'rgba(255,255,255,0.15)', fontFamily:'DM Mono', letterSpacing:'0.05em' }}>
                   ADMIN: admin@admin.com / Admin123!
                 </p>
               </motion.div>
             )}
 
-            {/* STEP 2 — Auth form */}
+            {/* ── Auth form — matches reference design ── */}
             {role && (
-              <motion.div key="form" initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-10 }} transition={{ duration:0.2 }} style={{ padding:'24px 24px 28px' }}>
+              <motion.div key="form" initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-8 }} transition={{ duration:0.18 }} style={{ padding:'28px 26px 30px' }}>
 
-                {/* Back + badge */}
-                <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'20px' }}>
-                  <button
-                    onClick={() => { setRole(null); setMode('login') }}
-                    style={{ width:'30px', height:'30px', borderRadius:'50%', background:'rgba(184,200,224,0.05)', border:'1px solid rgba(184,200,224,0.1)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0 }}
-                  >
-                    <ChevronLeft size={15} style={{ color:'#8A95A8' }} />
+                {/* Header */}
+                <div style={{ display:'flex', alignItems:'center', marginBottom:'6px' }}>
+                  <button onClick={() => { setRole(null); setMode('login') }} style={{ width:'28px', height:'28px', borderRadius:'50%', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.1)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', flexShrink:0, marginRight:'10px' }}>
+                    <ChevronLeft size={14} style={{ color:'rgba(255,255,255,0.5)' }} />
                   </button>
-                  <div style={{ display:'flex', alignItems:'center', gap:'6px', padding:'5px 11px', borderRadius:'999px', background: role==='user' ? 'rgba(34,211,160,0.08)' : 'rgba(184,200,224,0.06)', border:`1px solid ${role==='user' ? 'rgba(34,211,160,0.2)' : 'rgba(184,200,224,0.14)'}` }}>
-                    {role==='user' ? <User size={11} style={{ color:'#22D3A0' }}/> : <Bus size={11} style={{ color:'#C2C8D4' }}/>}
-                    <span style={{ fontSize:'10px', fontWeight:700, letterSpacing:'0.08em', fontFamily:'DM Mono', color: role==='user' ? '#22D3A0' : '#C2C8D4' }}>
+                  <h2 style={{ fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:'20px', color:'#ffffff', margin:0, flex:1, textAlign:'center', paddingRight:'38px' }}>
+                    {mode==='login' ? 'Ingresar' : 'Registro'}
+                  </h2>
+                </div>
+
+                {/* Role badge */}
+                <div style={{ display:'flex', justifyContent:'center', marginBottom:'22px' }}>
+                  <div style={{ display:'inline-flex', alignItems:'center', gap:'5px', padding:'4px 10px', borderRadius:'999px', background: role==='user' ? 'rgba(34,211,160,0.1)' : 'rgba(255,255,255,0.06)', border:`1px solid ${role==='user' ? 'rgba(34,211,160,0.25)' : 'rgba(255,255,255,0.1)'}` }}>
+                    {role==='user' ? <User size={10} style={{ color:'#22D3A0' }}/> : <Bus size={10} style={{ color:'rgba(194,200,212,0.8)' }}/>}
+                    <span style={{ fontSize:'10px', fontWeight:700, fontFamily:'DM Mono', letterSpacing:'0.08em', color: role==='user' ? '#22D3A0' : 'rgba(194,200,212,0.8)' }}>
                       {role==='user' ? 'USUARIO' : 'CHOFER'}
                     </span>
                   </div>
                 </div>
 
-                {/* Mode toggle */}
-                <div style={{ display:'flex', gap:'2px', padding:'3px', background:'rgba(6,8,16,0.7)', borderRadius:'10px', marginBottom:'18px' }}>
-                  {(['login','register'] as Mode[]).map(m => (
-                    <button key={m} onClick={() => setMode(m)} style={{ flex:1, padding:'8px', borderRadius:'8px', fontSize:'11px', fontFamily:'Syne,sans-serif', fontWeight:700, letterSpacing:'0.05em', textTransform:'uppercase', border:'none', cursor:'pointer', transition:'all 200ms', background: mode===m ? 'rgba(184,200,224,0.09)' : 'transparent', color: mode===m ? '#C2C8D4' : '#2D3444', boxShadow: mode===m ? 'inset 0 1px 0 rgba(184,200,224,0.1), 0 0 0 1px rgba(184,200,224,0.07)' : 'none' }}>
-                      {m==='login' ? 'Ingresar' : 'Registrarse'}
-                    </button>
-                  ))}
-                </div>
-
                 {/* Fields */}
-                <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', gap:'9px' }}>
+                <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', gap:'10px' }}>
 
                   {mode==='register' && (
-                    <div style={{ position:'relative' }}>
-                      <User size={13} style={{ position:'absolute', left:'13px', top:'50%', transform:'translateY(-50%)', color:'#2D3444' }} />
-                      <input className="input-dark" style={{ paddingLeft:'38px' }} type="text" placeholder={role==='driver' ? 'Nombre completo' : 'Tu nombre'} value={form.name} onChange={set('name')} required />
-                    </div>
+                    <GlassInput type="text" placeholder={role==='driver' ? 'Nombre completo' : 'Tu nombre'} value={form.name} onChange={set('name')} icon={User} />
                   )}
 
-                  <div style={{ position:'relative' }}>
-                    <Mail size={13} style={{ position:'absolute', left:'13px', top:'50%', transform:'translateY(-50%)', color:'#2D3444' }} />
-                    <input className="input-dark" style={{ paddingLeft:'38px' }} type="email" placeholder="Email" value={form.email} onChange={set('email')} required />
-                  </div>
+                  <GlassInput type="email" placeholder="Email" value={form.email} onChange={set('email')} icon={Mail} />
 
-                  <div style={{ position:'relative' }}>
-                    <Lock size={13} style={{ position:'absolute', left:'13px', top:'50%', transform:'translateY(-50%)', color:'#2D3444' }} />
-                    <input className="input-dark" style={{ paddingLeft:'38px', paddingRight:'40px' }} type={showPass?'text':'password'} placeholder="Contraseña" value={form.password} onChange={set('password')} required />
-                    <button type="button" onClick={() => setShowPass(p=>!p)} style={{ position:'absolute', right:'13px', top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'#2D3444', display:'flex', padding:0 }}>
-                      {showPass ? <EyeOff size={13}/> : <Eye size={13}/>}
-                    </button>
-                  </div>
+                  <GlassInput
+                    type={showPass ? 'text' : 'password'}
+                    placeholder="Contraseña"
+                    value={form.password} onChange={set('password')} icon={Lock}
+                    rightEl={
+                      <button type="button" onClick={() => setShowPass(p=>!p)} style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(255,255,255,0.3)', display:'flex', padding:0 }}>
+                        {showPass ? <EyeOff size={16}/> : <Eye size={16}/>}
+                      </button>
+                    }
+                  />
 
                   {mode==='register' && role==='user' && (<>
-                    <div style={{ position:'relative' }}>
-                      <Calendar size={13} style={{ position:'absolute', left:'13px', top:'50%', transform:'translateY(-50%)', color:'#2D3444' }} />
-                      <input className="input-dark" style={{ paddingLeft:'38px' }} type="number" placeholder="Edad" min={5} max={120} value={form.age} onChange={set('age')} required />
-                    </div>
-                    <div style={{ position:'relative' }}>
-                      <BarChart2 size={13} style={{ position:'absolute', left:'13px', top:'50%', transform:'translateY(-50%)', color:'#2D3444' }} />
-                      <input className="input-dark" style={{ paddingLeft:'38px' }} type="number" placeholder="Veces por semana en colectivo" min={0} value={form.weeklyTrips} onChange={set('weeklyTrips')} required />
-                    </div>
+                    <GlassInput type="number" placeholder="Edad" value={form.age} onChange={set('age')} icon={Calendar} />
+                    <GlassInput type="number" placeholder="Veces por semana en colectivo" value={form.weeklyTrips} onChange={set('weeklyTrips')} icon={BarChart2} />
                   </>)}
 
                   {mode==='register' && role==='driver' && (<>
-                    <input className="input-dark" type="text" placeholder="Número de legajo" value={form.driverNumber} onChange={set('driverNumber')} required />
-                    <input className="input-dark" type="text" placeholder="Número de unidad" value={form.busUnit} onChange={set('busUnit')} required />
+                    <GlassInput type="text" placeholder="Número de legajo" value={form.driverNumber} onChange={set('driverNumber')} icon={Bus} />
+                    <GlassInput type="text" placeholder="Número de unidad" value={form.busUnit} onChange={set('busUnit')} icon={Bus} />
                   </>)}
 
-                  <div style={{ marginTop:'6px' }}>
-                    <motion.button
-                      type="submit" disabled={loading}
-                      whileHover={{ scale: loading ? 1 : 1.01 }}
-                      whileTap={{ scale: loading ? 1 : 0.98 }}
-                      style={{
-                        width:'100%', padding:'13px', borderRadius:'12px',
-                        background: role==='user'
-                          ? 'linear-gradient(135deg, rgba(34,211,160,0.85), rgba(16,185,129,0.8))'
-                          : 'linear-gradient(145deg, #C2C8D4, #9AA4B8, #B0B8C8)',
-                        color: '#060810',
-                        fontFamily:'Syne,sans-serif', fontWeight:700,
-                        fontSize:'12px', letterSpacing:'0.07em', textTransform:'uppercase',
-                        border:'none', cursor: loading ? 'not-allowed' : 'pointer',
-                        display:'flex', alignItems:'center', justifyContent:'center', gap:'8px',
-                        boxShadow: role==='user' ? '0 4px 20px rgba(34,211,160,0.3)' : '0 4px 20px rgba(184,200,224,0.2)',
-                        opacity: loading ? 0.7 : 1,
-                        transition:'all 250ms',
-                      }}
-                    >
-                      {loading ? 'Cargando...' : mode==='login' ? 'Ingresar' : 'Crear cuenta'}
-                      {!loading && <ArrowRight size={14}/>}
-                    </motion.button>
-                  </div>
+                  {/* Submit — white button like reference */}
+                  <motion.button
+                    type="submit" disabled={loading}
+                    whileHover={{ scale: loading ? 1 : 1.02 }}
+                    whileTap={{  scale: loading ? 1 : 0.98 }}
+                    style={{
+                      width:'100%', padding:'13px',
+                      marginTop:'4px',
+                      background: loading ? 'rgba(255,255,255,0.5)' : '#ffffff',
+                      color:'#07090F',
+                      fontFamily:'Syne,sans-serif', fontWeight:700,
+                      fontSize:'14px', letterSpacing:'0.04em',
+                      border:'none', borderRadius:'10px',
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      boxShadow:'0 4px 24px rgba(255,255,255,0.15)',
+                      transition:'all 250ms',
+                      display:'flex', alignItems:'center', justifyContent:'center', gap:'8px',
+                    }}
+                  >
+                    {loading ? 'Cargando...' : mode==='login' ? 'Ingresar' : 'Crear cuenta'}
+                    {!loading && <ArrowRight size={15}/>}
+                  </motion.button>
                 </form>
 
-                {/* Google — users only */}
+                {/* Toggle mode link — like reference */}
+                <p style={{ textAlign:'center', fontSize:'12px', color:'rgba(255,255,255,0.3)', marginTop:'16px', marginBottom:0 }}>
+                  {mode==='login' ? '¿No tenés cuenta? ' : '¿Ya tenés cuenta? '}
+                  <button onClick={() => setMode(mode==='login' ? 'register' : 'login')} style={{ background:'none', border:'none', cursor:'pointer', color:'rgba(255,255,255,0.7)', fontWeight:600, fontSize:'12px', fontFamily:'DM Sans', padding:0, textDecoration:'underline', textUnderlineOffset:'2px' }}>
+                    {mode==='login' ? 'Registrarse' : 'Ingresar'}
+                  </button>
+                </p>
+
+                {/* Google */}
                 {role==='user' && (
                   <>
-                    <div style={{ display:'flex', alignItems:'center', gap:'10px', margin:'14px 0' }}>
-                      <div style={{ flex:1, height:'1px', background:'rgba(184,200,224,0.08)' }} />
-                      <span style={{ fontSize:'10px', color:'#2D3444', fontFamily:'DM Mono', letterSpacing:'0.06em' }}>O</span>
-                      <div style={{ flex:1, height:'1px', background:'rgba(184,200,224,0.08)' }} />
+                    <div style={{ display:'flex', alignItems:'center', gap:'10px', margin:'16px 0 12px' }}>
+                      <div style={{ flex:1, height:'1px', background:'rgba(255,255,255,0.07)' }} />
+                      <span style={{ fontSize:'10px', color:'rgba(255,255,255,0.2)', fontFamily:'DM Mono', letterSpacing:'0.08em' }}>O</span>
+                      <div style={{ flex:1, height:'1px', background:'rgba(255,255,255,0.07)' }} />
                     </div>
-                    <button onClick={loginWithGoogle} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'10px', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(184,200,224,0.1)', borderRadius:'12px', padding:'12px', color:'#8A95A8', fontSize:'13px', fontWeight:500, cursor:'pointer', transition:'all 200ms' }}>
+                    <button onClick={loginWithGoogle} style={{ width:'100%', display:'flex', alignItems:'center', justifyContent:'center', gap:'10px', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'10px', padding:'12px', color:'rgba(255,255,255,0.5)', fontSize:'13px', fontWeight:500, cursor:'pointer', transition:'all 200ms' }}>
                       <svg width="15" height="15" viewBox="0 0 48 48">
                         <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
                         <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
