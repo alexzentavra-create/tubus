@@ -88,7 +88,7 @@ export default function DriverPage() {
           </div>
           <div style={{flex:1}}>
             <h1 className="font-display" style={{fontWeight:700,fontSize:'18px',color:'var(--text-primary)'}}>Panel del Chofer</h1>
-            <p style={{color:'var(--text-muted)',fontSize:'12px',fontFamily:'DM Mono'}}>BusTrack AR</p>
+            <p style={{color:'var(--text-muted)',fontSize:'12px',fontFamily:'DM Mono'}}>Bien Parada</p>
           </div>
           <div style={{display:'flex',alignItems:'center',gap:'7px',padding:'6px 12px',borderRadius:'999px',border:`1px solid ${isOnline?'rgba(34,211,160,0.25)':'rgba(184,200,224,0.1)'}`,background:isOnline?'rgba(34,211,160,0.08)':'rgba(184,200,224,0.04)'}}>
             {isOnline ? <Wifi size={13} style={{color:'var(--go)'}} /> : <WifiOff size={13} style={{color:'var(--text-muted)'}} />}

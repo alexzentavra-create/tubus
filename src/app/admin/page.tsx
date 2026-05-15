@@ -87,7 +87,7 @@ export default function AdminPanel() {
               <Bus size={16} style={{color:'var(--platinum)'}} />
             </div>
             <div>
-              <div className="font-display" style={{color:'var(--text-primary)',fontWeight:700,fontSize:'14px'}}>BusTrack AR</div>
+              <div className="font-display" style={{color:'var(--text-primary)',fontWeight:700,fontSize:'14px'}}>Bien Parada</div>
               <div style={{color:'var(--text-muted)',fontSize:'10px',fontFamily:'DM Mono'}}>ADMINISTRACIÓN</div>
             </div>
           </div>

@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════════════
--- BusTrack AR — Supabase Schema
+-- Bien Parada — Supabase Schema
 -- Run in: Supabase SQL Editor or via `supabase db push`
 -- ═══════════════════════════════════════════════════════════════════════════
 
