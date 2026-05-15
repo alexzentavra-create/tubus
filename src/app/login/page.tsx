@@ -99,8 +99,8 @@ export default function LoginPage() {
           >
             <Bus size={26} style={{ color: '#22D3A0' }} />
           </motion.div>
-          <h1 style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: '26px', color: '#E8ECF2', letterSpacing: '-0.02em', margin: 0 }}>BusTrack AR</h1>
-          <p style={{ color: '#4A5568', fontSize: '13px', marginTop: '4px' }}>Plataforma de seguimiento en tiempo real</p>
+          <h1 style={{ fontFamily: 'Syne, sans-serif', fontWeight: 800, fontSize: '26px', color: '#E8ECF2', letterSpacing: '-0.02em', margin: 0 }}>Bien Parada</h1>
+          <p style={{ color: '#4A5568', fontSize: '13px', marginTop: '4px' }}>Seguí tu colectivo en tiempo real</p>
         </div>
 
         {/* Main card */}

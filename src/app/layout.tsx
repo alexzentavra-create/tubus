@@ -3,10 +3,10 @@ import { Toaster } from 'react-hot-toast'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'BusTrack AR — Seguí tu colectivo en tiempo real',
+  title: 'Bien Parada — Seguí tu colectivo en tiempo real',
   description: 'Rastreá colectivos de Buenos Aires en tiempo real.',
   manifest: '/manifest.json',
-  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'BusTrack AR' },
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'Bien Parada' },
 }
 
 export const viewport: Viewport = {

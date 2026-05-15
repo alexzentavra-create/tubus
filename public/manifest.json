@@ -1,6 +1,6 @@
 {
-  "name": "BusTrack AR",
-  "short_name": "BusTrack",
+  "name": "Bien Parada",
+  "short_name": "Bien Parada",
   "description": "Seguí tu colectivo de Buenos Aires en tiempo real",
   "start_url": "/",
   "display": "standalone",
