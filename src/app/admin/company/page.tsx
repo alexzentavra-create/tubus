@@ -501,7 +501,7 @@ function CalendarTab() {
         <div style={{color:'var(--text-muted)',fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:'16px'}}>Historial de actividad — últimos 30 días</div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(10,1fr)',gap:'6px'}}>
           {days.map((d,i)=>(
-            <button key={i} onClick={()=>setSelected(selected?.date===d.date?null:d)} style={{aspect:'1/1',borderRadius:'8px',background:d.hasWork?(selected?.date===d.date?'rgba(34,211,160,0.3)':'rgba(34,211,160,0.12)'):'rgba(184,200,224,0.04)',border:`1px solid ${d.hasWork?(selected?.date===d.date?'rgba(34,211,160,0.5)':'rgba(34,211,160,0.2)'):'rgba(184,200,224,0.06)'}`,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'1px',transition:'all 200ms',padding:'4px'}}>
+            <button key={i} onClick={()=>setSelected(selected?.date===d.date?null:d)} style={{aspectRatio:'1/1',borderRadius:'8px',background:d.hasWork?(selected?.date===d.date?'rgba(34,211,160,0.3)':'rgba(34,211,160,0.12)'):'rgba(184,200,224,0.04)',border:`1px solid ${d.hasWork?(selected?.date===d.date?'rgba(34,211,160,0.5)':'rgba(34,211,160,0.2)'):'rgba(184,200,224,0.06)'}`,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'1px',transition:'all 200ms',padding:'4px'}}>
               <span style={{color:d.hasWork?'#22D3A0':'var(--text-muted)',fontSize:'11px',fontWeight:d.hasWork?700:400,fontFamily:'DM Mono'}}>{d.label}</span>
               <span style={{color:'var(--text-muted)',fontSize:'8px',fontFamily:'DM Mono',textTransform:'uppercase'}}>{d.dayName}</span>
             </button>
