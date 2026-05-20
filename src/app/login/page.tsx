@@ -255,23 +255,32 @@ export default function LoginPage() {
     e.preventDefault(); setLoading(true)
 
     if (mode === 'login') {
-      // Handle company username login (e.g. "Linea12")
       let email = form.email
+
+      // Username login (e.g. Linea12) — resolve to email in two steps
       if (!email.includes('@')) {
-        // It's a username — look up the company email
-        const { data: company } = await supabase
+        const { data: company, error: cErr } = await supabase
           .from('bus_companies')
-          .select('profiles!profile_id(email)')
-          .ilike('username', email)
+          .select('profile_id')
+          .ilike('username', email.trim())
           .single()
-        if (!company) { toast.error('Usuario no encontrado'); setLoading(false); return }
-        email = (company.profiles as any).email
+        if (cErr || !company) { toast.error('Usuario no encontrado'); setLoading(false); return }
+
+        const { data: prof, error: pErr } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('id', company.profile_id)
+          .single()
+        if (pErr || !prof) { toast.error('Error al obtener cuenta'); setLoading(false); return }
+        email = prof.email
       }
 
       const { error } = await supabase.auth.signInWithPassword({ email, password: form.password })
       if (error) { toast.error('Credenciales incorrectas'); setLoading(false); return }
 
-      const { data: p } = await supabase.from('profiles').select('role').eq('email', email).single()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { setLoading(false); return }
+      const { data: p } = await supabase.from('profiles').select('role').eq('id', user.id).single()
       if (p?.role === 'superadmin') window.location.href = '/admin/super'
       else if (p?.role === 'company') window.location.href = '/admin/company'
       else if (p?.role === 'driver') window.location.href = '/driver'
