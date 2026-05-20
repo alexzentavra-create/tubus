@@ -11,15 +11,15 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error && data.user) {
-      // Check role and redirect accordingly
       const { data: profile } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', data.user.id)
         .single()
 
-      if (profile?.role === 'driver') return NextResponse.redirect(`${origin}/driver`)
-      if (profile?.role === 'admin')  return NextResponse.redirect(`${origin}/admin`)
+      if (profile?.role === 'superadmin') return NextResponse.redirect(`${origin}/admin/super`)
+      if (profile?.role === 'company')    return NextResponse.redirect(`${origin}/admin/company`)
+      if (profile?.role === 'driver')     return NextResponse.redirect(`${origin}/driver`)
       return NextResponse.redirect(`${origin}/`)
     }
   }
