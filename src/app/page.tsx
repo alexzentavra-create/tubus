@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import Map, { Marker, Popup, NavigationControl, GeolocateControl } from 'react-map-gl'
+import Map, { Marker, Popup, NavigationControl, GeolocateControl, Source, Layer } from 'react-map-gl'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Bus, Search, ChevronDown, X, Star, MapPin, Bell,
@@ -11,7 +11,7 @@ import {
 import { createClient } from '@/lib/supabase'
 import type { BusPosition, BusLine, BusStop } from '@/types'
 import {
-  MOCK_LINES, MOCK_STOPS, initMockBuses, tickMockBuses, getMockBusesForLine, getLineBounds, getMockStopsForLine
+  MOCK_LINES, MOCK_STOPS, initMockBuses, tickMockBuses, getMockBusesForLine, getLineBounds, getMockStopsForLine, getMockRoutePathForLine
 } from '@/lib/mockData'
 import ReportModal from '@/components/user/ReportModal'
 import BusInfoSheet from '@/components/user/BusInfoSheet'
@@ -184,6 +184,15 @@ export default function UserMapPage() {
 
   const allLines = lines.length > 0 ? lines : MOCK_LINES
   const sidebarW = collapsed ? 64 : SIDEBAR_W
+  const selectedRoutePath = selectedLine ? getMockRoutePathForLine(selectedLine) : []
+  const routeGeoJson = selectedLine && selectedRoutePath.length > 1 ? {
+    type: 'Feature' as const,
+    properties: {},
+    geometry: {
+      type: 'LineString' as const,
+      coordinates: selectedRoutePath.map(point => [point.lng, point.lat]),
+    },
+  } : null
 
   return (
     <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', background: '#060810' }}>
@@ -300,6 +309,21 @@ export default function UserMapPage() {
         >
           <NavigationControl position="bottom-right" />
           <GeolocateControl position="bottom-right" trackUserLocation showUserHeading onGeolocate={handleLocated as any} />
+
+          {routeGeoJson && selectedLine && (
+            <Source id="selected-route" type="geojson" data={routeGeoJson}>
+              <Layer
+                id="selected-route-glow"
+                type="line"
+                paint={{ 'line-color': selectedLine.color, 'line-width': 9, 'line-opacity': 0.18, 'line-blur': 2 }}
+              />
+              <Layer
+                id="selected-route-line"
+                type="line"
+                paint={{ 'line-color': selectedLine.color, 'line-width': 3, 'line-opacity': 0.78 }}
+              />
+            </Source>
+          )}
 
           {buses.map(bus => (
             <Marker key={bus.id} longitude={bus.longitude} latitude={bus.latitude} anchor="center" rotation={bus.heading} rotationAlignment="map" onClick={() => handleBusClick(bus)}>
@@ -646,19 +670,35 @@ function PremiumBusMarker({ bus, lineColor, isSelected, showPassengers }: { bus:
   const isMoving = bus.status === 'moving'
   const color = isMoving ? lineColor : bus.status === 'at_stop' ? '#F0B429' : '#FF4D6A'
   return (
-    <div style={{ position: 'relative', width: '48px', height: '48px', cursor: 'pointer' }}>
-      <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-        {isMoving && <>
-          <circle cx="24" cy="24" r="20" fill={color} fillOpacity="0.06" />
-          <circle cx="24" cy="24" r="16" fill={color} fillOpacity="0.08" />
-        </>}
-        <circle cx="24" cy="24" r="14" fill={color} fillOpacity={isSelected ? 0.25 : 0.12} />
-        <circle cx="24" cy="24" r="13" fill="none" stroke={color} strokeOpacity={isSelected ? 0.8 : 0.4} strokeWidth="1" />
-        <circle cx="24" cy="24" r="10" fill={color} fillOpacity={isMoving ? 0.9 : 0.7} />
-        <path d="M18 20h12v7H18zM18 21.5h12M18 24.5h12M20 27v1.5M28 27v1.5M19 20v-1c0-.6.4-1 1-1h8c.6 0 1 .4 1 1v1" stroke="rgba(6,8,16,0.9)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx="24" cy="11" r="2.5" fill={color} fillOpacity="0.5" />
-        <circle cx="24" cy="11" r="1.5" fill="white" fillOpacity="0.7" />
-      </svg>
+    <div style={{ position: 'relative', width: '54px', height: '54px', cursor: 'pointer', transform: 'translateZ(0)' }}>
+      <div style={{ position: 'absolute', left: '12px', top: '34px', width: '31px', height: '10px', borderRadius: '50%', background: 'rgba(0,0,0,0.45)', filter: 'blur(3px)', transform: 'rotate(-12deg)' }} />
+      {isMoving && <div style={{ position: 'absolute', inset: '8px', borderRadius: '50%', background: color, opacity: 0.09, boxShadow: `0 0 18px ${color}` }} />}
+      <div
+        style={{
+          position: 'absolute',
+          left: '13px',
+          top: '9px',
+          width: '28px',
+          height: '37px',
+          borderRadius: '9px 9px 7px 7px',
+          background: `linear-gradient(145deg, #F7FAFF 0%, #D8E2EE 42%, ${color} 43%, ${color} 100%)`,
+          border: `1px solid ${isSelected ? '#fff' : 'rgba(10,14,20,0.55)'}`,
+          boxShadow: `0 3px 0 rgba(0,0,0,0.24), 0 0 ${isSelected ? 18 : 10}px ${color}80`,
+          transform: 'perspective(90px) rotateX(12deg)',
+          transformOrigin: 'center bottom',
+          overflow: 'hidden',
+        }}
+      >
+        <div style={{ position: 'absolute', left: '4px', top: '4px', width: '20px', height: '8px', borderRadius: '4px 4px 2px 2px', background: 'linear-gradient(180deg,#263241,#111827)', border: '1px solid rgba(255,255,255,0.25)' }} />
+        <div style={{ position: 'absolute', left: '5px', top: '15px', right: '5px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2px' }}>
+          {[0, 1, 2].map(i => <span key={i} style={{ height: '5px', borderRadius: '1px', background: 'rgba(15,23,42,0.62)', border: '1px solid rgba(255,255,255,0.18)' }} />)}
+        </div>
+        <div style={{ position: 'absolute', left: '5px', right: '5px', bottom: '8px', height: '2px', borderRadius: '2px', background: 'rgba(6,8,16,0.38)' }} />
+        <div style={{ position: 'absolute', left: '4px', bottom: '3px', width: '6px', height: '6px', borderRadius: '50%', background: '#090D14', border: '1px solid rgba(255,255,255,0.2)' }} />
+        <div style={{ position: 'absolute', right: '4px', bottom: '3px', width: '6px', height: '6px', borderRadius: '50%', background: '#090D14', border: '1px solid rgba(255,255,255,0.2)' }} />
+        <div style={{ position: 'absolute', left: '7px', top: '25px', width: '4px', height: '3px', borderRadius: '3px', background: '#FFF7AD' }} />
+        <div style={{ position: 'absolute', right: '7px', top: '25px', width: '4px', height: '3px', borderRadius: '3px', background: '#FFF7AD' }} />
+      </div>
       {showPassengers && bus.passenger_count > 0 && (
         <div style={{ position: 'absolute', top: '-2px', right: '-2px', minWidth: '16px', height: '16px', borderRadius: '8px', background: 'rgba(10,14,20,0.95)', border: '1px solid rgba(184,200,224,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>
           <span style={{ fontSize: '9px', fontFamily: 'DM Mono', fontWeight: 600, color: 'var(--platinum-dim)' }}>{bus.passenger_count}</span>

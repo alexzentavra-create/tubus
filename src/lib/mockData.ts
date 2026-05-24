@@ -1,5 +1,7 @@
 // src/lib/mockData.ts
 import type { BusLine, BusStop, BusPosition } from '@/types'
+import { OFFICIAL_ROUTES } from './officialRoutes'
+import type { OfficialRoute, RoutePoint } from './routeTypes'
 
 export const MOCK_LINES: BusLine[] = [
   { id: 'line-1', line_number: '12',  name: 'Línea 12 - Once / Villa Urquiza',        color: '#22D3A0', company: 'TrBus S.A.',       total_stops: 10, is_active: true },
@@ -124,7 +126,27 @@ interface MockBusState {
 const STATE: Map<string, MockBusState> = new Map()
 let lastTick = 0
 
+function officialRouteForLine(line: BusLine): OfficialRoute | null {
+  return OFFICIAL_ROUTES[line.line_number.replace(/^0+/, '')] || null
+}
+
 function routeTemplateForLine(line: BusLine): BusStop[] {
+  const officialRoute = officialRouteForLine(line)
+  if (officialRoute) {
+    return officialRoute.stops.map((stop, index) => ({
+      id: `${line.id}-official-${stop.id}`,
+      line_id: line.id,
+      name: stop.name,
+      street_name: stop.name,
+      stop_number: index + 1,
+      latitude: stop.lat,
+      longitude: stop.lng,
+      direction: 'ida',
+      avg_wait_minutes: 6,
+      total_daily_users: 120,
+    }))
+  }
+
   const directStops = MOCK_STOPS[line.id]
   if (directStops?.length) return directStops
 
@@ -158,9 +180,77 @@ function getMockStopsForBus(bus: BusPosition): BusStop[] {
   return getMockStopsForLine(line)
 }
 
+function getRoutePathForLine(line: BusLine): RoutePoint[] {
+  const officialRoute = officialRouteForLine(line)
+  if (officialRoute?.path.length) return officialRoute.path
+
+  return getMockStopsForLine(line).map(stop => ({
+    lat: stop.latitude,
+    lng: stop.longitude,
+  }))
+}
+
+export function getMockRoutePathForLine(line: BusLine): RoutePoint[] {
+  return getRoutePathForLine(line)
+}
+
+function getRoutePathForBus(bus: BusPosition): RoutePoint[] {
+  const line = MOCK_LINES.find(l => l.id === bus.line_id) || {
+    id: bus.line_id,
+    line_number: bus.line_number,
+    name: `Linea ${bus.line_number}`,
+    color: '#22D3A0',
+    company: 'Simulacion',
+    total_stops: 0,
+    is_active: true,
+  }
+
+  return getRoutePathForLine(line)
+}
+
+function distanceKm(a: RoutePoint, b: RoutePoint): number {
+  const lat1 = a.lat * Math.PI / 180
+  const lat2 = b.lat * Math.PI / 180
+  const dLat = lat2 - lat1
+  const dLng = (b.lng - a.lng) * Math.PI / 180
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2
+  return 6371 * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s))
+}
+
+function nearestStopAhead(stops: BusStop[], path: RoutePoint[], pathIndex: number, direction: 1 | -1): BusStop | null {
+  if (stops.length === 0) return null
+
+  const projectedStops = stops.map(stop => {
+    let bestIndex = 0
+    let bestDistance = Infinity
+    path.forEach((point, index) => {
+      const distance = distanceKm(point, { lat: stop.latitude, lng: stop.longitude })
+      if (distance < bestDistance) {
+        bestIndex = index
+        bestDistance = distance
+      }
+    })
+    return { stop, pathIndex: bestIndex }
+  })
+
+  return direction === 1
+    ? projectedStops.find(item => item.pathIndex > pathIndex)?.stop || stops[stops.length - 1]
+    : [...projectedStops].reverse().find(item => item.pathIndex < pathIndex)?.stop || stops[0]
+}
+
+function shouldPauseAtPathIndex(stops: BusStop[], path: RoutePoint[], pathIndex: number): boolean {
+  const point = path[pathIndex]
+  return stops.some((stop, index) => (
+    index % 2 === 1 && distanceKm(point, { lat: stop.latitude, lng: stop.longitude }) < 0.035
+  ))
+}
+
 function makeBus(line: BusLine, unitNum: number, stopIndex: number): MockBusState {
   const stops = getMockStopsForLine(line)
-  const stop  = stops[stopIndex]
+  const path = getRoutePathForLine(line)
+  const pathIndex = Math.min(Math.floor(path.length * (unitNum === 0 ? 0.15 : 0.55)), path.length - 2)
+  const point = path[pathIndex]
+  const nextStop = nearestStopAhead(stops, path, pathIndex, 1) || stops[0]
   const names = ['Carlos Gómez', 'María Torres', 'Roberto Silva', 'Ana Martínez', 'Luis Fernández']
   const bus: BusPosition = {
     id:              `mock-${line.id}-${unitNum}`,
@@ -169,12 +259,12 @@ function makeBus(line: BusLine, unitNum: number, stopIndex: number): MockBusStat
     line_number:     line.line_number,
     bus_unit:        `${line.line_number}-${String(unitNum).padStart(3, '0')}`,
     driver_name:     names[unitNum % names.length],
-    latitude:        stop.latitude,
-    longitude:       stop.longitude,
+    latitude:        point.lat,
+    longitude:       point.lng,
     heading:         0,
     speed_kmh:       0,
-    next_stop_id:    stops[Math.min(stopIndex + 1, stops.length - 1)].id,
-    next_stop_name:  stops[Math.min(stopIndex + 1, stops.length - 1)].name,
+    next_stop_id:    nextStop.id,
+    next_stop_name:  nextStop.name,
     eta_minutes:     2,
     status:          'at_stop',
     passenger_count: Math.floor(Math.random() * 25) + 5,
@@ -182,7 +272,7 @@ function makeBus(line: BusLine, unitNum: number, stopIndex: number): MockBusStat
   }
   return {
     bus,
-    stopIndex,
+    stopIndex:    pathIndex,
     progress:    0,
     direction:   1,
     // Stagger departure: first bus leaves in 2s, second in 5s
@@ -196,13 +286,10 @@ export function initMockBuses(lines: BusLine[] = MOCK_LINES) {
   lastTick = Date.now()
 
   lines.forEach(line => {
-    const stops = getMockStopsForLine(line)
-    if (!stops || stops.length < 2) return
-    // Place 2 buses at different points on the route
-    const a = Math.floor(stops.length * 0.15)
-    const b = Math.floor(stops.length * 0.55)
-    STATE.set(`${line.id}-0`, makeBus(line, 0, a))
-    STATE.set(`${line.id}-1`, makeBus(line, 1, b))
+    const path = getRoutePathForLine(line)
+    if (!path || path.length < 2) return
+    STATE.set(`${line.id}-0`, makeBus(line, 0, 0))
+    STATE.set(`${line.id}-1`, makeBus(line, 1, 0))
   })
 }
 
@@ -224,7 +311,8 @@ export function tickMockBuses(): BusPosition[] {
 
   STATE.forEach(s => {
     const stops = getMockStopsForBus(s.bus)
-    if (!stops || stops.length < 2) return
+    const path = getRoutePathForBus(s.bus)
+    if (!stops || stops.length < 2 || path.length < 2) return
 
     // ── Paused at stop ──
     if (s.pauseUntil > now) {
@@ -235,42 +323,43 @@ export function tickMockBuses(): BusPosition[] {
       return
     }
 
-    const curStop  = stops[s.stopIndex]
+    const curPoint = path[s.stopIndex]
     const nextIdx  = s.stopIndex + s.direction
 
     // Reached end of route → reverse
-    if (nextIdx < 0 || nextIdx >= stops.length) {
+    if (nextIdx < 0 || nextIdx >= path.length) {
       s.direction  = s.direction === 1 ? -1 : 1
-      s.pauseUntil = now + 4000
+      s.pauseUntil = now + 5000
       out.push({ ...s.bus })
       return
     }
 
-    const nextStop = stops[nextIdx]
+    const nextPoint = path[nextIdx]
 
     // Distance between stops in degrees; 1° ≈ 111 km
-    const dLat   = nextStop.latitude  - curStop.latitude
-    const dLng   = nextStop.longitude - curStop.longitude
-    const distDeg = Math.sqrt(dLat * dLat + dLng * dLng)
-    const distKm  = distDeg * 111
+    const dLat   = nextPoint.lat - curPoint.lat
+    const dLng   = nextPoint.lng - curPoint.lng
+    const segmentKm = distanceKm(curPoint, nextPoint)
 
     // Speed in degrees/second (avg 28 km/h in city)
-    const speedKmh    = 28
-    const speedDegSec = speedKmh / 111 / 3600
+    const speedKmh = 24
 
     // How much progress to add this tick
-    const step = distDeg > 0 ? (speedDegSec * dt) / distDeg : 1
+    const step = segmentKm > 0 ? ((speedKmh / 3600) * dt) / segmentKm : 1
     s.progress = Math.min(s.progress + step, 1)
 
     // Interpolate position
-    s.bus.latitude   = curStop.latitude  + dLat * s.progress
-    s.bus.longitude  = curStop.longitude + dLng * s.progress
-    s.bus.heading    = heading(curStop.latitude, curStop.longitude, nextStop.latitude, nextStop.longitude)
+    s.bus.latitude   = curPoint.lat + dLat * s.progress
+    s.bus.longitude  = curPoint.lng + dLng * s.progress
+    s.bus.heading    = heading(curPoint.lat, curPoint.lng, nextPoint.lat, nextPoint.lng)
     s.bus.speed_kmh  = Math.round(speedKmh)
     s.bus.status     = 'moving'
-    s.bus.next_stop_name = nextStop.name
-    s.bus.next_stop_id   = nextStop.id
-    const remainingDist  = distKm * (1 - s.progress)
+    const nextStop = nearestStopAhead(stops, path, s.stopIndex, s.direction)
+    if (nextStop) {
+      s.bus.next_stop_name = nextStop.name
+      s.bus.next_stop_id   = nextStop.id
+    }
+    const remainingDist  = segmentKm * (1 - s.progress)
     s.bus.eta_minutes    = Math.max(1, Math.ceil(remainingDist / (speedKmh / 60)))
     s.bus.timestamp      = new Date().toISOString()
 
@@ -278,12 +367,15 @@ export function tickMockBuses(): BusPosition[] {
     if (s.progress >= 1) {
       s.stopIndex  = nextIdx
       s.progress   = 0
-      s.bus.status     = 'at_stop'
-      s.bus.latitude   = nextStop.latitude
-      s.bus.longitude  = nextStop.longitude
-      s.bus.speed_kmh  = 0
-      s.bus.passenger_count = Math.max(0, s.bus.passenger_count + Math.floor(Math.random() * 8) - 3)
-      s.pauseUntil = now + 3000 + Math.random() * 5000
+      s.bus.latitude   = nextPoint.lat
+      s.bus.longitude  = nextPoint.lng
+
+      if (shouldPauseAtPathIndex(stops, path, nextIdx)) {
+        s.bus.status     = 'at_stop'
+        s.bus.speed_kmh  = 0
+        s.bus.passenger_count = Math.max(0, s.bus.passenger_count + Math.floor(Math.random() * 8) - 3)
+        s.pauseUntil = now + 5000
+      }
     }
 
     out.push({ ...s.bus })
@@ -301,13 +393,13 @@ export function getMockBusesForLine(lineId: string): BusPosition[] {
 
 // Helper: bounding box of a line's stops (for map auto-fit)
 export function getLineBounds(line: BusLine): { minLat: number; maxLat: number; minLng: number; maxLng: number } | null {
-  const stops = getMockStopsForLine(line)
-  if (!stops || stops.length === 0) return null
+  const path = getRoutePathForLine(line)
+  if (!path || path.length === 0) return null
   return {
-    minLat: Math.min(...stops.map(s => s.latitude)),
-    maxLat: Math.max(...stops.map(s => s.latitude)),
-    minLng: Math.min(...stops.map(s => s.longitude)),
-    maxLng: Math.max(...stops.map(s => s.longitude)),
+    minLat: Math.min(...path.map(s => s.lat)),
+    maxLat: Math.max(...path.map(s => s.lat)),
+    minLng: Math.min(...path.map(s => s.lng)),
+    maxLng: Math.max(...path.map(s => s.lng)),
   }
 }
 

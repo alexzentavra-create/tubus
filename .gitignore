@@ -23,6 +23,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Local official transit source downloads
+data/official/
+
 # OS
 .DS_Store
 *.pem
