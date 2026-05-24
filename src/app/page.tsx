@@ -11,7 +11,7 @@ import {
 import { createClient } from '@/lib/supabase'
 import type { BusPosition, BusLine, BusStop } from '@/types'
 import {
-  MOCK_LINES, MOCK_STOPS, initMockBuses, tickMockBuses, getMockBusesForLine
+  MOCK_LINES, MOCK_STOPS, initMockBuses, tickMockBuses, getMockBusesForLine, getLineBounds
 } from '@/lib/mockData'
 import ReportModal from '@/components/user/ReportModal'
 import BusInfoSheet from '@/components/user/BusInfoSheet'
@@ -90,7 +90,6 @@ export default function UserMapPage() {
     supabase.from('bus_lines').select('*').eq('is_active', true).then(({ data }) => {
       setLines(data && data.length > 0 ? data : MOCK_LINES)
     })
-    initMockBuses()
   }, [])
 
   const updatePrefs = useCallback((patch: Partial<UserPrefs>) => {
@@ -108,13 +107,24 @@ export default function UserMapPage() {
 
     setLineStops(MOCK_STOPS[selectedLine.id] || [])
 
-    // Immediately seed mock buses so the map isn't empty while we wait for DB
+    // Reinitialise simulator fresh for this line selection, then start ticking
+    initMockBuses()
     const initial = getMockBusesForLine(selectedLine.id)
-    setBuses(initial)
+    setBuses(initial.length > 0 ? initial : [])
     setUseMockBuses(true)
+
+    // Auto-fit map to the line's stops
+    const bounds = getLineBounds(selectedLine.id)
+    if (bounds) {
+      const centerLat = (bounds.minLat + bounds.maxLat) / 2
+      const centerLng = (bounds.minLng + bounds.maxLng) / 2
+      setViewState(v => ({ ...v, latitude: centerLat, longitude: centerLng, zoom: 13, pitch: 0 }))
+    }
+
     mockTickRef.current = setInterval(() => {
-      setBuses(tickMockBuses().filter(b => b.line_id === selectedLine.id))
-    }, 1000)
+      const ticked = tickMockBuses().filter(b => b.line_id === selectedLine.id)
+      setBuses([...ticked])
+    }, 800)
 
     // Try real data; if found, replace mock
     const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString()
