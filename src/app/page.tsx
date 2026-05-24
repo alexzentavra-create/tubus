@@ -11,7 +11,7 @@ import {
 import { createClient } from '@/lib/supabase'
 import type { BusPosition, BusLine, BusStop } from '@/types'
 import {
-  MOCK_LINES, MOCK_STOPS, initMockBuses, tickMockBuses, getMockBusesForLine, getLineBounds
+  MOCK_LINES, MOCK_STOPS, initMockBuses, tickMockBuses, getMockBusesForLine, getLineBounds, getMockStopsForLine
 } from '@/lib/mockData'
 import ReportModal from '@/components/user/ReportModal'
 import BusInfoSheet from '@/components/user/BusInfoSheet'
@@ -88,7 +88,9 @@ export default function UserMapPage() {
     setPrefs(loadPrefs())
     supabase.auth.getUser().then(({ data: { user } }) => { if (user) setUser(user) })
     supabase.from('bus_lines').select('*').eq('is_active', true).then(({ data }) => {
-      setLines(data && data.length > 0 ? data : MOCK_LINES)
+      const availableLines = data && data.length > 0 ? data : MOCK_LINES
+      setLines(availableLines)
+      setSelectedLine(current => current || availableLines[0] || null)
     })
   }, [])
 
@@ -105,16 +107,16 @@ export default function UserMapPage() {
     setUseMockBuses(false)
     if (!selectedLine) return
 
-    setLineStops(MOCK_STOPS[selectedLine.id] || [])
+    setLineStops(getMockStopsForLine(selectedLine))
 
     // Reinitialise simulator fresh for this line selection, then start ticking
-    initMockBuses()
+    initMockBuses([selectedLine])
     const initial = getMockBusesForLine(selectedLine.id)
     setBuses(initial.length > 0 ? initial : [])
     setUseMockBuses(true)
 
     // Auto-fit map to the line's stops
-    const bounds = getLineBounds(selectedLine.id)
+    const bounds = getLineBounds(selectedLine)
     if (bounds) {
       const centerLat = (bounds.minLat + bounds.maxLat) / 2
       const centerLng = (bounds.minLng + bounds.maxLng) / 2

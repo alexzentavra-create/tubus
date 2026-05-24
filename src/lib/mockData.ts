@@ -124,15 +124,48 @@ interface MockBusState {
 const STATE: Map<string, MockBusState> = new Map()
 let lastTick = 0
 
-function makeBus(lineId: string, unitNum: number, stopIndex: number): MockBusState {
-  const stops = MOCK_STOPS[lineId]
-  const line  = MOCK_LINES.find(l => l.id === lineId)!
+function routeTemplateForLine(line: BusLine): BusStop[] {
+  const directStops = MOCK_STOPS[line.id]
+  if (directStops?.length) return directStops
+
+  const lineNumber = parseInt(line.line_number, 10)
+  const templateIndex = Number.isFinite(lineNumber)
+    ? Math.abs(lineNumber) % MOCK_LINES.length
+    : Math.abs([...line.id].reduce((sum, char) => sum + char.charCodeAt(0), 0)) % MOCK_LINES.length
+
+  return MOCK_STOPS[MOCK_LINES[templateIndex].id] || MOCK_STOPS[MOCK_LINES[0].id]
+}
+
+export function getMockStopsForLine(line: BusLine): BusStop[] {
+  return routeTemplateForLine(line).map(stop => ({
+    ...stop,
+    id: `${line.id}-${stop.id}`,
+    line_id: line.id,
+  }))
+}
+
+function getMockStopsForBus(bus: BusPosition): BusStop[] {
+  const line = MOCK_LINES.find(l => l.id === bus.line_id) || {
+    id: bus.line_id,
+    line_number: bus.line_number,
+    name: `Linea ${bus.line_number}`,
+    color: '#22D3A0',
+    company: 'Simulacion',
+    total_stops: 0,
+    is_active: true,
+  }
+
+  return getMockStopsForLine(line)
+}
+
+function makeBus(line: BusLine, unitNum: number, stopIndex: number): MockBusState {
+  const stops = getMockStopsForLine(line)
   const stop  = stops[stopIndex]
   const names = ['Carlos Gómez', 'María Torres', 'Roberto Silva', 'Ana Martínez', 'Luis Fernández']
   const bus: BusPosition = {
-    id:              `mock-${lineId}-${unitNum}`,
-    driver_id:       `mock-driver-${lineId}-${unitNum}`,
-    line_id:         lineId,
+    id:              `mock-${line.id}-${unitNum}`,
+    driver_id:       `mock-driver-${line.id}-${unitNum}`,
+    line_id:         line.id,
     line_number:     line.line_number,
     bus_unit:        `${line.line_number}-${String(unitNum).padStart(3, '0')}`,
     driver_name:     names[unitNum % names.length],
@@ -157,19 +190,19 @@ function makeBus(lineId: string, unitNum: number, stopIndex: number): MockBusSta
   }
 }
 
-export function initMockBuses() {
+export function initMockBuses(lines: BusLine[] = MOCK_LINES) {
   // Always reinitialise so switching lines always gets fresh buses
   STATE.clear()
   lastTick = Date.now()
 
-  MOCK_LINES.forEach(line => {
-    const stops = MOCK_STOPS[line.id]
+  lines.forEach(line => {
+    const stops = getMockStopsForLine(line)
     if (!stops || stops.length < 2) return
     // Place 2 buses at different points on the route
     const a = Math.floor(stops.length * 0.15)
     const b = Math.floor(stops.length * 0.55)
-    STATE.set(`${line.id}-0`, makeBus(line.id, 0, a))
-    STATE.set(`${line.id}-1`, makeBus(line.id, 1, b))
+    STATE.set(`${line.id}-0`, makeBus(line, 0, a))
+    STATE.set(`${line.id}-1`, makeBus(line, 1, b))
   })
 }
 
@@ -190,7 +223,7 @@ export function tickMockBuses(): BusPosition[] {
   const out: BusPosition[] = []
 
   STATE.forEach(s => {
-    const stops = MOCK_STOPS[s.bus.line_id]
+    const stops = getMockStopsForBus(s.bus)
     if (!stops || stops.length < 2) return
 
     // ── Paused at stop ──
@@ -267,8 +300,8 @@ export function getMockBusesForLine(lineId: string): BusPosition[] {
 }
 
 // Helper: bounding box of a line's stops (for map auto-fit)
-export function getLineBounds(lineId: string): { minLat: number; maxLat: number; minLng: number; maxLng: number } | null {
-  const stops = MOCK_STOPS[lineId]
+export function getLineBounds(line: BusLine): { minLat: number; maxLat: number; minLng: number; maxLng: number } | null {
+  const stops = getMockStopsForLine(line)
   if (!stops || stops.length === 0) return null
   return {
     minLat: Math.min(...stops.map(s => s.latitude)),

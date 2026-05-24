@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, X, Bus, Check, Route, MapPin, Navigation, ChevronRight } from 'lucide-react'
 import type { BusLine, BusStop } from '@/types'
-import { MOCK_LINES, MOCK_STOPS } from '@/lib/mockData'
+import { MOCK_LINES, getMockStopsForLine } from '@/lib/mockData'
 
 interface Props {
   lines: BusLine[]
@@ -132,7 +132,7 @@ export default function LineSelector({ lines, selectedLine, onSelect, onClose }:
           {tab === 'route' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {allLines.map(line => {
-                const stops: BusStop[] = MOCK_STOPS[line.id] || []
+                const stops: BusStop[] = getMockStopsForLine(line)
                 const expanded = expandedRoute === line.id
                 return (
                   <div key={line.id} style={{ borderRadius: '12px', border: '1px solid rgba(184,200,224,0.08)', overflow: 'hidden' }}>
