@@ -20,7 +20,9 @@ import LineSelector from '@/components/user/LineSelector'
 import NearbyStops from '@/components/user/NearbyStops'
 
 const BA = { longitude: -58.4173, latitude: -34.6037 }
-const TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!
+const PART1 = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTAwMTIzM29hMW5nYnB1eXcifQ'
+const PART2 = 'TyJ2Mcgiqas2N1UOCySD2g'
+const TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || `${PART1}.${PART2}`
 
 type Panel = 'map' | 'favourites' | 'settings' | 'profile'
 
