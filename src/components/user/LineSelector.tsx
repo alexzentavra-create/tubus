@@ -7,14 +7,14 @@ import { MOCK_LINES, getMockStopsForLine } from '@/lib/mockData'
 
 interface Props {
   lines: BusLine[]
-  selectedLine: BusLine | null
+  selectedLines: BusLine[]
   onSelect: (l: BusLine) => void
   onClose: () => void
 }
 
 type Tab = 'line' | 'route' | 'nearby'
 
-export default function LineSelector({ lines, selectedLine, onSelect, onClose }: Props) {
+export default function LineSelector({ lines, selectedLines, onSelect, onClose }: Props) {
   const allLines = lines.length > 0 ? lines : MOCK_LINES
 
   const [tab, setTab] = useState<Tab>('line')
@@ -119,7 +119,7 @@ export default function LineSelector({ lines, selectedLine, onSelect, onClose }:
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {filtered.map(line => (
-                  <LineItem key={line.id} line={line} selected={selectedLine?.id === line.id} onSelect={() => onSelect(line)} />
+                  <LineItem key={line.id} line={line} selected={selectedLines.some(l => l.id === line.id)} onSelect={() => onSelect(line)} />
                 ))}
                 {filtered.length === 0 && (
                   <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', padding: '20px 0', fontFamily: 'DM Sans' }}>Sin resultados para "{q}"</p>
@@ -200,7 +200,7 @@ export default function LineSelector({ lines, selectedLine, onSelect, onClose }:
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <p style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'DM Mono', marginBottom: '8px' }}>Líneas que pasan cerca tuyo</p>
                   {nearbyLines.map(line => (
-                    <LineItem key={line.id} line={line} selected={selectedLine?.id === line.id} onSelect={() => onSelect(line)} />
+                    <LineItem key={line.id} line={line} selected={selectedLines.some(l => l.id === line.id)} onSelect={() => onSelect(line)} />
                   ))}
                 </div>
               )}

@@ -79,6 +79,8 @@ export interface BusPosition {
   status: 'moving' | 'stopped' | 'at_stop' | 'offline'
   passenger_count: number // users with app who are on this bus
   timestamp: string
+  ramal?: string
+  reports_count?: number
 }
 
 // ─── Reports & Complaints ─────────────────────────────────────────────────────

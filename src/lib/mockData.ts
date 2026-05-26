@@ -4,11 +4,11 @@ import { OFFICIAL_ROUTES } from './officialRoutes'
 import type { OfficialRoute, RoutePoint } from './routeTypes'
 
 export const MOCK_LINES: BusLine[] = [
-  { id: 'line-1',   line_number: '12',  name: 'Línea 12 - Once / Villa Urquiza',        color: '#22D3A0', company: 'TrBus S.A.',       total_stops: 10, is_active: true },
-  { id: 'line-28',  line_number: '28',  name: 'Línea 28 - Retiro / Puente La Noria',    color: '#E879F9', company: 'DOTA S.A.',        total_stops: 8,  is_active: true },
-  { id: 'line-3',   line_number: '37',  name: 'Línea 37 - Aeropuerto / Centro',         color: '#F59E0B', company: 'AeroBus Ltda.',    total_stops: 8,  is_active: true },
-  { id: 'line-60',  line_number: '60',  name: 'Línea 60 - Constitución / Tigre',        color: '#60A5FA', company: 'MONSA S.A.',       total_stops: 9,  is_active: true },
-  { id: 'line-152', line_number: '152', name: 'Línea 152 - La Boca / Olivos',          color: '#34D399', company: 'TANDILENSE S.A.',  total_stops: 11, is_active: true },
+  { id: 'line-1',   line_number: '12',  name: 'Línea 12 - Once / Villa Urquiza',        color: '#EF4444', company: 'Transportes Callao S.A.', total_stops: 10, is_active: true },
+  { id: 'line-28',  line_number: '28',  name: 'Línea 28 - Retiro / Puente La Noria',    color: '#16A34A', company: 'DOTA S.A.',        total_stops: 8,  is_active: true },
+  { id: 'line-3',   line_number: '37',  name: 'Línea 37 - Aeropuerto / Centro',         color: '#15803D', company: '4 de Septiembre S.A.', total_stops: 8,  is_active: true },
+  { id: 'line-60',  line_number: '60',  name: 'Línea 60 - Constitución / Tigre',        color: '#EAB308', company: 'MONSA S.A.',       total_stops: 9,  is_active: true },
+  { id: 'line-152', line_number: '152', name: 'Línea 152 - La Boca / Olivos',          color: '#1D4ED8', company: 'Empresa Tandilense S.A.', total_stops: 11, is_active: true },
 ]
 
 // Real Buenos Aires street coordinates for each line
@@ -50,74 +50,19 @@ export const MOCK_STOPS: Record<string, BusStop[]> = {
     { id: 'l3-s7',  line_id: 'line-3', name: 'Perú y Av. de Mayo',       street_name: 'Perú 700',                   stop_number: 7,  latitude: -34.6090, longitude: -58.3740, direction: 'ida', avg_wait_minutes: 5,  total_daily_users: 290 },
     { id: 'l3-s8',  line_id: 'line-3', name: 'Monserrat - Final',        street_name: 'Av. Belgrano 1000',           stop_number: 8,  latitude: -34.6130, longitude: -58.3720, direction: 'ida', avg_wait_minutes: 6,  total_daily_users: 200 },
   ],
-  // Line 55: Estadio Vélez → Flores → Constitución
-  'line-4': [
-    { id: 'l4-s1',  line_id: 'line-4', name: 'Estadio Vélez',            street_name: 'Av. Juan B. Justo 9200',      stop_number: 1, latitude: -34.6382, longitude: -58.4815, direction: 'ida', avg_wait_minutes: 10, total_daily_users: 240 },
-    { id: 'l4-s2',  line_id: 'line-4', name: 'Directorio y Nazca',       street_name: 'Av. Directorio 3100',         stop_number: 2, latitude: -34.6342, longitude: -58.4660, direction: 'ida', avg_wait_minutes: 7,  total_daily_users: 190 },
-    { id: 'l4-s3',  line_id: 'line-4', name: 'Rivadavia y Nazca',        street_name: 'Av. Rivadavia 7000',          stop_number: 3, latitude: -34.6285, longitude: -58.4580, direction: 'ida', avg_wait_minutes: 6,  total_daily_users: 210 },
-    { id: 'l4-s4',  line_id: 'line-4', name: 'Flores - Rivadavia',       street_name: 'Av. Rivadavia 6200',          stop_number: 4, latitude: -34.6230, longitude: -58.4420, direction: 'ida', avg_wait_minutes: 5,  total_daily_users: 260 },
-    { id: 'l4-s5',  line_id: 'line-4', name: 'Almagro - Corrientes',     street_name: 'Av. Corrientes 4500',         stop_number: 5, latitude: -34.6068, longitude: -58.4185, direction: 'ida', avg_wait_minutes: 5,  total_daily_users: 300 },
-    { id: 'l4-s6',  line_id: 'line-4', name: '9 de Julio y Corrientes',  street_name: 'Av. 9 de Julio 1300',         stop_number: 6, latitude: -34.6037, longitude: -58.3816, direction: 'ida', avg_wait_minutes: 4,  total_daily_users: 380 },
-    { id: 'l4-s7',  line_id: 'line-4', name: 'San Juan y Lima',          street_name: 'Av. San Juan 1200',           stop_number: 7, latitude: -34.6180, longitude: -58.3760, direction: 'ida', avg_wait_minutes: 6,  total_daily_users: 220 },
-    { id: 'l4-s8',  line_id: 'line-4', name: 'Independencia y Lima',     street_name: 'Av. Independencia 1500',      stop_number: 8, latitude: -34.6228, longitude: -58.3742, direction: 'ida', avg_wait_minutes: 7,  total_daily_users: 180 },
-    { id: 'l4-s9',  line_id: 'line-4', name: 'Constitución - Final',     street_name: 'Av. Brasil 1800',             stop_number: 9, latitude: -34.6268, longitude: -58.3808, direction: 'ida', avg_wait_minutes: 8,  total_daily_users: 300 },
-  ],
-  // Line 71: Ciudad Universitaria → Palermo → Constitución
-  'line-5': [
-    { id: 'l5-s1',  line_id: 'line-5', name: 'Ciudad Universitaria',     street_name: 'Int. Güiraldes 2160',         stop_number: 1, latitude: -34.5428, longitude: -58.4453, direction: 'ida', avg_wait_minutes: 10, total_daily_users: 320 },
-    { id: 'l5-s2',  line_id: 'line-5', name: 'Lugones y Salgero',        street_name: 'Av. Lugones 2600',            stop_number: 2, latitude: -34.5680, longitude: -58.4290, direction: 'ida', avg_wait_minutes: 7,  total_daily_users: 260 },
-    { id: 'l5-s3',  line_id: 'line-5', name: 'Libertador y Salgero',     street_name: 'Av. del Libertador 3200',     stop_number: 3, latitude: -34.5760, longitude: -58.4250, direction: 'ida', avg_wait_minutes: 6,  total_daily_users: 240 },
-    { id: 'l5-s4',  line_id: 'line-5', name: 'Santa Fe y Medrano',       street_name: 'Av. Santa Fe 4600',           stop_number: 4, latitude: -34.5908, longitude: -58.4280, direction: 'ida', avg_wait_minutes: 5,  total_daily_users: 280 },
-    { id: 'l5-s5',  line_id: 'line-5', name: 'Corrientes y Medrano',     street_name: 'Av. Corrientes 4300',         stop_number: 5, latitude: -34.6057, longitude: -58.4172, direction: 'ida', avg_wait_minutes: 5,  total_daily_users: 320 },
-    { id: 'l5-s6',  line_id: 'line-5', name: 'Rivadavia y Medrano',      street_name: 'Av. Rivadavia 4300',          stop_number: 6, latitude: -34.6165, longitude: -58.4150, direction: 'ida', avg_wait_minutes: 5,  total_daily_users: 290 },
-    { id: 'l5-s7',  line_id: 'line-5', name: 'Boedo y San Juan',         street_name: 'Av. Boedo 1100',              stop_number: 7, latitude: -34.6253, longitude: -58.4090, direction: 'ida', avg_wait_minutes: 6,  total_daily_users: 200 },
-    { id: 'l5-s8',  line_id: 'line-5', name: 'Av. Caseros y Boedo',      street_name: 'Av. Caseros 2200',            stop_number: 8, latitude: -34.6308, longitude: -58.4030, direction: 'ida', avg_wait_minutes: 7,  total_daily_users: 170 },
-    { id: 'l5-s9',  line_id: 'line-5', name: 'Constitución - Final',     street_name: 'Av. Brasil 1400',             stop_number: 9, latitude: -34.6268, longitude: -58.3808, direction: 'ida', avg_wait_minutes: 7,  total_daily_users: 290 },
-  ],
-  // Line 88: Hospital Italiano → San Telmo
-  'line-6': [
-    { id: 'l6-s1',  line_id: 'line-6', name: 'Hospital Italiano',        street_name: 'Av. Juan D. Perón 4190',      stop_number: 1, latitude: -34.6060, longitude: -58.4300, direction: 'ida', avg_wait_minutes: 7,  total_daily_users: 230 },
-    { id: 'l6-s2',  line_id: 'line-6', name: 'Rivadavia y Medrano',      street_name: 'Av. Rivadavia 4200',          stop_number: 2, latitude: -34.6165, longitude: -58.4150, direction: 'ida', avg_wait_minutes: 6,  total_daily_users: 200 },
-    { id: 'l6-s3',  line_id: 'line-6', name: 'Av. Callao y Corrientes',  street_name: 'Av. Callao 1200',             stop_number: 3, latitude: -34.6042, longitude: -58.3940, direction: 'ida', avg_wait_minutes: 5,  total_daily_users: 270 },
-    { id: 'l6-s4',  line_id: 'line-6', name: 'Florida y Corrientes',     street_name: 'Florida 800',                 stop_number: 4, latitude: -34.6040, longitude: -58.3745, direction: 'ida', avg_wait_minutes: 4,  total_daily_users: 410 },
-    { id: 'l6-s5',  line_id: 'line-6', name: 'Av. de Mayo y Lima',       street_name: 'Av. de Mayo 1200',            stop_number: 5, latitude: -34.6087, longitude: -58.3760, direction: 'ida', avg_wait_minutes: 5,  total_daily_users: 340 },
-    { id: 'l6-s6',  line_id: 'line-6', name: 'Chile y Defensa',          street_name: 'Chile 500',                   stop_number: 6, latitude: -34.6155, longitude: -58.3710, direction: 'ida', avg_wait_minutes: 7,  total_daily_users: 200 },
-    { id: 'l6-s7',  line_id: 'line-6', name: 'Independencia y Defensa',  street_name: 'Independencia 600',           stop_number: 7, latitude: -34.6195, longitude: -58.3700, direction: 'ida', avg_wait_minutes: 8,  total_daily_users: 160 },
-    { id: 'l6-s8',  line_id: 'line-6', name: 'San Telmo - Final',        street_name: 'Av. San Juan 400',            stop_number: 8, latitude: -34.6228, longitude: -58.3700, direction: 'ida', avg_wait_minutes: 9,  total_daily_users: 130 },
-  ],
-  // Line 102: Retiro → Palermo → Flores → Liniers
-  'line-7': [
-    { id: 'l7-s1',  line_id: 'line-7', name: 'Retiro',                   street_name: 'Av. del Libertador 100',      stop_number: 1, latitude: -34.5924, longitude: -58.3740, direction: 'ida', avg_wait_minutes: 5, total_daily_users: 350 },
-    { id: 'l7-s2',  line_id: 'line-7', name: 'Santa Fe y Callao',        street_name: 'Av. Santa Fe 1500',           stop_number: 2, latitude: -34.5972, longitude: -58.3930, direction: 'ida', avg_wait_minutes: 5, total_daily_users: 300 },
-    { id: 'l7-s3',  line_id: 'line-7', name: 'Córdoba y Pueyrredón',     street_name: 'Av. Córdoba 2500',            stop_number: 3, latitude: -34.5968, longitude: -58.4010, direction: 'ida', avg_wait_minutes: 6, total_daily_users: 270 },
-    { id: 'l7-s4',  line_id: 'line-7', name: 'Corrientes y Pueyrredón',  street_name: 'Av. Corrientes 3300',         stop_number: 4, latitude: -34.6052, longitude: -58.4050, direction: 'ida', avg_wait_minutes: 5, total_daily_users: 310 },
-    { id: 'l7-s5',  line_id: 'line-7', name: 'Rivadavia y Pueyrredón',   street_name: 'Av. Rivadavia 3300',          stop_number: 5, latitude: -34.6150, longitude: -58.4040, direction: 'ida', avg_wait_minutes: 5, total_daily_users: 340 },
-    { id: 'l7-s6',  line_id: 'line-7', name: 'Carabobo y Rivadavia',     street_name: 'Av. Rivadavia 4900',          stop_number: 6, latitude: -34.6200, longitude: -58.4340, direction: 'ida', avg_wait_minutes: 6, total_daily_users: 240 },
-    { id: 'l7-s7',  line_id: 'line-7', name: 'Juan B. Justo y Fragata',  street_name: 'Av. Juan B. Justo 6500',      stop_number: 7, latitude: -34.6275, longitude: -58.4570, direction: 'ida', avg_wait_minutes: 7, total_daily_users: 180 },
-    { id: 'l7-s8',  line_id: 'line-8', name: 'General Paz y Rivadavia',  street_name: 'Av. Gral. Paz 5000',          stop_number: 8, latitude: -34.6348, longitude: -58.4780, direction: 'ida', avg_wait_minutes: 9, total_daily_users: 140 },
-    { id: 'l7-s9',  line_id: 'line-7', name: 'Liniers - Final',          street_name: 'Av. Rivadavia 11000',         stop_number: 9, latitude: -34.6380, longitude: -58.5210, direction: 'ida', avg_wait_minutes: 12, total_daily_users: 110 },
-  ],
-  // Line 115: Belgrano → Palermo → Caballito
-  'line-8': [
-    { id: 'l8-s1',  line_id: 'line-8', name: 'Belgrano - Cabildo',       street_name: 'Av. Cabildo 2800',            stop_number: 1, latitude: -34.5606, longitude: -58.4569, direction: 'ida', avg_wait_minutes: 7, total_daily_users: 280 },
-    { id: 'l8-s2',  line_id: 'line-8', name: 'Cabildo y Monroe',         street_name: 'Av. Cabildo 2200',            stop_number: 2, latitude: -34.5660, longitude: -58.4500, direction: 'ida', avg_wait_minutes: 6, total_daily_users: 240 },
-    { id: 'l8-s3',  line_id: 'line-8', name: 'Libertador y Salgero',     street_name: 'Av. del Libertador 3200',     stop_number: 3, latitude: -34.5760, longitude: -58.4250, direction: 'ida', avg_wait_minutes: 6, total_daily_users: 200 },
-    { id: 'l8-s4',  line_id: 'line-8', name: 'Santa Fe y Scalabrini',    street_name: 'Av. Santa Fe 4000',           stop_number: 4, latitude: -34.5930, longitude: -58.4200, direction: 'ida', avg_wait_minutes: 5, total_daily_users: 270 },
-    { id: 'l8-s5',  line_id: 'line-8', name: 'Corrientes y Scalabrini',  street_name: 'Av. Corrientes 4800',         stop_number: 5, latitude: -34.6060, longitude: -58.4250, direction: 'ida', avg_wait_minutes: 5, total_daily_users: 310 },
-    { id: 'l8-s6',  line_id: 'line-8', name: 'Rivadavia y Scalabrini',   street_name: 'Av. Rivadavia 4700',          stop_number: 6, latitude: -34.6170, longitude: -58.4230, direction: 'ida', avg_wait_minutes: 5, total_daily_users: 280 },
-    { id: 'l8-s7',  line_id: 'line-8', name: 'Caballito - Rivadavia',    street_name: 'Av. Rivadavia 5400',          stop_number: 7, latitude: -34.6205, longitude: -58.4350, direction: 'ida', avg_wait_minutes: 6, total_daily_users: 220 },
-    { id: 'l8-s8',  line_id: 'line-8', name: 'Caballito - Final',        street_name: 'Av. Directorio 1500',         stop_number: 8, latitude: -34.6270, longitude: -58.4320, direction: 'ida', avg_wait_minutes: 8, total_daily_users: 160 },
-  ],
 }
 
 // ─── Simulator ────────────────────────────────────────────────────────────────
 interface MockBusState {
   bus: BusPosition
   stopIndex: number
-  progress: number      // 0–1 between current and next stop
+  progress: number                 // 0–1 between current and next stop
   direction: 1 | -1
-  pauseUntil: number    // ms timestamp; 0 = moving
-  speedKmh: number      // per-bus speed for variety
+  pauseUntil: number               // ms timestamp; 0 = moving
+  speedKmh: number                 // dynamic current speed
+  baseSpeedKmh: number             // base target speed
+  branchId: string | null          // branch key (e.g. '60' or '60-B' or null)
+  trafficLightPauseUntil: number   // ms timestamp for red light
 }
 
 // Module-level mutable state — one entry per bus
@@ -148,15 +93,50 @@ function routeTemplateForLine(line: BusLine): BusStop[] {
   const directStops = MOCK_STOPS[line.id]
   if (directStops?.length) return directStops
 
-  const lineNumber = parseInt(line.line_number, 10)
-  const templateIndex = Number.isFinite(lineNumber)
-    ? Math.abs(lineNumber) % MOCK_LINES.length
-    : Math.abs([...line.id].reduce((sum, char) => sum + char.charCodeAt(0), 0)) % MOCK_LINES.length
-
-  return MOCK_STOPS[MOCK_LINES[templateIndex].id] || MOCK_STOPS[MOCK_LINES[0].id]
+  return MOCK_STOPS[MOCK_LINES[0].id]
 }
 
 export function getMockStopsForLine(line: BusLine): BusStop[] {
+  if (line.line_number === '60') {
+    const routeA = OFFICIAL_ROUTES['60']
+    const routeB = OFFICIAL_ROUTES['60-B']
+    const stopsA = (routeA?.stops || []).map((stop, index) => ({
+      id: `${line.id}-official-${stop.id}`,
+      line_id: line.id,
+      name: stop.name,
+      street_name: 'Recorrido Ramal A (Tigre)',
+      stop_number: index + 1,
+      latitude: stop.lat,
+      longitude: stop.lng,
+      direction: 'ida' as const,
+      avg_wait_minutes: 5,
+      total_daily_users: 150,
+    }))
+    const stopsB = (routeB?.stops || []).map((stop, index) => ({
+      id: `${line.id}-official-${stop.id}`,
+      line_id: line.id,
+      name: stop.name,
+      street_name: 'Recorrido Ramal B (Escobar)',
+      stop_number: index + 1,
+      latitude: stop.lat,
+      longitude: stop.lng,
+      direction: 'ida' as const,
+      avg_wait_minutes: 7,
+      total_daily_users: 100,
+    }))
+    
+    // Merge stops with exact same coordinates
+    const uniqueStops: BusStop[] = []
+    const coords = new Set<string>()
+    ;[...stopsA, ...stopsB].forEach(s => {
+      const key = `${s.latitude.toFixed(4)},${s.longitude.toFixed(4)}`
+      if (!coords.has(key)) {
+        coords.add(key)
+        uniqueStops.push(s)
+      }
+    })
+    return uniqueStops
+  }
   return routeTemplateForLine(line).map(stop => ({
     ...stop,
     id: `${line.id}-${stop.id}`,
@@ -169,7 +149,7 @@ function getMockStopsForBus(bus: BusPosition): BusStop[] {
     id: bus.line_id,
     line_number: bus.line_number,
     name: `Linea ${bus.line_number}`,
-    color: '#22D3A0',
+    color: '#EF4444',
     company: 'Simulacion',
     total_stops: 0,
     is_active: true,
@@ -192,12 +172,23 @@ export function getMockRoutePathForLine(line: BusLine): RoutePoint[] {
   return getRoutePathForLine(line)
 }
 
+// Support multiple paths for branches (like Line 60)
+export function getMockRoutePathsForLine(line: BusLine): RoutePoint[][] {
+  if (line.line_number === '60') {
+    return [
+      OFFICIAL_ROUTES['60']?.path || [],
+      OFFICIAL_ROUTES['60-B']?.path || []
+    ]
+  }
+  return [getRoutePathForLine(line)]
+}
+
 function getRoutePathForBus(bus: BusPosition): RoutePoint[] {
   const line = MOCK_LINES.find(l => l.id === bus.line_id) || {
     id: bus.line_id,
     line_number: bus.line_number,
     name: `Linea ${bus.line_number}`,
-    color: '#22D3A0',
+    color: '#EF4444',
     company: 'Simulacion',
     total_stops: 0,
     is_active: true,
@@ -239,24 +230,51 @@ function nearestStopAhead(stops: BusStop[], path: RoutePoint[], pathIndex: numbe
 function shouldPauseAtPathIndex(stops: BusStop[], path: RoutePoint[], pathIndex: number): boolean {
   const point = path[pathIndex]
   return stops.some((stop, index) => (
-    index % 2 === 1 && distanceKm(point, { lat: stop.latitude, lng: stop.longitude }) < 0.035
+    distanceKm(point, { lat: stop.latitude, lng: stop.longitude }) < 0.035
   ))
 }
 
 function makeBus(line: BusLine, unitNum: number, totalBuses: number): MockBusState {
-  const stops = getMockStopsForLine(line)
-  const path = getRoutePathForLine(line)
+  const isLine60 = line.line_number === '60'
+  const branchId = isLine60 ? (unitNum % 2 === 0 ? '60' : '60-B') : null
   
-  // Distribute buses evenly along the route path
+  let path: RoutePoint[] = []
+  let stops: BusStop[] = []
+  
+  if (isLine60 && branchId) {
+    const route = OFFICIAL_ROUTES[branchId]
+    path = route.path
+    stops = route.stops.map((stop, index) => ({
+      id: `${line.id}-official-${stop.id}`,
+      line_id: line.id,
+      name: stop.name,
+      street_name: stop.name,
+      stop_number: index + 1,
+      latitude: stop.lat,
+      longitude: stop.lng,
+      direction: 'ida',
+      avg_wait_minutes: 6,
+      total_daily_users: 120,
+    }))
+  } else {
+    stops = getMockStopsForLine(line)
+    path = getRoutePathForLine(line)
+  }
+  
   const fraction = unitNum / totalBuses
   const pathIndex = Math.min(Math.floor(path.length * fraction), path.length - 2)
-  
   const point = path[pathIndex]
   const nextStop = nearestStopAhead(stops, path, pathIndex, 1) || stops[0]
-  const names = ['Carlos Gómez', 'María Torres', 'Roberto Silva', 'Ana Martínez', 'Luis Fernández', 'Jorge Rodríguez', 'Laura Gómez', 'Daniel Díaz']
   
-  // Assign different speeds between 18 and 32 km/h
+  const names = [
+    'Carlos Gómez', 'María Torres', 'Roberto Silva', 'Ana Martínez', 
+    'Luis Fernández', 'Jorge Rodríguez', 'Laura Gómez', 'Daniel Díaz', 
+    'Miguel Angel', 'Gabriela Paz', 'Francisco Solano'
+  ]
   const speedKmh = 18 + (unitNum * 5) % 15
+  
+  const ramal = isLine60 ? (branchId === '60' ? 'A' : 'B') : undefined
+  const reports_count = (unitNum % 3 === 0) ? 0 : (unitNum % 3 === 1 ? 1 : 2)
 
   const bus: BusPosition = {
     id:              `mock-${line.id}-${unitNum}`,
@@ -273,22 +291,26 @@ function makeBus(line: BusLine, unitNum: number, totalBuses: number): MockBusSta
     next_stop_name:  nextStop.name,
     eta_minutes:     2,
     status:          'at_stop',
-    passenger_count: Math.floor(Math.random() * 25) + 5,
+    passenger_count: Math.floor(Math.random() * 22) + 6,
     timestamp:       new Date().toISOString(),
+    ramal,
+    reports_count,
   }
+
   return {
     bus,
     stopIndex:    pathIndex,
     progress:    0,
     direction:   1,
-    // Stagger departure
-    pauseUntil:  Date.now() + 2000 + unitNum * 2500,
+    pauseUntil:  Date.now() + 1000 + unitNum * 1500,
     speedKmh,
+    baseSpeedKmh: speedKmh,
+    branchId,
+    trafficLightPauseUntil: 0,
   }
 }
 
 export function initMockBuses(lines: BusLine[] = MOCK_LINES) {
-  // Always reinitialise so switching lines always gets fresh buses
   STATE.clear()
   lastTick = Date.now()
 
@@ -296,7 +318,8 @@ export function initMockBuses(lines: BusLine[] = MOCK_LINES) {
     const path = getRoutePathForLine(line)
     if (!path || path.length < 2) return
     const isLine12 = line.line_number === '12'
-    const totalBuses = isLine12 ? 8 : 2
+    const isLine60 = line.line_number === '60'
+    const totalBuses = isLine12 ? 8 : (isLine60 ? 8 : 4)
     for (let i = 0; i < totalBuses; i++) {
       STATE.set(`${line.id}-${i}`, makeBus(line, i, totalBuses))
     }
@@ -313,15 +336,35 @@ export function tickMockBuses(): BusPosition[] {
   if (STATE.size === 0) initMockBuses()
 
   const now   = Date.now()
-  // dt in seconds since last tick, clamped to 2s max to avoid huge jumps
-  const dt    = Math.min((now - lastTick) / 1000, 2)
+  const dt    = Math.min((now - lastTick) / 1000, 1.5) // clamp dt
   lastTick    = now
 
   const out: BusPosition[] = []
 
   STATE.forEach(s => {
-    const stops = getMockStopsForBus(s.bus)
-    const path = getRoutePathForBus(s.bus)
+    let stops: BusStop[] = []
+    let path: RoutePoint[] = []
+
+    if (s.branchId) {
+      const route = OFFICIAL_ROUTES[s.branchId]
+      path = route.path
+      stops = route.stops.map((stop, index) => ({
+        id: `${s.bus.line_id}-official-${stop.id}`,
+        line_id: s.bus.line_id,
+        name: stop.name,
+        street_name: stop.name,
+        stop_number: index + 1,
+        latitude: stop.lat,
+        longitude: stop.lng,
+        direction: 'ida',
+        avg_wait_minutes: 6,
+        total_daily_users: 120,
+      }))
+    } else {
+      stops = getMockStopsForBus(s.bus)
+      path = getRoutePathForBus(s.bus)
+    }
+
     if (!stops || stops.length < 2 || path.length < 2) return
 
     // ── Paused at stop ──
@@ -333,59 +376,76 @@ export function tickMockBuses(): BusPosition[] {
       return
     }
 
+    // ── Paused at traffic light (red light simulation) ──
+    if (s.trafficLightPauseUntil > now) {
+      s.bus.status    = 'stopped'
+      s.bus.speed_kmh = 0
+      s.bus.timestamp = new Date().toISOString()
+      out.push({ ...s.bus })
+      return
+    }
+
+    // Dynamic Traffic Simulation: 0.6% chance per second to get stopped at traffic light
+    if (Math.random() < 0.006 * dt) {
+      s.trafficLightPauseUntil = now + (3000 + Math.random() * 7000) // stop for 3-10s
+      s.bus.status    = 'stopped'
+      s.bus.speed_kmh = 0
+      s.bus.timestamp = new Date().toISOString()
+      out.push({ ...s.bus })
+      return
+    }
+
     const curPoint = path[s.stopIndex]
     const nextIdx  = s.stopIndex + s.direction
 
-    // Reached end of route → reverse (stop duration between 3 to 10 seconds)
+    // Reached end of route → reverse
     if (nextIdx < 0 || nextIdx >= path.length) {
       s.direction  = s.direction === 1 ? -1 : 1
-      s.pauseUntil = now + (3000 + Math.random() * 7000)
+      s.pauseUntil = now + (3000 + Math.random() * 5000) // stop for 3-8s
       out.push({ ...s.bus })
       return
     }
 
     const nextPoint = path[nextIdx]
-
-    // Distance between stops in degrees; 1° ≈ 111 km
     const dLat   = nextPoint.lat - curPoint.lat
     const dLng   = nextPoint.lng - curPoint.lng
     const segmentKm = distanceKm(curPoint, nextPoint)
 
-    // Speed from the specific bus state
-    const speedKmh = s.speedKmh
+    // Dynamic speed variation (fluctuate around base speed)
+    const currentSpeedKmh = Math.max(8, s.baseSpeedKmh + Math.sin(now / 3000) * 5 + (Math.random() * 2 - 1))
+    s.speedKmh = currentSpeedKmh
 
-    // How much progress to add this tick
-    const step = segmentKm > 0 ? ((speedKmh / 3600) * dt) / segmentKm : 1
+    const step = segmentKm > 0 ? ((currentSpeedKmh / 3600) * dt) / segmentKm : 1
     s.progress = Math.min(s.progress + step, 1)
 
     // Interpolate position
     s.bus.latitude   = curPoint.lat + dLat * s.progress
     s.bus.longitude  = curPoint.lng + dLng * s.progress
     s.bus.heading    = heading(curPoint.lat, curPoint.lng, nextPoint.lat, nextPoint.lng)
-    s.bus.speed_kmh  = Math.round(speedKmh)
+    s.bus.speed_kmh  = Math.round(currentSpeedKmh)
     s.bus.status     = 'moving'
+    
     const nextStop = nearestStopAhead(stops, path, s.stopIndex, s.direction)
     if (nextStop) {
       s.bus.next_stop_name = nextStop.name
       s.bus.next_stop_id   = nextStop.id
     }
     const remainingDist  = segmentKm * (1 - s.progress)
-    s.bus.eta_minutes    = Math.max(1, Math.ceil(remainingDist / (speedKmh / 60)))
+    s.bus.eta_minutes    = Math.max(1, Math.ceil(remainingDist / (currentSpeedKmh / 60)))
     s.bus.timestamp      = new Date().toISOString()
 
-    // Arrived at a point
     if (s.progress >= 1) {
       s.stopIndex  = nextIdx
       s.progress   = 0
       s.bus.latitude   = nextPoint.lat
       s.bus.longitude  = nextPoint.lng
 
-      // If this point is a stop, pause (different lengths up to 10 seconds)
+      // Arrived at a stop -> pause (random length up to 10 seconds)
       if (shouldPauseAtPathIndex(stops, path, nextIdx)) {
         s.bus.status     = 'at_stop'
         s.bus.speed_kmh  = 0
-        s.bus.passenger_count = Math.max(0, s.bus.passenger_count + Math.floor(Math.random() * 8) - 3)
-        s.pauseUntil = now + (3000 + Math.random() * 7000)
+        s.bus.passenger_count = Math.max(2, s.bus.passenger_count + Math.floor(Math.random() * 8) - 3)
+        s.pauseUntil = now + (3000 + Math.random() * 7000) // stop for 3-10s
       }
     }
 
@@ -394,7 +454,6 @@ export function tickMockBuses(): BusPosition[] {
 
   return out
 }
-
 
 export function getMockBusesForLine(lineId: string): BusPosition[] {
   if (STATE.size === 0) initMockBuses()

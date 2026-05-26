@@ -9,9 +9,10 @@ import {
   Navigation as NavIcon, LayoutDashboard, Menu
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+import { OFFICIAL_ROUTES } from '@/lib/officialRoutes'
 import type { BusPosition, BusLine, BusStop } from '@/types'
 import {
-  MOCK_LINES, MOCK_STOPS, initMockBuses, tickMockBuses, getMockBusesForLine, getLineBounds, getMockStopsForLine, getMockRoutePathForLine
+  MOCK_LINES, MOCK_STOPS, initMockBuses, tickMockBuses, getMockBusesForLine, getLineBounds, getMockStopsForLine, getMockRoutePathForLine, getMockRoutePathsForLine
 } from '@/lib/mockData'
 import ReportModal from '@/components/user/ReportModal'
 import BusInfoSheet from '@/components/user/BusInfoSheet'
@@ -71,7 +72,7 @@ export default function UserMapPage() {
   const [user, setUser]                     = useState<any>(null)
   const [buses, setBuses]                   = useState<BusPosition[]>([])
   const [lines, setLines]                   = useState<BusLine[]>([])
-  const [selectedLine, setSelectedLine]     = useState<BusLine | null>(null)
+  const [selectedLines, setSelectedLines]   = useState<BusLine[]>([])
   const [selectedBus, setSelectedBus]       = useState<BusPosition | null>(null)
   const [showReport, setShowReport]         = useState(false)
   const [showLineSelector, setShowLineSelector] = useState(false)
@@ -83,6 +84,78 @@ export default function UserMapPage() {
   const [useMockBuses, setUseMockBuses]     = useState(false)
   const [collapsed, setCollapsed]           = useState(false)
 
+  // Branch & Interno filtering state
+  const [branchFilter, setBranchFilter]     = useState<string>('all')
+  const [trackedBusId, setTrackedBusId]     = useState<string | null>(null)
+
+  // Travel Planner state
+  const [travelPlannerOpen, setTravelPlannerOpen] = useState(false)
+  const [originInput, setOriginInput]             = useState('')
+  const [destInput, setDestInput]                 = useState('')
+  const [originCoord, setOriginCoord]             = useState<{ lat: number; lng: number } | null>(null)
+  const [destCoord, setDestCoord]                 = useState<{ lat: number; lng: number } | null>(null)
+  const [pinNearbyStopsMode, setPinNearbyStopsMode] = useState(false)
+  const [nearbyStopsPinCoord, setNearbyStopsPinCoord] = useState<{ lat: number; lng: number } | null>(null)
+  const [travelRoute, setTravelRoute]             = useState<any>(null)
+
+  // Helper distance function
+  const distanceKm = (a: { latitude: number; longitude: number } | BusStop, b: { lat: number; lng: number }) => {
+    const lat1 = a.latitude * Math.PI / 180
+    const lat2 = b.lat * Math.PI / 180
+    const dLat = lat2 - lat1
+    const dLng = (b.lng - a.longitude) * Math.PI / 180
+    const s = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2
+    return 6371 * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s))
+  }
+
+  // Helper route solver
+  const solveRoute = (origin: { lat: number; lng: number }, dest: { lat: number; lng: number }) => {
+    const stopsA = Object.values(MOCK_STOPS).flat()
+    
+    // Also include official routes stops
+    const officialStops = Object.keys(OFFICIAL_ROUTES).flatMap(key => {
+      const line = MOCK_LINES.find(l => l.line_number === key.split('-')[0])
+      if (!line) return []
+      return OFFICIAL_ROUTES[key].stops.map(stop => ({
+        id: `${line.id}-official-${stop.id}`,
+        line_id: line.id,
+        name: stop.name,
+        street_name: stop.name,
+        latitude: stop.lat,
+        longitude: stop.lng,
+        line_number: line.line_number,
+        color: line.color,
+      }))
+    })
+
+    const allStops = [
+      ...stopsA.map(s => ({
+        ...s,
+        line_number: MOCK_LINES.find(l => l.id === s.line_id)?.line_number || '12',
+        color: MOCK_LINES.find(l => l.id === s.line_id)?.color || '#EF4444'
+      })),
+      ...officialStops
+    ]
+
+    const nearOrigin = allStops.filter(stop => distanceKm(stop, origin) < 0.8)
+    const nearDest = allStops.filter(stop => distanceKm(stop, dest) < 0.8)
+
+    for (const stopO of nearOrigin) {
+      for (const stopD of nearDest) {
+        if (stopO.line_id === stopD.line_id) {
+          return {
+            line_id: stopO.line_id,
+            line_number: stopO.line_number,
+            color: stopO.color,
+            originStop: stopO,
+            destStop: stopD,
+          }
+        }
+      }
+    }
+    return null
+  }
+
   // ── init ──
   useEffect(() => {
     setPrefs(loadPrefs())
@@ -91,7 +164,10 @@ export default function UserMapPage() {
       const ALLOWED_LINES = ['12', '28', '37', '60', '152']
       const availableLines = (data && data.length > 0 ? data : MOCK_LINES).filter(l => ALLOWED_LINES.includes(l.line_number))
       setLines(availableLines)
-      setSelectedLine(current => current || availableLines.find(l => l.line_number === '12') || availableLines[0] || null)
+      const defaultLine = availableLines.find(l => l.line_number === '12') || availableLines[0]
+      if (defaultLine) {
+        setSelectedLines([defaultLine])
+      }
     })
   }, [])
 
@@ -101,70 +177,74 @@ export default function UserMapPage() {
 
   // ── line subscription + mock fallback ──
   useEffect(() => {
-    if (channelRef.current) supabase.removeChannel(channelRef.current)
     if (mockTickRef.current) { clearInterval(mockTickRef.current); mockTickRef.current = null }
     setBuses([])
     setLineStops([])
     setUseMockBuses(false)
-    if (!selectedLine) return
+    if (selectedLines.length === 0) return
 
-    setLineStops(getMockStopsForLine(selectedLine))
+    // Combine stops for all selected lines
+    const combinedStops = selectedLines.flatMap(line => getMockStopsForLine(line))
+    // Merge stops with exact same coordinates to prevent duplicates on map
+    const uniqueStops: BusStop[] = []
+    const coordsSet = new Set()
+    combinedStops.forEach(s => {
+      const key = `${s.latitude.toFixed(4)},${s.longitude.toFixed(4)}`
+      if (!coordsSet.has(key)) {
+        coordsSet.add(key)
+        uniqueStops.push(s)
+      }
+    })
+    setLineStops(uniqueStops)
 
-    // Reinitialise simulator fresh for this line selection, then start ticking
-    initMockBuses([selectedLine])
-    const initial = getMockBusesForLine(selectedLine.id)
+    // Reinitialise simulator fresh for the selected lines, then start ticking
+    initMockBuses(selectedLines)
+    const initial = selectedLines.flatMap(line => getMockBusesForLine(line.id))
     setBuses(initial.length > 0 ? initial : [])
     setUseMockBuses(true)
 
-    // Auto-fit map to the line's stops
-    const bounds = getLineBounds(selectedLine)
-    if (bounds) {
-      const centerLat = (bounds.minLat + bounds.maxLat) / 2
-      const centerLng = (bounds.minLng + bounds.maxLng) / 2
-      setViewState(v => ({ ...v, latitude: centerLat, longitude: centerLng, zoom: 13, pitch: 0 }))
+    // Fit map bounds to the selected lines
+    let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180
+    let hasBounds = false
+    selectedLines.forEach(line => {
+      const bounds = getLineBounds(line)
+      if (bounds) {
+        minLat = Math.min(minLat, bounds.minLat)
+        maxLat = Math.max(maxLat, bounds.maxLat)
+        minLng = Math.min(minLng, bounds.minLng)
+        maxLng = Math.max(maxLng, bounds.maxLng)
+        hasBounds = true
+      }
+    })
+    if (hasBounds) {
+      const centerLat = (minLat + maxLat) / 2
+      const centerLng = (minLng + maxLng) / 2
+      setViewState(v => ({ ...v, latitude: centerLat, longitude: centerLng, zoom: 12.5, pitch: 0 }))
     }
+
+    // Reset branch and tracked bus filters when selection changes
+    setBranchFilter('all')
+    setTrackedBusId(null)
 
     mockTickRef.current = setInterval(() => {
-      const ticked = tickMockBuses().filter(b => b.line_id === selectedLine.id)
-      setBuses([...ticked])
-    }, 800)
-
-    // Try real data; if found, replace mock
-    const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString()
-    supabase.from('bus_positions')
-      .select('*,profiles!driver_id(name)')
-      .eq('line_id', selectedLine.id)
-      .neq('status', 'offline')
-      .gte('timestamp', cutoff)
-      .then(({ data }) => {
-        if (data && data.length > 0) {
-          if (mockTickRef.current) { clearInterval(mockTickRef.current); mockTickRef.current = null }
-          setUseMockBuses(false)
-          setBuses(data as unknown as BusPosition[])
-        }
-      })
-
-    channelRef.current = supabase
-      .channel(`line-${selectedLine.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bus_positions', filter: `line_id=eq.${selectedLine.id}` },
-        async () => {
-          const { data } = await supabase.from('bus_positions')
-            .select('*,profiles!driver_id(name)')
-            .eq('line_id', selectedLine.id).neq('status', 'offline')
-            .gte('timestamp', new Date(Date.now() - 5 * 60 * 1000).toISOString())
-          if (data && data.length > 0) {
-            if (mockTickRef.current) { clearInterval(mockTickRef.current); mockTickRef.current = null }
-            setUseMockBuses(false)
-            setBuses(data as unknown as BusPosition[])
-          }
-        })
-      .subscribe()
+      const selectedIds = selectedLines.map(l => l.id)
+      const ticked = tickMockBuses().filter(b => selectedIds.includes(b.line_id))
+      setBuses(ticked)
+    }, 50) // Liquid smooth 50ms tick frequency!
 
     return () => {
-      if (channelRef.current) supabase.removeChannel(channelRef.current)
       if (mockTickRef.current) { clearInterval(mockTickRef.current); mockTickRef.current = null }
     }
-  }, [selectedLine])
+  }, [selectedLines])
+
+  // Center on tracked bus
+  useEffect(() => {
+    if (!trackedBusId || buses.length === 0) return
+    const tracked = buses.find(b => b.id === trackedBusId)
+    if (tracked) {
+      setViewState(v => ({ ...v, latitude: tracked.latitude, longitude: tracked.longitude }))
+    }
+  }, [trackedBusId, buses])
 
   const handleLocated = useCallback((e: any) => {
     const { latitude, longitude } = e.coords
@@ -185,15 +265,22 @@ export default function UserMapPage() {
 
   const allLines = lines.length > 0 ? lines : MOCK_LINES
   const sidebarW = collapsed ? 64 : SIDEBAR_W
-  const selectedRoutePath = selectedLine ? getMockRoutePathForLine(selectedLine) : []
-  const routeGeoJson = selectedLine && selectedRoutePath.length > 1 ? {
-    type: 'Feature' as const,
-    properties: {},
-    geometry: {
-      type: 'LineString' as const,
-      coordinates: selectedRoutePath.map(point => [point.lng, point.lat]),
-    },
-  } : null
+  // Render paths for all selected lines (supporting multiple branches)
+  const routeGeoJsons = selectedLines.map(line => {
+    const paths = getMockRoutePathsForLine(line)
+    return {
+      id: `route-${line.id}`,
+      color: line.color,
+      features: paths.map((path, pIdx) => ({
+        type: 'Feature' as const,
+        properties: { color: line.color },
+        geometry: {
+          type: 'LineString' as const,
+          coordinates: path.map(point => [point.lng, point.lat]),
+        }
+      }))
+    }
+  })
 
   return (
     <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', background: '#060810' }}>
@@ -311,35 +398,50 @@ export default function UserMapPage() {
           <NavigationControl position="bottom-right" />
           <GeolocateControl position="bottom-right" trackUserLocation showUserHeading onGeolocate={handleLocated as any} />
 
-          {routeGeoJson && selectedLine && (
-            <Source id="selected-route" type="geojson" data={routeGeoJson}>
+          {routeGeoJsons.map(item => (
+            <Source key={item.id} id={item.id} type="geojson" data={{
+              type: 'FeatureCollection',
+              features: item.features
+            }}>
               <Layer
-                id="selected-route-glow"
+                id={`${item.id}-glow`}
                 type="line"
-                paint={{ 'line-color': selectedLine.color, 'line-width': 9, 'line-opacity': 0.18, 'line-blur': 2 }}
+                paint={{ 'line-color': item.color, 'line-width': 8, 'line-opacity': 0.18, 'line-blur': 2 }}
               />
               <Layer
-                id="selected-route-line"
+                id={`${item.id}-line`}
                 type="line"
-                paint={{ 'line-color': selectedLine.color, 'line-width': 3, 'line-opacity': 0.78 }}
+                paint={{ 'line-color': item.color, 'line-width': 3, 'line-opacity': 0.75 }}
               />
             </Source>
-          )}
-
-          {buses.map(bus => (
-            <Marker key={bus.id} longitude={bus.longitude} latitude={bus.latitude} anchor="center" rotation={bus.heading} rotationAlignment="map" onClick={() => handleBusClick(bus)}>
-              <PremiumBusMarker bus={bus} lineColor={selectedLine?.color || '#B8C8E0'} isSelected={selectedBus?.id === bus.id} showPassengers={prefs.showPassengerCount} />
-            </Marker>
           ))}
+
+          {buses
+            .filter(bus => {
+              if (bus.line_number === '60' && branchFilter !== 'all' && bus.ramal !== branchFilter) return false
+              if (trackedBusId && bus.id !== trackedBusId) return false
+              return true
+            })
+            .map(bus => {
+              const line = lines.find(l => l.id === bus.line_id)
+              const lineColor = line?.color || '#B8C8E0'
+              return (
+                <Marker key={bus.id} longitude={bus.longitude} latitude={bus.latitude} anchor="center" rotation={bus.heading} rotationAlignment="map" onClick={() => handleBusClick(bus)}>
+                  <PremiumBusMarker bus={bus} lineColor={lineColor} isSelected={selectedBus?.id === bus.id} showPassengers={prefs.showPassengerCount} />
+                </Marker>
+              )
+            })}
 
           {lineStops.map((stop: BusStop) => {
             const isFav = prefs.favStops.includes(stop.id)
+            const line = lines.find(l => l.id === stop.line_id)
+            const stopColor = line?.color || '#B8C8E0'
             return (
               <Marker key={stop.id} longitude={stop.longitude} latitude={stop.latitude} anchor="center">
                 <div
                   onClick={() => updatePrefs({ favStops: isFav ? prefs.favStops.filter(id => id !== stop.id) : [...prefs.favStops, stop.id] })}
                   title={stop.name}
-                  style={{ width: isFav ? '14px' : '10px', height: isFav ? '14px' : '10px', borderRadius: '50%', background: isFav ? (selectedLine?.color || '#B8C8E0') : 'rgba(184,200,224,0.5)', border: `2px solid ${isFav ? (selectedLine?.color || '#B8C8E0') : 'rgba(184,200,224,0.25)'}`, boxShadow: isFav ? `0 0 10px ${selectedLine?.color || '#B8C8E0'}80` : '0 0 6px rgba(184,200,224,0.3)', cursor: 'pointer' }}
+                  style={{ width: isFav ? '14px' : '10px', height: isFav ? '14px' : '10px', borderRadius: '50%', background: isFav ? stopColor : 'rgba(184,200,224,0.5)', border: `2px solid ${isFav ? stopColor : 'rgba(184,200,224,0.25)'}`, boxShadow: isFav ? `0 0 10px ${stopColor}80` : '0 0 6px rgba(184,200,224,0.3)', cursor: 'pointer' }}
                 />
               </Marker>
             )
@@ -351,6 +453,121 @@ export default function UserMapPage() {
             </Marker>
           ))}
 
+          {/* Draggable Nearby Stops Pin */}
+          {pinNearbyStopsMode && nearbyStopsPinCoord && (
+            <Marker
+              longitude={nearbyStopsPinCoord.lng}
+              latitude={nearbyStopsPinCoord.lat}
+              draggable
+              onDragEnd={e => {
+                setNearbyStopsPinCoord({ lat: e.lngLat.lat, lng: e.lngLat.lng })
+                const stops = Object.values(MOCK_STOPS).flat()
+                const officialStops = Object.keys(OFFICIAL_ROUTES).flatMap(key => {
+                  const line = MOCK_LINES.find(l => l.line_number === key.split('-')[0])
+                  if (!line) return []
+                  return OFFICIAL_ROUTES[key].stops.map(stop => ({
+                    id: `${line.id}-official-${stop.id}`,
+                    line_id: line.id,
+                    name: stop.name,
+                    street_name: stop.name,
+                    stop_number: 1,
+                    latitude: stop.lat,
+                    longitude: stop.lng,
+                    direction: 'ida' as const,
+                    avg_wait_minutes: 6,
+                    total_daily_users: 120,
+                  }))
+                })
+                const allStops = [...stops, ...officialStops]
+                const filteredStops = allStops.filter(stop => {
+                  const distance = distanceKm({ latitude: stop.latitude, longitude: stop.longitude }, { lat: e.lngLat.lat, lng: e.lngLat.lng })
+                  return distance < 0.8
+                })
+                setNearbyStops(filteredStops)
+              }}
+              anchor="bottom"
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ background: '#FF4D6A', color: 'white', fontSize: '10px', padding: '3px 8px', borderRadius: '10px', fontWeight: 'bold', marginBottom: '4px', boxShadow: '0 2px 8px rgba(0,0,0,0.5)', whiteSpace: 'nowrap' }}>Arrastrá el Pin</div>
+                <MapPin size={32} style={{ color: '#FF4D6A', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
+              </div>
+            </Marker>
+          )}
+
+          {/* Travel Planner Pins */}
+          {travelPlannerOpen && originCoord && (
+            <Marker
+              longitude={originCoord.lng}
+              latitude={originCoord.lat}
+              draggable
+              onDragEnd={e => {
+                setOriginCoord({ lat: e.lngLat.lat, lng: e.lngLat.lng })
+                if (destCoord) setTravelRoute(solveRoute({ lat: e.lngLat.lat, lng: e.lngLat.lng }, destCoord))
+              }}
+              anchor="bottom"
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ background: '#3B82F6', color: 'white', fontSize: '9px', padding: '2px 6px', borderRadius: '8px', fontWeight: 'bold', marginBottom: '3px', boxShadow: '0 2px 4px rgba(0,0,0,0.4)', whiteSpace: 'nowrap' }}>Origen</div>
+                <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: '#3B82F6', border: '2.5px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.4)' }} />
+              </div>
+            </Marker>
+          )}
+
+          {travelPlannerOpen && destCoord && (
+            <Marker
+              longitude={destCoord.lng}
+              latitude={destCoord.lat}
+              draggable
+              onDragEnd={e => {
+                setDestCoord({ lat: e.lngLat.lat, lng: e.lngLat.lng })
+                if (originCoord) setTravelRoute(solveRoute(originCoord, { lat: e.lngLat.lat, lng: e.lngLat.lng }))
+              }}
+              anchor="bottom"
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ background: '#111827', color: 'white', fontSize: '9px', padding: '2px 6px', borderRadius: '8px', fontWeight: 'bold', marginBottom: '3px', boxShadow: '0 2px 4px rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.2)', whiteSpace: 'nowrap' }}>Destino</div>
+                <div style={{ width: '14px', height: '14px', borderRadius: '2px', background: '#111827', border: '2.5px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.4)' }} />
+              </div>
+            </Marker>
+          )}
+
+          {/* Travel Walking Dotted lines */}
+          {travelPlannerOpen && travelRoute && originCoord && destCoord && (
+            <Source id="travel-route-geojson" type="geojson" data={{
+              type: 'FeatureCollection',
+              features: [
+                {
+                  type: 'Feature',
+                  properties: {},
+                  geometry: {
+                    type: 'LineString',
+                    coordinates: [
+                      [originCoord.lng, originCoord.lat],
+                      [travelRoute.originStop.longitude, travelRoute.originStop.latitude]
+                    ]
+                  }
+                },
+                {
+                  type: 'Feature',
+                  properties: {},
+                  geometry: {
+                    type: 'LineString',
+                    coordinates: [
+                      [travelRoute.destStop.longitude, travelRoute.destStop.latitude],
+                      [destCoord.lng, destCoord.lat]
+                    ]
+                  }
+                }
+              ]
+            }}>
+              <Layer
+                id="travel-walking"
+                type="line"
+                paint={{ 'line-color': '#B8C8E0', 'line-width': 3, 'line-dasharray': [2, 2] }}
+              />
+            </Source>
+          )}
+
           {selectedBus && (
             <Popup longitude={selectedBus.longitude} latitude={selectedBus.latitude} anchor="bottom" offset={44} closeButton={false} onClose={() => setSelectedBus(null)}>
               <MiniPopup bus={selectedBus} />
@@ -358,43 +575,52 @@ export default function UserMapPage() {
           )}
         </Map>
 
-        {/* ── TOP BAR ── */}
+        {/* ── TOP BAR (Multi-selection & Close) ── */}
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, padding: '14px 14px 0', pointerEvents: 'none' }}>
           <motion.div
             initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
             transition={{ type: 'spring', damping: 26, stiffness: 200 }}
             style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'linear-gradient(145deg,rgba(19,25,33,0.97),rgba(10,14,20,0.99))', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(184,200,224,0.12)', borderRadius: '14px', padding: '9px 12px', boxShadow: '0 8px 40px rgba(0,0,0,0.7)', pointerEvents: 'auto' }}
           >
-            <button
-              onClick={() => setShowLineSelector(true)}
-              style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
-            >
-              {selectedLine ? (
-                <>
-                  <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: selectedLine.color, flexShrink: 0, boxShadow: `0 0 8px ${selectedLine.color}80` }} />
-                  <span style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '14px' }}>Línea {selectedLine.line_number}</span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{selectedLine.name.split(' - ')[1]}</span>
-                </>
-              ) : (
-                <>
-                  <Search size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-                  <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Elegí una línea...</span>
-                </>
-              )}
-              <ChevronDown size={13} style={{ color: 'var(--text-muted)', marginLeft: 'auto', flexShrink: 0 }} />
-            </button>
+            {selectedLines.length > 0 ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', flex: 1, paddingRight: '8px' }}>
+                {selectedLines.map(line => (
+                  <div key={line.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(184,200,224,0.06)', border: '1px solid rgba(184,200,224,0.1)', padding: '4px 8px', borderRadius: '8px', flexShrink: 0 }}>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: line.color }} />
+                    <span style={{ color: 'white', fontSize: '12px', fontWeight: 600 }}>Línea {line.line_number}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedLines(prev => prev.filter(l => l.id !== line.id))
+                      }}
+                      style={{ background: 'none', border: 'none', color: 'rgba(184,200,224,0.6)', cursor: 'pointer', padding: '0 2px', display: 'flex', alignItems: 'center' }}
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShowLineSelector(true) }}
+                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.15)', color: '#9CA3AF', fontSize: '11px', padding: '4px 8px', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }}
+                >
+                  + Agregar línea
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowLineSelector(true)}
+                style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
+              >
+                <Search size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Elegí una línea...</span>
+              </button>
+            )}
 
-            {selectedLine && (
-              <>
-                <button onClick={() => updatePrefs({ favBusLines: prefs.favBusLines.includes(selectedLine.id) ? prefs.favBusLines.filter(id => id !== selectedLine.id) : [...prefs.favBusLines, selectedLine.id] })}
-                  style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(184,200,224,0.06)', border: '1px solid rgba(184,200,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
-                  <Star size={12} style={{ color: prefs.favBusLines.includes(selectedLine.id) ? '#F59E0B' : 'var(--text-muted)', fill: prefs.favBusLines.includes(selectedLine.id) ? '#F59E0B' : 'none' }} />
-                </button>
-                <button onClick={() => { setSelectedLine(null); setBuses([]) }}
-                  style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(184,200,224,0.06)', border: '1px solid rgba(184,200,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
-                  <X size={12} style={{ color: 'var(--text-muted)' }} />
-                </button>
-              </>
+            {selectedLines.length === 1 && (
+              <button onClick={() => updatePrefs({ favBusLines: prefs.favBusLines.includes(selectedLines[0].id) ? prefs.favBusLines.filter(id => id !== selectedLines[0].id) : [...prefs.favBusLines, selectedLines[0].id] })}
+                style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(184,200,224,0.06)', border: '1px solid rgba(184,200,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                <Star size={12} style={{ color: prefs.favBusLines.includes(selectedLines[0].id) ? '#F59E0B' : 'var(--text-muted)', fill: prefs.favBusLines.includes(selectedLines[0].id) ? '#F59E0B' : 'none' }} />
+              </button>
             )}
 
             {buses.length > 0 && (
@@ -406,6 +632,222 @@ export default function UserMapPage() {
           </motion.div>
         </div>
 
+        {/* ── FILTER TOOLBAR (Branch & Interno selection) ── */}
+        {selectedLines.length > 0 && activePanel === 'map' && (
+          <div style={{ position: 'absolute', top: '64px', left: 0, right: 0, zIndex: 9, padding: '0 14px', pointerEvents: 'none' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', pointerEvents: 'auto', background: 'rgba(10,14,20,0.95)', border: '1px solid rgba(184,200,224,0.08)', padding: '6px 12px', borderRadius: '10px', boxShadow: '0 4px 20px rgba(0,0,0,0.5)', width: 'fit-content' }}>
+              {selectedLines.some(l => l.line_number === '60') && (
+                <>
+                  <span style={{ fontSize: '11px', color: '#9CA3AF', fontFamily: 'DM Mono' }}>RAMAL:</span>
+                  <select
+                    value={branchFilter}
+                    onChange={e => { setBranchFilter(e.target.value); setTrackedBusId(null) }}
+                    style={{ background: 'rgba(184,200,224,0.05)', color: 'white', border: '1px solid rgba(184,200,224,0.15)', borderRadius: '6px', fontSize: '11px', padding: '3px 6px', outline: 'none' }}
+                  >
+                    <option value="all" style={{ background: '#111827' }}>Todos</option>
+                    <option value="A" style={{ background: '#111827' }}>Ramal A (Tigre)</option>
+                    <option value="B" style={{ background: '#111827' }}>Ramal B (Escobar)</option>
+                  </select>
+                  <div style={{ width: '1px', height: '14px', background: 'rgba(184,200,224,0.15)', margin: '0 4px' }} />
+                </>
+              )}
+
+              <span style={{ fontSize: '11px', color: '#9CA3AF', fontFamily: 'DM Mono' }}>SEGUIR:</span>
+              <select
+                value={trackedBusId || 'all'}
+                onChange={e => setTrackedBusId(e.target.value === 'all' ? null : e.target.value)}
+                style={{ background: 'rgba(184,200,224,0.05)', color: 'white', border: '1px solid rgba(184,200,224,0.15)', borderRadius: '6px', fontSize: '11px', padding: '3px 6px', outline: 'none' }}
+              >
+                <option value="all" style={{ background: '#111827' }}>Todos los colectivos</option>
+                {buses
+                  .filter(b => {
+                    if (b.line_number === '60' && branchFilter !== 'all' && b.ramal !== branchFilter) return false
+                    return true
+                  })
+                  .map(b => (
+                    <option key={b.id} value={b.id} style={{ background: '#111827' }}>
+                      Interno {b.bus_unit} {b.ramal ? `(Ramal ${b.ramal})` : ''}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* ── TRAVEL PLANNER PANEL ── */}
+        <AnimatePresence>
+          {travelPlannerOpen && activePanel === 'map' && (
+            <motion.div
+              initial={{ x: -100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -100, opacity: 0 }}
+              style={{ position: 'absolute', top: '74px', left: '14px', zIndex: 11, width: '320px', background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.95) 0%, rgba(10, 15, 26, 0.98) 100%)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '16px', padding: '14px', boxShadow: '0 10px 30px rgba(0,0,0,0.6)', color: 'white', display: 'flex', flexDirection: 'column', gap: '10px', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'white' }}>Planificar Recorrido</span>
+                <button onClick={() => setTravelPlannerOpen(false)} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer' }}><X size={14} /></button>
+              </div>
+              
+              {/* Inputs stacked with connecting vertical line */}
+              <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {/* Vertical connecting line */}
+                <div style={{ position: 'absolute', left: '16px', top: '20px', bottom: '20px', width: '2px', background: 'rgba(255,255,255,0.15)', zIndex: 1 }} />
+                
+                {/* Origin Input */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2 }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#3B82F6', border: '2px solid white', flexShrink: 0, marginLeft: '12px' }} />
+                  <select
+                    value={originInput}
+                    onChange={e => {
+                      const val = e.target.value
+                      setOriginInput(val)
+                      const coords: Record<string, { lat: number; lng: number }> = {
+                        'once': { lat: -34.6082, lng: -58.4093 },
+                        'consti': { lat: -34.6268, lng: -58.3808 },
+                        'retiro': { lat: -34.5910, lng: -58.3750 },
+                        'obelisco': { lat: -34.6037, lng: -58.3816 }
+                      }
+                      if (coords[val]) {
+                        setOriginCoord(coords[val])
+                        setViewState(v => ({ ...v, latitude: coords[val].lat, longitude: coords[val].lng, zoom: 14 }))
+                        if (destCoord) setTravelRoute(solveRoute(coords[val], destCoord))
+                      }
+                    }}
+                    style={{ flex: 1, padding: '6px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'white', fontSize: '12px', outline: 'none' }}
+                  >
+                    <option value="" style={{background:'#111827'}}>Desde (Origen)...</option>
+                    <option value="obelisco" style={{background:'#111827'}}>Obelisco (Microcentro)</option>
+                    <option value="once" style={{background:'#111827'}}>Once (Pza. Miserere)</option>
+                    <option value="consti" style={{background:'#111827'}}>Plaza Constitución</option>
+                    <option value="retiro" style={{background:'#111827'}}>Retiro Terminal</option>
+                  </select>
+                </div>
+
+                {/* Destination Input */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2 }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#111827', border: '2px solid white', flexShrink: 0, marginLeft: '12px' }} />
+                  <select
+                    value={destInput}
+                    onChange={e => {
+                      const val = e.target.value
+                      setDestInput(val)
+                      const coords: Record<string, { lat: number; lng: number }> = {
+                        'italia': { lat: -34.5810, lng: -58.4210 },
+                        'belgrano': { lat: -34.5606, lng: -58.4569 },
+                        'saavedra': { lat: -34.5390, lng: -58.4760 },
+                        'olivos': { lat: -34.5100, lng: -58.4850 }
+                      }
+                      if (coords[val]) {
+                        setDestCoord(coords[val])
+                        setViewState(v => ({ ...v, latitude: coords[val].lat, longitude: coords[val].lng, zoom: 14 }))
+                        if (originCoord) setTravelRoute(solveRoute(originCoord, coords[val]))
+                      }
+                    }}
+                    style={{ flex: 1, padding: '6px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'white', fontSize: '12px', outline: 'none' }}
+                  >
+                    <option value="" style={{background:'#111827'}}>Hacia (Destino)...</option>
+                    <option value="italia" style={{background:'#111827'}}>Plaza Italia (Palermo)</option>
+                    <option value="belgrano" style={{background:'#111827'}}>Barrancas de Belgrano</option>
+                    <option value="saavedra" style={{background:'#111827'}}>Puente Saavedra</option>
+                    <option value="olivos" style={{background:'#111827'}}>Olivos Terminal</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ fontSize: '10px', color: '#9CA3AF', textAlign: 'center', marginTop: '2px' }}>
+                💡 Podés arrastrar los pines en el mapa para ajustar
+              </div>
+
+              {/* Route Result Card */}
+              {travelRoute ? (
+                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '10px', marginTop: '6px', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: travelRoute.color }} />
+                    <span style={{ fontWeight: 'bold' }}>Recomendación: Línea {travelRoute.line_number}</span>
+                  </div>
+                  <div>
+                    🚶‍♂️ Caminá hasta parada: <strong>{travelRoute.originStop.name}</strong>
+                  </div>
+                  <div>
+                    🚌 Tomá el colectivo y viajá hasta: <strong>{travelRoute.destStop.name}</strong>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const line = lines.find(l => l.id === travelRoute.line_id)
+                      if (line && !selectedLines.some(l => l.id === line.id)) {
+                        setSelectedLines(prev => [...prev, line])
+                      }
+                      setViewState(v => ({ ...v, latitude: travelRoute.originStop.latitude, longitude: travelRoute.originStop.longitude, zoom: 14 }))
+                    }}
+                    style={{ width: '100%', background: `${travelRoute.color}20`, border: `1px solid ${travelRoute.color}40`, color: travelRoute.color, borderRadius: '6px', padding: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '11px', marginTop: '4px' }}
+                  >
+                    Seguir esta línea en el mapa →
+                  </button>
+                </div>
+              ) : originCoord && destCoord ? (
+                <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '10px', padding: '10px', marginTop: '6px', fontSize: '11px', color: '#FCA5A5', textAlign: 'center' }}>
+                  No se encontró conexión directa. Intentá arrastrando los pines más cerca de las avenidas principales.
+                </div>
+              ) : null}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Floating actions right side of map */}
+        {activePanel === 'map' && (
+          <div style={{ position: 'absolute', bottom: '110px', right: '14px', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {/* Travel Planner */}
+            <button
+              onClick={() => {
+                setTravelPlannerOpen(prev => !prev)
+                setPinNearbyStopsMode(false)
+                if (!originCoord) {
+                  setOriginCoord({ lat: -34.6037, lng: -58.3816 })
+                  setDestCoord({ lat: -34.5810, lng: -58.4210 })
+                  const route = solveRoute({ lat: -34.6037, lng: -58.3816 }, { lat: -34.5810, lng: -58.4210 })
+                  setTravelRoute(route)
+                }
+              }}
+              style={{
+                width: '40px', height: '40px', borderRadius: '50%',
+                background: travelPlannerOpen ? '#3B82F6' : 'rgba(10,14,20,0.9)',
+                border: '1px solid rgba(184,200,224,0.15)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: 'white', transition: 'all 200ms'
+              }}
+              title="Planificar Viaje (Origen/Destino)"
+            >
+              <NavIcon size={16} />
+            </button>
+            
+            {/* Draggable Nearby Stops Pin */}
+            <button
+              onClick={() => {
+                setPinNearbyStopsMode(prev => !prev)
+                setTravelPlannerOpen(false)
+                if (!nearbyStopsPinCoord) {
+                  setNearbyStopsPinCoord({ lat: -34.5972, lng: -58.3930 })
+                  const stops = Object.values(MOCK_STOPS).flat().filter(stop => {
+                    const distance = distanceKm({ latitude: stop.latitude, longitude: stop.longitude }, { lat: -34.5972, lng: -58.3930 })
+                    return distance < 0.8
+                  })
+                  setNearbyStops(stops)
+                }
+              }}
+              style={{
+                width: '40px', height: '40px', borderRadius: '50%',
+                background: pinNearbyStopsMode ? '#FF4D6A' : 'rgba(10,14,20,0.9)',
+                border: '1px solid rgba(184,200,224,0.15)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: 'white', transition: 'all 200ms'
+              }}
+              title="Pin de paradas cercanas"
+            >
+              <MapPin size={16} />
+            </button>
+          </div>
+        )}
+
         {/* ── PANEL CONTENT (rendered INSIDE right area, slides in from top) ── */}
         <AnimatePresence>
           {activePanel !== 'map' && (
@@ -416,7 +858,7 @@ export default function UserMapPage() {
             >
               <div style={{ maxWidth: '520px', margin: '0 auto', padding: '0 16px' }}>
                 {activePanel === 'favourites' && (
-                  <FavouritesPanel prefs={prefs} lines={allLines} onSelectLine={l => { setSelectedLine(l); setActivePanel('map') }} onUpdatePrefs={updatePrefs} />
+                  <FavouritesPanel prefs={prefs} lines={allLines} onSelectLine={l => { setSelectedLines([l]); setActivePanel('map') }} onUpdatePrefs={updatePrefs} />
                 )}
                 {activePanel === 'settings' && (
                   <SettingsPanel prefs={prefs} onUpdatePrefs={updatePrefs} />
@@ -433,14 +875,19 @@ export default function UserMapPage() {
         <AnimatePresence>
           {selectedBus && activePanel === 'map' ? (
             <BusInfoSheet key="bus" bus={selectedBus} onClose={() => setSelectedBus(null)} onReport={() => setShowReport(true)} />
-          ) : nearbyStops.length > 0 && !selectedLine && activePanel === 'map' ? (
+          ) : (pinNearbyStopsMode || nearbyStops.length > 0) && selectedLines.length === 0 && activePanel === 'map' ? (
             <NearbyStops key="stops" stops={nearbyStops} />
           ) : null}
         </AnimatePresence>
 
         <AnimatePresence>
           {showLineSelector && (
-            <LineSelector lines={allLines} selectedLine={selectedLine} onSelect={l => { setSelectedLine(l); setShowLineSelector(false) }} onClose={() => setShowLineSelector(false)} />
+            <LineSelector lines={allLines} selectedLines={selectedLines} onSelect={line => {
+              setSelectedLines(prev => {
+                const exists = prev.some(l => l.id === line.id)
+                return exists ? prev.filter(l => l.id !== line.id) : [...prev, line]
+              })
+            }} onClose={() => setShowLineSelector(false)} />
           )}
         </AnimatePresence>
 
@@ -671,30 +1118,43 @@ function PremiumBusMarker({ bus, lineColor, isSelected, showPassengers }: { bus:
   const isMoving = bus.status === 'moving'
   const color = isMoving ? lineColor : bus.status === 'at_stop' ? '#F0B429' : '#FF4D6A'
   return (
-    <div style={{ position: 'relative', width: '40px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-      {/* Headlight beam pointing North (Up) */}
+    <div style={{ position: 'relative', width: '36px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+      {/* Headlight glow beam (pointing North/Up) */}
       {isMoving && (
         <div style={{
           position: 'absolute',
-          bottom: '46px',
+          bottom: '36px',
           left: '50%',
           transform: 'translateX(-50%)',
-          width: '28px',
-          height: '24px',
-          background: 'linear-gradient(0deg, rgba(255,255,200,0.15) 0%, rgba(255,255,200,0) 100%)',
-          clipPath: 'polygon(35% 100%, 65% 100%, 100% 0%, 0% 0%)',
+          width: '24px',
+          height: '22px',
+          background: 'linear-gradient(0deg, rgba(254, 240, 138, 0.25) 0%, rgba(254, 240, 138, 0) 100%)',
+          clipPath: 'polygon(30% 100%, 70% 100%, 100% 0%, 0% 0%)',
           pointerEvents: 'none',
         }} />
       )}
       
-      {/* Bus body */}
+      {/* Taillight glow beam (pointing South/Down) */}
       <div style={{
-        width: '12px',
-        height: '32px',
-        borderRadius: '3px',
+        position: 'absolute',
+        top: '32px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '14px',
+        height: '10px',
+        background: 'linear-gradient(180deg, rgba(239, 68, 68, 0.22) 0%, rgba(239, 68, 68, 0) 100%)',
+        clipPath: 'polygon(30% 0%, 70% 0%, 100% 100%, 0% 100%)',
+        pointerEvents: 'none',
+      }} />
+      
+      {/* Bus body - slightly smaller (10px x 26px) */}
+      <div style={{
+        width: '10px',
+        height: '26px',
+        borderRadius: '2.5px',
         background: color,
-        border: '1px solid rgba(255,255,255,0.25)',
-        boxShadow: `0 0 10px ${color}bf, 0 2px 4px rgba(0,0,0,0.5)`,
+        border: '1px solid rgba(255, 255, 255, 0.25)',
+        boxShadow: `0 0 10px ${color}bf, 0 1.5px 3px rgba(0,0,0,0.5)`,
         position: 'relative',
         display: 'flex',
         flexDirection: 'column',
@@ -703,50 +1163,45 @@ function PremiumBusMarker({ bus, lineColor, isSelected, showPassengers }: { bus:
         padding: '2px 0',
         boxSizing: 'border-box',
       }}>
-        {/* Headlights (at the top / front) */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '0 1px', boxSizing: 'border-box', position: 'absolute', top: '1px' }}>
-          <div style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#FFF7AD', boxShadow: '0 0 4px #FFF7AD' }} />
-          <div style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#FFF7AD', boxShadow: '0 0 4px #FFF7AD' }} />
+        {/* Headlights */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '0 0.8px', boxSizing: 'border-box', position: 'absolute', top: '0.8px' }}>
+          <div style={{ width: '1.8px', height: '1.8px', borderRadius: '50%', background: '#FEF08A', boxShadow: '0 0 3px #FEF08A' }} />
+          <div style={{ width: '1.8px', height: '1.8px', borderRadius: '50%', background: '#FEF08A', boxShadow: '0 0 3px #FEF08A' }} />
         </div>
 
-        {/* Window Panes (3 panes vertically) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '3px', width: '8px', alignItems: 'center' }}>
+        {/* Window Panes */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5px', marginTop: '2.5px', width: '6px', alignItems: 'center' }}>
           {[0, 1, 2].map(i => (
-            <div key={i} style={{ width: '8px', height: '5px', borderRadius: '1px', background: 'rgba(15,23,42,0.65)', border: '1px solid rgba(255,255,255,0.1)' }} />
+            <div key={i} style={{ width: '6px', height: '4px', borderRadius: '0.8px', background: 'rgba(15,23,42,0.7)', border: '1px solid rgba(255,255,255,0.08)' }} />
           ))}
         </div>
 
-        {/* Taillight (at the bottom / rear) */}
-        <div style={{
-          width: '8px',
-          height: '2px',
-          borderRadius: '1px',
-          background: '#FF3333',
-          boxShadow: '0 0 5px #FF3333',
-          position: 'absolute',
-          bottom: '1px',
-        }} />
+        {/* Taillights */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '0 0.8px', boxSizing: 'border-box', position: 'absolute', bottom: '0.8px' }}>
+          <div style={{ width: '1.8px', height: '1.8px', borderRadius: '50%', background: '#EF4444', boxShadow: '0 0 3px #EF4444' }} />
+          <div style={{ width: '1.8px', height: '1.8px', borderRadius: '50%', background: '#EF4444', boxShadow: '0 0 3px #EF4444' }} />
+        </div>
       </div>
 
-      {/* Passenger count badge */}
+      {/* Passenger badge */}
       {showPassengers && bus.passenger_count > 0 && (
         <div style={{
           position: 'absolute',
-          top: '4px',
-          right: '2px',
-          minWidth: '14px',
-          height: '14px',
-          borderRadius: '7px',
+          top: '2px',
+          right: '0px',
+          minWidth: '12px',
+          height: '12px',
+          borderRadius: '6px',
           background: 'rgba(10,14,20,0.95)',
           border: '1px solid rgba(184,200,224,0.2)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '0 2px',
-          boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
+          padding: '0 1.5px',
+          boxShadow: '0 1.5px 4px rgba(0,0,0,0.5)',
           zIndex: 5,
         }}>
-          <span style={{ fontSize: '8px', fontFamily: 'DM Mono', fontWeight: 600, color: 'var(--platinum-dim)' }}>
+          <span style={{ fontSize: '7px', fontFamily: 'DM Mono', fontWeight: 600, color: 'var(--platinum-dim)' }}>
             {bus.passenger_count}
           </span>
         </div>
@@ -758,30 +1213,98 @@ function PremiumBusMarker({ bus, lineColor, isSelected, showPassengers }: { bus:
 
 // ─── Mini popup ───────────────────────────────────────────────────────────────
 function MiniPopup({ bus }: { bus: BusPosition }) {
-  const statusLabel: Record<string, string> = { moving: 'En movimiento', stopped: 'Detenido', at_stop: 'En parada', offline: 'Sin señal' }
-  const statusColor: Record<string, string> = { moving: 'var(--go)', stopped: 'var(--halt)', at_stop: 'var(--near)', offline: 'var(--text-muted)' }
+  const reportsCount = bus.reports_count ?? 0
+  const busColor = bus.line_number === '12' ? '#EF4444' : 
+                   bus.line_number === '28' ? '#16A34A' :
+                   bus.line_number === '37' ? '#15803D' :
+                   bus.line_number === '60' ? '#EAB308' : '#1D4ED8';
   return (
-    <div style={{ padding: '12px 14px', minWidth: '190px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '9px', marginBottom: '9px' }}>
-        <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'rgba(184,200,224,0.06)', border: '1px solid rgba(184,200,224,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Bus size={13} style={{ color: 'var(--platinum)' }} />
+    <div style={{
+      background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.95) 0%, rgba(10, 15, 26, 0.98) 100%)',
+      border: '1px solid rgba(255, 255, 255, 0.1)',
+      borderRadius: '16px',
+      padding: '12px',
+      color: 'white',
+      width: '230px',
+      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+      fontFamily: 'DM Sans, sans-serif',
+      backdropFilter: 'blur(10px)',
+      WebkitBackdropFilter: 'blur(10px)',
+    }}>
+      {/* Bus image header */}
+      <div style={{
+        position: 'relative',
+        width: '100%',
+        height: '90px',
+        borderRadius: '10px',
+        background: 'rgba(255, 255, 255, 0.02)',
+        border: '1px solid rgba(255, 255, 255, 0.06)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        marginBottom: '10px'
+      }}>
+        <img
+          src={`/images/bus-${bus.line_number}.png`}
+          alt={`Bus ${bus.line_number}`}
+          style={{ width: 'auto', height: '100%', objectFit: 'contain' }}
+        />
+        <div style={{
+          position: 'absolute',
+          top: '6px',
+          left: '6px',
+          background: busColor,
+          color: busColor === '#EAB308' ? 'black' : 'white',
+          fontWeight: 'bold',
+          fontSize: '10px',
+          padding: '2px 8px',
+          borderRadius: '20px',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+        }}>
+          Línea {bus.line_number}
+          {bus.ramal && ` - Ramal ${bus.ramal}`}
+        </div>
+      </div>
+
+      <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: '2px', color: '#F3F4F6' }}>
+        Interno: {bus.bus_unit}
+      </div>
+      <div style={{ color: '#9CA3AF', fontSize: '11px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <span>Chofer: <strong>{bus.driver_name}</strong></span>
+        <span style={{ color: '#10B981', fontWeight: 'bold' }}>✓</span>
+      </div>
+
+      {/* Reports badge */}
+      <div style={{
+        background: reportsCount > 0 ? 'rgba(239, 68, 68, 0.12)' : 'rgba(16, 185, 129, 0.08)',
+        border: `1px solid ${reportsCount > 0 ? 'rgba(239, 68, 68, 0.25)' : 'rgba(16, 185, 129, 0.2)'}`,
+        borderRadius: '8px',
+        padding: '5px 8px',
+        fontSize: '11px',
+        color: reportsCount > 0 ? '#FCA5A5' : '#D1FAE5',
+        marginBottom: '10px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+      }}>
+        <span style={{ fontSize: '12px' }}>{reportsCount > 0 ? '⚠' : '🛡'}</span>
+        <span>
+          {reportsCount > 0 
+            ? `${reportsCount} ${reportsCount === 1 ? 'denuncia activa' : 'denuncias activas'}`
+            : 'Sin denuncias activas'}
+        </span>
+      </div>
+
+      {/* Stats */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '8px', fontSize: '11px', color: '#9CA3AF' }}>
+        <div>
+          Velocidad: <strong style={{ color: 'white', fontFamily: 'DM Mono' }}>{bus.speed_kmh} km/h</strong>
         </div>
         <div>
-          <div style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '13px' }}>Unidad {bus.bus_unit}</div>
-          <div style={{ color: 'var(--text-muted)', fontSize: '10px', fontFamily: 'DM Mono' }}>{bus.driver_name}</div>
+          Pasajeros: <strong style={{ color: '#EAB308', fontFamily: 'DM Mono' }}>{bus.passenger_count}</strong>
         </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-        <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: statusColor[bus.status] }} />
-        <span style={{ color: statusColor[bus.status], fontSize: '11px', fontFamily: 'DM Mono' }}>{statusLabel[bus.status]}</span>
-        {bus.eta_minutes != null && <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'DM Mono', marginLeft: 'auto' }}>· {bus.eta_minutes}m</span>}
-      </div>
-      {bus.next_stop_name && (
-        <div style={{ marginTop: '5px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <MapPin size={9} style={{ color: 'var(--text-muted)' }} />
-          <span style={{ color: 'var(--text-muted)', fontSize: '10px', fontFamily: 'DM Mono' }}>{bus.next_stop_name}</span>
-        </div>
-      )}
     </div>
   )
 }
