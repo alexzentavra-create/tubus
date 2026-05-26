@@ -20,6 +20,12 @@ export async function middleware(request: NextRequest) {
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key'
+
+  // If we are in mock mode (using placeholder Supabase), bypass auth checks for local testing
+  if (url.includes('placeholder.supabase.co')) {
+    return response
+  }
+
   const supabase = createServerClient(
     url,
     key,

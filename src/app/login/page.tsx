@@ -256,6 +256,21 @@ export default function LoginPage() {
 
     if (mode === 'login') {
       let email = form.email
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+
+      // Mock login bypass when running without database credentials
+      if (url.includes('placeholder.supabase.co')) {
+        toast.success('Modo de prueba: ingresando sin base de datos')
+        if (email.toLowerCase().includes('admin')) {
+          window.location.href = '/admin/super'
+        } else if (email.toLowerCase().includes('driver') || email.toLowerCase().includes('chofer')) {
+          window.location.href = '/driver'
+        } else {
+          window.location.href = '/'
+        }
+        setLoading(false)
+        return
+      }
 
       // Username login (e.g. Linea12) — resolve to email in two steps
       if (!email.includes('@')) {
