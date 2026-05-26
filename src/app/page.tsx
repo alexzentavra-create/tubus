@@ -88,9 +88,10 @@ export default function UserMapPage() {
     setPrefs(loadPrefs())
     supabase.auth.getUser().then(({ data: { user } }) => { if (user) setUser(user) })
     supabase.from('bus_lines').select('*').eq('is_active', true).then(({ data }) => {
-      const availableLines = data && data.length > 0 ? data : MOCK_LINES
+      const ALLOWED_LINES = ['12', '28', '37', '60', '152']
+      const availableLines = (data && data.length > 0 ? data : MOCK_LINES).filter(l => ALLOWED_LINES.includes(l.line_number))
       setLines(availableLines)
-      setSelectedLine(current => current || availableLines[0] || null)
+      setSelectedLine(current => current || availableLines.find(l => l.line_number === '12') || availableLines[0] || null)
     })
   }, [])
 
@@ -670,43 +671,90 @@ function PremiumBusMarker({ bus, lineColor, isSelected, showPassengers }: { bus:
   const isMoving = bus.status === 'moving'
   const color = isMoving ? lineColor : bus.status === 'at_stop' ? '#F0B429' : '#FF4D6A'
   return (
-    <div style={{ position: 'relative', width: '54px', height: '54px', cursor: 'pointer', transform: 'translateZ(0)' }}>
-      <div style={{ position: 'absolute', left: '12px', top: '34px', width: '31px', height: '10px', borderRadius: '50%', background: 'rgba(0,0,0,0.45)', filter: 'blur(3px)', transform: 'rotate(-12deg)' }} />
-      {isMoving && <div style={{ position: 'absolute', inset: '8px', borderRadius: '50%', background: color, opacity: 0.09, boxShadow: `0 0 18px ${color}` }} />}
-      <div
-        style={{
+    <div style={{ position: 'relative', width: '40px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+      {/* Headlight beam pointing North (Up) */}
+      {isMoving && (
+        <div style={{
           position: 'absolute',
-          left: '13px',
-          top: '9px',
+          bottom: '46px',
+          left: '50%',
+          transform: 'translateX(-50%)',
           width: '28px',
-          height: '37px',
-          borderRadius: '9px 9px 7px 7px',
-          background: `linear-gradient(145deg, #F7FAFF 0%, #D8E2EE 42%, ${color} 43%, ${color} 100%)`,
-          border: `1px solid ${isSelected ? '#fff' : 'rgba(10,14,20,0.55)'}`,
-          boxShadow: `0 3px 0 rgba(0,0,0,0.24), 0 0 ${isSelected ? 18 : 10}px ${color}80`,
-          transform: 'perspective(90px) rotateX(12deg)',
-          transformOrigin: 'center bottom',
-          overflow: 'hidden',
-        }}
-      >
-        <div style={{ position: 'absolute', left: '4px', top: '4px', width: '20px', height: '8px', borderRadius: '4px 4px 2px 2px', background: 'linear-gradient(180deg,#263241,#111827)', border: '1px solid rgba(255,255,255,0.25)' }} />
-        <div style={{ position: 'absolute', left: '5px', top: '15px', right: '5px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '2px' }}>
-          {[0, 1, 2].map(i => <span key={i} style={{ height: '5px', borderRadius: '1px', background: 'rgba(15,23,42,0.62)', border: '1px solid rgba(255,255,255,0.18)' }} />)}
+          height: '24px',
+          background: 'linear-gradient(0deg, rgba(255,255,200,0.15) 0%, rgba(255,255,200,0) 100%)',
+          clipPath: 'polygon(35% 100%, 65% 100%, 100% 0%, 0% 0%)',
+          pointerEvents: 'none',
+        }} />
+      )}
+      
+      {/* Bus body */}
+      <div style={{
+        width: '12px',
+        height: '32px',
+        borderRadius: '3px',
+        background: color,
+        border: '1px solid rgba(255,255,255,0.25)',
+        boxShadow: `0 0 10px ${color}bf, 0 2px 4px rgba(0,0,0,0.5)`,
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '2px 0',
+        boxSizing: 'border-box',
+      }}>
+        {/* Headlights (at the top / front) */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '0 1px', boxSizing: 'border-box', position: 'absolute', top: '1px' }}>
+          <div style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#FFF7AD', boxShadow: '0 0 4px #FFF7AD' }} />
+          <div style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#FFF7AD', boxShadow: '0 0 4px #FFF7AD' }} />
         </div>
-        <div style={{ position: 'absolute', left: '5px', right: '5px', bottom: '8px', height: '2px', borderRadius: '2px', background: 'rgba(6,8,16,0.38)' }} />
-        <div style={{ position: 'absolute', left: '4px', bottom: '3px', width: '6px', height: '6px', borderRadius: '50%', background: '#090D14', border: '1px solid rgba(255,255,255,0.2)' }} />
-        <div style={{ position: 'absolute', right: '4px', bottom: '3px', width: '6px', height: '6px', borderRadius: '50%', background: '#090D14', border: '1px solid rgba(255,255,255,0.2)' }} />
-        <div style={{ position: 'absolute', left: '7px', top: '25px', width: '4px', height: '3px', borderRadius: '3px', background: '#FFF7AD' }} />
-        <div style={{ position: 'absolute', right: '7px', top: '25px', width: '4px', height: '3px', borderRadius: '3px', background: '#FFF7AD' }} />
+
+        {/* Window Panes (3 panes vertically) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '3px', width: '8px', alignItems: 'center' }}>
+          {[0, 1, 2].map(i => (
+            <div key={i} style={{ width: '8px', height: '5px', borderRadius: '1px', background: 'rgba(15,23,42,0.65)', border: '1px solid rgba(255,255,255,0.1)' }} />
+          ))}
+        </div>
+
+        {/* Taillight (at the bottom / rear) */}
+        <div style={{
+          width: '8px',
+          height: '2px',
+          borderRadius: '1px',
+          background: '#FF3333',
+          boxShadow: '0 0 5px #FF3333',
+          position: 'absolute',
+          bottom: '1px',
+        }} />
       </div>
+
+      {/* Passenger count badge */}
       {showPassengers && bus.passenger_count > 0 && (
-        <div style={{ position: 'absolute', top: '-2px', right: '-2px', minWidth: '16px', height: '16px', borderRadius: '8px', background: 'rgba(10,14,20,0.95)', border: '1px solid rgba(184,200,224,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 3px' }}>
-          <span style={{ fontSize: '9px', fontFamily: 'DM Mono', fontWeight: 600, color: 'var(--platinum-dim)' }}>{bus.passenger_count}</span>
+        <div style={{
+          position: 'absolute',
+          top: '4px',
+          right: '2px',
+          minWidth: '14px',
+          height: '14px',
+          borderRadius: '7px',
+          background: 'rgba(10,14,20,0.95)',
+          border: '1px solid rgba(184,200,224,0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '0 2px',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
+          zIndex: 5,
+        }}>
+          <span style={{ fontSize: '8px', fontFamily: 'DM Mono', fontWeight: 600, color: 'var(--platinum-dim)' }}>
+            {bus.passenger_count}
+          </span>
         </div>
       )}
     </div>
-  )
+  );
 }
+
 
 // ─── Mini popup ───────────────────────────────────────────────────────────────
 function MiniPopup({ bus }: { bus: BusPosition }) {

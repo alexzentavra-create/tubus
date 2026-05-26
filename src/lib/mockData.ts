@@ -4,14 +4,11 @@ import { OFFICIAL_ROUTES } from './officialRoutes'
 import type { OfficialRoute, RoutePoint } from './routeTypes'
 
 export const MOCK_LINES: BusLine[] = [
-  { id: 'line-1', line_number: '12',  name: 'Línea 12 - Once / Villa Urquiza',        color: '#22D3A0', company: 'TrBus S.A.',       total_stops: 10, is_active: true },
-  { id: 'line-2', line_number: '24',  name: 'Línea 24 - Centro / Villa del Parque',   color: '#60A5FA', company: 'MetroBus S.A.',    total_stops: 10, is_active: true },
-  { id: 'line-3', line_number: '37',  name: 'Línea 37 - Aeropuerto / Centro',         color: '#F59E0B', company: 'AeroBus Ltda.',    total_stops: 8,  is_active: true },
-  { id: 'line-4', line_number: '55',  name: 'Línea 55 - Estadio / Zona Sur',          color: '#F87171', company: 'SurBus S.A.',      total_stops: 9,  is_active: true },
-  { id: 'line-5', line_number: '71',  name: 'Línea 71 - UBA / Constitución',          color: '#A78BFA', company: 'UniTrans S.A.',    total_stops: 9,  is_active: true },
-  { id: 'line-6', line_number: '88',  name: 'Línea 88 - Hospital / San Telmo',        color: '#34D399', company: 'MediTrans Ltda.',  total_stops: 8,  is_active: true },
-  { id: 'line-7', line_number: '102', name: 'Línea 102 - Retiro / Zona Oeste',        color: '#FB923C', company: 'PuertoTrans S.A.', total_stops: 9,  is_active: true },
-  { id: 'line-8', line_number: '115', name: 'Línea 115 - Belgrano / Caballito',       color: '#E879F9', company: 'TrBus S.A.',       total_stops: 8,  is_active: true },
+  { id: 'line-1',   line_number: '12',  name: 'Línea 12 - Once / Villa Urquiza',        color: '#22D3A0', company: 'TrBus S.A.',       total_stops: 10, is_active: true },
+  { id: 'line-28',  line_number: '28',  name: 'Línea 28 - Retiro / Puente La Noria',    color: '#E879F9', company: 'DOTA S.A.',        total_stops: 8,  is_active: true },
+  { id: 'line-3',   line_number: '37',  name: 'Línea 37 - Aeropuerto / Centro',         color: '#F59E0B', company: 'AeroBus Ltda.',    total_stops: 8,  is_active: true },
+  { id: 'line-60',  line_number: '60',  name: 'Línea 60 - Constitución / Tigre',        color: '#60A5FA', company: 'MONSA S.A.',       total_stops: 9,  is_active: true },
+  { id: 'line-152', line_number: '152', name: 'Línea 152 - La Boca / Olivos',          color: '#34D399', company: 'TANDILENSE S.A.',  total_stops: 11, is_active: true },
 ]
 
 // Real Buenos Aires street coordinates for each line
@@ -120,6 +117,7 @@ interface MockBusState {
   progress: number      // 0–1 between current and next stop
   direction: 1 | -1
   pauseUntil: number    // ms timestamp; 0 = moving
+  speedKmh: number      // per-bus speed for variety
 }
 
 // Module-level mutable state — one entry per bus
@@ -245,13 +243,21 @@ function shouldPauseAtPathIndex(stops: BusStop[], path: RoutePoint[], pathIndex:
   ))
 }
 
-function makeBus(line: BusLine, unitNum: number, stopIndex: number): MockBusState {
+function makeBus(line: BusLine, unitNum: number, totalBuses: number): MockBusState {
   const stops = getMockStopsForLine(line)
   const path = getRoutePathForLine(line)
-  const pathIndex = Math.min(Math.floor(path.length * (unitNum === 0 ? 0.15 : 0.55)), path.length - 2)
+  
+  // Distribute buses evenly along the route path
+  const fraction = unitNum / totalBuses
+  const pathIndex = Math.min(Math.floor(path.length * fraction), path.length - 2)
+  
   const point = path[pathIndex]
   const nextStop = nearestStopAhead(stops, path, pathIndex, 1) || stops[0]
-  const names = ['Carlos Gómez', 'María Torres', 'Roberto Silva', 'Ana Martínez', 'Luis Fernández']
+  const names = ['Carlos Gómez', 'María Torres', 'Roberto Silva', 'Ana Martínez', 'Luis Fernández', 'Jorge Rodríguez', 'Laura Gómez', 'Daniel Díaz']
+  
+  // Assign different speeds between 18 and 32 km/h
+  const speedKmh = 18 + (unitNum * 5) % 15
+
   const bus: BusPosition = {
     id:              `mock-${line.id}-${unitNum}`,
     driver_id:       `mock-driver-${line.id}-${unitNum}`,
@@ -275,8 +281,9 @@ function makeBus(line: BusLine, unitNum: number, stopIndex: number): MockBusStat
     stopIndex:    pathIndex,
     progress:    0,
     direction:   1,
-    // Stagger departure: first bus leaves in 2s, second in 5s
-    pauseUntil:  Date.now() + 2000 + unitNum * 3000,
+    // Stagger departure
+    pauseUntil:  Date.now() + 2000 + unitNum * 2500,
+    speedKmh,
   }
 }
 
@@ -288,8 +295,11 @@ export function initMockBuses(lines: BusLine[] = MOCK_LINES) {
   lines.forEach(line => {
     const path = getRoutePathForLine(line)
     if (!path || path.length < 2) return
-    STATE.set(`${line.id}-0`, makeBus(line, 0, 0))
-    STATE.set(`${line.id}-1`, makeBus(line, 1, 0))
+    const isLine12 = line.line_number === '12'
+    const totalBuses = isLine12 ? 8 : 2
+    for (let i = 0; i < totalBuses; i++) {
+      STATE.set(`${line.id}-${i}`, makeBus(line, i, totalBuses))
+    }
   })
 }
 
@@ -326,10 +336,10 @@ export function tickMockBuses(): BusPosition[] {
     const curPoint = path[s.stopIndex]
     const nextIdx  = s.stopIndex + s.direction
 
-    // Reached end of route → reverse
+    // Reached end of route → reverse (stop duration between 3 to 10 seconds)
     if (nextIdx < 0 || nextIdx >= path.length) {
       s.direction  = s.direction === 1 ? -1 : 1
-      s.pauseUntil = now + 5000
+      s.pauseUntil = now + (3000 + Math.random() * 7000)
       out.push({ ...s.bus })
       return
     }
@@ -341,8 +351,8 @@ export function tickMockBuses(): BusPosition[] {
     const dLng   = nextPoint.lng - curPoint.lng
     const segmentKm = distanceKm(curPoint, nextPoint)
 
-    // Speed in degrees/second (avg 28 km/h in city)
-    const speedKmh = 24
+    // Speed from the specific bus state
+    const speedKmh = s.speedKmh
 
     // How much progress to add this tick
     const step = segmentKm > 0 ? ((speedKmh / 3600) * dt) / segmentKm : 1
@@ -363,18 +373,19 @@ export function tickMockBuses(): BusPosition[] {
     s.bus.eta_minutes    = Math.max(1, Math.ceil(remainingDist / (speedKmh / 60)))
     s.bus.timestamp      = new Date().toISOString()
 
-    // Arrived
+    // Arrived at a point
     if (s.progress >= 1) {
       s.stopIndex  = nextIdx
       s.progress   = 0
       s.bus.latitude   = nextPoint.lat
       s.bus.longitude  = nextPoint.lng
 
+      // If this point is a stop, pause (different lengths up to 10 seconds)
       if (shouldPauseAtPathIndex(stops, path, nextIdx)) {
         s.bus.status     = 'at_stop'
         s.bus.speed_kmh  = 0
         s.bus.passenger_count = Math.max(0, s.bus.passenger_count + Math.floor(Math.random() * 8) - 3)
-        s.pauseUntil = now + 5000
+        s.pauseUntil = now + (3000 + Math.random() * 7000)
       }
     }
 
@@ -383,6 +394,7 @@ export function tickMockBuses(): BusPosition[] {
 
   return out
 }
+
 
 export function getMockBusesForLine(lineId: string): BusPosition[] {
   if (STATE.size === 0) initMockBuses()
