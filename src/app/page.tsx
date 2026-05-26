@@ -394,11 +394,28 @@ export default function UserMapPage() {
           {...viewState}
           onMove={e => setViewState(e.viewState)}
           mapboxAccessToken={TOKEN}
-          mapStyle={prefs.darkMap ? 'mapbox://styles/mapbox/navigation-night-v1' : 'mapbox://styles/mapbox/navigation-day-v1'}
+          mapStyle={prefs.darkMap ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/streets-v12'}
           style={{ width: '100%', height: '100%' }}
         >
           <NavigationControl position="bottom-right" />
           <GeolocateControl position="bottom-right" trackUserLocation showUserHeading onGeolocate={handleLocated as any} />
+
+          {/* Custom Floating Theme Toggle */}
+          <div style={{ position: 'absolute', right: '10px', bottom: '110px', zIndex: 10 }}>
+            <button
+              onClick={() => updatePrefs({ darkMap: !prefs.darkMap })}
+              style={{
+                width: '29px', height: '29px', borderRadius: '4px',
+                background: 'rgba(12,16,26,0.92)', border: '1px solid rgba(184,200,224,0.15)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
+                color: 'var(--platinum)'
+              }}
+              title={prefs.darkMap ? "Cambiar a mapa claro" : "Cambiar a mapa oscuro"}
+            >
+              {prefs.darkMap ? <Globe size={14} /> : <Moon size={14} />}
+            </button>
+          </div>
 
           {routeGeoJsons.map(item => (
             <Source key={item.id} id={item.id} type="geojson" data={{
