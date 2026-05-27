@@ -276,20 +276,29 @@ export default function UserMapPage() {
     const nearOrigin = allStops.filter(stop => distanceKm(stop, origin) < 0.8)
     const nearDest = allStops.filter(stop => distanceKm(stop, dest) < 0.8)
 
+    let bestRoute = null
+    let minWalkDistance = Infinity
+
     for (const stopO of nearOrigin) {
       for (const stopD of nearDest) {
         if (stopO.line_id === stopD.line_id) {
-          return {
-            line_id: stopO.line_id,
-            line_number: stopO.line_number,
-            color: stopO.color,
-            originStop: stopO,
-            destStop: stopD,
+          const walkO = distanceKm(stopO, origin)
+          const walkD = distanceKm(stopD, dest)
+          const totalWalk = walkO + walkD
+          if (totalWalk < minWalkDistance) {
+            minWalkDistance = totalWalk
+            bestRoute = {
+              line_id: stopO.line_id,
+              line_number: stopO.line_number,
+              color: stopO.color,
+              originStop: stopO,
+              destStop: stopD,
+            }
           }
         }
       }
     }
-    return null
+    return bestRoute
   }
 
   // ── init ──
