@@ -445,6 +445,8 @@ export default function UserMapPage() {
     }
   })
 
+  const showTravelPins = travelPlannerOpen || showLineSelector || !!mapSelectionMode
+
   return (
     <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', background: 'var(--void)' }}>
 
@@ -696,7 +698,7 @@ export default function UserMapPage() {
           )}
 
           {/* Travel Planner Pins */}
-          {travelPlannerOpen && originCoord && (
+          {showTravelPins && originCoord && (
             <Marker
               longitude={originCoord.lng}
               latitude={originCoord.lat}
@@ -717,7 +719,7 @@ export default function UserMapPage() {
             </Marker>
           )}
 
-          {travelPlannerOpen && destCoord && (
+          {showTravelPins && destCoord && (
             <Marker
               longitude={destCoord.lng}
               latitude={destCoord.lat}
@@ -739,7 +741,7 @@ export default function UserMapPage() {
           )}
 
           {/* Travel Walking Dotted lines */}
-          {travelPlannerOpen && travelRoute && originCoord && destCoord && (
+          {showTravelPins && travelRoute && originCoord && destCoord && (
             <Source id="travel-route-geojson" type="geojson" data={{
               type: 'FeatureCollection',
               features: [
