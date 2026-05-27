@@ -6,7 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Bus, Search, ChevronDown, X, Star, MapPin, Bell,
   LogOut, Heart, ChevronRight, User, Sliders, Moon, Globe,
-  Navigation as NavIcon, LayoutDashboard, Menu
+  Navigation as NavIcon, LayoutDashboard, Menu,
+  Locate, Plus, Minus, Sun
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { OFFICIAL_ROUTES } from '@/lib/officialRoutes'
@@ -230,6 +231,17 @@ export default function UserMapPage() {
     setPrefs(prev => { const next = { ...prev, ...patch }; savePrefs(next); return next })
   }, [])
 
+  // Sync theme with document class
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      if (prefs.darkMap) {
+        document.documentElement.classList.remove('light')
+      } else {
+        document.documentElement.classList.add('light')
+      }
+    }
+  }, [prefs.darkMap])
+
   // ── line subscription + mock fallback ──
   useEffect(() => {
     if (mockTickRef.current) { clearInterval(mockTickRef.current); mockTickRef.current = null }
@@ -307,6 +319,22 @@ export default function UserMapPage() {
       .then(({ data }) => { if (data) setNearbyStops(data) })
   }, [])
 
+  const handleGeolocate = () => {
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords
+          setViewState(v => ({ ...v, latitude, longitude, zoom: 14 }))
+          supabase.rpc('get_nearby_stops', { user_lat: latitude, user_lng: longitude })
+            .then(({ data }) => { if (data) setNearbyStops(data) })
+        },
+        (error) => {
+          console.error('Error getting location:', error)
+        }
+      )
+    }
+  }
+
   const handleBusClick = (bus: BusPosition) => {
     setSelectedBus(bus)
     if (prefs.autoZoomOnBus)
@@ -338,7 +366,7 @@ export default function UserMapPage() {
   })
 
   return (
-    <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', background: '#060810' }}>
+    <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', background: 'var(--void)' }}>
 
       {/* ═══════════════════════════════════════════════════════════════
           LEFT SIDEBAR — permanent, collapsible
@@ -346,16 +374,25 @@ export default function UserMapPage() {
       <div
         style={{
           width: sidebarW, flexShrink: 0, height: '100vh',
-          background: 'linear-gradient(180deg,rgba(14,20,30,0.99) 0%,rgba(8,12,18,0.99) 100%)',
-          borderRight: '1px solid rgba(184,200,224,0.08)',
+          background: prefs.darkMap
+            ? 'linear-gradient(180deg,rgba(14,20,30,0.99) 0%,rgba(8,12,18,0.99) 100%)'
+            : 'linear-gradient(180deg,rgba(255,255,255,0.99) 0%,rgba(243,244,246,0.99) 100%)',
+          borderRight: prefs.darkMap
+            ? '1px solid rgba(184,200,224,0.08)'
+            : '1px solid rgba(0,0,0,0.08)',
           display: 'flex', flexDirection: 'column',
           transition: 'width 220ms ease',
           overflow: 'hidden', zIndex: 20,
         }}
       >
         {/* Logo + collapse */}
-        <div style={{ padding: '18px 14px 14px', borderBottom: '1px solid rgba(184,200,224,0.07)', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-          <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(145deg,#1E2638,#131921)', border: '1px solid rgba(184,200,224,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <div style={{ padding: '18px 14px 14px', borderBottom: prefs.darkMap ? '1px solid rgba(184,200,224,0.07)' : '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+          <div style={{
+            width: '36px', height: '36px', borderRadius: '10px',
+            background: prefs.darkMap ? 'linear-gradient(145deg,#1E2638,#131921)' : 'linear-gradient(145deg,#E5E7EB,#FFFFFF)',
+            border: prefs.darkMap ? '1px solid rgba(184,200,224,0.18)' : '1px solid rgba(0,0,0,0.12)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+          }}>
             <Bus size={16} style={{ color: 'var(--platinum)' }} />
           </div>
           {!collapsed && (
@@ -366,7 +403,12 @@ export default function UserMapPage() {
           )}
           <button
             onClick={() => setCollapsed(c => !c)}
-            style={{ width: '26px', height: '26px', borderRadius: '8px', background: 'rgba(184,200,224,0.05)', border: '1px solid rgba(184,200,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+            style={{
+              width: '26px', height: '26px', borderRadius: '8px',
+              background: prefs.darkMap ? 'rgba(184,200,224,0.05)' : 'rgba(0,0,0,0.05)',
+              border: prefs.darkMap ? '1px solid rgba(184,200,224,0.1)' : '1px solid rgba(0,0,0,0.08)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0
+            }}
           >
             <Menu size={12} style={{ color: 'var(--text-muted)' }} />
           </button>
@@ -401,7 +443,9 @@ export default function UserMapPage() {
                   justifyContent: collapsed ? 'center' : 'flex-start',
                   padding: collapsed ? '12px 0' : '11px 12px',
                   borderRadius: '11px', border: 'none', cursor: 'pointer',
-                  background: active ? 'rgba(184,200,224,0.1)' : 'transparent',
+                  background: active 
+                    ? (prefs.darkMap ? 'rgba(184,200,224,0.1)' : 'rgba(0,0,0,0.06)') 
+                    : 'transparent',
                   transition: 'background 140ms',
                 }}
               >
@@ -449,25 +493,6 @@ export default function UserMapPage() {
           mapStyle={prefs.darkMap ? (CARTODB_DARK as any) : (CARTODB_LIGHT as any)}
           style={{ width: '100%', height: '100%' }}
         >
-          <NavigationControl position="bottom-right" />
-          <GeolocateControl position="bottom-right" trackUserLocation onGeolocate={handleLocated as any} />
-
-          {/* Custom Floating Theme Toggle */}
-          <div style={{ position: 'absolute', right: '10px', bottom: '110px', zIndex: 10 }}>
-            <button
-              onClick={() => updatePrefs({ darkMap: !prefs.darkMap })}
-              style={{
-                width: '29px', height: '29px', borderRadius: '4px',
-                background: 'rgba(12,16,26,0.92)', border: '1px solid rgba(184,200,224,0.15)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
-                color: 'var(--platinum)'
-              }}
-              title={prefs.darkMap ? "Cambiar a mapa claro" : "Cambiar a mapa oscuro"}
-            >
-              {prefs.darkMap ? <Globe size={14} /> : <Moon size={14} />}
-            </button>
-          </div>
 
           {routeGeoJsons.map(item => (
             <Source key={item.id} id={item.id} type="geojson" data={{
@@ -651,14 +676,33 @@ export default function UserMapPage() {
           <motion.div
             initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
             transition={{ type: 'spring', damping: 26, stiffness: 200 }}
-            style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'linear-gradient(145deg,rgba(19,25,33,0.97),rgba(10,14,20,0.99))', backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)', border: '1px solid rgba(184,200,224,0.12)', borderRadius: '14px', padding: '9px 12px', boxShadow: '0 8px 40px rgba(0,0,0,0.7)', pointerEvents: 'auto' }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '10px',
+              background: prefs.darkMap
+                ? 'linear-gradient(145deg,rgba(19,25,33,0.97),rgba(10,14,20,0.99))'
+                : 'linear-gradient(145deg,rgba(255,255,255,0.97),rgba(243,244,246,0.99))',
+              backdropFilter: 'blur(24px)', WebkitBackdropFilter: 'blur(24px)',
+              border: prefs.darkMap
+                ? '1px solid rgba(184,200,224,0.12)'
+                : '1px solid rgba(0,0,0,0.08)',
+              borderRadius: '14px', padding: '9px 12px',
+              boxShadow: prefs.darkMap
+                ? '0 8px 40px rgba(0,0,0,0.7)'
+                : '0 8px 30px rgba(0,0,0,0.06)',
+              pointerEvents: 'auto'
+            }}
           >
             {selectedLines.length > 0 ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', flex: 1, paddingRight: '8px' }}>
                 {selectedLines.map(line => (
-                  <div key={line.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(184,200,224,0.06)', border: '1px solid rgba(184,200,224,0.1)', padding: '4px 8px', borderRadius: '8px', flexShrink: 0 }}>
+                  <div key={line.id} style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    background: prefs.darkMap ? 'rgba(184,200,224,0.06)' : 'rgba(0,0,0,0.04)',
+                    border: prefs.darkMap ? '1px solid rgba(184,200,224,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                    padding: '4px 8px', borderRadius: '8px', flexShrink: 0
+                  }}>
                     <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: line.color }} />
-                    <span style={{ color: 'white', fontSize: '12px', fontWeight: 600 }}>Línea {line.line_number}</span>
+                    <span style={{ color: 'var(--text-primary)', fontSize: '12px', fontWeight: 600 }}>Línea {line.line_number}</span>
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
@@ -672,7 +716,11 @@ export default function UserMapPage() {
                 ))}
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowLineSelector(true) }}
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.15)', color: '#9CA3AF', fontSize: '11px', padding: '4px 8px', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }}
+                  style={{
+                    background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                    border: prefs.darkMap ? '1px dashed rgba(255,255,255,0.15)' : '1px dashed rgba(0,0,0,0.15)',
+                    color: '#9CA3AF', fontSize: '11px', padding: '4px 8px', borderRadius: '8px', cursor: 'pointer', fontWeight: 500
+                  }}
                 >
                   + Agregar línea
                 </button>
@@ -689,7 +737,12 @@ export default function UserMapPage() {
 
             {selectedLines.length === 1 && (
               <button onClick={() => updatePrefs({ favBusLines: prefs.favBusLines.includes(selectedLines[0].id) ? prefs.favBusLines.filter(id => id !== selectedLines[0].id) : [...prefs.favBusLines, selectedLines[0].id] })}
-                style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(184,200,224,0.06)', border: '1px solid rgba(184,200,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+                style={{
+                  width: '28px', height: '28px', borderRadius: '50%',
+                  background: prefs.darkMap ? 'rgba(184,200,224,0.06)' : 'rgba(0,0,0,0.04)',
+                  border: prefs.darkMap ? '1px solid rgba(184,200,224,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0
+                }}>
                 <Star size={12} style={{ color: prefs.favBusLines.includes(selectedLines[0].id) ? '#F59E0B' : 'var(--text-muted)', fill: prefs.favBusLines.includes(selectedLines[0].id) ? '#F59E0B' : 'none' }} />
               </button>
             )}
@@ -706,18 +759,30 @@ export default function UserMapPage() {
         {/* ── FILTER TOOLBAR (Branch & Interno selection) ── */}
         {selectedLines.length > 0 && activePanel === 'map' && (
           <div style={{ position: 'absolute', top: '64px', left: 0, right: 0, zIndex: 9, padding: '0 14px', pointerEvents: 'none' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', pointerEvents: 'auto', background: 'rgba(10,14,20,0.95)', border: '1px solid rgba(184,200,224,0.08)', padding: '6px 12px', borderRadius: '10px', boxShadow: '0 4px 20px rgba(0,0,0,0.5)', width: 'fit-content' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '8px', pointerEvents: 'auto',
+              background: prefs.darkMap ? 'rgba(10,14,20,0.95)' : 'rgba(255,255,255,0.95)',
+              border: prefs.darkMap ? '1px solid rgba(184,200,224,0.08)' : '1px solid rgba(0,0,0,0.08)',
+              padding: '6px 12px', borderRadius: '10px',
+              boxShadow: prefs.darkMap ? '0 4px 20px rgba(0,0,0,0.5)' : '0 4px 15px rgba(0,0,0,0.05)',
+              width: 'fit-content'
+            }}>
               {selectedLines.some(l => l.line_number === '60') && (
                 <>
                   <span style={{ fontSize: '11px', color: '#9CA3AF', fontFamily: 'DM Mono' }}>RAMAL:</span>
                   <select
                     value={branchFilter}
                     onChange={e => { setBranchFilter(e.target.value); setTrackedBusId(null) }}
-                    style={{ background: 'rgba(184,200,224,0.05)', color: 'white', border: '1px solid rgba(184,200,224,0.15)', borderRadius: '6px', fontSize: '11px', padding: '3px 6px', outline: 'none' }}
+                    style={{
+                      background: prefs.darkMap ? 'rgba(184,200,224,0.05)' : 'rgba(0,0,0,0.04)',
+                      color: 'var(--text-primary)',
+                      border: prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)',
+                      borderRadius: '6px', fontSize: '11px', padding: '3px 6px', outline: 'none'
+                    }}
                   >
-                    <option value="all" style={{ background: '#111827' }}>Todos</option>
-                    <option value="A" style={{ background: '#111827' }}>Ramal A (Tigre)</option>
-                    <option value="B" style={{ background: '#111827' }}>Ramal B (Escobar)</option>
+                    <option value="all" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Todos</option>
+                    <option value="A" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Ramal A (Tigre)</option>
+                    <option value="B" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Ramal B (Escobar)</option>
                   </select>
                   <div style={{ width: '1px', height: '14px', background: 'rgba(184,200,224,0.15)', margin: '0 4px' }} />
                 </>
@@ -727,16 +792,21 @@ export default function UserMapPage() {
               <select
                 value={trackedBusId || 'all'}
                 onChange={e => setTrackedBusId(e.target.value === 'all' ? null : e.target.value)}
-                style={{ background: 'rgba(184,200,224,0.05)', color: 'white', border: '1px solid rgba(184,200,224,0.15)', borderRadius: '6px', fontSize: '11px', padding: '3px 6px', outline: 'none' }}
+                style={{
+                  background: prefs.darkMap ? 'rgba(184,200,224,0.05)' : 'rgba(0,0,0,0.04)',
+                  color: 'var(--text-primary)',
+                  border: prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)',
+                  borderRadius: '6px', fontSize: '11px', padding: '3px 6px', outline: 'none'
+                }}
               >
-                <option value="all" style={{ background: '#111827' }}>Todos los colectivos</option>
+                <option value="all" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Todos los colectivos</option>
                 {buses
                   .filter(b => {
                     if (b.line_number === '60' && branchFilter !== 'all' && b.ramal !== branchFilter) return false
                     return true
                   })
                   .map(b => (
-                    <option key={b.id} value={b.id} style={{ background: '#111827' }}>
+                    <option key={b.id} value={b.id} style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>
                       Interno {b.bus_unit} {b.ramal ? `(Ramal ${b.ramal})` : ''}
                     </option>
                   ))}
@@ -750,17 +820,27 @@ export default function UserMapPage() {
           {travelPlannerOpen && activePanel === 'map' && (
             <motion.div
               initial={{ x: -100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -100, opacity: 0 }}
-              style={{ position: 'absolute', top: '74px', left: '14px', zIndex: 11, width: '320px', background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.95) 0%, rgba(10, 15, 26, 0.98) 100%)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '16px', padding: '14px', boxShadow: '0 10px 30px rgba(0,0,0,0.6)', color: 'white', display: 'flex', flexDirection: 'column', gap: '10px', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}
+              style={{
+                position: 'absolute', top: '74px', left: '14px', zIndex: 11, width: '320px',
+                background: prefs.darkMap
+                  ? 'linear-gradient(135deg, rgba(17, 24, 39, 0.95) 0%, rgba(10, 15, 26, 0.98) 100%)'
+                  : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(243, 244, 246, 0.98) 100%)',
+                border: prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.08)',
+                borderRadius: '16px', padding: '14px',
+                boxShadow: prefs.darkMap ? '0 10px 30px rgba(0,0,0,0.6)' : '0 10px 30px rgba(0,0,0,0.06)',
+                color: 'var(--text-primary)', display: 'flex', flexDirection: 'column', gap: '10px',
+                backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)'
+              }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: 'white' }}>Planificar Recorrido</span>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Planificar Recorrido</span>
                 <button onClick={() => setTravelPlannerOpen(false)} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer' }}><X size={14} /></button>
               </div>
               
               {/* Inputs stacked with connecting vertical line */}
               <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {/* Vertical connecting line */}
-                <div style={{ position: 'absolute', left: '16px', top: '20px', bottom: '20px', width: '2px', background: 'rgba(255,255,255,0.15)', zIndex: 1 }} />
+                <div style={{ position: 'absolute', left: '16px', top: '20px', bottom: '20px', width: '2px', background: prefs.darkMap ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', zIndex: 1 }} />
                 
                 {/* Origin Input */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2 }}>
@@ -782,13 +862,18 @@ export default function UserMapPage() {
                         if (destCoord) setTravelRoute(solveRoute(coords[val], destCoord))
                       }
                     }}
-                    style={{ flex: 1, padding: '6px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'white', fontSize: '12px', outline: 'none' }}
+                    style={{
+                      flex: 1, padding: '6px 10px', borderRadius: '8px',
+                      background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                      border: prefs.darkMap ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
+                      color: 'var(--text-primary)', fontSize: '12px', outline: 'none'
+                    }}
                   >
-                    <option value="" style={{background:'#111827'}}>Desde (Origen)...</option>
-                    <option value="obelisco" style={{background:'#111827'}}>Obelisco (Microcentro)</option>
-                    <option value="once" style={{background:'#111827'}}>Once (Pza. Miserere)</option>
-                    <option value="consti" style={{background:'#111827'}}>Plaza Constitución</option>
-                    <option value="retiro" style={{background:'#111827'}}>Retiro Terminal</option>
+                    <option value="" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Desde (Origen)...</option>
+                    <option value="obelisco" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Obelisco (Microcentro)</option>
+                    <option value="once" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Once (Pza. Miserere)</option>
+                    <option value="consti" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Plaza Constitución</option>
+                    <option value="retiro" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Retiro Terminal</option>
                   </select>
                 </div>
 
@@ -812,13 +897,18 @@ export default function UserMapPage() {
                         if (originCoord) setTravelRoute(solveRoute(originCoord, coords[val]))
                       }
                     }}
-                    style={{ flex: 1, padding: '6px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'white', fontSize: '12px', outline: 'none' }}
+                    style={{
+                      flex: 1, padding: '6px 10px', borderRadius: '8px',
+                      background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                      border: prefs.darkMap ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
+                      color: 'var(--text-primary)', fontSize: '12px', outline: 'none'
+                    }}
                   >
-                    <option value="" style={{background:'#111827'}}>Hacia (Destino)...</option>
-                    <option value="italia" style={{background:'#111827'}}>Plaza Italia (Palermo)</option>
-                    <option value="belgrano" style={{background:'#111827'}}>Barrancas de Belgrano</option>
-                    <option value="saavedra" style={{background:'#111827'}}>Puente Saavedra</option>
-                    <option value="olivos" style={{background:'#111827'}}>Olivos Terminal</option>
+                    <option value="" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Hacia (Destino)...</option>
+                    <option value="italia" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Plaza Italia (Palermo)</option>
+                    <option value="belgrano" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Barrancas de Belgrano</option>
+                    <option value="saavedra" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Puente Saavedra</option>
+                    <option value="olivos" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Olivos Terminal</option>
                   </select>
                 </div>
               </div>
@@ -862,35 +952,58 @@ export default function UserMapPage() {
           )}
         </AnimatePresence>
 
-        {/* Floating actions right side of map */}
+        {/* Unified Floating Controls right side of map */}
         {activePanel === 'map' && (
           <div style={{ position: 'absolute', bottom: '110px', right: '14px', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {/* Travel Planner */}
+            {/* Geolocate Button */}
             <button
-              onClick={() => {
-                setTravelPlannerOpen(prev => !prev)
-                setPinNearbyStopsMode(false)
-                if (!originCoord) {
-                  setOriginCoord({ lat: -34.6037, lng: -58.3816 })
-                  setDestCoord({ lat: -34.5810, lng: -58.4210 })
-                  const route = solveRoute({ lat: -34.6037, lng: -58.3816 }, { lat: -34.5810, lng: -58.4210 })
-                  setTravelRoute(route)
-                }
-              }}
+              onClick={handleGeolocate}
               style={{
                 width: '40px', height: '40px', borderRadius: '50%',
-                background: travelPlannerOpen ? '#3B82F6' : 'rgba(10,14,20,0.9)',
-                border: '1px solid rgba(184,200,224,0.15)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                background: prefs.darkMap ? 'rgba(10,14,20,0.9)' : 'rgba(255,255,255,0.9)',
+                border: prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)',
+                boxShadow: prefs.darkMap ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', color: 'white', transition: 'all 200ms'
+                cursor: 'pointer', color: 'var(--text-primary)', transition: 'all 200ms'
               }}
-              title="Planificar Viaje (Origen/Destino)"
+              title="Mi ubicación"
             >
-              <NavIcon size={16} />
+              <Locate size={16} />
             </button>
-            
-            {/* Draggable Nearby Stops Pin */}
+
+            {/* Zoom In Button */}
+            <button
+              onClick={() => setViewState(v => ({ ...v, zoom: Math.min(20, v.zoom + 1) }))}
+              style={{
+                width: '40px', height: '40px', borderRadius: '50%',
+                background: prefs.darkMap ? 'rgba(10,14,20,0.9)' : 'rgba(255,255,255,0.9)',
+                border: prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)',
+                boxShadow: prefs.darkMap ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: 'var(--text-primary)', transition: 'all 200ms'
+              }}
+              title="Acercar (+)"
+            >
+              <Plus size={16} />
+            </button>
+
+            {/* Zoom Out Button */}
+            <button
+              onClick={() => setViewState(v => ({ ...v, zoom: Math.max(1, v.zoom - 1) }))}
+              style={{
+                width: '40px', height: '40px', borderRadius: '50%',
+                background: prefs.darkMap ? 'rgba(10,14,20,0.9)' : 'rgba(255,255,255,0.9)',
+                border: prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)',
+                boxShadow: prefs.darkMap ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: 'var(--text-primary)', transition: 'all 200ms'
+              }}
+              title="Alejar (-)"
+            >
+              <Minus size={16} />
+            </button>
+
+            {/* Pin Nearby Stops Button */}
             <button
               onClick={() => {
                 setPinNearbyStopsMode(prev => !prev)
@@ -906,15 +1019,56 @@ export default function UserMapPage() {
               }}
               style={{
                 width: '40px', height: '40px', borderRadius: '50%',
-                background: pinNearbyStopsMode ? '#FF4D6A' : 'rgba(10,14,20,0.9)',
-                border: '1px solid rgba(184,200,224,0.15)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                background: pinNearbyStopsMode ? '#FF4D6A' : (prefs.darkMap ? 'rgba(10,14,20,0.9)' : 'rgba(255,255,255,0.9)'),
+                border: pinNearbyStopsMode ? '1px solid #FF4D6A' : (prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)'),
+                boxShadow: prefs.darkMap ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', color: 'white', transition: 'all 200ms'
+                cursor: 'pointer', color: pinNearbyStopsMode ? 'white' : 'var(--text-primary)', transition: 'all 200ms'
               }}
               title="Pin de paradas cercanas"
             >
               <MapPin size={16} />
+            </button>
+
+            {/* Travel Planner Button */}
+            <button
+              onClick={() => {
+                setTravelPlannerOpen(prev => !prev)
+                setPinNearbyStopsMode(false)
+                if (!originCoord) {
+                  setOriginCoord({ lat: -34.6037, lng: -58.3816 })
+                  setDestCoord({ lat: -34.5810, lng: -58.4210 })
+                  const route = solveRoute({ lat: -34.6037, lng: -58.3816 }, { lat: -34.5810, lng: -58.4210 })
+                  setTravelRoute(route)
+                }
+              }}
+              style={{
+                width: '40px', height: '40px', borderRadius: '50%',
+                background: travelPlannerOpen ? '#3B82F6' : (prefs.darkMap ? 'rgba(10,14,20,0.9)' : 'rgba(255,255,255,0.9)'),
+                border: travelPlannerOpen ? '1px solid #3B82F6' : (prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)'),
+                boxShadow: prefs.darkMap ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: travelPlannerOpen ? 'white' : 'var(--text-primary)', transition: 'all 200ms'
+              }}
+              title="Planificar Viaje (Origen/Destino)"
+            >
+              <NavIcon size={16} />
+            </button>
+
+            {/* Theme Toggle Button */}
+            <button
+              onClick={() => updatePrefs({ darkMap: !prefs.darkMap })}
+              style={{
+                width: '40px', height: '40px', borderRadius: '50%',
+                background: prefs.darkMap ? 'rgba(10,14,20,0.9)' : 'rgba(255,255,255,0.9)',
+                border: prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)',
+                boxShadow: prefs.darkMap ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', color: 'var(--text-primary)', transition: 'all 200ms'
+              }}
+              title={prefs.darkMap ? "Cambiar a mapa claro" : "Cambiar a mapa oscuro"}
+            >
+              {prefs.darkMap ? <Sun size={16} /> : <Moon size={16} />}
             </button>
           </div>
         )}
