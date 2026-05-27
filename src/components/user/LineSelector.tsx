@@ -1,20 +1,61 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Search, X, Bus, Check, Route, MapPin, Navigation, ChevronRight } from 'lucide-react'
+import { useState } from 'react'
+import { motion } from 'framer-motion'
+import { Search, X, Bus, Check, Route, MapPin, Navigation } from 'lucide-react'
 import type { BusLine, BusStop } from '@/types'
-import { MOCK_LINES, getMockStopsForLine } from '@/lib/mockData'
+import { MOCK_LINES } from '@/lib/mockData'
 
 interface Props {
   lines: BusLine[]
   selectedLines: BusLine[]
   onSelect: (l: BusLine) => void
   onClose: () => void
+
+  // Travel planner states and handlers from page.tsx:
+  originInput: string
+  setOriginInput: (v: string) => void
+  destInput: string
+  setDestInput: (v: string) => void
+  originCoord: { lat: number; lng: number } | null
+  setOriginCoord: (c: { lat: number; lng: number } | null) => void
+  destCoord: { lat: number; lng: number } | null
+  setDestCoord: (c: { lat: number; lng: number } | null) => void
+  travelRoute: any
+  setTravelRoute: (r: any) => void
+  setMapSelectionMode: (mode: 'origin' | 'destination' | null) => void
+  setShowLineSelector: (v: boolean) => void
+  resolveStreetToCoords: (text: string) => { lat: number; lng: number } | null
+  getNearestStreetName: (lat: number, lng: number) => string
+  solveRoute: (origin: { lat: number; lng: number }, dest: { lat: number; lng: number }) => any
+  setTravelPlannerOpen: (v: boolean) => void
+  setViewState: (v: any) => void
 }
 
 type Tab = 'line' | 'route' | 'nearby'
 
-export default function LineSelector({ lines, selectedLines, onSelect, onClose }: Props) {
+export default function LineSelector({
+  lines,
+  selectedLines,
+  onSelect,
+  onClose,
+  originInput,
+  setOriginInput,
+  destInput,
+  setDestInput,
+  originCoord,
+  setOriginCoord,
+  destCoord,
+  setDestCoord,
+  travelRoute,
+  setTravelRoute,
+  setMapSelectionMode,
+  setShowLineSelector,
+  resolveStreetToCoords,
+  getNearestStreetName,
+  solveRoute,
+  setTravelPlannerOpen,
+  setViewState
+}: Props) {
   const allLines = lines.length > 0 ? lines : MOCK_LINES
 
   const [tab, setTab] = useState<Tab>('line')
@@ -22,7 +63,6 @@ export default function LineSelector({ lines, selectedLines, onSelect, onClose }
   const [locating, setLocating] = useState(false)
   const [nearbyLines, setNearbyLines] = useState<BusLine[]>([])
   const [locError, setLocError] = useState<string | null>(null)
-  const [expandedRoute, setExpandedRoute] = useState<string | null>(null)
 
   const filtered = allLines.filter(
     l => l.line_number.includes(q) || l.name.toLowerCase().includes(q.toLowerCase())
@@ -128,56 +168,197 @@ export default function LineSelector({ lines, selectedLines, onSelect, onClose }
             </>
           )}
 
-          {/* ── ROUTE TAB ── */}
+          {/* ── ROUTE TAB (Remade Travel Planner) ── */}
           {tab === 'route' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {allLines.map(line => {
-                const stops: BusStop[] = getMockStopsForLine(line)
-                const expanded = expandedRoute === line.id
-                return (
-                  <div key={line.id} style={{ borderRadius: '12px', border: '1px solid rgba(184,200,224,0.08)', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                
+                {/* Origen Input Row */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', fontFamily: 'DM Mono', letterSpacing: '0.04em' }}>
+                    Desde (Origen)
+                  </label>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <div style={{ position: 'relative', flex: 1 }}>
+                      <MapPin size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#3B82F6' }} />
+                      <input
+                        value={originInput}
+                        onChange={e => {
+                          setOriginInput(e.target.value)
+                          const coord = resolveStreetToCoords(e.target.value)
+                          if (coord) {
+                            setOriginCoord(coord)
+                            if (destCoord) setTravelRoute(solveRoute(coord, destCoord))
+                          }
+                        }}
+                        placeholder="Ingresá calle y altura de Origen..."
+                        style={{
+                          width: '100%', padding: '9px 12px 9px 30px', borderRadius: '8px',
+                          background: 'rgba(6,8,16,0.6)', border: '1px solid rgba(184,200,224,0.1)',
+                          color: 'var(--text-primary)', fontSize: '12px', fontFamily: 'DM Sans', outline: 'none', boxSizing: 'border-box'
+                        }}
+                      />
+                    </div>
+                    
+                    {/* Current Location Button */}
                     <button
-                      onClick={() => setExpandedRoute(expanded ? null : line.id)}
-                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 14px', background: 'rgba(6,8,16,0.5)', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+                      onClick={() => {
+                        if (!navigator.geolocation) {
+                          alert('GPS no disponible en este dispositivo.')
+                          return
+                        }
+                        navigator.geolocation.getCurrentPosition(
+                          pos => {
+                            const coord = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+                            setOriginCoord(coord)
+                            const street = getNearestStreetName(coord.lat, coord.lng)
+                            setOriginInput(street)
+                            if (destCoord) setTravelRoute(solveRoute(coord, destCoord))
+                          },
+                          err => {
+                            alert('No pudimos acceder a tu ubicación: ' + err.message)
+                          }
+                        )
+                      }}
+                      title="Usar mi ubicación actual"
+                      style={{
+                        width: '34px', height: '34px', borderRadius: '8px',
+                        background: 'rgba(184,200,224,0.06)', border: '1px solid rgba(184,200,224,0.1)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0
+                      }}
                     >
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: line.color, flexShrink: 0 }} />
-                      <span style={{ flex: 1, color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600, fontFamily: 'DM Sans' }}>Línea {line.line_number}</span>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'DM Mono' }}>{stops.length} paradas</span>
-                      <ChevronRight size={13} style={{ color: 'var(--text-muted)', transform: expanded ? 'rotate(90deg)' : 'none', transition: 'transform 200ms' }} />
+                      <Navigation size={12} style={{ color: 'var(--text-secondary)' }} />
                     </button>
-                    <AnimatePresence>
-                      {expanded && (
-                        <motion.div
-                          initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }}
-                          style={{ overflow: 'hidden' }}
-                        >
-                          <div style={{ padding: '4px 14px 12px', display: 'flex', flexDirection: 'column', gap: '0' }}>
-                            {stops.map((stop, i) => (
-                              <div key={stop.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                                {/* Timeline line */}
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '16px', flexShrink: 0, paddingTop: '4px' }}>
-                                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: i === 0 || i === stops.length - 1 ? line.color : 'rgba(184,200,224,0.3)', border: `1px solid ${line.color}`, flexShrink: 0 }} />
-                                  {i < stops.length - 1 && <div style={{ width: '1px', flex: 1, minHeight: '16px', background: 'rgba(184,200,224,0.1)' }} />}
-                                </div>
-                                <div style={{ paddingBottom: '8px', flex: 1 }}>
-                                  <span style={{ color: 'var(--text-secondary)', fontSize: '12px', fontFamily: 'DM Sans' }}>{stop.name}</span>
-                                  {stop.street_name && <div style={{ color: 'var(--text-muted)', fontSize: '10px', fontFamily: 'DM Mono' }}>{stop.street_name}</div>}
-                                </div>
-                              </div>
-                            ))}
-                            <button
-                              onClick={() => onSelect(line)}
-                              style={{ marginTop: '8px', padding: '8px', borderRadius: '8px', border: `1px solid ${line.color}40`, background: `${line.color}10`, color: line.color, fontSize: '12px', cursor: 'pointer', fontFamily: 'DM Sans', fontWeight: 600 }}
-                            >
-                              Ver en mapa →
-                            </button>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+
+                    {/* Select on Map Button */}
+                    <button
+                      onClick={() => {
+                        setShowLineSelector(false)
+                        setMapSelectionMode('origin')
+                      }}
+                      title="Seleccionar en el mapa"
+                      style={{
+                        width: '34px', height: '34px', borderRadius: '8px',
+                        background: 'rgba(184,200,224,0.06)', border: '1px solid rgba(184,200,224,0.1)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0
+                      }}
+                    >
+                      <MapPin size={12} style={{ color: 'var(--text-secondary)' }} />
+                    </button>
                   </div>
-                )
-              })}
+                </div>
+
+                {/* Destino Input Row */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', fontFamily: 'DM Mono', letterSpacing: '0.04em' }}>
+                    Hacia (Destino)
+                  </label>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <div style={{ position: 'relative', flex: 1 }}>
+                      <MapPin size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#FF4D6A' }} />
+                      <input
+                        value={destInput}
+                        onChange={e => {
+                          setDestInput(e.target.value)
+                          const coord = resolveStreetToCoords(e.target.value)
+                          if (coord) {
+                            setDestCoord(coord)
+                            if (originCoord) setTravelRoute(solveRoute(originCoord, coord))
+                          }
+                        }}
+                        placeholder="Ingresá calle y altura de Destino..."
+                        style={{
+                          width: '100%', padding: '9px 12px 9px 30px', borderRadius: '8px',
+                          background: 'rgba(6,8,16,0.6)', border: '1px solid rgba(184,200,224,0.1)',
+                          color: 'var(--text-primary)', fontSize: '12px', fontFamily: 'DM Sans', outline: 'none', boxSizing: 'border-box'
+                        }}
+                      />
+                    </div>
+
+                    {/* Select on Map Button */}
+                    <button
+                      onClick={() => {
+                        setShowLineSelector(false)
+                        setMapSelectionMode('destination')
+                      }}
+                      title="Seleccionar en el mapa"
+                      style={{
+                        width: '34px', height: '34px', borderRadius: '8px',
+                        background: 'rgba(184,200,224,0.06)', border: '1px solid rgba(184,200,224,0.1)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0
+                      }}
+                    >
+                      <MapPin size={12} style={{ color: 'var(--text-secondary)' }} />
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Solved Route Results */}
+              <div style={{ borderTop: '1px solid rgba(184,200,224,0.06)', paddingTop: '14px' }}>
+                {originCoord && destCoord ? (
+                  travelRoute ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '11px', fontFamily: 'DM Mono', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                        Línea recomendada:
+                      </div>
+                      
+                      <div
+                        onClick={() => {
+                          const line = allLines.find(l => l.id === travelRoute.line_id)
+                          if (line) {
+                            onSelect(line)
+                            setViewState((v: any) => ({
+                              ...v,
+                              latitude: travelRoute.originStop.latitude,
+                              longitude: travelRoute.originStop.longitude,
+                              zoom: 14.5
+                            }))
+                            setTravelPlannerOpen(true)
+                            onClose()
+                          }
+                        }}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                          padding: '12px',
+                          borderRadius: '10px',
+                          background: 'rgba(6,8,16,0.3)',
+                          border: `1px solid ${travelRoute.color}40`,
+                          cursor: 'pointer',
+                          transition: 'all 200ms'
+                        }}
+                        className="stop-card-hover"
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: travelRoute.color }} />
+                          <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            Línea {travelRoute.line_number}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <div>🚶‍♂️ Caminá hasta: <strong>{travelRoute.originStop.name}</strong></div>
+                          <div>🚌 Viajá hasta: <strong>{travelRoute.destStop.name}</strong></div>
+                        </div>
+                        <div style={{ color: travelRoute.color, fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '2px', marginTop: '2px' }}>
+                          Ver recorrido y colectivos en mapa →
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ padding: '20px 10px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
+                      😞 No hay líneas directas que conecten estos dos puntos.
+                      <div style={{ fontSize: '10px', marginTop: '4px' }}>Probá con otras esquinas principales.</div>
+                    </div>
+                  )
+                ) : (
+                  <div style={{ padding: '20px 10px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px', lineHeight: '1.5' }}>
+                    💡 Ingresá tu origen y destino para encontrar qué colectivo tomar. Probá buscar "Cabildo", "Corrientes 1900" o marcá directamente en el mapa.
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

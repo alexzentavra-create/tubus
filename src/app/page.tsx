@@ -154,6 +154,7 @@ export default function UserMapPage() {
   const [nearbyStopsPinCoord, setNearbyStopsPinCoord] = useState<{ lat: number; lng: number } | null>(null)
   const [travelRoute, setTravelRoute]             = useState<any>(null)
   const [selectedBoardingBusId, setSelectedBoardingBusId] = useState<string | null>(null)
+  const [mapSelectionMode, setMapSelectionMode] = useState<'origin' | 'destination' | null>(null)
 
   // Helper distance function
   const distanceKm = (a: { latitude: number; longitude: number } | BusStop, b: { lat: number; lng: number }) => {
@@ -573,6 +574,29 @@ export default function UserMapPage() {
           onZoomStart={() => setTrackedBusId(null)}
           mapStyle={prefs.darkMap ? (CARTODB_DARK as any) : (CARTODB_LIGHT as any)}
           style={{ width: '100%', height: '100%' }}
+          onClick={e => {
+            if (mapSelectionMode === 'origin') {
+              const lat = e.lngLat.lat
+              const lng = e.lngLat.lng
+              setOriginCoord({ lat, lng })
+              setOriginInput(getNearestStreetName(lat, lng))
+              setMapSelectionMode(null)
+              setShowLineSelector(true)
+              if (destCoord) {
+                setTravelRoute(solveRoute({ lat, lng }, destCoord))
+              }
+            } else if (mapSelectionMode === 'destination') {
+              const lat = e.lngLat.lat
+              const lng = e.lngLat.lng
+              setDestCoord({ lat, lng })
+              setDestInput(getNearestStreetName(lat, lng))
+              setMapSelectionMode(null)
+              setShowLineSelector(true)
+              if (originCoord) {
+                setTravelRoute(solveRoute(originCoord, { lat, lng }))
+              }
+            }
+          }}
         >
 
           {routeGeoJsons.map(item => (
@@ -757,6 +781,67 @@ export default function UserMapPage() {
             </Popup>
           )}
         </Map>
+
+        {/* Map Selection Banner */}
+        <AnimatePresence>
+          {mapSelectionMode && (
+            <motion.div
+              initial={{ y: -70, opacity: 0 }}
+              animate={{ y: 14, opacity: 1 }}
+              exit={{ y: -70, opacity: 0 }}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 100,
+                width: 'calc(100% - 32px)',
+                maxWidth: '480px',
+                pointerEvents: 'auto'
+              }}
+            >
+              <div
+                className="glass-dark"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '12px 18px',
+                  borderRadius: 'var(--r-md)',
+                  boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                  border: '1px solid rgba(184,200,224,0.15)',
+                  gap: '12px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <MapPin size={16} style={{ color: '#FF4D6A' }} />
+                  <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 600 }}>
+                    Hacé click en el mapa para marcar tu {mapSelectionMode === 'origin' ? 'Origen' : 'Destino'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    setMapSelectionMode(null)
+                    setShowLineSelector(true)
+                  }}
+                  style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    color: 'var(--text-primary)',
+                    borderRadius: '8px',
+                    padding: '4px 10px',
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                    fontFamily: 'DM Sans',
+                    fontWeight: 600
+                  }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ── TOP BAR (Multi-selection & Close) ── */}
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, padding: '14px 14px 0', pointerEvents: 'none' }}>
@@ -1304,12 +1389,34 @@ export default function UserMapPage() {
 
         <AnimatePresence>
           {showLineSelector && (
-            <LineSelector lines={allLines} selectedLines={selectedLines} onSelect={line => {
-              setSelectedLines(prev => {
-                const exists = prev.some(l => l.id === line.id)
-                return exists ? prev.filter(l => l.id !== line.id) : [...prev, line]
-              })
-            }} onClose={() => setShowLineSelector(false)} />
+            <LineSelector
+              lines={allLines}
+              selectedLines={selectedLines}
+              onSelect={line => {
+                setSelectedLines(prev => {
+                  const exists = prev.some(l => l.id === line.id)
+                  return exists ? prev.filter(l => l.id !== line.id) : [...prev, line]
+                })
+              }}
+              onClose={() => setShowLineSelector(false)}
+              originInput={originInput}
+              setOriginInput={setOriginInput}
+              destInput={destInput}
+              setDestInput={setDestInput}
+              originCoord={originCoord}
+              setOriginCoord={setOriginCoord}
+              destCoord={destCoord}
+              setDestCoord={setDestCoord}
+              travelRoute={travelRoute}
+              setTravelRoute={setTravelRoute}
+              setMapSelectionMode={setMapSelectionMode}
+              setShowLineSelector={setShowLineSelector}
+              resolveStreetToCoords={resolveStreetToCoords}
+              getNearestStreetName={getNearestStreetName}
+              solveRoute={solveRoute}
+              setTravelPlannerOpen={setTravelPlannerOpen}
+              setViewState={setViewState}
+            />
           )}
         </AnimatePresence>
 
