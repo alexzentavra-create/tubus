@@ -24,6 +24,59 @@ const PART1 = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTAwMTIzM29hMW5nYnB1eXcifQ
 const PART2 = 'TyJ2Mcgiqas2N1UOCySD2g'
 const TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || `${PART1}.${PART2}`
 
+const CARTODB_DARK = {
+  version: 8,
+  sources: {
+    "cartodb-dark-tiles": {
+      type: "raster",
+      tiles: [
+        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png"
+      ],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors, © CartoDB"
+    }
+  },
+  layers: [
+    {
+      id: "cartodb-dark-layer",
+      type: "raster",
+      source: "cartodb-dark-tiles",
+      minzoom: 0,
+      maxzoom: 20
+    }
+  ]
+}
+
+const CARTODB_LIGHT = {
+  version: 8,
+  sources: {
+    "cartodb-light-tiles": {
+      type: "raster",
+      tiles: [
+        "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+        "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+        "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
+        "https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png"
+      ],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors, © CartoDB"
+    }
+  },
+  layers: [
+    {
+      id: "cartodb-light-layer",
+      type: "raster",
+      source: "cartodb-light-tiles",
+      minzoom: 0,
+      maxzoom: 20
+    }
+  ]
+}
+
+
 type Panel = 'map' | 'favourites' | 'settings' | 'profile'
 
 interface UserPrefs {
@@ -394,7 +447,7 @@ export default function UserMapPage() {
           {...viewState}
           onMove={e => setViewState(e.viewState)}
           mapboxAccessToken={TOKEN}
-          mapStyle={prefs.darkMap ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/streets-v12'}
+          mapStyle={prefs.darkMap ? (CARTODB_DARK as any) : (CARTODB_LIGHT as any)}
           style={{ width: '100%', height: '100%' }}
         >
           <NavigationControl position="bottom-right" />
