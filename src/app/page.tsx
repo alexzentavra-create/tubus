@@ -153,6 +153,7 @@ export default function UserMapPage() {
   const [pinNearbyStopsMode, setPinNearbyStopsMode] = useState(false)
   const [nearbyStopsPinCoord, setNearbyStopsPinCoord] = useState<{ lat: number; lng: number } | null>(null)
   const [travelRoute, setTravelRoute]             = useState<any>(null)
+  const [selectedBoardingBusId, setSelectedBoardingBusId] = useState<string | null>(null)
 
   // Helper distance function
   const distanceKm = (a: { latitude: number; longitude: number } | BusStop, b: { lat: number; lng: number }) => {
@@ -162,6 +163,84 @@ export default function UserMapPage() {
     const dLng = (b.lng - a.longitude) * Math.PI / 180
     const s = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2
     return 6371 * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s))
+  }
+
+  const getNearestStreetName = (lat: number, lng: number) => {
+    const presets = [
+      { name: "Av. 9 de Julio (Obelisco)", lat: -34.6037, lng: -58.3816 },
+      { name: "Av. Pueyrredón (Once)", lat: -34.6082, lng: -58.4093 },
+      { name: "Plaza Constitución", lat: -34.6268, lng: -58.3808 },
+      { name: "Ramos Mejía (Retiro)", lat: -34.5910, lng: -58.3750 },
+      { name: "Av. Santa Fe (Plaza Italia)", lat: -34.5810, lng: -58.4210 },
+      { name: "Av. Cabildo (Barrancas de Belgrano)", lat: -34.5606, lng: -58.4569 },
+      { name: "Av. Maipú (Puente Saavedra)", lat: -34.5390, lng: -58.4760 },
+      { name: "Av. Maipú (Quinta de Olivos)", lat: -34.5100, lng: -58.4850 },
+      { name: "Av. Entre Ríos (Congreso)", lat: -34.5996, lng: -58.3927 },
+      { name: "Tigre Terminal", lat: -34.4251, lng: -58.5796 },
+      { name: "Escobar Terminal", lat: -34.3486, lng: -58.7915 }
+    ]
+    let best = presets[0]
+    let minDist = Infinity
+    presets.forEach(p => {
+      const dist = Math.hypot(p.lat - lat, p.lng - lng)
+      if (dist < minDist) {
+        minDist = dist
+        best = p
+      }
+    })
+    if (minDist < 0.015) {
+      return best.name
+    }
+    return `Esquina: ${lat.toFixed(4)}, ${lng.toFixed(4)}`
+  }
+
+  const resolveStreetToCoords = (text: string) => {
+    const lower = text.toLowerCase()
+    if (lower.includes('obelisco') || lower.includes('9 de julio') || lower.includes('corrientes')) {
+      return { lat: -34.6037, lng: -58.3816 }
+    }
+    if (lower.includes('once') || lower.includes('miserere') || lower.includes('rivadavia')) {
+      return { lat: -34.6082, lng: -58.4093 }
+    }
+    if (lower.includes('consti') || lower.includes('constitucion') || lower.includes('garay')) {
+      return { lat: -34.6268, lng: -58.3808 }
+    }
+    if (lower.includes('retiro') || lower.includes('ramos mejia')) {
+      return { lat: -34.5910, lng: -58.3750 }
+    }
+    if (lower.includes('plaza italia') || lower.includes('palermo') || lower.includes('santa fe')) {
+      return { lat: -34.5810, lng: -58.4210 }
+    }
+    if (lower.includes('belgrano') || lower.includes('barrancas') || lower.includes('cabildo') || lower.includes('juramento')) {
+      return { lat: -34.5606, lng: -58.4569 }
+    }
+    if (lower.includes('saavedra') || lower.includes('general paz') || lower.includes('maipu')) {
+      return { lat: -34.5390, lng: -58.4760 }
+    }
+    if (lower.includes('olivos') || lower.includes('quinta')) {
+      return { lat: -34.5100, lng: -58.4850 }
+    }
+    if (lower.includes('congreso') || lower.includes('callao') || lower.includes('entre rios')) {
+      return { lat: -34.5996, lng: -58.3927 }
+    }
+    if (lower.includes('tigre')) {
+      return { lat: -34.4251, lng: -58.5796 }
+    }
+    if (lower.includes('escobar')) {
+      return { lat: -34.3486, lng: -58.7915 }
+    }
+    return null
+  }
+
+  const getETAString = (bus: BusPosition, stop: BusStop) => {
+    const d = distanceKm(bus, { lat: stop.latitude, lng: stop.longitude })
+    if (d < 0.04) return "Llegando a la parada / En parada"
+    const speed = bus.speed_kmh > 2 ? bus.speed_kmh : 20
+    const hours = d / speed
+    const totalSeconds = Math.round(hours * 3600)
+    const min = Math.floor(totalSeconds / 60)
+    const sec = totalSeconds % 60
+    return `${min} min ${sec} seg (${(d * 1000).toFixed(0)}m)`
   }
 
   // Helper route solver
@@ -599,8 +678,11 @@ export default function UserMapPage() {
               latitude={originCoord.lat}
               draggable
               onDragEnd={e => {
-                setOriginCoord({ lat: e.lngLat.lat, lng: e.lngLat.lng })
-                if (destCoord) setTravelRoute(solveRoute({ lat: e.lngLat.lat, lng: e.lngLat.lng }, destCoord))
+                const coord = { lat: e.lngLat.lat, lng: e.lngLat.lng }
+                setOriginCoord(coord)
+                setOriginInput(getNearestStreetName(coord.lat, coord.lng))
+                setSelectedBoardingBusId(null)
+                if (destCoord) setTravelRoute(solveRoute(coord, destCoord))
               }}
               anchor="bottom"
             >
@@ -617,8 +699,11 @@ export default function UserMapPage() {
               latitude={destCoord.lat}
               draggable
               onDragEnd={e => {
-                setDestCoord({ lat: e.lngLat.lat, lng: e.lngLat.lng })
-                if (originCoord) setTravelRoute(solveRoute(originCoord, { lat: e.lngLat.lat, lng: e.lngLat.lng }))
+                const coord = { lat: e.lngLat.lat, lng: e.lngLat.lng }
+                setDestCoord(coord)
+                setDestInput(getNearestStreetName(coord.lat, coord.lng))
+                setSelectedBoardingBusId(null)
+                if (originCoord) setTravelRoute(solveRoute(originCoord, coord))
               }}
               anchor="bottom"
             >
@@ -835,8 +920,8 @@ export default function UserMapPage() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Planificar Recorrido</span>
-                <button onClick={() => setTravelPlannerOpen(false)} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer' }}><X size={14} /></button>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Asistente de Viaje</span>
+                <button onClick={() => { setTravelPlannerOpen(false); setSelectedBoardingBusId(null); }} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer' }}><X size={14} /></button>
               </div>
               
               {/* Inputs stacked with connecting vertical line */}
@@ -847,91 +932,181 @@ export default function UserMapPage() {
                 {/* Origin Input */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2 }}>
                   <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#3B82F6', border: '2px solid white', flexShrink: 0, marginLeft: '12px' }} />
-                  <select
+                  <input
+                    type="text"
                     value={originInput}
                     onChange={e => {
-                      const val = e.target.value
-                      setOriginInput(val)
-                      const coords: Record<string, { lat: number; lng: number }> = {
-                        'once': { lat: -34.6082, lng: -58.4093 },
-                        'consti': { lat: -34.6268, lng: -58.3808 },
-                        'retiro': { lat: -34.5910, lng: -58.3750 },
-                        'obelisco': { lat: -34.6037, lng: -58.3816 }
-                      }
-                      if (coords[val]) {
-                        setOriginCoord(coords[val])
-                        setViewState(v => ({ ...v, latitude: coords[val].lat, longitude: coords[val].lng, zoom: 14 }))
-                        if (destCoord) setTravelRoute(solveRoute(coords[val], destCoord))
+                      setOriginInput(e.target.value)
+                      const coord = resolveStreetToCoords(e.target.value)
+                      if (coord) {
+                        setOriginCoord(coord)
+                        setSelectedBoardingBusId(null)
+                        setViewState(v => ({ ...v, latitude: coord.lat, longitude: coord.lng, zoom: 14 }))
+                        if (destCoord) setTravelRoute(solveRoute(coord, destCoord))
                       }
                     }}
+                    placeholder="Escribí calle de Origen (ej. Cabildo)..."
                     style={{
                       flex: 1, padding: '6px 10px', borderRadius: '8px',
                       background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
                       border: prefs.darkMap ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
-                      color: 'var(--text-primary)', fontSize: '12px', outline: 'none'
+                      color: 'var(--text-primary)', fontSize: '11px', outline: 'none'
                     }}
+                  />
+                  <button
+                    onClick={() => {
+                      const center = { lat: viewState.latitude, lng: viewState.longitude }
+                      setOriginCoord(center)
+                      setOriginInput(getNearestStreetName(center.lat, center.lng))
+                      setSelectedBoardingBusId(null)
+                      if (destCoord) setTravelRoute(solveRoute(center, destCoord))
+                    }}
+                    title="Marcar centro de mapa como origen"
+                    style={{ background: 'rgba(59,130,246,0.15)', color: '#3B82F6', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '6px', padding: '4px 6px', fontSize: '10px', cursor: 'pointer', fontWeight: 600 }}
                   >
-                    <option value="" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Desde (Origen)...</option>
-                    <option value="obelisco" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Obelisco (Microcentro)</option>
-                    <option value="once" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Once (Pza. Miserere)</option>
-                    <option value="consti" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Plaza Constitución</option>
-                    <option value="retiro" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Retiro Terminal</option>
-                  </select>
+                    📍 Pin
+                  </button>
                 </div>
 
                 {/* Destination Input */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2 }}>
                   <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#111827', border: '2px solid white', flexShrink: 0, marginLeft: '12px' }} />
-                  <select
+                  <input
+                    type="text"
                     value={destInput}
                     onChange={e => {
-                      const val = e.target.value
-                      setDestInput(val)
-                      const coords: Record<string, { lat: number; lng: number }> = {
-                        'italia': { lat: -34.5810, lng: -58.4210 },
-                        'belgrano': { lat: -34.5606, lng: -58.4569 },
-                        'saavedra': { lat: -34.5390, lng: -58.4760 },
-                        'olivos': { lat: -34.5100, lng: -58.4850 }
-                      }
-                      if (coords[val]) {
-                        setDestCoord(coords[val])
-                        setViewState(v => ({ ...v, latitude: coords[val].lat, longitude: coords[val].lng, zoom: 14 }))
-                        if (originCoord) setTravelRoute(solveRoute(originCoord, coords[val]))
+                      setDestInput(e.target.value)
+                      const coord = resolveStreetToCoords(e.target.value)
+                      if (coord) {
+                        setDestCoord(coord)
+                        setSelectedBoardingBusId(null)
+                        setViewState(v => ({ ...v, latitude: coord.lat, longitude: coord.lng, zoom: 14 }))
+                        if (originCoord) setTravelRoute(solveRoute(originCoord, coord))
                       }
                     }}
+                    placeholder="Escribí calle de Destino (ej. Plaza Italia)..."
                     style={{
                       flex: 1, padding: '6px 10px', borderRadius: '8px',
                       background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
                       border: prefs.darkMap ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
-                      color: 'var(--text-primary)', fontSize: '12px', outline: 'none'
+                      color: 'var(--text-primary)', fontSize: '11px', outline: 'none'
                     }}
+                  />
+                  <button
+                    onClick={() => {
+                      const center = { lat: viewState.latitude, lng: viewState.longitude }
+                      setDestCoord(center)
+                      setDestInput(getNearestStreetName(center.lat, center.lng))
+                      setSelectedBoardingBusId(null)
+                      if (originCoord) setTravelRoute(solveRoute(originCoord, center))
+                    }}
+                    title="Marcar centro de mapa como destino"
+                    style={{ background: 'rgba(17,24,39,0.15)', color: 'var(--text-primary)', border: '1px solid rgba(184,200,224,0.3)', borderRadius: '6px', padding: '4px 6px', fontSize: '10px', cursor: 'pointer', fontWeight: 600 }}
                   >
-                    <option value="" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Hacia (Destino)...</option>
-                    <option value="italia" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Plaza Italia (Palermo)</option>
-                    <option value="belgrano" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Barrancas de Belgrano</option>
-                    <option value="saavedra" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Puente Saavedra</option>
-                    <option value="olivos" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Olivos Terminal</option>
-                  </select>
+                    📍 Pin
+                  </button>
                 </div>
               </div>
 
               <div style={{ fontSize: '10px', color: '#9CA3AF', textAlign: 'center', marginTop: '2px' }}>
-                💡 Podés arrastrar los pines en el mapa para ajustar
+                💡 Podés buscar por calle o arrastrar los pines en el mapa
               </div>
 
               {/* Route Result Card */}
               {travelRoute ? (
-                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '10px', marginTop: '6px', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: travelRoute.color }} />
-                    <span style={{ fontWeight: 'bold' }}>Recomendación: Línea {travelRoute.line_number}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '10px', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: travelRoute.color }} />
+                      <span style={{ fontWeight: 'bold' }}>Línea {travelRoute.line_number} conectada</span>
+                    </div>
+                    <div>
+                      🚶‍♂️ Caminá hasta parada: <strong>{travelRoute.originStop.name}</strong>
+                    </div>
+                    <div>
+                      🚌 Tomá el colectivo y viajá hasta: <strong>{travelRoute.destStop.name}</strong>
+                    </div>
                   </div>
-                  <div>
-                    🚶‍♂️ Caminá hasta parada: <strong>{travelRoute.originStop.name}</strong>
+
+                  {/* Incoming Colectivos list */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', fontFamily: 'DM Mono', letterSpacing: '0.04em' }}>Colectivos que se acercan:</span>
+                    {(() => {
+                      const approaching = buses
+                        .filter(b => b.line_id === travelRoute.line_id)
+                        .map(b => {
+                          const dist = distanceKm(b, { lat: travelRoute.originStop.latitude, lng: travelRoute.originStop.longitude })
+                          return { bus: b, dist }
+                        })
+                        .sort((a, b) => a.dist - b.dist)
+                        .slice(0, 3)
+
+                      if (approaching.length === 0) {
+                        return <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No hay colectivos en circulación en esta línea</span>
+                      }
+
+                      return approaching.map(({ bus, dist }) => {
+                        const isSelected = selectedBoardingBusId === bus.id
+                        return (
+                          <div
+                            key={bus.id}
+                            onClick={() => setSelectedBoardingBusId(isSelected ? null : bus.id)}
+                            style={{
+                              padding: '8px 10px', borderRadius: '8px',
+                              background: isSelected 
+                                ? 'rgba(34,211,160,0.12)' 
+                                : 'rgba(255,255,255,0.03)',
+                              border: isSelected 
+                                ? '1px solid rgba(34,211,160,0.4)' 
+                                : '1px solid rgba(255,255,255,0.06)',
+                              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                              transition: 'all 150ms'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: isSelected ? 'var(--go)' : '#9CA3AF' }} />
+                              <span style={{ fontSize: '11px', fontWeight: 600 }}>Interno {bus.bus_unit}</span>
+                            </div>
+                            <span style={{ fontSize: '10px', fontFamily: 'DM Mono', color: 'var(--text-secondary)' }}>
+                              {(dist * 1000).toFixed(0)}m
+                            </span>
+                          </div>
+                        )
+                      })
+                    })()}
                   </div>
-                  <div>
-                    🚌 Tomá el colectivo y viajá hasta: <strong>{travelRoute.destStop.name}</strong>
-                  </div>
+
+                  {/* Countdown Timer Boarding Box */}
+                  {(() => {
+                    if (!selectedBoardingBusId) return null
+                    const matchingBus = buses.find(b => b.id === selectedBoardingBusId)
+                    if (!matchingBus) return null
+                    const etaStr = getETAString(matchingBus, travelRoute.originStop)
+                    const distMeters = distanceKm(matchingBus, { lat: travelRoute.originStop.latitude, lng: travelRoute.originStop.longitude }) * 1000
+                    const isArrived = distMeters < 40
+                    return (
+                      <div
+                        style={{
+                          background: isArrived ? 'rgba(34,211,160,0.15)' : 'rgba(59,130,246,0.12)',
+                          border: isArrived ? '1px solid rgba(34,211,160,0.3)' : '1px solid rgba(59,130,246,0.3)',
+                          borderRadius: '10px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '4px',
+                          alignItems: 'center', justifyContent: 'center', marginTop: '4px',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                        }}
+                      >
+                        <span style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', color: isArrived ? 'var(--go)' : '#60A5FA', fontFamily: 'DM Mono' }}>
+                          ⏰ Cuenta regresiva (Live)
+                        </span>
+                        <span style={{ fontSize: '14px', fontWeight: 800, fontFamily: 'DM Mono', color: isArrived ? 'var(--go)' : 'white', textAlign: 'center' }}>
+                          {isArrived ? "¡Colectivo en parada!" : etaStr}
+                        </span>
+                        <span style={{ fontSize: '10px', color: 'var(--text-secondary)', textAlign: 'center' }}>
+                          Interno {matchingBus.bus_unit} - Vel: {matchingBus.speed_kmh} km/h
+                        </span>
+                      </div>
+                    )
+                  })()}
+
                   <button
                     onClick={() => {
                       const line = lines.find(l => l.id === travelRoute.line_id)
@@ -947,7 +1122,7 @@ export default function UserMapPage() {
                 </div>
               ) : originCoord && destCoord ? (
                 <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '10px', padding: '10px', marginTop: '6px', fontSize: '11px', color: '#FCA5A5', textAlign: 'center' }}>
-                  No se encontró conexión directa. Intentá arrastrando los pines más cerca de las avenidas principales.
+                  No se encontró conexión directa. Intentá escribir o arrastrar los pines más cerca de las avenidas principales.
                 </div>
               ) : null}
             </motion.div>
@@ -1038,9 +1213,13 @@ export default function UserMapPage() {
                 setTravelPlannerOpen(prev => !prev)
                 setPinNearbyStopsMode(false)
                 if (!originCoord) {
-                  setOriginCoord({ lat: -34.6037, lng: -58.3816 })
-                  setDestCoord({ lat: -34.5810, lng: -58.4210 })
-                  const route = solveRoute({ lat: -34.6037, lng: -58.3816 }, { lat: -34.5810, lng: -58.4210 })
+                  const o = { lat: -34.6037, lng: -58.3816 }
+                  const d = { lat: -34.5810, lng: -58.4210 }
+                  setOriginCoord(o)
+                  setDestCoord(d)
+                  setOriginInput(getNearestStreetName(o.lat, o.lng))
+                  setDestInput(getNearestStreetName(d.lat, d.lng))
+                  const route = solveRoute(o, d)
                   setTravelRoute(route)
                 }
               }}
