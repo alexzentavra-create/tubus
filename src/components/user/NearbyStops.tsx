@@ -1,19 +1,19 @@
 'use client'
 import { motion } from 'framer-motion'
-import { MapPin, Clock, X, Navigation, ArrowUpRight, ArrowDownLeft } from 'lucide-react'
-import type { BusStop } from '@/types'
+import { X, Bus, Clock, Wifi, Activity } from 'lucide-react'
+import type { BusStop, BusPosition, BusLine } from '@/types'
 import { MOCK_LINES } from '@/lib/mockData'
 
 interface Props {
   stops: BusStop[]
+  buses: BusPosition[]
+  selectedLines: BusLine[]
   centerCoord?: { lat: number; lng: number } | null
   onClose: () => void
-  onSelectStop?: (stop: BusStop) => void
-  onSetOrigin?: (stop: BusStop) => void
-  onSetDestination?: (stop: BusStop) => void
+  onToggleLine: (line: BusLine) => void
 }
 
-function getDistanceText(lat1: number, lon1: number, lat2: number, lon2: number): string {
+function getDistanceInMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371e3 // meters
   const phi1 = lat1 * Math.PI / 180
   const phi2 = lat2 * Math.PI / 180
@@ -25,14 +25,21 @@ function getDistanceText(lat1: number, lon1: number, lat2: number, lon2: number)
             Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2)
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 
-  const d = R * c // in meters
-  if (d < 1000) {
-    return `${Math.round(d)} m`
-  }
-  return `${(d / 1000).toFixed(1)} km`
+  return R * c
 }
 
-export default function NearbyStops({ stops, centerCoord, onClose, onSelectStop, onSetOrigin, onSetDestination }: Props) {
+function getDistanceText(meters: number): string {
+  if (meters < 1000) {
+    return `${Math.round(meters)} m`
+  }
+  return `${(meters / 1000).toFixed(1)} km`
+}
+
+export default function NearbyStops({ stops, buses, selectedLines, centerCoord, onClose, onToggleLine }: Props) {
+  // Extract unique lines passing through the nearby stops
+  const lineIds = Array.from(new Set(stops.map(s => s.line_id)))
+  const nearbyLines = MOCK_LINES.filter(l => lineIds.includes(l.id))
+
   return (
     <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none', zIndex: 40, padding: '16px' }}>
       <motion.div
@@ -55,16 +62,16 @@ export default function NearbyStops({ stops, centerCoord, onClose, onSelectStop,
       >
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 20px 12px', flexShrink: 0, borderBottom: '1px solid rgba(184,200,224,0.06)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(255, 77, 106, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <MapPin size={14} style={{ color: '#FF4D6A' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(34, 211, 160, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Bus size={15} style={{ color: 'var(--go)' }} />
             </div>
             <div>
               <h3 className="font-display" style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '15px', letterSpacing: '-0.01em', margin: 0 }}>
-                Paradas cercanas
+                Líneas de colectivos cercanas
               </h3>
               <p style={{ color: 'var(--text-secondary)', fontSize: '11px', margin: '2px 0 0', fontFamily: 'DM Sans' }}>
-                {stops.length > 0 ? `${stops.length} paradas encontradas a menos de 800m` : 'Arrastrá el pin rojo para buscar'}
+                {nearbyLines.length > 0 ? `${nearbyLines.length} líneas pasan cerca de tu pin` : 'Arrastrá el pin para buscar líneas'}
               </p>
             </div>
           </div>
@@ -73,135 +80,131 @@ export default function NearbyStops({ stops, centerCoord, onClose, onSelectStop,
           </button>
         </div>
 
-        {/* Stops List */}
+        {/* Lines List */}
         <div className="scroll-panel" style={{ flex: 1, padding: '14px 16px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {stops.length === 0 ? (
+          {nearbyLines.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', textAlign: 'center' }}>
               <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(184,200,224,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
-                <Navigation size={20} style={{ color: 'var(--text-secondary)', transform: 'rotate(45deg)' }} />
+                <Bus size={20} style={{ color: 'var(--text-secondary)' }} />
               </div>
-              <p style={{ color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600, margin: 0 }}>No hay paradas cerca de esta ubicación</p>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '11px', marginTop: '4px', maxWidth: '280px' }}>Arrastrá el pin de paradas cercanas rojo en el mapa para buscar en otra zona.</p>
+              <p style={{ color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600, margin: 0 }}>No hay líneas cerca de este punto</p>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '11px', marginTop: '4px', maxWidth: '280px' }}>Arrastrá el pin de paradas cercanas en el mapa para escanear colectivos en otro lugar.</p>
             </div>
           ) : (
-            stops.slice(0, 8).map((stop: BusStop) => {
-              // Extract original line number from the line_id if it starts with mock prefix, or use the line_id to find the mock line
-              const stopLine = MOCK_LINES.find(l => l.id === stop.line_id)
-              const distanceText = centerCoord ? getDistanceText(centerCoord.lat, centerCoord.lng, stop.latitude, stop.longitude) : null
+            nearbyLines.map((line: BusLine) => {
+              const isSelected = selectedLines.some(l => l.id === line.id)
+              const lineStops = stops.filter(s => s.line_id === line.id)
+              const avgWait = lineStops.length > 0 ? lineStops[0].avg_wait_minutes : 6
+
+              // Get active buses on this line
+              const lineBuses = buses.filter(b => b.line_id === line.id)
+              
+              // Find the closest active bus to the pin coordinate
+              let closestBus: BusPosition | null = null
+              let minDistance = Infinity
+              if (centerCoord && lineBuses.length > 0) {
+                for (const b of lineBuses) {
+                  const d = getDistanceInMeters(b.latitude, b.longitude, centerCoord.lat, centerCoord.lng)
+                  if (d < minDistance) {
+                    minDistance = d
+                    closestBus = b
+                  }
+                }
+              }
 
               return (
                 <div
-                  key={stop.id}
-                  onClick={() => onSelectStop?.(stop)}
+                  key={line.id}
+                  onClick={() => onToggleLine(line)}
                   style={{
                     display: 'flex',
-                    flexDirection: 'column',
-                    gap: '8px',
-                    padding: '12px',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '12px 14px',
                     borderRadius: '12px',
-                    background: 'rgba(6,8,16,0.4)',
-                    border: '1px solid rgba(184,200,224,0.06)',
+                    background: isSelected ? 'rgba(184,200,224,0.05)' : 'rgba(6,8,16,0.4)',
+                    border: isSelected ? `1px solid ${line.color}40` : '1px solid rgba(184,200,224,0.06)',
                     cursor: 'pointer',
                     transition: 'all 200ms',
                   }}
                   className="stop-card-hover"
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: stopLine ? `${stopLine.color}15` : 'rgba(184,200,224,0.06)', border: `1px solid ${stopLine ? `${stopLine.color}30` : 'rgba(184,200,224,0.1)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <MapPin size={14} style={{ color: stopLine ? stopLine.color : 'var(--platinum-dim)' }} />
+                  {/* Line Number Circle Badge */}
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    background: line.color,
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 800,
+                    fontSize: '14px',
+                    fontFamily: 'DM Mono',
+                    flexShrink: 0,
+                    boxShadow: `0 3px 10px ${line.color}40`
+                  }}>
+                    {line.line_number}
+                  </div>
+
+                  {/* Line Details */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {line.name.replace(/^Línea \d+ - /, '')}
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {stop.street_name || stop.name}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', flexWrap: 'wrap' }}>
-                        <span style={{ color: 'var(--text-secondary)', fontSize: '11px', fontFamily: 'DM Mono' }}>{stop.name}</span>
-                        {distanceText && (
+                    
+                    {/* Live status label */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
+                      {isSelected ? (
+                        closestBus ? (
                           <>
-                            <span style={{ color: 'rgba(184,200,224,0.15)', fontSize: '10px' }}>•</span>
-                            <span style={{ color: 'var(--near)', fontSize: '10px', fontFamily: 'DM Mono', fontWeight: 500 }}>a {distanceText}</span>
+                            <Wifi size={10} style={{ color: 'var(--go)' }} />
+                            <span style={{ color: 'var(--go)', fontSize: '11px', fontWeight: 600, fontFamily: 'DM Mono' }}>
+                              Interno {closestBus.bus_unit} a {getDistanceText(minDistance)}
+                            </span>
                           </>
-                        )}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px', flexShrink: 0 }}>
-                      {stopLine && (
-                        <span style={{
-                          background: stopLine.color,
-                          color: 'white',
-                          padding: '2px 6px',
-                          borderRadius: '6px',
-                          fontSize: '9px',
-                          fontFamily: 'DM Mono',
-                          fontWeight: 700,
-                          boxShadow: `0 2px 6px ${stopLine.color}40`
-                        }}>
-                          Línea {stopLine.line_number}
-                        </span>
+                        ) : (
+                          <>
+                            <Activity size={10} style={{ color: 'var(--near)' }} className="animate-pulse" />
+                            <span style={{ color: 'var(--near)', fontSize: '11px', fontWeight: 500, fontFamily: 'DM Mono' }}>
+                              Conectando GPS...
+                            </span>
+                          </>
+                        )
+                      ) : (
+                        <>
+                          <Clock size={10} style={{ color: 'var(--text-secondary)' }} />
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '11px', fontFamily: 'DM Mono' }}>
+                            Espera prom: ~{avgWait}m
+                          </span>
+                        </>
                       )}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                        <Clock size={10} style={{ color: 'var(--text-secondary)' }} />
-                        <span style={{ color: 'var(--text-secondary)', fontSize: '10px', fontFamily: 'DM Mono' }}>~{stop.avg_wait_minutes}m</span>
-                      </div>
                     </div>
                   </div>
 
-                  {/* Quick Travel Assistant Actions */}
-                  <div style={{ display: 'flex', gap: '6px', marginTop: '2px', borderTop: '1px solid rgba(184,200,224,0.03)', paddingTop: '8px', pointerEvents: 'auto' }}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onSetOrigin?.(stop)
-                      }}
-                      style={{
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '4px',
-                        padding: '6px 8px',
-                        borderRadius: '8px',
-                        border: '1px solid rgba(59,130,246,0.15)',
-                        background: 'rgba(59,130,246,0.06)',
-                        color: '#3B82F6',
-                        fontSize: '11px',
-                        cursor: 'pointer',
-                        transition: 'all 150ms',
-                        fontFamily: 'DM Sans',
-                        fontWeight: 600
-                      }}
-                      className="action-btn"
-                    >
-                      <ArrowUpRight size={12} />
-                      Desde aquí
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onSetDestination?.(stop)
-                      }}
-                      style={{
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '4px',
-                        padding: '6px 8px',
-                        borderRadius: '8px',
-                        border: '1px solid rgba(184,200,224,0.15)',
-                        background: 'rgba(184,200,224,0.06)',
-                        color: 'var(--text-primary)',
-                        fontSize: '11px',
-                        cursor: 'pointer',
-                        transition: 'all 150ms',
-                        fontFamily: 'DM Sans',
-                        fontWeight: 600
-                      }}
-                      className="action-btn"
-                    >
-                      <ArrowDownLeft size={12} />
-                      Hacia aquí
-                    </button>
+                  {/* Premium iOS-Style Toggle Switch */}
+                  <div style={{
+                    width: '38px',
+                    height: '20px',
+                    borderRadius: '10px',
+                    background: isSelected ? 'var(--go)' : 'rgba(184,200,224,0.15)',
+                    position: 'relative',
+                    cursor: 'pointer',
+                    transition: 'all 200ms ease',
+                    flexShrink: 0
+                  }}>
+                    <div style={{
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '50%',
+                      background: 'white',
+                      position: 'absolute',
+                      top: '2px',
+                      left: isSelected ? '20px' : '2px',
+                      transition: 'all 200ms cubic-bezier(0.22, 1, 0.36, 1)',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                    }} />
                   </div>
                 </div>
               )
