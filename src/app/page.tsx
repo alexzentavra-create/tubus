@@ -246,35 +246,18 @@ export default function UserMapPage() {
 
   // Helper route solver
   const solveRoute = (origin: { lat: number; lng: number }, dest: { lat: number; lng: number }) => {
-    const stopsA = Object.values(MOCK_STOPS).flat()
-    
-    // Also include official routes stops
-    const officialStops = Object.keys(OFFICIAL_ROUTES).flatMap(key => {
-      const line = MOCK_LINES.find(l => l.line_number === key.split('-')[0])
-      if (!line) return []
-      return OFFICIAL_ROUTES[key].stops.map(stop => ({
-        id: `${line.id}-official-${stop.id}`,
-        line_id: line.id,
-        name: stop.name,
-        street_name: stop.name,
-        latitude: stop.lat,
-        longitude: stop.lng,
+    const activeLines = lines.length > 0 ? lines : MOCK_LINES
+    const allStops = activeLines.flatMap(line => 
+      getMockStopsForLine(line).map(stop => ({
+        ...stop,
         line_number: line.line_number,
         color: line.color,
       }))
-    })
+    )
 
-    const allStops = [
-      ...stopsA.map(s => ({
-        ...s,
-        line_number: MOCK_LINES.find(l => l.id === s.line_id)?.line_number || '12',
-        color: MOCK_LINES.find(l => l.id === s.line_id)?.color || '#EF4444'
-      })),
-      ...officialStops
-    ]
-
-    const nearOrigin = allStops.filter(stop => distanceKm(stop, origin) < 0.8)
-    const nearDest = allStops.filter(stop => distanceKm(stop, dest) < 0.8)
+    // Using 2.0 km search radius to accommodate distance between geocoded presets and active lines in the simulator
+    const nearOrigin = allStops.filter(stop => distanceKm(stop, origin) < 2.0)
+    const nearDest = allStops.filter(stop => distanceKm(stop, dest) < 2.0)
 
     let bestRoute = null
     let minWalkDistance = Infinity
@@ -673,24 +656,8 @@ export default function UserMapPage() {
               draggable
               onDragEnd={e => {
                 setNearbyStopsPinCoord({ lat: e.lngLat.lat, lng: e.lngLat.lng })
-                const stops = Object.values(MOCK_STOPS).flat()
-                const officialStops = Object.keys(OFFICIAL_ROUTES).flatMap(key => {
-                  const line = MOCK_LINES.find(l => l.line_number === key.split('-')[0])
-                  if (!line) return []
-                  return OFFICIAL_ROUTES[key].stops.map(stop => ({
-                    id: `${line.id}-official-${stop.id}`,
-                    line_id: line.id,
-                    name: stop.name,
-                    street_name: stop.name,
-                    stop_number: 1,
-                    latitude: stop.lat,
-                    longitude: stop.lng,
-                    direction: 'ida' as const,
-                    avg_wait_minutes: 6,
-                    total_daily_users: 120,
-                  }))
-                })
-                const allStops = [...stops, ...officialStops]
+                const activeLines = lines.length > 0 ? lines : MOCK_LINES
+                const allStops = activeLines.flatMap(line => getMockStopsForLine(line))
                 const filteredStops = allStops.filter(stop => {
                   const distance = distanceKm({ latitude: stop.latitude, longitude: stop.longitude }, { lat: e.lngLat.lat, lng: e.lngLat.lng })
                   return distance < 0.8
@@ -1283,7 +1250,9 @@ export default function UserMapPage() {
                 setTravelPlannerOpen(false)
                 if (!nearbyStopsPinCoord) {
                   setNearbyStopsPinCoord({ lat: -34.5972, lng: -58.3930 })
-                  const stops = Object.values(MOCK_STOPS).flat().filter(stop => {
+                  const activeLines = lines.length > 0 ? lines : MOCK_LINES
+                  const allStops = activeLines.flatMap(line => getMockStopsForLine(line))
+                  const stops = allStops.filter(stop => {
                     const distance = distanceKm({ latitude: stop.latitude, longitude: stop.longitude }, { lat: -34.5972, lng: -58.3930 })
                     return distance < 0.8
                   })
@@ -1448,7 +1417,7 @@ function FavouritesPanel({ prefs, lines, onSelectLine, onUpdatePrefs }: {
   onUpdatePrefs: (p: Partial<UserPrefs>) => void
 }) {
   const favLines = lines.filter(l => prefs.favBusLines.includes(l.id))
-  const allStops = Object.values(MOCK_STOPS).flat()
+  const allStops = lines.flatMap(line => getMockStopsForLine(line))
   const favStops = allStops.filter(s => prefs.favStops.includes(s.id))
 
   return (
