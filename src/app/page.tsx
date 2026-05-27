@@ -1175,7 +1175,7 @@ export default function UserMapPage() {
                         .slice(0, 3)
 
                       if (approaching.length === 0) {
-                        return <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No hay colectivos en circulación en esta línea</span>
+                        return <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>El próximo colectivo está a más de 1 km de distancia</span>
                       }
 
                       return approaching.map(({ bus, dist, isComing }) => {
