@@ -17,10 +17,10 @@ const nextConfig = {
     NEXT_PUBLIC_APP_URL:           process.env.NEXT_PUBLIC_APP_URL,
   },
 
-  // Stops Mapbox GL from crashing during server-side rendering
+  // Stops Mapbox GL and MapLibre from crashing during server-side rendering
   webpack: (config, { isServer }) => {
     if (isServer) {
-      config.externals = [...(config.externals || []), 'mapbox-gl']
+      config.externals = [...(config.externals || []), 'mapbox-gl', 'maplibre-gl']
     }
     return config
   },

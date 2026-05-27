@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import Map, { Marker, Popup, NavigationControl, GeolocateControl, Source, Layer } from 'react-map-gl'
+import Map, { Marker, Popup, NavigationControl, GeolocateControl, Source, Layer } from 'react-map-gl/maplibre'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Bus, Search, ChevronDown, X, Star, MapPin, Bell,
@@ -446,12 +446,11 @@ export default function UserMapPage() {
         <Map
           {...viewState}
           onMove={e => setViewState(e.viewState)}
-          mapboxAccessToken={TOKEN}
           mapStyle={prefs.darkMap ? (CARTODB_DARK as any) : (CARTODB_LIGHT as any)}
           style={{ width: '100%', height: '100%' }}
         >
           <NavigationControl position="bottom-right" />
-          <GeolocateControl position="bottom-right" trackUserLocation showUserHeading onGeolocate={handleLocated as any} />
+          <GeolocateControl position="bottom-right" trackUserLocation onGeolocate={handleLocated as any} />
 
           {/* Custom Floating Theme Toggle */}
           <div style={{ position: 'absolute', right: '10px', bottom: '110px', zIndex: 10 }}>
