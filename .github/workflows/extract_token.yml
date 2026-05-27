@@ -1,6 +1,8 @@
 name: Extract Token
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   extract:
