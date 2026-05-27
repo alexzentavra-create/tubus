@@ -490,6 +490,8 @@ export default function UserMapPage() {
         <Map
           {...viewState}
           onMove={e => setViewState(e.viewState)}
+          onDragStart={() => setTrackedBusId(null)}
+          onZoomStart={() => setTrackedBusId(null)}
           mapStyle={prefs.darkMap ? (CARTODB_DARK as any) : (CARTODB_LIGHT as any)}
           style={{ width: '100%', height: '100%' }}
         >
