@@ -1282,7 +1282,38 @@ export default function UserMapPage() {
           {selectedBus && activePanel === 'map' ? (
             <BusInfoSheet key="bus" bus={selectedBus} onClose={() => setSelectedBus(null)} onReport={() => setShowReport(true)} />
           ) : (pinNearbyStopsMode || nearbyStops.length > 0) && selectedLines.length === 0 && activePanel === 'map' ? (
-            <NearbyStops key="stops" stops={nearbyStops} />
+            <NearbyStops
+              key="stops"
+              stops={nearbyStops}
+              centerCoord={nearbyStopsPinCoord}
+              onClose={() => {
+                setPinNearbyStopsMode(false)
+                setNearbyStops([])
+              }}
+              onSelectStop={(stop) => {
+                setViewState(v => ({ ...v, latitude: stop.latitude, longitude: stop.longitude, zoom: 15.5 }))
+              }}
+              onSetOrigin={(stop) => {
+                setTravelPlannerOpen(true)
+                setPinNearbyStopsMode(false)
+                setOriginCoord({ lat: stop.latitude, lng: stop.longitude })
+                setOriginInput(stop.name || stop.street_name)
+                setSelectedBoardingBusId(null)
+                if (destCoord) {
+                  setTravelRoute(solveRoute({ lat: stop.latitude, lng: stop.longitude }, destCoord))
+                }
+              }}
+              onSetDestination={(stop) => {
+                setTravelPlannerOpen(true)
+                setPinNearbyStopsMode(false)
+                setDestCoord({ lat: stop.latitude, lng: stop.longitude })
+                setDestInput(stop.name || stop.street_name)
+                setSelectedBoardingBusId(null)
+                if (originCoord) {
+                  setTravelRoute(solveRoute(originCoord, { lat: stop.latitude, lng: stop.longitude }))
+                }
+              }}
+            />
           ) : null}
         </AnimatePresence>
 

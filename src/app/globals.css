@@ -322,3 +322,27 @@ html, body {
 .light ::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.15) !important;
 }
+
+/* Nearby Stops Card & Button Interactive Styles */
+.stop-card-hover {
+  transition: all 200ms ease;
+}
+.stop-card-hover:hover {
+  background: rgba(184, 200, 224, 0.08) !important;
+  border-color: rgba(184, 200, 224, 0.18) !important;
+  transform: translateY(-2px);
+}
+.light .stop-card-hover:hover {
+  background: rgba(0, 0, 0, 0.03) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+}
+.action-btn {
+  transition: all 150ms ease;
+}
+.action-btn:hover {
+  filter: brightness(1.15);
+  transform: scale(1.02);
+}
+.action-btn:active {
+  transform: scale(0.98);
+}
