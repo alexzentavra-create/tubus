@@ -26,6 +26,7 @@ interface Props {
   setShowLineSelector: (v: boolean) => void
   resolveStreetToCoords: (text: string) => { lat: number; lng: number } | null
   getNearestStreetName: (lat: number, lng: number) => string
+  fetchAddressAsync: (lat: number, lng: number, callback: (addr: string) => void) => void
   solveRoute: (origin: { lat: number; lng: number }, dest: { lat: number; lng: number }) => any
   setTravelPlannerOpen: (v: boolean) => void
   setViewState: (v: any) => void
@@ -52,6 +53,7 @@ export default function LineSelector({
   setShowLineSelector,
   resolveStreetToCoords,
   getNearestStreetName,
+  fetchAddressAsync,
   solveRoute,
   setTravelPlannerOpen,
   setViewState
@@ -211,8 +213,8 @@ export default function LineSelector({
                           pos => {
                             const coord = { lat: pos.coords.latitude, lng: pos.coords.longitude }
                             setOriginCoord(coord)
-                            const street = getNearestStreetName(coord.lat, coord.lng)
-                            setOriginInput(street)
+                            setOriginInput(getNearestStreetName(coord.lat, coord.lng))
+                            fetchAddressAsync(coord.lat, coord.lng, setOriginInput)
                             if (destCoord) setTravelRoute(solveRoute(coord, destCoord))
                           },
                           err => {

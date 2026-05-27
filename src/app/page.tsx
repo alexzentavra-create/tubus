@@ -189,10 +189,46 @@ export default function UserMapPage() {
         best = p
       }
     })
-    if (minDist < 0.015) {
+    // Reduced matching threshold to 200 meters to prevent false matching to distant landmarks when dragging pins
+    if (minDist < 0.002) {
       return best.name
     }
     return `Esquina: ${lat.toFixed(4)}, ${lng.toFixed(4)}`
+  }
+
+  const fetchAddressAsync = async (lat: number, lng: number, callback: (addr: string) => void) => {
+    // 1. Check if it's very close to a preset landmark first
+    const presetName = getNearestStreetName(lat, lng)
+    if (presetName && !presetName.startsWith('Esquina:')) {
+      callback(presetName)
+      return
+    }
+
+    // 2. Otherwise fetch the real street and house number from OpenStreetMap Nominatim reverse geocoding
+    try {
+      const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=es`
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'TuBus Buenos Aires App'
+        }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data && data.address) {
+          const road = data.address.road || ''
+          const houseNumber = data.address.house_number || ''
+          if (road) {
+            callback(houseNumber ? `${road} ${houseNumber}` : road)
+            return
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching Nominatim reverse geocode:', e)
+    }
+
+    // Fallback if fetch fails or road is empty
+    callback(`Esquina: ${lat.toFixed(4)}, ${lng.toFixed(4)}`)
   }
 
   const resolveStreetToCoords = (text: string) => {
@@ -236,6 +272,19 @@ export default function UserMapPage() {
   const getETAString = (bus: BusPosition, stop: BusStop) => {
     const d = distanceKm(bus, { lat: stop.latitude, lng: stop.longitude })
     if (d < 0.04) return "Llegando a la parada / En parada"
+
+    // Check if the bus has already passed the stop using vector math
+    const dy = stop.latitude - bus.latitude
+    const dx = stop.longitude - bus.longitude
+    const angleToStop = ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360
+    const diff = Math.abs(bus.heading - angleToStop)
+    const circularDiff = Math.abs(((diff + 180) % 360) - 180)
+    const isComing = circularDiff <= 90
+
+    if (!isComing) {
+      return `Ya pasó - Alejándose (${(d * 1000).toFixed(0)}m)`
+    }
+
     const speed = bus.speed_kmh > 2 ? bus.speed_kmh : 20
     const hours = d / speed
     const totalSeconds = Math.round(hours * 3600)
@@ -574,6 +623,7 @@ export default function UserMapPage() {
               const lng = e.lngLat.lng
               setOriginCoord({ lat, lng })
               setOriginInput(getNearestStreetName(lat, lng))
+              fetchAddressAsync(lat, lng, setOriginInput)
               setMapSelectionMode(null)
               setShowLineSelector(true)
               if (destCoord) {
@@ -584,6 +634,7 @@ export default function UserMapPage() {
               const lng = e.lngLat.lng
               setDestCoord({ lat, lng })
               setDestInput(getNearestStreetName(lat, lng))
+              fetchAddressAsync(lat, lng, setDestInput)
               setMapSelectionMode(null)
               setShowLineSelector(true)
               if (originCoord) {
@@ -683,6 +734,7 @@ export default function UserMapPage() {
                 const coord = { lat: e.lngLat.lat, lng: e.lngLat.lng }
                 setOriginCoord(coord)
                 setOriginInput(getNearestStreetName(coord.lat, coord.lng))
+                fetchAddressAsync(coord.lat, coord.lng, setOriginInput)
                 setSelectedBoardingBusId(null)
                 if (destCoord) setTravelRoute(solveRoute(coord, destCoord))
               }}
@@ -704,6 +756,7 @@ export default function UserMapPage() {
                 const coord = { lat: e.lngLat.lat, lng: e.lngLat.lng }
                 setDestCoord(coord)
                 setDestInput(getNearestStreetName(coord.lat, coord.lng))
+                fetchAddressAsync(coord.lat, coord.lng, setDestInput)
                 setSelectedBoardingBusId(null)
                 if (originCoord) setTravelRoute(solveRoute(originCoord, coord))
               }}
@@ -1095,11 +1148,28 @@ export default function UserMapPage() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', fontFamily: 'DM Mono', letterSpacing: '0.04em' }}>Colectivos que se acercan:</span>
                     {(() => {
+                      const isBusApproaching = (bus: BusPosition, stop: { latitude: number; longitude: number }) => {
+                        const dy = stop.latitude - bus.latitude
+                        const dx = stop.longitude - bus.longitude
+                        const angleToStop = ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360
+                        const diff = Math.abs(bus.heading - angleToStop)
+                        const circularDiff = Math.abs(((diff + 180) % 360) - 180)
+                        return circularDiff <= 90
+                      }
+
                       const approaching = buses
                         .filter(b => b.line_id === travelRoute.line_id)
                         .map(b => {
                           const dist = distanceKm(b, { lat: travelRoute.originStop.latitude, lng: travelRoute.originStop.longitude })
-                          return { bus: b, dist }
+                          const isComing = isBusApproaching(b, travelRoute.originStop)
+                          return { bus: b, dist, isComing }
+                        })
+                        .filter(item => {
+                          if (item.isComing) {
+                            return item.dist <= 1.0 // approaching within 1KM
+                          } else {
+                            return item.dist <= 0.4 // passed but closer than 400m
+                          }
                         })
                         .sort((a, b) => a.dist - b.dist)
                         .slice(0, 3)
@@ -1108,7 +1178,7 @@ export default function UserMapPage() {
                         return <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No hay colectivos en circulación en esta línea</span>
                       }
 
-                      return approaching.map(({ bus, dist }) => {
+                      return approaching.map(({ bus, dist, isComing }) => {
                         const isSelected = selectedBoardingBusId === bus.id
                         return (
                           <div
@@ -1128,7 +1198,9 @@ export default function UserMapPage() {
                           >
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: isSelected ? 'var(--go)' : '#9CA3AF' }} />
-                              <span style={{ fontSize: '11px', fontWeight: 600 }}>Interno {bus.bus_unit}</span>
+                              <span style={{ fontSize: '11px', fontWeight: 600 }}>
+                                Interno {bus.bus_unit} {!isComing && <span style={{ fontSize: '9px', fontWeight: 400, color: '#EF4444', marginLeft: '4px' }}>(ya pasó)</span>}
+                              </span>
                             </div>
                             <span style={{ fontSize: '10px', fontFamily: 'DM Mono', color: 'var(--text-secondary)' }}>
                               {(dist * 1000).toFixed(0)}m
@@ -1284,6 +1356,8 @@ export default function UserMapPage() {
                   setDestCoord(d)
                   setOriginInput(getNearestStreetName(o.lat, o.lng))
                   setDestInput(getNearestStreetName(d.lat, d.lng))
+                  fetchAddressAsync(o.lat, o.lng, setOriginInput)
+                  fetchAddressAsync(d.lat, d.lng, setDestInput)
                   const route = solveRoute(o, d)
                   setTravelRoute(route)
                 }
@@ -1393,6 +1467,7 @@ export default function UserMapPage() {
               setShowLineSelector={setShowLineSelector}
               resolveStreetToCoords={resolveStreetToCoords}
               getNearestStreetName={getNearestStreetName}
+              fetchAddressAsync={fetchAddressAsync}
               solveRoute={solveRoute}
               setTravelPlannerOpen={setTravelPlannerOpen}
               setViewState={setViewState}
