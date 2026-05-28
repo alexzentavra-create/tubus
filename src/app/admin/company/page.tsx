@@ -309,10 +309,10 @@ function CompanyOverview({activeSessions}:{activeSessions:any[]}) {
 
 function BusesTab({activeSessions}:{activeSessions:any[]}) {
   const mockBuses = [
-    {unit:'0421',driver:'Néstor García',status:'active',passengers:12,speed:34,stops:8,started:'07:42'},
-    {unit:'0387',driver:'Carlos M.',status:'inactive',passengers:0,speed:0,stops:0,started:'—'},
-    {unit:'0512',driver:'Roberto S.',status:'active',passengers:7,speed:28,stops:5,started:'08:15'},
-    {unit:'0298',driver:'—',status:'inactive',passengers:0,speed:0,stops:0,started:'—'},
+    {unit:'001',driver:'Néstor García',status:'active',passengers:12,speed:34,stops:8,started:'07:42'},
+    {unit:'002',driver:'Carlos Martínez',status:'inactive',passengers:0,speed:0,stops:0,started:'—'},
+    {unit:'003',driver:'Roberto Sánchez',status:'active',passengers:7,speed:28,stops:5,started:'08:15'},
+    {unit:'005',driver:'Juan Gómez',status:'inactive',passengers:0,speed:0,stops:0,started:'—'},
   ]
   return (
     <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
@@ -346,6 +346,7 @@ function CompanyDrivers() {
     {name:'Néstor García',legajo:'LEG-0042',sessions:127,onTime:94,rating:4.8,reports:0,lastActive:'Hoy 07:42'},
     {name:'Carlos Martínez',legajo:'LEG-0018',sessions:89,onTime:88,rating:4.6,reports:1,lastActive:'Ayer 18:30'},
     {name:'Roberto Sánchez',legajo:'LEG-0067',sessions:203,onTime:96,rating:4.9,reports:0,lastActive:'Hoy 08:15'},
+    {name:'Juan Gómez',legajo:'LEG-0091',sessions:42,onTime:91,rating:4.5,reports:0,lastActive:'Hoy 08:30'},
   ]
   return (
     <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
@@ -477,8 +478,8 @@ function StopsTab() {
 
 function CompanyReports() {
   const [reports, setReports] = useState([
-    {id:'1',type:'No paró',driver:'Néstor García',bus:'0421',stop:'Av. Rivadavia y Medrano',status:'pending',time:'Hace 20 min',desc:'El colectivo no paró en la parada habitual.'},
-    {id:'2',type:'Mal trato',driver:'Carlos M.',bus:'0387',stop:'Av. Corrientes y Callao',status:'resolved',time:'Hace 2h',desc:'El chofer fue descortés con los pasajeros.'},
+    {id:'1',type:'No paró',driver:'Néstor García',bus:'001',stop:'Av. Rivadavia y Medrano',status:'pending',time:'Hace 20 min',desc:'El colectivo no paró en la parada habitual.'},
+    {id:'2',type:'Mal trato',driver:'Carlos Martínez',bus:'002',stop:'Av. Corrientes y Callao',status:'resolved',time:'Hace 2h',desc:'El chofer fue descortés con los pasajeros.'},
   ])
   const statusStyle:Record<string,any>={pending:{bg:'rgba(240,180,41,0.08)',c:'#F0B429',b:'rgba(240,180,41,0.2)'},resolved:{bg:'rgba(34,211,160,0.08)',c:'#22D3A0',b:'rgba(34,211,160,0.2)'}}
   return (

@@ -341,14 +341,14 @@ export default function SuperAdminDashboard() {
   }
 
   const NAV_ITEMS = [
-    { id: 'overview', label: 'Dashboard', icon: BarChart2, hasChevron: false },
-    { id: 'reports', label: 'Widgets', icon: AlertTriangle, hasChevron: false },
-    { id: 'companies', label: 'UI Elements', icon: Building2, hasChevron: true },
-    { id: 'analytics', label: 'Forms', icon: TrendingUp, hasChevron: true },
-    { id: 'users', label: 'Data', icon: Users, hasChevron: true },
-    { id: 'drivers', label: 'Sample Pages', icon: Bus, hasChevron: true },
+    { id: 'overview', label: 'Panel Control', icon: BarChart2, hasChevron: false },
+    { id: 'reports', label: 'Denuncias', icon: AlertTriangle, hasChevron: false },
+    { id: 'companies', label: 'Empresas', icon: Building2, hasChevron: true },
+    { id: 'analytics', label: 'Estadísticas', icon: TrendingUp, hasChevron: true },
+    { id: 'users', label: 'Usuarios', icon: Users, hasChevron: true },
+    { id: 'drivers', label: 'Choferes', icon: Bus, hasChevron: true },
     { id: 'apps', label: 'Apps', icon: Star, hasChevron: true },
-    { id: 'documentation', label: 'Documentation', icon: Activity, hasChevron: false },
+    { id: 'documentation', label: 'Cerrar Sesión', icon: LogOut, hasChevron: false },
   ]
 
   if (loading) return (
@@ -381,7 +381,7 @@ export default function SuperAdminDashboard() {
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '20px', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
-            Star<span style={{ color: '#8f94a5', fontWeight: 400 }}>Admin</span>
+            Bien<span style={{ color: '#8f94a5', fontWeight: 400 }}>Parada</span>
           </span>
           <span style={{
             fontSize: '9px',
@@ -410,7 +410,7 @@ export default function SuperAdminDashboard() {
             outline: 'none',
             cursor: 'pointer',
           }}>
-            <option>Select Category</option>
+            <option>Seleccionar Categoría</option>
             <option>Líneas de Colectivo</option>
             <option>Choferes Activos</option>
             <option>Denuncias Pendientes</option>
@@ -429,7 +429,7 @@ export default function SuperAdminDashboard() {
             fontSize: '13px',
           }}>
             <Calendar size={14} style={{ color: '#a3a6b8' }} />
-            <span style={{ fontSize: '12px', color: '#a3a6b8' }}>03/21/2025</span>
+            <span style={{ fontSize: '12px', color: '#a3a6b8' }}>{format(new Date(), 'dd/MM/yyyy')}</span>
           </div>
 
           {/* Action Icons */}
@@ -522,7 +522,7 @@ export default function SuperAdminDashboard() {
         gap: '16px',
       }}>
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-          {['Overview', 'Audiences', 'Demographics', 'More'].map((sub, idx) => (
+          {['Resumen', 'Audiencias', 'Demografía', 'Más'].map((sub, idx) => (
             <span
               key={sub}
               style={{
@@ -553,7 +553,7 @@ export default function SuperAdminDashboard() {
             fontWeight: 500,
             cursor: 'pointer',
           }}>
-            <Share2 size={13} /> Share
+            <Share2 size={13} /> Compartir
           </button>
           <button style={{
             display: 'flex',
@@ -568,7 +568,7 @@ export default function SuperAdminDashboard() {
             fontWeight: 500,
             cursor: 'pointer',
           }}>
-            <Printer size={13} /> Print
+            <Printer size={13} /> Imprimir
           </button>
           <button
             onClick={exportData}
@@ -586,7 +586,7 @@ export default function SuperAdminDashboard() {
               cursor: 'pointer',
             }}
           >
-            <Download size={13} /> Export
+            <Download size={13} /> Exportar
           </button>
         </div>
       </div>
@@ -600,44 +600,44 @@ export default function SuperAdminDashboard() {
       }}>
         {/* Bounce Rate */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Bounce Rate</span>
+          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Tasa de Rebote</span>
           <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>32.53%</span>
           <span style={{ fontSize: '11px', color: '#ff4d6a', fontWeight: 600 }}>▼ -0.5%</span>
         </div>
         {/* Page Views (Usuarios App) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Page Views</span>
+          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Usuarios App</span>
           <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{stats.totalUsers.toLocaleString()}</span>
           <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +0.1%</span>
         </div>
         {/* Colectivos Activos (New Sessions) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>New Sessions</span>
+          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Colectivos Activos</span>
           <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{stats.activeBuses}</span>
           <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +0.8%</span>
         </div>
         {/* Tiempo en App (Avg. Time on Site) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Avg. Time on Site</span>
+          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Tiempo en App</span>
           <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>2m:35s</span>
           <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +0.8%</span>
         </div>
         {/* Denuncias Pendientes */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>New Sessions</span>
+          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Denuncias Pendientes</span>
           <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{stats.pendingReports}</span>
-          <span style={{ fontSize: '11px', color: '#ff4d6a', fontWeight: 600 }}>▼ -68.8</span>
+          <span style={{ fontSize: '11px', color: '#ff4d6a', fontWeight: 600 }}>▼ -15.0%</span>
         </div>
         {/* Logins Hoy */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Avg. Time on Site</span>
+          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Logins Hoy</span>
           <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{stats.todayLogins}</span>
-          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +0.8%</span>
+          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +2.4%</span>
         </div>
       </div>
 
-      {/* Main Content Scrollable */}
-      <main style={{ flex: 1, padding: '0 24px 24px', overflowY: 'auto' }}>
+      {/* Main Content */}
+      <main style={{ flex: 1, padding: '0 24px 24px' }}>
         {tab === 'overview' && (
           <OverviewTab
             stats={stats}
@@ -732,51 +732,6 @@ function OverviewTab({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* KPI Row (6 elements) */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-        gap: '24px',
-        paddingBottom: '12px',
-      }}>
-        {/* Bounce Rate */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Tasa de Rebote</span>
-          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>32.53%</span>
-          <span style={{ fontSize: '11px', color: '#ff4d6a', fontWeight: 600 }}>▼ -0.5%</span>
-        </div>
-        {/* Page Views (Usuarios App) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Usuarios App</span>
-          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{stats.totalUsers.toLocaleString()}</span>
-          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +0.1%</span>
-        </div>
-        {/* Colectivos Activos */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Colectivos Activos</span>
-          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{stats.activeBuses}</span>
-          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +0.8%</span>
-        </div>
-        {/* Tiempo en App */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Tiempo en App</span>
-          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>2m:35s</span>
-          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +0.8%</span>
-        </div>
-        {/* Denuncias Pendientes */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Denuncias Pend.</span>
-          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{stats.pendingReports}</span>
-          <span style={{ fontSize: '11px', color: '#ff4d6a', fontWeight: 600 }}>▼ -15.0%</span>
-        </div>
-        {/* Logins Hoy */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Logins Hoy</span>
-          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{stats.todayLogins}</span>
-          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +2.4%</span>
-        </div>
-      </div>
-
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '24px' }}>
         {/* Left Column - 8/12 width */}
       <div style={{ gridColumn: 'span 8', display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -789,18 +744,18 @@ function OverviewTab({
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <div>
-              <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#fff', margin: 0 }}>Performance Line Chart</h3>
-              <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Lorem Ipsum is simply dummy text of the printing</p>
+              <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#fff', margin: 0 }}>Rendimiento de Usuarios</h3>
+              <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Uso de la aplicación y flujo de viajes activos</p>
             </div>
             {/* Legend */}
             <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#a3a6b8' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ff8f5d' }} />
-                <span>This week</span>
+                <span>Esta semana</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#8f94a5' }} />
-                <span>Last week</span>
+                <span>Semana anterior</span>
               </div>
             </div>
           </div>
@@ -818,9 +773,9 @@ function OverviewTab({
               <YAxis stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} />
               <Tooltip contentStyle={{ background: '#121527', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px' }} />
               {/* Last week line (grey) */}
-              <Area type="monotone" dataKey="v2" name="Last week" stroke="#8f94a5" fill="none" strokeWidth={2} dot={false} />
+              <Area type="monotone" dataKey="v2" name="Semana anterior" stroke="#8f94a5" fill="none" strokeWidth={2} dot={false} />
               {/* This week area (orange) */}
-              <Area type="monotone" dataKey="v1" name="This week" stroke="#ff8f5d" fill="url(#colorOrange)" strokeWidth={2.5} dot={false} />
+              <Area type="monotone" dataKey="v1" name="Esta semana" stroke="#ff8f5d" fill="url(#colorOrange)" strokeWidth={2.5} dot={false} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -834,8 +789,8 @@ function OverviewTab({
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
             <div>
-              <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#fff', margin: 0 }}>Market Overview</h3>
-              <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Lorem ipsum dolor sit amet consectetur adipisicing elit</p>
+              <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#fff', margin: 0 }}>Vista General</h3>
+              <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Resumen general de líneas y afluencia de pasajeros</p>
             </div>
             <select style={{
               background: '#1b1d2e',
@@ -847,8 +802,8 @@ function OverviewTab({
               outline: 'none',
               cursor: 'pointer',
             }}>
-              <option>This month</option>
-              <option>Last month</option>
+              <option>Este mes</option>
+              <option>Mes anterior</option>
             </select>
           </div>
 
@@ -940,13 +895,13 @@ function OverviewTab({
           gap: '24px',
         }}>
           <div>
-            <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#fff', margin: 0 }}>Status Summary</h3>
+            <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#fff', margin: 0 }}>Resumen de Estado</h3>
           </div>
 
           {/* Mini sparkline segment */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <span style={{ fontSize: '12px', color: '#8f94a5' }}>Closed Value</span>
+              <span style={{ fontSize: '12px', color: '#8f94a5' }}>Casos Resueltos</span>
               <div style={{ fontSize: '28px', fontWeight: 700, color: '#00c689', marginTop: '4px' }}>357</div>
             </div>
             {/* Sparkline wave */}
@@ -986,7 +941,7 @@ function OverviewTab({
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '11px', color: '#8f94a5' }}>Total Visitors</div>
+                <div style={{ fontSize: '11px', color: '#8f94a5' }}>Visitantes Totales</div>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff', marginTop: '2px' }}>26.80%</div>
               </div>
             </div>
@@ -1012,7 +967,7 @@ function OverviewTab({
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: '11px', color: '#8f94a5' }}>Visits per day</div>
+                <div style={{ fontSize: '11px', color: '#8f94a5' }}>Visitas por Día</div>
                 <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff', marginTop: '2px' }}>9065</div>
               </div>
             </div>
@@ -1030,7 +985,7 @@ function OverviewTab({
           gap: '16px',
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#fff', margin: 0 }}>Todo List</h3>
+            <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#fff', margin: 0 }}>Lista de Tareas</h3>
             <button
               onClick={() => setShowAddTodo(!showAddTodo)}
               style={{
