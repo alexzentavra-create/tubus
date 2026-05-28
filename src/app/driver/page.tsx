@@ -85,11 +85,13 @@ const CARTODB_LIGHT = {
 
 // ─── Premium Bus Marker ────────────────────────────────────────────────────────
 function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: string }) {
-  const isStopped = status === 'at_stop'
-  const color = isStopped ? '#F0B429' : lineColor
-  const W = 28
-  const L = 58
-  const H = 34
+  const isMoving = status === 'moving'
+  const color = isMoving ? lineColor : status === 'at_stop' ? '#F0B429' : '#FF4D6A'
+  
+  // Proportional 3D dimensions matching the original 2D look but with 3D volume
+  const W = 11
+  const L = 28
+  const H = 14
 
   return (
     <div style={{
@@ -97,61 +99,75 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
       width: `${W}px`,
       height: `${L}px`,
       transformStyle: 'preserve-3d',
-      transform: 'scale(1.6)',
+      transform: 'scale(1.4)',
       transition: 'transform 0.15s ease-out',
     }}>
-      {/* Top / Roof */}
+      {/* Light glow pointing forward */}
+      {isMoving && (
+        <div style={{
+          position: 'absolute',
+          bottom: `${L + 2}px`,
+          left: '50%',
+          transform: 'translateX(-50%) translateZ(2px)',
+          width: '18px',
+          height: '18px',
+          background: 'linear-gradient(0deg, rgba(254, 240, 138, 0.25) 0%, rgba(254, 240, 138, 0) 100%)',
+          clipPath: 'polygon(30% 100%, 70% 100%, 100% 0%, 0% 0%)',
+          pointerEvents: 'none',
+        }} />
+      )}
+      
+      {/* Roof Face (Top) - in the same bus color but slightly shaded */}
       <div style={{
         position: 'absolute',
         width: `${W}px`,
         height: `${L}px`,
-        background: '#f8fafc',
-        border: '1.5px solid rgba(255, 255, 255, 0.7)',
-        borderRadius: '4px',
+        background: color,
+        border: '1px solid rgba(255, 255, 255, 0.35)',
+        borderRadius: '2.5px',
         transform: `translateZ(${H}px)`,
-        boxShadow: `0 8px 24px rgba(0,0,0,0.4)`,
+        boxShadow: `0 4px 12px rgba(0,0,0,0.5)`,
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '6px 0'
+        padding: '3px 0'
       }}>
-        <div style={{ width: '18px', height: '12px', background: '#e2e8f0', border: '1px solid #cbd5e1', borderRadius: '2px', display: 'flex', flexDirection: 'column', justifyContent: 'space-around', alignItems: 'center', padding: '1px' }}>
-          <div style={{ width: '12px', height: '1.5px', background: '#94a3b8' }} />
-          <div style={{ width: '12px', height: '1.5px', background: '#94a3b8' }} />
+        {/* Roof details: A/C vents */}
+        <div style={{ width: '7px', height: '4px', background: 'rgba(0,0,0,0.2)', borderRadius: '1px', display: 'flex', flexDirection: 'column', justifyContent: 'space-around', alignItems: 'center' }}>
+          <div style={{ width: '5px', height: '0.6px', background: 'rgba(255,255,255,0.4)' }} />
+          <div style={{ width: '5px', height: '0.6px', background: 'rgba(255,255,255,0.4)' }} />
         </div>
-        <div style={{ width: '6px', height: '15px', background: color, borderRadius: '1px' }} />
-        <div style={{ width: '16px', height: '3px', background: '#cbd5e1', borderRadius: '1px' }} />
+        <div style={{ width: '3px', height: '8px', background: 'rgba(255,255,255,0.15)', borderRadius: '0.5px' }} />
+        <div style={{ width: '6px', height: '1px', background: 'rgba(0,0,0,0.2)' }} />
       </div>
 
-      {/* Front Face (pointing forward / north on map) */}
+      {/* Front Face (pointing forward) */}
       <div style={{
         position: 'absolute',
         width: `${W}px`,
         height: `${H}px`,
         left: 0,
         top: 0,
-        background: '#0f172a',
-        border: '1.2px solid rgba(255,255,255,0.2)',
+        background: '#0c111d', // Dark windshield glass
+        border: '0.8px solid rgba(255,255,255,0.15)',
         transform: 'rotateX(-90deg)',
         transformOrigin: 'top center',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        padding: '3px 2px'
+        padding: '1.5px 1px'
       }}>
-        <div style={{ background: '#000', border: '1px solid #eab308', borderRadius: '2px', height: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ color: '#eab308', fontSize: '6px', fontWeight: 'bold', fontFamily: 'DM Mono, monospace', transform: 'scale(0.9)' }}>12 PALERMO</div>
+        {/* Route sign indicator */}
+        <div style={{ background: '#000', border: '0.5px solid #eab308', borderRadius: '0.8px', height: '4.5px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ color: '#eab308', fontSize: '3px', fontWeight: 'bold', fontFamily: 'DM Mono', transform: 'scale(0.8)' }}>L12</div>
         </div>
-        <div style={{ flex: 1, background: 'rgba(34,211,238,0.1)', border: '0.8px solid rgba(34,211,238,0.3)', borderRadius: '1.5px', margin: '2px 0', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: '1px' }}>
-          <div style={{ width: '12px', height: '1px', background: '#1e293b' }} />
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '6px' }}>
-          <div style={{ width: '5px', height: '4px', background: '#fef08a', borderRadius: '1px', boxShadow: '0 0 8px #fef08a' }} />
-          <div style={{ flex: 1, height: '2px', background: color, margin: '0 3px', borderRadius: '0.5px' }} />
-          <div style={{ width: '5px', height: '4px', background: '#fef08a', borderRadius: '1px', boxShadow: '0 0 8px #fef08a' }} />
+        {/* Headlights */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '3px' }}>
+          <div style={{ width: '2px', height: '1.8px', background: '#fef08a', borderRadius: '0.5px', boxShadow: '0 0 4px #fef08a' }} />
+          <div style={{ width: '2px', height: '1.8px', background: '#fef08a', borderRadius: '0.5px', boxShadow: '0 0 4px #fef08a' }} />
         </div>
       </div>
 
@@ -163,22 +179,21 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
         left: 0,
         bottom: 0,
         background: color,
-        border: '1.2px solid rgba(255,255,255,0.2)',
+        border: '0.8px solid rgba(255,255,255,0.15)',
         transform: 'rotateX(90deg)',
         transformOrigin: 'bottom center',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        padding: '3px 2px'
+        padding: '1.5px 1px'
       }}>
-        <div style={{ height: '9px', background: 'rgba(15,23,42,0.85)', border: '0.5px solid rgba(255,255,255,0.15)', borderRadius: '1px' }} />
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <span style={{ color: '#fff', fontSize: '6px', fontWeight: 'bold', background: 'rgba(0,0,0,0.5)', padding: '1px 3px', borderRadius: '1px' }}>L12</span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', height: '4px' }}>
-          <div style={{ width: '5px', height: '3px', background: '#ef4444', borderRadius: '0.5px', boxShadow: '0 0 5px #ef4444' }} />
-          <div style={{ width: '5px', height: '3px', background: '#ef4444', borderRadius: '0.5px', boxShadow: '0 0 5px #ef4444' }} />
+        {/* Rear window */}
+        <div style={{ height: '4px', background: 'rgba(15,23,42,0.85)', borderRadius: '0.5px' }} />
+        {/* Taillights */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', height: '2px' }}>
+          <div style={{ width: '2px', height: '1.5px', background: '#ef4444', borderRadius: '0.3px', boxShadow: '0 0 3px #ef4444' }} />
+          <div style={{ width: '2px', height: '1.5px', background: '#ef4444', borderRadius: '0.3px', boxShadow: '0 0 3px #ef4444' }} />
         </div>
       </div>
 
@@ -189,8 +204,8 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
         height: `${L}px`,
         left: 0,
         top: 0,
-        background: `linear-gradient(to left, #0f172a 45%, ${color} 45%)`,
-        border: '1.2px solid rgba(255,255,255,0.2)',
+        background: color,
+        border: '0.8px solid rgba(255,255,255,0.15)',
         transform: 'rotateY(90deg)',
         transformOrigin: 'left center',
         boxSizing: 'border-box',
@@ -198,10 +213,11 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
         flexDirection: 'column',
         justifyContent: 'space-evenly',
         alignItems: 'flex-end',
-        padding: '4px 3px'
+        padding: '2px 1px'
       }}>
-        {[0, 1, 2, 3, 4].map(i => (
-          <div key={i} style={{ width: '18px', height: '8px', background: 'rgba(34,211,238,0.15)', border: '1px solid rgba(34,211,238,0.4)', borderRadius: '1.5px' }} />
+        {/* Windows */}
+        {[0, 1, 2].map(i => (
+          <div key={i} style={{ width: '8px', height: '4.5px', background: 'rgba(15,23,42,0.8)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '0.8px' }} />
         ))}
       </div>
 
@@ -212,8 +228,8 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
         height: `${L}px`,
         right: 0,
         top: 0,
-        background: `linear-gradient(to right, #0f172a 45%, ${color} 45%)`,
-        border: '1.2px solid rgba(255,255,255,0.2)',
+        background: color,
+        border: '0.8px solid rgba(255,255,255,0.15)',
         transform: 'rotateY(-90deg)',
         transformOrigin: 'right center',
         boxSizing: 'border-box',
@@ -221,10 +237,11 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
         flexDirection: 'column',
         justifyContent: 'space-evenly',
         alignItems: 'flex-start',
-        padding: '4px 3px'
+        padding: '2px 1px'
       }}>
-        {[0, 1, 2, 3, 4].map(i => (
-          <div key={i} style={{ width: '18px', height: '8px', background: 'rgba(34,211,238,0.15)', border: '1px solid rgba(34,211,238,0.4)', borderRadius: '1.5px' }} />
+        {/* Windows */}
+        {[0, 1, 2].map(i => (
+          <div key={i} style={{ width: '8px', height: '4.5px', background: 'rgba(15,23,42,0.8)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '0.8px' }} />
         ))}
       </div>
     </div>
@@ -1197,9 +1214,11 @@ export default function DriverPage() {
         <Map
           viewState={viewState as any}
           onMove={e => {
-            if (e.originalEvent) {
+            if (!autoCenter || e.originalEvent) {
               setViewState(e.viewState)
-              setAutoCenter(false)
+              if (e.originalEvent) {
+                setAutoCenter(false)
+              }
             }
           }}
           mapStyle={(dayMode ? CARTODB_LIGHT : CARTODB_DARK) as any}
