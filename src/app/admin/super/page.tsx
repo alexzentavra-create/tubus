@@ -393,7 +393,7 @@ export default function SuperAdminDashboard() {
             fontWeight: 700,
             letterSpacing: '0.05em',
           }}>
-            PRO
+            Admin
           </span>
         </div>
 
