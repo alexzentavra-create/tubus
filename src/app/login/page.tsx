@@ -258,20 +258,36 @@ export default function LoginPage() {
       let email = form.email
       const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
 
-      // Mock login bypass when running without database credentials
-      if (url.includes('placeholder.supabase.co')) {
+      // Mock login bypass when running without database credentials or using explicit mock credentials
+      const lowerEmail = email.trim().toLowerCase()
+      const pass = form.password.trim().toLowerCase()
+      const isMockUser = 
+        (lowerEmail === 'admin@admin.com' && pass === 'admin') ||
+        (lowerEmail === 'nestor@nestor.ar' && pass === 'nestor') ||
+        (lowerEmail === 'linea12@bienparada.ar' && pass === 'bienparada') ||
+        (lowerEmail === 'usuario@usuario.com' && pass === 'usuario')
+
+      if (url.includes('placeholder.supabase.co') || isMockUser) {
         toast.success('Modo de prueba: ingresando sin base de datos')
-        const lower = email.toLowerCase()
-        if (lower.includes('superadmin')) {
+        if (lowerEmail === 'admin@admin.com') {
           window.location.href = '/admin/super'
-        } else if (lower.includes('admin')) {
-          window.location.href = '/admin/super'
-        } else if (lower.includes('driver') || lower.includes('chofer')) {
+        } else if (lowerEmail === 'nestor@nestor.ar') {
           window.location.href = '/driver'
-        } else if (lower.includes('company') || lower.includes('linea') || lower.includes('lineas') || lower.includes('empresa') || lower.includes('line')) {
+        } else if (lowerEmail === 'linea12@bienparada.ar') {
           window.location.href = '/admin/company'
-        } else {
+        } else if (lowerEmail === 'usuario@usuario.com') {
           window.location.href = '/'
+        } else {
+          // Fallback matching for other mock strings
+          if (lowerEmail.includes('superadmin') || lowerEmail.includes('admin')) {
+            window.location.href = '/admin/super'
+          } else if (lowerEmail.includes('driver') || lowerEmail.includes('chofer')) {
+            window.location.href = '/driver'
+          } else if (lowerEmail.includes('company') || lowerEmail.includes('linea') || lowerEmail.includes('lineas') || lowerEmail.includes('empresa') || lowerEmail.includes('line')) {
+            window.location.href = '/admin/company'
+          } else {
+            window.location.href = '/'
+          }
         }
         setLoading(false)
         return
