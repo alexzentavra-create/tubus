@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bus, Navigation, Wifi, WifiOff, Users, Power, AlertCircle, Gauge, Clock, QrCode, CheckCircle, LogOut, Zap, MapPin } from 'lucide-react'
+import { Bus, Navigation, Wifi, WifiOff, Users, Power, AlertCircle, Gauge, Clock, QrCode, CheckCircle, LogOut, Zap, MapPin, Sun, Moon } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { MOCK_LINES, getMockRoutePathForLine, getMockStopsForLine } from '@/lib/mockData'
 import toast from 'react-hot-toast'
@@ -51,6 +51,32 @@ const CARTODB_DARK = {
       id: "cartodb-dark-layer",
       type: "raster",
       source: "cartodb-dark-tiles",
+      minzoom: 0,
+      maxzoom: 20
+    }
+  ]
+}
+
+const CARTODB_LIGHT = {
+  version: 8,
+  sources: {
+    "cartodb-light-tiles": {
+      type: "raster",
+      tiles: [
+        "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
+        "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
+        "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
+        "https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png"
+      ],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors, © CartoDB"
+    }
+  },
+  layers: [
+    {
+      id: "cartodb-light-layer",
+      type: "raster",
+      source: "cartodb-light-tiles",
       minzoom: 0,
       maxzoom: 20
     }
@@ -121,6 +147,10 @@ export default function DriverPage() {
   // Map Controls State
   const [autoCenter, setAutoCenter]     = useState(true)
   const [gpsGuideActive, setGpsGuideActive] = useState(true)
+  const [firstPersonView, setFirstPersonView] = useState(false)
+  const [dayMode, setDayMode]           = useState(false)
+  const [boardingStatus, setBoardingStatus] = useState<{ on: number; off: number; stopName: string } | null>(null)
+
   const [viewState, setViewState]       = useState({
     longitude: -58.4173,
     latitude: -34.6037,
@@ -137,6 +167,26 @@ export default function DriverPage() {
     if (isMock) {
       setDriverName('Néstor García')
       setDriverId('mock-driver-nestor')
+      // Automatically load the Line 12 session
+      const mockLine = MOCK_LINES.find(l => l.line_number === '12') || MOCK_LINES[0]
+      const sess: ActiveSession = {
+        sessionId: `mock-session-12`,
+        driverId: 'mock-driver-nestor',
+        driverName: 'Néstor García',
+        busUnit: '001',
+        lineId: mockLine.id,
+        lineName: mockLine.name,
+        lineNumber: mockLine.line_number,
+        companyName: mockLine.company,
+      }
+      setSession(sess)
+      setPassengers(12)
+      setIsOnline(true)
+      const path = getMockRoutePathForLine(mockLine)
+      if (path && path.length > 0) {
+        setPos({ lat: path[0].lat, lng: path[0].lng, speed: 0, heading: 0 })
+        setViewState(v => ({ ...v, latitude: path[0].lat, longitude: path[0].lng, zoom: 16, pitch: 20, bearing: 0 }))
+      }
       return
     }
 
@@ -236,6 +286,7 @@ export default function DriverPage() {
     let currentIndex = 0
     let pauseCounter = 0
     let currentSpeed = 0
+    let lastStoppedStopId = ''
 
     // Set initial position
     setPos({ lat: path[0].lat, lng: path[0].lng, speed: 0, heading: 0 })
@@ -244,35 +295,84 @@ export default function DriverPage() {
       const stops = getMockStopsForLine(mockLine)
       const currentPoint = path[currentIndex]
 
-      // Detect if we are close to an official stop to simulate loading passengers
-      const isAtStop = stops.some(stop => {
-        const dy = stop.latitude - currentPoint.lat
-        const dx = stop.longitude - currentPoint.lng
-        return Math.hypot(dx, dy) < 0.0003
+      // Find closest stop
+      let minDistToStop = Infinity
+      let targetStop = stops[0]
+      stops.forEach(stop => {
+        const dist = Math.hypot(stop.longitude - currentPoint.lng, stop.latitude - currentPoint.lat)
+        if (dist < minDistToStop) {
+          minDistToStop = dist
+          targetStop = stop
+        }
       })
 
-      if (isAtStop && pauseCounter === 0 && Math.random() < 0.35) {
-        pauseCounter = 6 // pause shift for 3 seconds (6 ticks)
+      // Check if we should trigger a stop pause
+      if (minDistToStop < 0.00015 && targetStop.id !== lastStoppedStopId && pauseCounter === 0) {
+        lastStoppedStopId = targetStop.id
+        pauseCounter = 8 // pause for 4 seconds (8 ticks)
         currentSpeed = 0
-        setPassengers(p => Math.max(2, Math.min(55, p + Math.floor(Math.random() * 9) - 4)))
+        
+        const on = Math.floor(Math.random() * 6) + 1
+        setPassengers(p => {
+          const off = Math.min(p, Math.floor(Math.random() * 4) + 1)
+          setBoardingStatus({ on, off, stopName: targetStop.name })
+          return Math.max(2, Math.min(55, p + on - off))
+        })
+        setTimeout(() => setBoardingStatus(null), 3000)
+        
+        setPos(p => p ? { ...p, speed: 0 } : null)
+        return
       }
 
       if (pauseCounter > 0) {
         pauseCounter--
       } else {
+        // Calculate heading difference ahead (turns)
+        let maxTurnDiff = 0
+        const lookahead = 6
+        for (let i = 1; i <= lookahead; i++) {
+          const pA = path[(currentIndex + i - 1) % path.length]
+          const pB = path[(currentIndex + i) % path.length]
+          const pC = path[(currentIndex + i + 1) % path.length]
+          const h1 = ((Math.atan2(pB.lng - pA.lng, pB.lat - pA.lat) * 180) / Math.PI + 360) % 360
+          const h2 = ((Math.atan2(pC.lng - pB.lng, pC.lat - pB.lat) * 180) / Math.PI + 360) % 360
+          let diff = Math.abs(h1 - h2)
+          if (diff > 180) diff = 360 - diff
+          if (diff > maxTurnDiff) maxTurnDiff = diff
+        }
+
+        // Determine target speed from turns
+        let targetSpeed = 50 // straight stretch speed
+        if (maxTurnDiff > 45) {
+          targetSpeed = 10 // sharp turn
+        } else if (maxTurnDiff > 25) {
+          targetSpeed = 18 // moderate turn
+        } else if (maxTurnDiff > 10) {
+          targetSpeed = 30 // gentle turn
+        } else {
+          targetSpeed = 48
+        }
+
+        // Decelerate if approaching a stop
+        if (minDistToStop < 0.0008) {
+          const stopSpeed = Math.max(2, 48 * (minDistToStop / 0.0008))
+          targetSpeed = Math.min(targetSpeed, stopSpeed)
+        }
+
+        // Smoothly interpolate speed
+        currentSpeed = currentSpeed + (targetSpeed - currentSpeed) * 0.25
+
+        // Advance index
         currentIndex = (currentIndex + 1) % path.length
         const nextPoint = path[(currentIndex + 1) % path.length]
         const dy = nextPoint.lat - currentPoint.lat
         const dx = nextPoint.lng - currentPoint.lng
         const angle = ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360
 
-        // Fluctuate speed
-        currentSpeed = 30 + Math.floor(Math.sin(currentIndex / 4) * 8) + Math.floor(Math.random() * 5)
-
         setPos({
           lat: currentPoint.lat,
           lng: currentPoint.lng,
-          speed: currentSpeed,
+          speed: Math.round(currentSpeed),
           heading: angle
         })
       }
@@ -286,9 +386,27 @@ export default function DriverPage() {
   // Center map on driver position
   useEffect(() => {
     if (pos && autoCenter) {
-      setViewState(v => ({ ...v, latitude: pos.lat, longitude: pos.lng }))
+      if (firstPersonView) {
+        setViewState(v => ({
+          ...v,
+          latitude: pos.lat,
+          longitude: pos.lng,
+          zoom: 17.5,
+          pitch: 60,
+          bearing: pos.heading
+        }))
+      } else {
+        setViewState(v => ({
+          ...v,
+          latitude: pos.lat,
+          longitude: pos.lng,
+          zoom: v.zoom === 17.5 ? 14.5 : v.zoom,
+          pitch: v.pitch === 60 ? 20 : v.pitch,
+          bearing: v.bearing === pos.heading ? 0 : v.bearing
+        }))
+      }
     }
-  }, [pos, autoCenter])
+  }, [pos, autoCenter, firstPersonView])
 
   // Get upcoming stops dynamically
   const getUpcomingStops = () => {
@@ -401,26 +519,26 @@ export default function DriverPage() {
 
   // ── Mock/simulate scan ─────────────────────────────────────────────────────
   const handleSimulateScan = () => {
-    const mockLine = MOCK_LINES[Math.floor(Math.random() * MOCK_LINES.length)]
+    const mockLine = MOCK_LINES.find(l => l.line_number === '12') || MOCK_LINES[0]
     const sess: ActiveSession = {
       sessionId: `mock-session-${Date.now()}`,
       driverId: driverId || 'mock-driver',
       driverName: driverName || 'Chofer Demo',
-      busUnit: `${mockLine.line_number}${String(Math.floor(Math.random() * 9) + 1).padStart(2, '0')}`,
+      busUnit: `12${String(Math.floor(Math.random() * 9) + 1).padStart(2, '0')}`,
       lineId: mockLine.id,
       lineName: mockLine.name,
       lineNumber: mockLine.line_number,
       companyName: mockLine.company,
     }
     setSession(sess)
-    setPassengers(0)
+    setPassengers(12)
     setIsOnline(true)
     setShowScanner(false)
     setQrToken('')
     const path = getMockRoutePathForLine(mockLine)
     if (path && path.length > 0) {
       setPos({ lat: path[0].lat, lng: path[0].lng, speed: 0, heading: 0 })
-      setViewState(v => ({ ...v, latitude: path[0].lat, longitude: path[0].lng, zoom: 14.5 }))
+      setViewState(v => ({ ...v, latitude: path[0].lat, longitude: path[0].lng, zoom: 16, pitch: 20, bearing: 0 }))
     }
     toast.success(`[SIMULACIÓN] Unidad ${sess.busUnit} · Línea ${mockLine.line_number}`)
   }
@@ -648,8 +766,74 @@ export default function DriverPage() {
               </div>
             )}
 
+            {/* Boarding Notification Alert */}
+            <AnimatePresence>
+              {boardingStatus && (
+                <motion.div
+                  initial={{ opacity: 0, y: -15, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -15, scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                  style={{
+                    background: 'rgba(34,211,160,0.1)',
+                    border: '1px solid rgba(34,211,160,0.25)',
+                    borderRadius: 'var(--r-md)',
+                    padding: '10px 14px',
+                    marginBottom: '14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    boxShadow: '0 0 16px rgba(34,211,160,0.1)'
+                  }}
+                >
+                  <Users size={16} style={{ color: 'var(--go)', flexShrink: 0 }} />
+                  <div style={{ fontSize: '12px', color: 'var(--go)', fontWeight: 500 }}>
+                    {`En parada ${boardingStatus.stopName}: +${boardingStatus.on} / -${boardingStatus.off} pasajeros`}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Map Options / Toggles */}
             <div className="glass" style={{ padding: '14px 16px', marginBottom: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>Mapa: Modo de Luz Diurna</span>
+                <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '38px', height: '22px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={dayMode} onChange={e => setDayMode(e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
+                  <span className="slider round" style={{ position: 'absolute', cursor: 'pointer', inset: 0, background: dayMode ? accentColor : '#334155', transition: 'all .3s ease', borderRadius: '34px' }}>
+                    <span style={{
+                      position: 'absolute',
+                      height: '14px',
+                      width: '14px',
+                      left: dayMode ? '20px' : '4px',
+                      bottom: '4px',
+                      backgroundColor: 'white',
+                      transition: 'all .3s ease',
+                      borderRadius: '50%',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.4)'
+                    }} />
+                  </span>
+                </label>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>Vista de Conducción 3D (GPS)</span>
+                <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '38px', height: '22px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={firstPersonView} onChange={e => setFirstPersonView(e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
+                  <span className="slider round" style={{ position: 'absolute', cursor: 'pointer', inset: 0, background: firstPersonView ? accentColor : '#334155', transition: 'all .3s ease', borderRadius: '34px' }}>
+                    <span style={{
+                      position: 'absolute',
+                      height: '14px',
+                      width: '14px',
+                      left: firstPersonView ? '20px' : '4px',
+                      bottom: '4px',
+                      backgroundColor: 'white',
+                      transition: 'all .3s ease',
+                      borderRadius: '50%',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.4)'
+                    }} />
+                  </span>
+                </label>
+              </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>Auto-centrar mapa en mi posición</span>
                 <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '38px', height: '22px', cursor: 'pointer' }}>
@@ -691,7 +875,7 @@ export default function DriverPage() {
             </div>
 
             {/* Stats Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr', gap: '8px', marginBottom: '14px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '14px' }}>
               
               {/* Speed card */}
               <div style={{ background: 'rgba(6,8,16,0.6)', border: '1px solid rgba(184,200,224,0.07)', borderRadius: 'var(--r-md)', padding: '12px 8px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
@@ -700,14 +884,10 @@ export default function DriverPage() {
                 <div style={{ color: 'var(--text-muted)', fontSize: '9px', fontFamily: 'DM Mono', marginTop: '4px' }}>km/h</div>
               </div>
 
-              {/* Passengers card with integrated counter */}
-              <div style={{ background: 'rgba(6,8,16,0.6)', border: '1px solid rgba(184,200,224,0.07)', borderRadius: 'var(--r-md)', padding: '10px 8px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                <Users size={14} style={{ color: 'var(--text-muted)', margin: '0 auto 4px' }} />
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                  <button onClick={() => setPassengers(p => Math.max(0, p - 1))} className="action-btn" style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'rgba(184,200,224,0.08)', border: '1px solid rgba(184,200,224,0.2)', color: 'var(--platinum)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '12px' }}>−</button>
-                  <span style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '18px', fontFamily: 'Syne,sans-serif', minWidth: '24px' }}>{passengers}</span>
-                  <button onClick={() => setPassengers(p => p + 1)} className="action-btn" style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'rgba(34,211,160,0.1)', border: '1px solid rgba(34,211,160,0.25)', color: 'var(--go)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '12px' }}>+</button>
-                </div>
+              {/* Passengers card (read-only) */}
+              <div style={{ background: 'rgba(6,8,16,0.6)', border: '1px solid rgba(184,200,224,0.07)', borderRadius: 'var(--r-md)', padding: '12px 8px', textAlign: 'center', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                <Users size={14} style={{ color: 'var(--text-muted)', margin: '0 auto 6px' }} />
+                <div style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '18px', lineHeight: 1, fontFamily: 'Syne,sans-serif' }}>{passengers}</div>
                 <div style={{ color: 'var(--text-muted)', fontSize: '9px', fontFamily: 'DM Mono', marginTop: '4px' }}>pasajeros</div>
               </div>
 
@@ -804,10 +984,37 @@ export default function DriverPage() {
           RIGHT INTERACTIVE MAP
       ═══════════════════════════════════════════════════════════════ */}
       <div style={{ flex: 1, height: '100vh', position: 'relative' }}>
+        {/* Floating Sun/Moon dayMode switch */}
+        <button
+          onClick={() => setDayMode(!dayMode)}
+          className="action-btn"
+          style={{
+            position: 'absolute',
+            top: '20px',
+            right: '20px',
+            width: '44px',
+            height: '44px',
+            borderRadius: '12px',
+            background: dayMode ? '#ffffff' : 'rgba(19,25,33,0.85)',
+            border: `1px solid ${dayMode ? 'rgba(0,0,0,0.1)' : 'rgba(184,200,224,0.15)'}`,
+            color: dayMode ? '#1e293b' : '#f8fafc',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+            cursor: 'pointer',
+            zIndex: 10,
+            transition: 'all 200ms'
+          }}
+          title={dayMode ? 'Cambiar a Modo Noche' : 'Cambiar a Modo Día'}
+        >
+          {dayMode ? <Moon size={20} /> : <Sun size={20} />}
+        </button>
+
         <Map
           {...viewState}
           onMove={e => setViewState(e.viewState)}
-          mapStyle={CARTODB_DARK as any}
+          mapStyle={(dayMode ? CARTODB_LIGHT : CARTODB_DARK) as any}
           style={{ width: '100%', height: '100%' }}
         >
           {/* Active line route path rendering */}
