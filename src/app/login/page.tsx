@@ -261,10 +261,15 @@ export default function LoginPage() {
       // Mock login bypass when running without database credentials
       if (url.includes('placeholder.supabase.co')) {
         toast.success('Modo de prueba: ingresando sin base de datos')
-        if (email.toLowerCase().includes('admin')) {
+        const lower = email.toLowerCase()
+        if (lower.includes('superadmin')) {
           window.location.href = '/admin/super'
-        } else if (email.toLowerCase().includes('driver') || email.toLowerCase().includes('chofer')) {
+        } else if (lower.includes('admin')) {
+          window.location.href = '/admin/super'
+        } else if (lower.includes('driver') || lower.includes('chofer')) {
           window.location.href = '/driver'
+        } else if (lower.includes('company') || lower.includes('linea') || lower.includes('lineas') || lower.includes('empresa') || lower.includes('line')) {
+          window.location.href = '/admin/company'
         } else {
           window.location.href = '/'
         }
