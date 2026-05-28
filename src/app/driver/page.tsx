@@ -97,10 +97,10 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
   const isMoving = status === 'moving'
   const color = lineColor || '#EF4444' // Respective Line 12 color (Red)
   
-  // High-fidelity volumetric 3D coach dimensions exactly matching the user's screenshots
-  const W = 24
-  const L = 72
-  const H = 22
+  // Sleek 3D coach dimensions matching the login menu and user dashboard aesthetic
+  const W = 16
+  const L = 36
+  const H = 14
 
   return (
     <div style={{
@@ -110,134 +110,104 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
       transformStyle: 'preserve-3d',
       transition: 'transform 0.15s ease-out',
     }}>
-      {/* Soft Drop Shadow on Map Surface */}
+      {/* Soft drop shadow on map surface */}
       <div style={{
         position: 'absolute',
         width: `${W}px`,
-        height: `${L + 4}px`,
+        height: `${L + 2}px`,
         left: 0,
-        top: '-2px',
+        top: '-1px',
         background: 'rgba(0, 0, 0, 0.45)',
-        filter: 'blur(3.5px)',
-        borderRadius: '4px',
+        filter: 'blur(3px)',
+        borderRadius: '3px',
         transform: 'translateZ(-1px)',
         pointerEvents: 'none'
       }} />
 
-      {/* Light glow pointing forward when moving */}
+      {/* Futuristic headlight glow beam (pointing North/Up) */}
       {isMoving && (
         <div style={{
           position: 'absolute',
-          bottom: `${L + 3}px`,
+          bottom: `${L + 2}px`,
           left: '50%',
-          transform: 'translateX(-50%) translateZ(3px)',
-          width: '28px',
-          height: '32px',
+          transform: 'translateX(-50%) translateZ(2px)',
+          width: '20px',
+          height: '24px',
           background: 'linear-gradient(0deg, rgba(254, 240, 138, 0.25) 0%, rgba(254, 240, 138, 0) 100%)',
-          clipPath: 'polygon(25% 100%, 75% 100%, 100% 0%, 0% 0%)',
+          clipPath: 'polygon(30% 100%, 70% 100%, 100% 0%, 0% 0%)',
           pointerEvents: 'none',
         }} />
       )}
       
-      {/* Roof Face (Top) - Red roof with white/grey AC unit containing 3 fans & hatches matching the screenshot */}
+      {/* Futuristic red taillight glow beam (pointing South/Down) */}
+      <div style={{
+        position: 'absolute',
+        top: `${L}px`,
+        left: '50%',
+        transform: 'translateX(-50%) translateZ(2px)',
+        width: '12px',
+        height: '10px',
+        background: 'linear-gradient(180deg, rgba(239, 68, 68, 0.22) 0%, rgba(239, 68, 68, 0) 100%)',
+        clipPath: 'polygon(30% 0%, 70% 0%, 100% 100%, 0% 100%)',
+        pointerEvents: 'none',
+      }} />
+      
+      {/* Roof Face (Top) - Sleek red body with three windows matching login menu */}
       <div style={{
         position: 'absolute',
         width: `${W}px`,
         height: `${L}px`,
-        background: `linear-gradient(180deg, ${color} 0%, rgba(160, 20, 20, 0.95) 100%)`,
-        border: '1px solid rgba(255, 255, 255, 0.3)',
-        borderRadius: '3.5px',
+        background: color,
+        border: '0.8px solid rgba(255, 255, 255, 0.3)',
+        borderRadius: '2.5px',
         transform: `translateZ(${H}px)`,
-        boxShadow: `0 4px 12px rgba(0,0,0,0.5)`,
+        boxShadow: `0 0 10px ${color}bf, 0 2px 6px rgba(0,0,0,0.5)`,
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'space-evenly',
-        padding: '3px 0'
+        padding: '2px 0'
       }}>
-        {/* Front Hatch (Red rectangular indentation) */}
-        <div style={{
-          width: '14px',
-          height: '8px',
-          background: 'rgba(0,0,0,0.08)',
-          border: '1px solid rgba(0,0,0,0.15)',
-          borderRadius: '1.5px',
-          boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.1)'
-        }} />
-
-        {/* Central Grey A/C Vent Cover Block with 3 circular fans in a row */}
-        <div style={{
-          width: '16px',
-          height: '24px',
-          background: '#cbd5e1',
-          border: '1px solid #94a3b8',
-          borderRadius: '2px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.25), inset 0 -1px 2px rgba(0,0,0,0.1)',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-evenly',
-          alignItems: 'center',
-          padding: '2px 0'
-        }}>
-          {[0, 1, 2].map(i => (
-            <div key={i} style={{
-              width: '4px',
-              height: '4px',
-              borderRadius: '50%',
-              background: '#0f172a',
-              border: '0.5px solid #64748b'
-            }} />
-          ))}
-        </div>
-
-        {/* Rear Hatch (Red rectangular indentation) */}
-        <div style={{
-          width: '14px',
-          height: '8px',
-          background: 'rgba(0,0,0,0.08)',
-          border: '1px solid rgba(0,0,0,0.15)',
-          borderRadius: '1.5px',
-          boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.1)'
-        }} />
+        {/* Three Window Panes on the roof */}
+        {[0, 1, 2].map(i => (
+          <div key={i} style={{
+            width: '10px',
+            height: '6px',
+            borderRadius: '1px',
+            background: 'rgba(15, 23, 42, 0.85)',
+            border: '0.5px solid rgba(255, 255, 255, 0.08)'
+          }} />
+        ))}
       </div>
 
-      {/* Front Face (Windshield, destination sign & headlights) */}
+      {/* Front Face (Windshield & Headlights) */}
       <div style={{
         position: 'absolute',
         width: `${W}px`,
         height: `${H}px`,
         left: 0,
         top: 0,
-        background: '#0c111d', // Windshield glass
-        border: '1px solid rgba(255,255,255,0.2)',
+        background: '#0c111d',
+        border: '0.8px solid rgba(255,255,255,0.2)',
         transform: 'rotateX(-90deg)',
         transformOrigin: 'top center',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        padding: '2px 1.5px'
+        padding: '1px 1px'
       }}>
-        {/* Route sign indicator */}
-        <div style={{ background: '#000', border: '0.5px solid #eab308', borderRadius: '1px', height: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ color: '#eab308', fontSize: '4px', fontWeight: 'bold', fontFamily: 'DM Mono' }}>12 PLAZA ITALIA</span>
-        </div>
         {/* Windshield */}
-        <div style={{ flex: 1, background: 'rgba(15,23,42,0.92)', margin: '1px 0' }} />
+        <div style={{ flex: 1, background: 'rgba(15,23,42,0.92)', borderRadius: '0.5px' }} />
         {/* Headlights */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '4px' }}>
-          <div style={{ width: '4px', height: '3px', background: '#fef08a', borderRadius: '0.5px', boxShadow: '0 0 4px #fef08a' }} />
-          <div style={{ width: '8px', height: '1.5px', background: '#1e293b' }} />
-          <div style={{ width: '4px', height: '3px', background: '#fef08a', borderRadius: '0.5px', boxShadow: '0 0 4px #fef08a' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '3px', padding: '0 0.8px' }}>
+          <div style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#FEF08A', boxShadow: '0 0 4px #FEF08A' }} />
+          <div style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#FEF08A', boxShadow: '0 0 4px #FEF08A' }} />
         </div>
-
-        {/* Side Mirrors sticking out on left & right */}
-        <div style={{ position: 'absolute', left: '-4px', top: '2px', width: '3px', height: '3px', background: '#090d16', borderRadius: '0.5px', border: `0.5px solid ${color}` }} />
-        <div style={{ position: 'absolute', right: '-4px', top: '2px', width: '3px', height: '3px', background: '#090d16', borderRadius: '0.5px', border: `0.5px solid ${color}` }} />
       </div>
 
-      {/* Back Face (taillights, engine vents & rear windshield facing camera in 3D view) */}
+      {/* Back Face (taillights & rear windshield facing camera in 3D view) */}
       <div style={{
         position: 'absolute',
         width: `${W}px`,
@@ -245,27 +215,21 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
         left: 0,
         bottom: 0,
         background: color,
-        border: '1px solid rgba(255,255,255,0.25)',
+        border: '0.8px solid rgba(255,255,255,0.25)',
         transform: 'rotateX(90deg)',
         transformOrigin: 'bottom center',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        padding: '2px 1.5px'
+        padding: '1px 1px'
       }}>
         {/* Rear Windshield */}
-        <div style={{ height: '7px', background: 'rgba(15,23,42,0.95)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '1.5px' }} />
-        {/* License plate */}
-        <div style={{ background: '#e2e8f0', border: '0.5px solid #000', borderRadius: '1px', alignSelf: 'center', padding: '0.5px 2px', fontSize: '3.5px', color: '#000', fontFamily: 'DM Mono', fontWeight: 'bold' }}>ARG 12-001</div>
-        {/* Taillights & Exhaust */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', height: '4px' }}>
-          <div style={{ width: '4.5px', height: '3px', background: '#ef4444', borderRadius: '0.5px', boxShadow: '0 0 5px #ef4444' }} />
-          <div style={{ width: '8px', height: '2.5px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <div style={{ width: '8px', height: '0.5px', background: 'rgba(0,0,0,0.6)' }} />
-            <div style={{ width: '8px', height: '0.5px', background: 'rgba(0,0,0,0.6)' }} />
-          </div>
-          <div style={{ width: '4.5px', height: '3px', background: '#ef4444', borderRadius: '0.5px', boxShadow: '0 0 5px #ef4444' }} />
+        <div style={{ height: '4px', background: 'rgba(15,23,42,0.95)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '1px' }} />
+        {/* Taillights */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '0 0.8px', boxSizing: 'border-box' }}>
+          <div style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#EF4444', boxShadow: '0 0 4px #EF4444' }} />
+          <div style={{ width: '2px', height: '2px', borderRadius: '50%', background: '#EF4444', boxShadow: '0 0 4px #EF4444' }} />
         </div>
       </div>
 
@@ -277,7 +241,7 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
         left: 0,
         top: 0,
         background: color,
-        border: '1px solid rgba(255,255,255,0.2)',
+        border: '0.8px solid rgba(255,255,255,0.2)',
         transform: 'rotateY(90deg)',
         transformOrigin: 'left center',
         boxSizing: 'border-box',
@@ -285,21 +249,20 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
         flexDirection: 'column',
         justifyContent: 'space-evenly',
         alignItems: 'flex-end',
-        padding: '3px 1.5px'
+        padding: '2px 1px'
       }}>
-        {/* 6 side windows */}
-        {[0, 1, 2, 3, 4, 5].map(i => (
+        {[0, 1, 2].map(i => (
           <div key={i} style={{
-            width: '12px', // H (height of the bus)
-            height: '7px',  // L (length of the bus)
+            width: '8px', // along H (height of the bus)
+            height: '6px',  // along L (length of the bus)
             background: 'rgba(15,23,42,0.92)',
             border: '0.5px solid rgba(255,255,255,0.1)',
             borderRadius: '1px'
           }} />
         ))}
-        {/* Symmetrical Wheels */}
-        <div style={{ position: 'absolute', left: '2px', top: '12px', width: '8px', height: '8px', borderRadius: '50%', background: '#0e1118', border: '1.2px solid #4a5568', zIndex: 10 }} />
-        <div style={{ position: 'absolute', left: '2px', bottom: '12px', width: '8px', height: '8px', borderRadius: '50%', background: '#0e1118', border: '1.2px solid #4a5568', zIndex: 10 }} />
+        {/* Wheels */}
+        <div style={{ position: 'absolute', left: '1.5px', top: '6px', width: '5px', height: '5px', borderRadius: '50%', background: '#0e1118', border: '0.8px solid #4a5568', zIndex: 10 }} />
+        <div style={{ position: 'absolute', left: '1.5px', bottom: '6px', width: '5px', height: '5px', borderRadius: '50%', background: '#0e1118', border: '0.8px solid #4a5568', zIndex: 10 }} />
       </div>
 
       {/* Right Face (Right side of the bus) */}
@@ -310,7 +273,7 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
         right: 0,
         top: 0,
         background: color,
-        border: '1px solid rgba(255,255,255,0.2)',
+        border: '0.8px solid rgba(255,255,255,0.2)',
         transform: 'rotateY(-90deg)',
         transformOrigin: 'right center',
         boxSizing: 'border-box',
@@ -318,21 +281,20 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
         flexDirection: 'column',
         justifyContent: 'space-evenly',
         alignItems: 'flex-start',
-        padding: '3px 1.5px'
+        padding: '2px 1px'
       }}>
-        {/* 6 side windows */}
-        {[0, 1, 2, 3, 4, 5].map(i => (
+        {[0, 1, 2].map(i => (
           <div key={i} style={{
-            width: '12px',
-            height: '7px',
+            width: '8px', // along H (height of the bus)
+            height: '6px',  // along L (length of the bus)
             background: 'rgba(15,23,42,0.92)',
             border: '0.5px solid rgba(255,255,255,0.1)',
             borderRadius: '1px'
           }} />
         ))}
-        {/* Symmetrical Wheels */}
-        <div style={{ position: 'absolute', right: '2px', top: '12px', width: '8px', height: '8px', borderRadius: '50%', background: '#0e1118', border: '1.2px solid #4a5568', zIndex: 10 }} />
-        <div style={{ position: 'absolute', right: '2px', bottom: '12px', width: '8px', height: '8px', borderRadius: '50%', background: '#0e1118', border: '1.2px solid #4a5568', zIndex: 10 }} />
+        {/* Wheels */}
+        <div style={{ position: 'absolute', right: '1.5px', top: '6px', width: '5px', height: '5px', borderRadius: '50%', background: '#0e1118', border: '0.8px solid #4a5568', zIndex: 10 }} />
+        <div style={{ position: 'absolute', right: '1.5px', bottom: '6px', width: '5px', height: '5px', borderRadius: '50%', background: '#0e1118', border: '0.8px solid #4a5568', zIndex: 10 }} />
       </div>
     </div>
   )
@@ -612,8 +574,9 @@ export default function DriverPage() {
           targetSpeed = Math.min(targetSpeed, stopSpeed)
         }
 
-        // Smoothly interpolate speed (slower factor 0.015 for gradual acceleration/deceleration)
-        currentSpeed = currentSpeed + (targetSpeed - currentSpeed) * 0.015
+        // Smoothly interpolate speed (accelFactor: 0.075 for quick start, 0.035 for natural deceleration)
+        const accelFactor = (targetSpeed > currentSpeed) ? 0.075 : 0.035
+        currentSpeed = currentSpeed + (targetSpeed - currentSpeed) * accelFactor
 
         // Calculate segment length in km
         const lat1 = currentPoint.lat * Math.PI / 180
@@ -1329,6 +1292,7 @@ export default function DriverPage() {
         {mounted ? (
           <Map
             {...viewState}
+            maxZoom={17.8}
             onMove={e => {
               setViewState(e.viewState)
               if (e.originalEvent) {
@@ -1396,7 +1360,7 @@ export default function DriverPage() {
             {/* Marker for current bus position with 3D perspective shift correction */}
             {pos && (() => {
               const markerCoords = firstPersonView 
-                ? offsetCoords(pos.lat, pos.lng, pos.heading, 6.2)
+                ? offsetCoords(pos.lat, pos.lng, pos.heading, 3.8)
                 : { lat: pos.lat, lng: pos.lng }
               return (
                 <Marker longitude={markerCoords.lng} latitude={markerCoords.lat} rotation={pos.heading} rotationAlignment="map" pitchAlignment="map" anchor="center">
