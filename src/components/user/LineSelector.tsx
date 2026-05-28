@@ -30,9 +30,11 @@ interface Props {
   solveRoute: (origin: { lat: number; lng: number }, dest: { lat: number; lng: number }) => any
   setTravelPlannerOpen: (v: boolean) => void
   setViewState: (v: any) => void
+  tab: Tab
+  setTab: (t: Tab) => void
 }
 
-type Tab = 'line' | 'route' | 'nearby'
+export type Tab = 'line' | 'route' | 'nearby'
 
 export default function LineSelector({
   lines,
@@ -56,11 +58,12 @@ export default function LineSelector({
   fetchAddressAsync,
   solveRoute,
   setTravelPlannerOpen,
-  setViewState
+  setViewState,
+  tab,
+  setTab
 }: Props) {
   const allLines = lines.length > 0 ? lines : MOCK_LINES
 
-  const [tab, setTab] = useState<Tab>('line')
   const [q, setQ] = useState('')
   const [locating, setLocating] = useState(false)
   const [nearbyLines, setNearbyLines] = useState<BusLine[]>([])

@@ -17,7 +17,7 @@ import {
 } from '@/lib/mockData'
 import ReportModal from '@/components/user/ReportModal'
 import BusInfoSheet from '@/components/user/BusInfoSheet'
-import LineSelector from '@/components/user/LineSelector'
+import LineSelector, { Tab as LineSelectorTab } from '@/components/user/LineSelector'
 import NearbyStops from '@/components/user/NearbyStops'
 
 const BA = { longitude: -58.4173, latitude: -34.6037 }
@@ -155,6 +155,7 @@ export default function UserMapPage() {
   const [travelRoute, setTravelRoute]             = useState<any>(null)
   const [selectedBoardingBusId, setSelectedBoardingBusId] = useState<string | null>(null)
   const [mapSelectionMode, setMapSelectionMode] = useState<'origin' | 'destination' | null>(null)
+  const [lineSelectorTab, setLineSelectorTab] = useState<LineSelectorTab>('line')
 
   // Helper distance function
   const distanceKm = (a: { latitude: number; longitude: number } | BusStop, b: { lat: number; lng: number }) => {
@@ -341,10 +342,6 @@ export default function UserMapPage() {
       const ALLOWED_LINES = ['12', '28', '37', '60', '152']
       const availableLines = (data && data.length > 0 ? data : MOCK_LINES).filter(l => ALLOWED_LINES.includes(l.line_number))
       setLines(availableLines)
-      const defaultLine = availableLines.find(l => l.line_number === '12') || availableLines[0]
-      if (defaultLine) {
-        setSelectedLines([defaultLine])
-      }
     })
   }, [])
 
@@ -625,6 +622,7 @@ export default function UserMapPage() {
               setOriginInput(getNearestStreetName(lat, lng))
               fetchAddressAsync(lat, lng, setOriginInput)
               setMapSelectionMode(null)
+              setLineSelectorTab('route')
               setShowLineSelector(true)
               if (destCoord) {
                 setTravelRoute(solveRoute({ lat, lng }, destCoord))
@@ -636,6 +634,7 @@ export default function UserMapPage() {
               setDestInput(getNearestStreetName(lat, lng))
               fetchAddressAsync(lat, lng, setDestInput)
               setMapSelectionMode(null)
+              setLineSelectorTab('route')
               setShowLineSelector(true)
               if (originCoord) {
                 setTravelRoute(solveRoute(originCoord, { lat, lng }))
@@ -853,6 +852,7 @@ export default function UserMapPage() {
                 <button
                   onClick={() => {
                     setMapSelectionMode(null)
+                    setLineSelectorTab('route')
                     setShowLineSelector(true)
                   }}
                   style={{
@@ -918,7 +918,7 @@ export default function UserMapPage() {
                   </div>
                 ))}
                 <button
-                  onClick={(e) => { e.stopPropagation(); setShowLineSelector(true) }}
+                  onClick={(e) => { e.stopPropagation(); setLineSelectorTab('line'); setShowLineSelector(true) }}
                   style={{
                     background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
                     border: prefs.darkMap ? '1px dashed rgba(255,255,255,0.15)' : '1px dashed rgba(0,0,0,0.15)',
@@ -930,7 +930,7 @@ export default function UserMapPage() {
               </div>
             ) : (
               <button
-                onClick={() => setShowLineSelector(true)}
+                onClick={() => { setLineSelectorTab('line'); setShowLineSelector(true); }}
                 style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
               >
                 <Search size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
@@ -1471,6 +1471,8 @@ export default function UserMapPage() {
               solveRoute={solveRoute}
               setTravelPlannerOpen={setTravelPlannerOpen}
               setViewState={setViewState}
+              tab={lineSelectorTab}
+              setTab={setLineSelectorTab}
             />
           )}
         </AnimatePresence>
