@@ -124,6 +124,62 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
         pointerEvents: 'none'
       }} />
 
+      {/* Glowing Front Headlights sticking out / visible from top & 3D */}
+      <div style={{
+        position: 'absolute',
+        left: '1px',
+        top: '-2px',
+        width: '3.5px',
+        height: '3.5px',
+        borderRadius: '50%',
+        background: '#FEF08A',
+        boxShadow: '0 0 6px #FEF08A, 0 0 12px #FEF08A',
+        transform: 'translateZ(6px)',
+        zIndex: 15,
+        pointerEvents: 'none'
+      }} />
+      <div style={{
+        position: 'absolute',
+        right: '1px',
+        top: '-2px',
+        width: '3.5px',
+        height: '3.5px',
+        borderRadius: '50%',
+        background: '#FEF08A',
+        boxShadow: '0 0 6px #FEF08A, 0 0 12px #FEF08A',
+        transform: 'translateZ(6px)',
+        zIndex: 15,
+        pointerEvents: 'none'
+      }} />
+
+      {/* Glowing Rear Taillights sticking out / visible from top & 3D */}
+      <div style={{
+        position: 'absolute',
+        left: '1px',
+        bottom: '-2px',
+        width: '3.5px',
+        height: '3.5px',
+        borderRadius: '50%',
+        background: '#EF4444',
+        boxShadow: '0 0 6px #EF4444, 0 0 12px #EF4444',
+        transform: 'translateZ(6px)',
+        zIndex: 15,
+        pointerEvents: 'none'
+      }} />
+      <div style={{
+        position: 'absolute',
+        right: '1px',
+        bottom: '-2px',
+        width: '3.5px',
+        height: '3.5px',
+        borderRadius: '50%',
+        background: '#EF4444',
+        boxShadow: '0 0 6px #EF4444, 0 0 12px #EF4444',
+        transform: 'translateZ(6px)',
+        zIndex: 15,
+        pointerEvents: 'none'
+      }} />
+
       {/* Futuristic headlight glow beam (pointing North/Up) */}
       {isMoving && (
         <div style={{
@@ -152,7 +208,7 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
         pointerEvents: 'none',
       }} />
       
-      {/* Roof Face (Top) - Sleek red body with three windows matching login menu */}
+      {/* Roof Face (Top) - Sleek red body matching login menu */}
       <div style={{
         position: 'absolute',
         width: `${W}px`,
@@ -162,24 +218,8 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
         borderRadius: '2.5px',
         transform: `translateZ(${H}px)`,
         boxShadow: `0 0 10px ${color}bf, 0 2px 6px rgba(0,0,0,0.5)`,
-        boxSizing: 'border-box',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'space-evenly',
-        padding: '2px 0'
-      }}>
-        {/* Three Window Panes on the roof */}
-        {[0, 1, 2].map(i => (
-          <div key={i} style={{
-            width: '10px',
-            height: '6px',
-            borderRadius: '1px',
-            background: 'rgba(15, 23, 42, 0.85)',
-            border: '0.5px solid rgba(255, 255, 255, 0.08)'
-          }} />
-        ))}
-      </div>
+        boxSizing: 'border-box'
+      }} />
 
       {/* Front Face (Windshield & Headlights) */}
       <div style={{
