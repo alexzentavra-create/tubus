@@ -593,24 +593,24 @@ export default function DriverPage() {
           if (diff > maxTurnDiff) maxTurnDiff = diff
         }
 
-        // Determine target speed from turns (much slower urban speeds with traffic)
-        let targetSpeed = 18 // base straight stretch speed (slower urban speed)
+        // Determine target speed from turns (urban speeds with traffic)
+        let targetSpeed = 22 // base straight stretch speed (raised from 18)
         
         // Add dynamic traffic fluctuation (fluctuate by +/- 3 km/h every 12s)
         const trafficFactor = Math.sin(Date.now() / 12000) * 3
         targetSpeed = targetSpeed + trafficFactor
 
         if (maxTurnDiff > 45) {
-          targetSpeed = 6 // sharp turn
+          targetSpeed = 12 // sharp turn (raised from 6)
         } else if (maxTurnDiff > 25) {
-          targetSpeed = 9 // moderate turn
+          targetSpeed = 15 // moderate turn (raised from 9)
         } else if (maxTurnDiff > 10) {
-          targetSpeed = 12 // gentle turn
+          targetSpeed = 18 // gentle turn (raised from 12)
         }
 
         // Decelerate if approaching a stop
         if (minDistToStop < 0.0008) {
-          const stopSpeed = Math.max(0.5, 16 * (minDistToStop / 0.0008))
+          const stopSpeed = Math.max(10, 22 * (minDistToStop / 0.0008)) // stop approach limit (minimum 10 km/h before snapping)
           targetSpeed = Math.min(targetSpeed, stopSpeed)
         }
 
