@@ -1,4 +1,4 @@
-// Bien Parada — Service Worker
+// BienParada — Service Worker
 // Handles background GPS broadcasting even when the app is minimized.
 // This file is served from /public/sw.js
 
@@ -113,7 +113,7 @@ self.addEventListener('push', (event) => {
   const { title, body, icon, url } = event.data.json()
 
   event.waitUntil(
-    self.registration.showNotification(title || 'Bien Parada', {
+    self.registration.showNotification(title || 'BienParada', {
       body,
       icon: icon || '/icons/icon-192.png',
       badge: '/icons/badge-72.png',

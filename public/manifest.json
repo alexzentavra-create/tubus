@@ -1,6 +1,6 @@
 {
-  "name": "Bien Parada",
-  "short_name": "Bien Parada",
+  "name": "BienParada",
+  "short_name": "BienParada",
   "description": "Seguí tu colectivo de Buenos Aires en tiempo real",
   "start_url": "/",
   "display": "standalone",

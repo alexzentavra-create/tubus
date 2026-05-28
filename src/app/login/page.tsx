@@ -347,7 +347,7 @@ export default function LoginPage() {
           <motion.div style={{width:'52px',height:'52px',borderRadius:'16px',background:'linear-gradient(145deg,rgba(34,211,160,0.18),rgba(34,211,160,0.06))',border:'1px solid rgba(34,211,160,0.35)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 11px'}} animate={{boxShadow:['0 0 16px rgba(34,211,160,0.15)','0 0 40px rgba(34,211,160,0.32)','0 0 16px rgba(34,211,160,0.15)']}} transition={{duration:3,repeat:Infinity,ease:'easeInOut'}}>
             <Bus size={24} style={{color:'#22D3A0'}}/>
           </motion.div>
-          <h1 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'28px',color:'#fff',letterSpacing:'-0.02em',margin:0,textShadow:'0 2px 24px rgba(0,0,0,0.9)'}}>Bien Parada</h1>
+          <h1 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'28px',color:'#fff',letterSpacing:'-0.02em',margin:0,textShadow:'0 2px 24px rgba(0,0,0,0.9)'}}>BienParada</h1>
           <p style={{color:'rgba(255,255,255,0.28)',fontSize:'12px',marginTop:'4px'}}>Seguí tu colectivo en tiempo real</p>
         </div>
 

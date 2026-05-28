@@ -28,7 +28,7 @@ const WEEKLY = Array.from({length:7},(_,i)=>({d:format(subDays(new Date(),6-i),'
 const LINES_DATA = [
   {id:'line-1',   name:'Línea 12',  users:1240, trips:89,  complaints:3},
   {id:'line-28',  name:'Línea 28',  users:1650, trips:112, complaints:1},
-  {id:'line-37',  name:'Línea 37',  users:920,  trips:67,  complaints:1},
+  {id:'line-3',   name:'Línea 37',  users:920,  trips:67,  complaints:1},
   {id:'line-60',  name:'Línea 60',  users:2100, trips:134, complaints:7},
   {id:'line-152', name:'Línea 152', users:1450, trips:98,  complaints:2},
 ]
@@ -116,7 +116,7 @@ const LINE_DETAILS: Record<string, {
       { name: 'Palermo - Santa Fe', count: 310, wait: 5 }
     ]
   },
-  'line-37': {
+  'line-3': {
     companyName: '4 de Septiembre S.A.',
     activeDrivers: 3,
     totalPassengers: 920,
@@ -731,8 +731,54 @@ function OverviewTab({
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '24px' }}>
-      {/* Left Column - 8/12 width */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* KPI Row (6 elements) */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+        gap: '24px',
+        paddingBottom: '12px',
+      }}>
+        {/* Bounce Rate */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Tasa de Rebote</span>
+          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>32.53%</span>
+          <span style={{ fontSize: '11px', color: '#ff4d6a', fontWeight: 600 }}>▼ -0.5%</span>
+        </div>
+        {/* Page Views (Usuarios App) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Usuarios App</span>
+          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{stats.totalUsers.toLocaleString()}</span>
+          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +0.1%</span>
+        </div>
+        {/* Colectivos Activos */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Colectivos Activos</span>
+          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{stats.activeBuses}</span>
+          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +0.8%</span>
+        </div>
+        {/* Tiempo en App */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Tiempo en App</span>
+          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>2m:35s</span>
+          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +0.8%</span>
+        </div>
+        {/* Denuncias Pendientes */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Denuncias Pend.</span>
+          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{stats.pendingReports}</span>
+          <span style={{ fontSize: '11px', color: '#ff4d6a', fontWeight: 600 }}>▼ -15.0%</span>
+        </div>
+        {/* Logins Hoy */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Logins Hoy</span>
+          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{stats.todayLogins}</span>
+          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +2.4%</span>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '24px' }}>
+        {/* Left Column - 8/12 width */}
       <div style={{ gridColumn: 'span 8', display: 'flex', flexDirection: 'column', gap: '24px' }}>
         {/* Performance Line Chart Card */}
         <div style={{
@@ -1135,6 +1181,7 @@ function OverviewTab({
         </div>
       </div>
     </div>
+  </div>
   )
 }
 
@@ -1449,11 +1496,19 @@ function CompaniesTab() {
 }
 
 function DriversTab() {
-  const [drivers] = useState([
-    { name: 'Néstor García', email: 'nestor@nestor.ar', unit: '0421', line: 'Línea 12', online: true, rating: 4.8, reports: 0, sessions: 127 },
-    { name: 'Carlos M.', email: 'carlos@demo.ar', unit: '0387', line: 'Línea 60', online: false, rating: 4.6, reports: 1, sessions: 89 },
-    { name: 'Roberto S.', email: 'roberto@demo.ar', unit: '0512', line: 'Línea 12', online: true, rating: 4.9, reports: 0, sessions: 203 },
-  ])
+  const drivers = Object.entries(LINE_DETAILS).flatMap(([lineId, details]) => {
+    const lineInfo = LINES_DATA.find(l => l.id === lineId) || { name: `Línea` }
+    return details.driversList.map(d => ({
+      name: d.name,
+      email: d.email,
+      unit: d.unit,
+      line: lineInfo.name,
+      online: d.online,
+      rating: d.rating,
+      reports: details.complaintsList.filter(c => c.driver === d.name).length,
+      sessions: Math.floor(d.rating * 35 + (d.online ? 15 : 2)),
+    }))
+  })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -1544,11 +1599,23 @@ function UsersTab({ stats }: { stats: any }) {
 }
 
 function ReportsTab() {
-  const [reports] = useState([
-    { reporter: 'Juan P.', type: 'No paró', driver: 'Néstor García', bus: '0421', line: 'Línea 12', status: 'pending', time: 'Hace 15 min' },
-    { reporter: 'María G.', type: 'Mal trato', driver: 'Carlos M.', bus: '0387', line: 'Línea 60', status: 'reviewing', time: 'Hace 1h' },
-    { reporter: 'Lucas F.', type: 'Cond. peligrosa', driver: 'Roberto S.', bus: '0512', line: 'Línea 12', status: 'resolved', time: 'Hace 3h' },
-  ])
+  const [reports, setReports] = useState<any[]>(() => {
+    return Object.entries(LINE_DETAILS).flatMap(([lineId, details]) => {
+      const lineInfo = LINES_DATA.find(l => l.id === lineId) || { name: `Línea` }
+      return details.complaintsList.map((c, idx) => ({
+        id: `${lineId}-complaint-${idx}`,
+        reporter: `Usuario ${Math.floor(Math.random() * 90 + 10)}`,
+        type: c.type,
+        driver: c.driver,
+        bus: c.bus,
+        line: lineInfo.name,
+        status: c.status,
+        time: c.time,
+        desc: c.desc,
+      }))
+    })
+  })
+
   const statusStyle: Record<string, any> = {
     pending: { background: 'rgba(240,180,41,0.12)', color: '#F0B429', border: '1px solid rgba(240,180,41,0.25)' },
     reviewing: { background: 'rgba(75,73,172,0.12)', color: '#4b49ac', border: '1px solid rgba(75,73,172,0.25)' },
@@ -1558,49 +1625,84 @@ function ReportsTab() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {reports.map((r, i) => (
+      {reports.map((r) => (
         <div
-          key={i}
+          key={r.id}
           style={{
             background: '#121527',
             borderRadius: '12px',
             border: '1px solid rgba(255, 255, 255, 0.06)',
             padding: '16px 20px',
             display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
+            flexDirection: 'column',
+            gap: '10px',
           }}
         >
-          <div style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '10px',
-            background: 'rgba(255, 77, 106, 0.12)',
-            border: '1px solid rgba(255, 77, 106, 0.25)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#ff4d6a',
-            flexShrink: 0,
-          }}>
-            <AlertTriangle size={18} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: 'rgba(255, 77, 106, 0.12)',
+              border: '1px solid rgba(255, 77, 106, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#ff4d6a',
+              flexShrink: 0,
+            }}>
+              <AlertTriangle size={18} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <span style={{ color: '#fff', fontWeight: 600, fontSize: '14px' }}>{r.type}</span>
+                <span style={{
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  ...statusStyle[r.status],
+                }}>
+                  {sLabel[r.status]}
+                </span>
+              </div>
+              <div style={{ color: '#8f94a5', fontSize: '12px' }}>
+                {r.reporter} · Chofer: {r.driver} · Interno: {r.bus} · {r.line} · {r.time}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {r.status === 'pending' && (
+                <button
+                  onClick={() => {
+                    setReports(prev => prev.map(x => x.id === r.id ? { ...x, status: 'resolved' } : x))
+                    toast.success('Denuncia resuelta')
+                  }}
+                  style={{
+                    fontSize: '11px',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    background: 'rgba(0, 198, 137, 0.1)',
+                    border: '1px solid rgba(0, 198, 137, 0.2)',
+                    color: '#00c689',
+                    cursor: 'pointer',
+                    fontWeight: 500,
+                  }}
+                >
+                  Resolver
+                </button>
+              )}
+            </div>
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <span style={{ color: '#fff', fontWeight: 600, fontSize: '14px' }}>{r.type}</span>
-              <span style={{
-                padding: '2px 8px',
-                borderRadius: '12px',
-                fontSize: '10px',
-                fontWeight: 600,
-                ...statusStyle[r.status],
-              }}>
-                {sLabel[r.status]}
-              </span>
-            </div>
-            <div style={{ color: '#8f94a5', fontSize: '12px' }}>
-              {r.reporter} · {r.driver} · Unidad {r.bus} · {r.line} · {r.time}
-            </div>
+          <div style={{
+            background: 'rgba(0,0,0,0.15)',
+            padding: '10px 14px',
+            borderRadius: '8px',
+            fontSize: '12px',
+            color: '#d1d5db',
+            lineHeight: 1.4,
+            borderLeft: '3px solid #ff4d6a',
+          }}>
+            {r.desc}
           </div>
         </div>
       ))}

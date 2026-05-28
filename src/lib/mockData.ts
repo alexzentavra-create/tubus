@@ -234,6 +234,35 @@ function shouldPauseAtPathIndex(stops: BusStop[], path: RoutePoint[], pathIndex:
   ))
 }
 
+const LINE_DRIVERS: Record<string, { name: string; unit: string; online: boolean; rating: number; email: string }[]> = {
+  '12': [
+    { name: 'Néstor García', unit: '001', online: true, rating: 4.8, email: 'nestor@nestor.ar' },
+    { name: 'Roberto Sánchez', unit: '003', online: true, rating: 4.9, email: 'roberto@demo.ar' },
+    { name: 'Carlos Martínez', unit: '002', online: false, rating: 4.6, email: 'carlos@demo.ar' },
+    { name: 'Juan Gómez', unit: '005', online: true, rating: 4.5, email: 'juan@demo.ar' },
+  ],
+  '28': [
+    { name: 'Carlos M.', unit: '002', online: true, rating: 4.6, email: 'carlos@demo.ar' },
+    { name: 'Jorge Rodríguez', unit: '004', online: true, rating: 4.7, email: 'jorge@demo.ar' },
+    { name: 'Pablo García', unit: '006', online: false, rating: 4.9, email: 'pablo@demo.ar' },
+  ],
+  '37': [
+    { name: 'Roberto S.', unit: '003', online: true, rating: 4.9, email: 'roberto@demo.ar' },
+    { name: 'Ana Martínez', unit: '008', online: false, rating: 4.5, email: 'ana@demo.ar' },
+  ],
+  '60': [
+    { name: 'Carlos Martínez', unit: '020', online: true, rating: 4.6, email: 'carlos@demo.ar' },
+    { name: 'Diego Rodríguez', unit: '022', online: false, rating: 4.2, email: 'diego@demo.ar' },
+    { name: 'Pablo García', unit: '024', online: true, rating: 5.0, email: 'pablo@demo.ar' },
+    { name: 'Luis Fernández', unit: '026', online: true, rating: 4.7, email: 'luis@demo.ar' },
+  ],
+  '152': [
+    { name: 'Roberto S.', unit: '010', online: true, rating: 4.9, email: 'roberto@demo.ar' },
+    { name: 'Jorge R.', unit: '012', online: false, rating: 4.7, email: 'jorge@demo.ar' },
+    { name: 'Ana C.', unit: '014', online: true, rating: 4.8, email: 'ana@demo.ar' },
+  ],
+}
+
 function makeBus(line: BusLine, unitNum: number, totalBuses: number): MockBusState {
   const isLine60 = line.line_number === '60'
   const branchId = isLine60 ? (unitNum % 2 === 0 ? '60' : '60-B') : null
@@ -266,11 +295,15 @@ function makeBus(line: BusLine, unitNum: number, totalBuses: number): MockBusSta
   const point = path[pathIndex]
   const nextStop = nearestStopAhead(stops, path, pathIndex, 1) || stops[0]
   
-  const names = [
-    'Carlos Gómez', 'María Torres', 'Roberto Silva', 'Ana Martínez', 
-    'Luis Fernández', 'Jorge Rodríguez', 'Laura Gómez', 'Daniel Díaz', 
-    'Miguel Angel', 'Gabriela Paz', 'Francisco Solano'
-  ]
+  const lineDrivers = LINE_DRIVERS[line.line_number] || []
+  const driverInfo = lineDrivers[unitNum % lineDrivers.length] || {
+    name: 'Chofer Auxiliar',
+    unit: String(100 + unitNum),
+    online: true,
+    rating: 4.5,
+    email: 'auxiliar@demo.ar'
+  }
+  
   const speedKmh = 18 + (unitNum * 5) % 15
   
   const ramal = isLine60 ? (branchId === '60' ? 'A' : 'B') : undefined
@@ -281,8 +314,8 @@ function makeBus(line: BusLine, unitNum: number, totalBuses: number): MockBusSta
     driver_id:       `mock-driver-${line.id}-${unitNum}`,
     line_id:         line.id,
     line_number:     line.line_number,
-    bus_unit:        `${line.line_number}-${String(unitNum).padStart(3, '0')}`,
-    driver_name:     names[unitNum % names.length],
+    bus_unit:        `${line.line_number}-${driverInfo.unit}`,
+    driver_name:     driverInfo.name,
     latitude:        point.lat,
     longitude:       point.lng,
     heading:         0,
