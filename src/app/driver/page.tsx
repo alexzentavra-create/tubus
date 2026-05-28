@@ -1227,7 +1227,21 @@ export default function DriverPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', overflowY: 'auto', flex: 1 }}>
                 {upcomingStops.length > 0 ? (
                   upcomingStops.map(({ stop, distance }, idx) => {
-                    const etaMin = Math.max(1, Math.round((distance / 30) * 60))
+                    const speedKmh = pos && pos.speed > 2 ? pos.speed : 20
+                    const etaSeconds = Math.max(5, Math.round((distance / speedKmh) * 3600))
+                    
+                    const formatEta = (seconds: number) => {
+                      if (seconds < 60) {
+                        return `${seconds}s`
+                      }
+                      const mins = Math.floor(seconds / 60)
+                      const secs = seconds % 60
+                      if (secs === 0) return `${mins} min`
+                      return `${mins}m ${secs}s`
+                    }
+                    
+                    const etaStr = formatEta(etaSeconds)
+
                     return (
                       <div key={stop.id} style={{ display: 'flex', gap: '12px', position: 'relative' }}>
                         {/* Timeline marker */}
@@ -1250,7 +1264,7 @@ export default function DriverPage() {
                               {stop.name}
                             </h4>
                             <span style={{ fontSize: '11px', fontFamily: 'DM Mono', color: idx === 0 ? accentColor : 'var(--text-muted)', flexShrink: 0 }}>
-                              {etaMin} min
+                              {etaStr}
                             </span>
                           </div>
                           <div style={{ fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px' }}>
