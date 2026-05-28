@@ -393,11 +393,11 @@ export default function LoginPage() {
                   <Input type="number" placeholder="Veces por semana que tomás el colectivo" value={form.weeklyTrips} onChange={set('weeklyTrips')} right={<BarChart2 size={15}/>}/>
                 </>)}
 
-                <motion.button type="submit" disabled={loading} whileHover={{scale:loading?1:1.02}} whileTap={{scale:loading?1:0.98}}
+                <button type="submit" disabled={loading} className="action-btn"
                   style={{width:'100%',padding:'13px',marginTop:'4px',background:loading?'rgba(255,255,255,0.6)':'#ffffff',color:'#07090F',fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:'14px',letterSpacing:'0.03em',border:'none',borderRadius:'10px',cursor:loading?'not-allowed':'pointer',boxShadow:'0 4px 24px rgba(255,255,255,0.12)',transition:'all 250ms',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}>
                   {loading?'Cargando...':(mode==='login'?'Ingresar':'Crear cuenta')}
                   {!loading&&<ArrowRight size={15}/>}
-                </motion.button>
+                </button>
               </form>
 
               <p style={{textAlign:'center',fontSize:'12px',color:'rgba(255,255,255,0.28)',marginTop:'15px',marginBottom:0}}>

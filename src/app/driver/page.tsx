@@ -298,20 +298,19 @@ export default function DriverPage() {
 
             {/* Main scan button + simulate side-by-side */}
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', alignItems: 'center' }}>
-              <motion.button
+              <button
                 onClick={() => setShowScanner(true)}
-                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                className="btn-platinum"
+                className="btn-platinum action-btn"
                 style={{ flex: 1 }}
               >
                 <QrCode size={15} /> Escanear QR
-              </motion.button>
+              </button>
 
               {/* ── SIMULATE BUTTON ── */}
-              <motion.button
+              <button
                 onClick={handleSimulateScan}
-                whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}
                 title="Simular escaneo (demo)"
+                className="action-btn"
                 style={{
                   width: '44px', height: '44px', borderRadius: '12px', flexShrink: 0,
                   background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.3)',
@@ -320,7 +319,7 @@ export default function DriverPage() {
                 }}
               >
                 <Zap size={18} style={{ color: 'var(--near)' }} />
-              </motion.button>
+              </button>
             </div>
 
             <p style={{ color: 'var(--text-muted)', fontSize: '10px', fontFamily: 'DM Mono', marginTop: '12px', letterSpacing: '0.04em' }}>
@@ -344,10 +343,10 @@ export default function DriverPage() {
                   </h3>
                 </div>
                 {/* Simulate button also available inside scanner */}
-                <motion.button
+                <button
                   onClick={handleSimulateScan}
-                  whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
                   title="Simular escaneo (demo)"
+                  className="action-btn"
                   style={{
                     display: 'flex', alignItems: 'center', gap: '5px',
                     padding: '5px 10px', borderRadius: '8px',
@@ -357,7 +356,7 @@ export default function DriverPage() {
                 >
                   <Zap size={13} style={{ color: 'var(--near)' }} />
                   <span style={{ fontSize: '10px', fontFamily: 'DM Mono', fontWeight: 600, color: 'var(--near)' }}>SIMULAR</span>
-                </motion.button>
+                </button>
               </div>
 
               {/* Viewfinder */}
@@ -387,15 +386,14 @@ export default function DriverPage() {
               />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <button onClick={() => { setShowScanner(false); setQrToken('') }} className="btn-glass">Cancelar</button>
-                <motion.button
+                <button
                   onClick={handleQRScan}
                   disabled={!qrToken.trim() || scanning}
-                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                  className="btn-platinum"
+                  className="btn-platinum action-btn"
                   style={{ opacity: qrToken.trim() && !scanning ? 1 : 0.5 }}
                 >
                   {scanning ? 'Validando...' : 'Confirmar'}
-                </motion.button>
+                </button>
               </div>
             </motion.div>
           )}
@@ -487,13 +485,13 @@ export default function DriverPage() {
               </div>
             )}
 
-            <motion.button
+            <button
               onClick={endShift}
-              whileTap={{ scale: 0.97 }}
+              className="action-btn"
               style={{ width: '100%', padding: '16px', borderRadius: 'var(--r-lg)', fontFamily: 'Syne,sans-serif', fontWeight: 700, fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', border: '2px solid rgba(255,77,106,0.3)', background: 'rgba(255,77,106,0.08)', color: '#FF4D6A', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', transition: 'all 250ms', boxShadow: '0 0 32px rgba(255,77,106,0.08)' }}
             >
               <Power size={18} /> Finalizar turno
-            </motion.button>
+            </button>
           </motion.div>
         )}
 
