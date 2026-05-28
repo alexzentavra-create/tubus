@@ -346,3 +346,9 @@ html, body {
 .action-btn:active {
   transform: scale(0.98);
 }
+
+/* Enable 3D transforms for Maplibre markers to prevent browser flattening */
+.maplibregl-marker {
+  transform-style: preserve-3d !important;
+  backface-visibility: visible !important;
+}
