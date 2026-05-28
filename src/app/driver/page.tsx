@@ -83,15 +83,24 @@ const CARTODB_LIGHT = {
   ]
 }
 
+// Helper to offset coordinates forward along a given bearing/heading (in degrees)
+const offsetCoords = (lat: number, lng: number, heading: number, distanceMeters: number) => {
+  const R = 6371000 // Earth's radius in meters
+  const headingRad = (heading * Math.PI) / 180
+  const dLat = (distanceMeters * Math.cos(headingRad)) / R * (180 / Math.PI)
+  const dLng = (distanceMeters * Math.sin(headingRad)) / (R * Math.cos((lat * Math.PI) / 180)) * (180 / Math.PI)
+  return { lat: lat + dLat, lng: lng + dLng }
+}
+
 // ─── Premium Bus Marker ────────────────────────────────────────────────────────
 function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: string }) {
   const isMoving = status === 'moving'
   const color = isMoving ? lineColor : status === 'at_stop' ? '#F0B429' : '#FF4D6A'
   
-  // Proportional 3D dimensions matching the original 2D look but with 3D volume
-  const W = 11
-  const L = 28
-  const H = 14
+  // High-fidelity 3D volumetric coach dimensions for a premium look
+  const W = 28
+  const L = 58
+  const H = 34
 
   return (
     <div style={{
@@ -99,48 +108,86 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
       width: `${W}px`,
       height: `${L}px`,
       transformStyle: 'preserve-3d',
-      transform: 'scale(1.4)',
+      transform: 'scale(1.6)',
       transition: 'transform 0.15s ease-out',
     }}>
       {/* Light glow pointing forward */}
       {isMoving && (
         <div style={{
           position: 'absolute',
-          bottom: `${L + 2}px`,
+          bottom: `${L + 4}px`,
           left: '50%',
-          transform: 'translateX(-50%) translateZ(2px)',
-          width: '18px',
-          height: '18px',
-          background: 'linear-gradient(0deg, rgba(254, 240, 138, 0.25) 0%, rgba(254, 240, 138, 0) 100%)',
-          clipPath: 'polygon(30% 100%, 70% 100%, 100% 0%, 0% 0%)',
+          transform: 'translateX(-50%) translateZ(4px)',
+          width: '36px',
+          height: '40px',
+          background: 'linear-gradient(0deg, rgba(254, 240, 138, 0.3) 0%, rgba(254, 240, 138, 0) 100%)',
+          clipPath: 'polygon(25% 100%, 75% 100%, 100% 0%, 0% 0%)',
           pointerEvents: 'none',
         }} />
       )}
       
-      {/* Roof Face (Top) - in the same bus color but slightly shaded */}
+      {/* Roof Face (Top) - in the same bus color with metallic shading */}
       <div style={{
         position: 'absolute',
         width: `${W}px`,
         height: `${L}px`,
-        background: color,
-        border: '1px solid rgba(255, 255, 255, 0.35)',
-        borderRadius: '2.5px',
+        background: `linear-gradient(180deg, ${color} 0%, rgba(0,0,0,0.15) 100%)`,
+        border: '1.2px solid rgba(255, 255, 255, 0.4)',
+        borderRadius: '4px',
         transform: `translateZ(${H}px)`,
-        boxShadow: `0 4px 12px rgba(0,0,0,0.5)`,
+        boxShadow: `0 6px 16px rgba(0,0,0,0.65)`,
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '3px 0'
+        padding: '6px 0'
       }}>
         {/* Roof details: A/C vents */}
-        <div style={{ width: '7px', height: '4px', background: 'rgba(0,0,0,0.2)', borderRadius: '1px', display: 'flex', flexDirection: 'column', justifyContent: 'space-around', alignItems: 'center' }}>
-          <div style={{ width: '5px', height: '0.6px', background: 'rgba(255,255,255,0.4)' }} />
-          <div style={{ width: '5px', height: '0.6px', background: 'rgba(255,255,255,0.4)' }} />
+        <div style={{
+          width: '18px',
+          height: '10px',
+          background: 'rgba(15,23,42,0.85)',
+          border: '1px solid rgba(255,255,255,0.15)',
+          borderRadius: '2px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-evenly',
+          alignItems: 'center',
+          boxShadow: 'inset 0 0 3px rgba(0,0,0,0.5)'
+        }}>
+          <div style={{ width: '12px', height: '0.8px', background: 'rgba(255,255,255,0.35)' }} />
+          <div style={{ width: '12px', height: '0.8px', background: 'rgba(255,255,255,0.35)' }} />
+          <div style={{ width: '12px', height: '0.8px', background: 'rgba(255,255,255,0.35)' }} />
         </div>
-        <div style={{ width: '3px', height: '8px', background: 'rgba(255,255,255,0.15)', borderRadius: '0.5px' }} />
-        <div style={{ width: '6px', height: '1px', background: 'rgba(0,0,0,0.2)' }} />
+        {/* Escape hatches / glass skylights */}
+        <div style={{
+          width: '14px',
+          height: '16px',
+          background: 'rgba(15,23,42,0.65)',
+          border: '1px solid rgba(255,255,255,0.2)',
+          borderRadius: '2.5px',
+          boxShadow: 'inset 0 0 5px rgba(0,0,0,0.85)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <div style={{ fontSize: '6px', color: 'rgba(255,255,255,0.3)', fontWeight: 'bold', fontFamily: 'DM Mono' }}>L12</div>
+        </div>
+        {/* Rear ventilation grille */}
+        <div style={{
+          width: '16px',
+          height: '4px',
+          background: 'rgba(0,0,0,0.4)',
+          borderRadius: '1px',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          padding: '0.8px 0'
+        }}>
+          <div style={{ width: '12px', height: '0.6px', background: 'rgba(255,255,255,0.25)', alignSelf: 'center' }} />
+          <div style={{ width: '12px', height: '0.6px', background: 'rgba(255,255,255,0.25)', alignSelf: 'center' }} />
+        </div>
       </div>
 
       {/* Front Face (pointing forward) */}
@@ -151,23 +198,28 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
         left: 0,
         top: 0,
         background: '#0c111d', // Dark windshield glass
-        border: '0.8px solid rgba(255,255,255,0.15)',
+        border: '1.2px solid rgba(255,255,255,0.25)',
         transform: 'rotateX(-90deg)',
         transformOrigin: 'top center',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        padding: '1.5px 1px'
+        padding: '3px 2px'
       }}>
         {/* Route sign indicator */}
-        <div style={{ background: '#000', border: '0.5px solid #eab308', borderRadius: '0.8px', height: '4.5px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ color: '#eab308', fontSize: '3px', fontWeight: 'bold', fontFamily: 'DM Mono', transform: 'scale(0.8)' }}>L12</div>
+        <div style={{ background: '#000', border: '1px solid #eab308', borderRadius: '1.5px', height: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ color: '#eab308', fontSize: '6px', fontWeight: 'bold', fontFamily: 'DM Mono', letterSpacing: '0.05em' }}>LÍNEA 12</div>
         </div>
-        {/* Headlights */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '3px' }}>
-          <div style={{ width: '2px', height: '1.8px', background: '#fef08a', borderRadius: '0.5px', boxShadow: '0 0 4px #fef08a' }} />
-          <div style={{ width: '2px', height: '1.8px', background: '#fef08a', borderRadius: '0.5px', boxShadow: '0 0 4px #fef08a' }} />
+        {/* Large windshield */}
+        <div style={{ flex: 1, background: 'rgba(15,23,42,0.92)', margin: '1px 0', border: '0.5px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#ff4d6a', opacity: 0.7 }} />
+        </div>
+        {/* Headlights & Grille */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '6px', padding: '0 1px' }}>
+          <div style={{ width: '5px', height: '4px', background: '#fef08a', borderRadius: '0.8px', boxShadow: '0 0 6px #fef08a' }} />
+          <div style={{ width: '10px', height: '2px', background: '#1e293b' }} />
+          <div style={{ width: '5px', height: '4px', background: '#fef08a', borderRadius: '0.8px', boxShadow: '0 0 6px #fef08a' }} />
         </div>
       </div>
 
@@ -179,21 +231,23 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
         left: 0,
         bottom: 0,
         background: color,
-        border: '0.8px solid rgba(255,255,255,0.15)',
+        border: '1.2px solid rgba(255,255,255,0.25)',
         transform: 'rotateX(90deg)',
         transformOrigin: 'bottom center',
         boxSizing: 'border-box',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        padding: '1.5px 1px'
+        padding: '3px 2px'
       }}>
         {/* Rear window */}
-        <div style={{ height: '4px', background: 'rgba(15,23,42,0.85)', borderRadius: '0.5px' }} />
+        <div style={{ height: '10px', background: 'rgba(15,23,42,0.95)', border: '0.5px solid rgba(255,255,255,0.1)', borderRadius: '2px' }} />
+        {/* License plate */}
+        <div style={{ background: '#e2e8f0', border: '0.5px solid #000', borderRadius: '1px', alignSelf: 'center', padding: '0.5px 3px', fontSize: '4px', color: '#000', fontFamily: 'DM Mono', fontWeight: 'bold' }}>ARG 12-001</div>
         {/* Taillights */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', height: '2px' }}>
-          <div style={{ width: '2px', height: '1.5px', background: '#ef4444', borderRadius: '0.3px', boxShadow: '0 0 3px #ef4444' }} />
-          <div style={{ width: '2px', height: '1.5px', background: '#ef4444', borderRadius: '0.3px', boxShadow: '0 0 3px #ef4444' }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', height: '4px' }}>
+          <div style={{ width: '4px', height: '3px', background: '#ef4444', borderRadius: '0.5px', boxShadow: '0 0 5px #ef4444' }} />
+          <div style={{ width: '4px', height: '3px', background: '#ef4444', borderRadius: '0.5px', boxShadow: '0 0 5px #ef4444' }} />
         </div>
       </div>
 
@@ -205,7 +259,7 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
         left: 0,
         top: 0,
         background: color,
-        border: '0.8px solid rgba(255,255,255,0.15)',
+        border: '1.2px solid rgba(255,255,255,0.25)',
         transform: 'rotateY(90deg)',
         transformOrigin: 'left center',
         boxSizing: 'border-box',
@@ -213,12 +267,22 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
         flexDirection: 'column',
         justifyContent: 'space-evenly',
         alignItems: 'flex-end',
-        padding: '2px 1px'
+        padding: '4px 2px'
       }}>
-        {/* Windows */}
-        {[0, 1, 2].map(i => (
-          <div key={i} style={{ width: '8px', height: '4.5px', background: 'rgba(15,23,42,0.8)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '0.8px' }} />
+        {/* Side windows */}
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} style={{
+            width: '16px', // along H (height of the bus)
+            height: '9px',  // along L (length of the bus)
+            background: 'rgba(15,23,42,0.92)',
+            border: '0.8px solid rgba(255,255,255,0.1)',
+            borderRadius: '2px',
+            boxShadow: 'inset 0 0 4px rgba(0,0,0,0.6)'
+          }} />
         ))}
+        {/* Volumetric side wheels */}
+        <div style={{ position: 'absolute', left: '2px', top: '10px', width: '10px', height: '10px', borderRadius: '50%', background: '#0e1118', border: '1.5px solid #2d3748', boxShadow: 'inset 0 0 3px rgba(255,255,255,0.2)', zIndex: 10 }} />
+        <div style={{ position: 'absolute', left: '2px', bottom: '10px', width: '10px', height: '10px', borderRadius: '50%', background: '#0e1118', border: '1.5px solid #2d3748', boxShadow: 'inset 0 0 3px rgba(255,255,255,0.2)', zIndex: 10 }} />
       </div>
 
       {/* Right Face */}
@@ -229,7 +293,7 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
         right: 0,
         top: 0,
         background: color,
-        border: '0.8px solid rgba(255,255,255,0.15)',
+        border: '1.2px solid rgba(255,255,255,0.25)',
         transform: 'rotateY(-90deg)',
         transformOrigin: 'right center',
         boxSizing: 'border-box',
@@ -237,12 +301,22 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
         flexDirection: 'column',
         justifyContent: 'space-evenly',
         alignItems: 'flex-start',
-        padding: '2px 1px'
+        padding: '4px 2px'
       }}>
-        {/* Windows */}
-        {[0, 1, 2].map(i => (
-          <div key={i} style={{ width: '8px', height: '4.5px', background: 'rgba(15,23,42,0.8)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: '0.8px' }} />
+        {/* Side windows */}
+        {[0, 1, 2, 3].map(i => (
+          <div key={i} style={{
+            width: '16px', // along H (height of the bus)
+            height: '9px',  // along L (length of the bus)
+            background: 'rgba(15,23,42,0.92)',
+            border: '0.8px solid rgba(255,255,255,0.1)',
+            borderRadius: '2px',
+            boxShadow: 'inset 0 0 4px rgba(0,0,0,0.6)'
+          }} />
         ))}
+        {/* Volumetric side wheels */}
+        <div style={{ position: 'absolute', right: '2px', top: '10px', width: '10px', height: '10px', borderRadius: '50%', background: '#0e1118', border: '1.5px solid #2d3748', boxShadow: 'inset 0 0 3px rgba(255,255,255,0.2)', zIndex: 10 }} />
+        <div style={{ position: 'absolute', right: '2px', bottom: '10px', width: '10px', height: '10px', borderRadius: '50%', background: '#0e1118', border: '1.5px solid #2d3748', boxShadow: 'inset 0 0 3px rgba(255,255,255,0.2)', zIndex: 10 }} />
       </div>
     </div>
   )
@@ -256,6 +330,7 @@ export default function DriverPage() {
   const startRef    = useRef<Date | null>(null)
   const simIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
+  const [mounted, setMounted]           = useState(false)
   const [driverName, setDriverName]     = useState('')
   const [driverId,   setDriverId]       = useState('')
   const [session,    setSession]        = useState<ActiveSession | null>(null)
@@ -282,6 +357,11 @@ export default function DriverPage() {
     pitch: 20,
     bearing: 0
   })
+
+  // Mount effect for Next.js SSR hydration guard
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Auth + resume any active session
   useEffect(() => {
@@ -1018,7 +1098,26 @@ export default function DriverPage() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>Vista de Conducción 3D (GPS)</span>
                 <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '38px', height: '22px', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={firstPersonView} onChange={e => setFirstPersonView(e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
+                  <input
+                    type="checkbox"
+                    checked={firstPersonView}
+                    onChange={e => {
+                      const val = e.target.checked
+                      setFirstPersonView(val)
+                      if (val) {
+                        setAutoCenter(true)
+                      } else {
+                        // Smoothly return viewState to flat view
+                        setViewState(v => ({
+                          ...v,
+                          zoom: 14.5,
+                          pitch: 20,
+                          bearing: 0
+                        }))
+                      }
+                    }}
+                    style={{ opacity: 0, width: 0, height: 0 }}
+                  />
                   <span className="slider round" style={{ position: 'absolute', cursor: 'pointer', inset: 0, background: firstPersonView ? accentColor : '#334155', transition: 'all .3s ease', borderRadius: '34px' }}>
                     <span style={{
                       position: 'absolute',
@@ -1211,79 +1310,90 @@ export default function DriverPage() {
           {dayMode ? <Moon size={20} /> : <Sun size={20} />}
         </button>
 
-        <Map
-          viewState={viewState as any}
-          onMove={e => {
-            if (!autoCenter || e.originalEvent) {
+        {mounted ? (
+          <Map
+            {...viewState}
+            onMove={e => {
               setViewState(e.viewState)
               if (e.originalEvent) {
                 setAutoCenter(false)
               }
-            }
-          }}
-          mapStyle={(dayMode ? CARTODB_LIGHT : CARTODB_DARK) as any}
-          style={{ width: '100%', height: '100%' }}
-        >
-          {/* Active line route path rendering */}
-          {mockLine && routePath.length > 0 && (
-            <Source id="route-line-source" type="geojson" data={{
-              type: 'Feature',
-              properties: {},
-              geometry: {
-                type: 'LineString',
-                coordinates: routePath.map(point => [point.lng, point.lat])
-              }
-            }}>
-              {/* Route line thickness guide */}
-              <Layer
-                id="route-line-glow"
-                type="line"
-                paint={{ 'line-color': accentColor, 'line-width': 8, 'line-opacity': 0.18, 'line-blur': 2 }}
-              />
-              <Layer
-                id="route-line-solid"
-                type="line"
-                paint={{ 'line-color': accentColor, 'line-width': 3, 'line-opacity': 0.7 }}
-              />
-
-              {/* Navigation neon path overlay */}
-              {gpsGuideActive && (
+            }}
+            onDragStart={() => setAutoCenter(false)}
+            onZoomStart={() => setAutoCenter(false)}
+            mapStyle={(dayMode ? CARTODB_LIGHT : CARTODB_DARK) as any}
+            style={{ width: '100%', height: '100%' }}
+          >
+            {/* Active line route path rendering */}
+            {mockLine && routePath.length > 0 && (
+              <Source id="route-line-source" type="geojson" data={{
+                type: 'Feature',
+                properties: {},
+                geometry: {
+                  type: 'LineString',
+                  coordinates: routePath.map(point => [point.lng, point.lat])
+                }
+              }}>
+                {/* Route line thickness guide */}
                 <Layer
-                  id="gps-guide-glow"
+                  id="route-line-glow"
                   type="line"
-                  paint={{ 'line-color': '#22D3A0', 'line-width': 8, 'line-opacity': 0.35, 'line-blur': 3 }}
+                  paint={{ 'line-color': accentColor, 'line-width': 8, 'line-opacity': 0.18, 'line-blur': 2 }}
                 />
-              )}
-            </Source>
-          )}
-
-          {/* Markers for stops */}
-          {mockLine && stops.map((stop) => {
-            const isUpcoming = upcomingStops.some(u => u.stop.id === stop.id)
-            return (
-              <Marker key={stop.id} longitude={stop.longitude} latitude={stop.latitude} pitchAlignment="map" rotationAlignment="map" anchor="center">
-                <div
-                  title={stop.name}
-                  style={{
-                    width: isUpcoming ? '10px' : '7px',
-                    height: isUpcoming ? '10px' : '7px',
-                    borderRadius: '50%',
-                    background: isUpcoming ? accentColor : 'rgba(184,200,224,0.3)',
-                    border: `1.5px solid ${isUpcoming ? '#ffffff' : 'rgba(184,200,224,0.15)'}`,
-                    boxShadow: isUpcoming ? `0 0 6px ${accentColor}` : 'none',
-                  }}
+                <Layer
+                  id="route-line-solid"
+                  type="line"
+                  paint={{ 'line-color': accentColor, 'line-width': 3, 'line-opacity': 0.7 }}
                 />
-              </Marker>
-            )
-          })}
 
-          {/* Marker for current bus position */}
-          {pos && (
-            <Marker longitude={pos.lng} latitude={pos.lat} rotation={pos.heading} rotationAlignment="map" pitchAlignment="map" anchor="center">
-              <PremiumBusMarker status={pos.speed > 2 ? 'moving' : 'at_stop'} lineColor={accentColor} />
-            </Marker>
-          )}
-        </Map>
+                {/* Navigation neon path overlay */}
+                {gpsGuideActive && (
+                  <Layer
+                    id="gps-guide-glow"
+                    type="line"
+                    paint={{ 'line-color': '#22D3A0', 'line-width': 8, 'line-opacity': 0.35, 'line-blur': 3 }}
+                  />
+                )}
+              </Source>
+            )}
+
+            {/* Markers for stops */}
+            {mockLine && stops.map((stop) => {
+              const isUpcoming = upcomingStops.some(u => u.stop.id === stop.id)
+              return (
+                <Marker key={stop.id} longitude={stop.longitude} latitude={stop.latitude} pitchAlignment="map" rotationAlignment="map" anchor="center">
+                  <div
+                    title={stop.name}
+                    style={{
+                      width: isUpcoming ? '10px' : '7px',
+                      height: isUpcoming ? '10px' : '7px',
+                      borderRadius: '50%',
+                      background: isUpcoming ? accentColor : 'rgba(184,200,224,0.3)',
+                      border: `1.5px solid ${isUpcoming ? '#ffffff' : 'rgba(184,200,224,0.15)'}`,
+                      boxShadow: isUpcoming ? `0 0 6px ${accentColor}` : 'none',
+                    }}
+                  />
+                </Marker>
+              )
+            })}
+
+            {/* Marker for current bus position with 3D perspective shift correction */}
+            {pos && (() => {
+              const markerCoords = firstPersonView 
+                ? offsetCoords(pos.lat, pos.lng, pos.heading, 8)
+                : { lat: pos.lat, lng: pos.lng }
+              return (
+                <Marker longitude={markerCoords.lng} latitude={markerCoords.lat} rotation={pos.heading} rotationAlignment="map" pitchAlignment="map" anchor="center">
+                  <PremiumBusMarker status={pos.speed > 2 ? 'moving' : 'at_stop'} lineColor={accentColor} />
+                </Marker>
+              )
+            })()}
+          </Map>
+        ) : (
+          <div style={{ width: '100%', height: '100%', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '14px', fontFamily: 'DM Mono' }}>Cargando mapa...</span>
+          </div>
+        )}
       </div>
 
     </div>
