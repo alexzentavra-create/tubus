@@ -69,6 +69,31 @@ export default function CompanyDashboard() {
   const [activeSessions, setActiveSessions] = useState<any[]>([])
 
   useEffect(() => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+    if (url.includes('placeholder.supabase.co')) {
+      setCompany({
+        id: 'mock-company-id',
+        company_name: 'Línea 12 (Transporte Larrazábal)',
+        username: 'linea12',
+        is_active: true
+      })
+      setQrCodes([
+        { id: 'mock-qr-1', qr_token: 'DEMO-QR-L12-001', bus_unit: '001', is_active: true, company_id: 'mock-company-id', line_id: 'line-1' },
+        { id: 'mock-qr-2', qr_token: 'DEMO-QR-BUS-0387-LINEA12', bus_unit: '0387', is_active: false, company_id: 'mock-company-id', line_id: 'line-1' }
+      ])
+      setActiveSessions([
+        {
+          id: 'mock-session-1',
+          bus_unit: '001',
+          started_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+          total_passengers: 12,
+          profiles: { name: 'Néstor García' }
+        }
+      ])
+      setLoading(false)
+      return
+    }
+
     supabase.auth.getUser().then(async ({data:{user}}) => {
       if (!user) { window.location.href='/login'; return }
       const {data:p} = await supabase.from('profiles').select('role').eq('id',user.id).single()

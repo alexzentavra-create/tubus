@@ -4,6 +4,7 @@ import { AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip,
 import { Bus, Users, AlertTriangle, TrendingUp, Download, Clock, MapPin, Star, BarChart2, Activity, RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import type { BusLine } from '@/types'
+import { MOCK_LINES } from '@/lib/mockData'
 import { format, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
@@ -50,6 +51,14 @@ export default function AdminPanel() {
   const [loading, setLoading] = useState(true)
 
   useEffect(()=>{
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+    if (url.includes('placeholder.supabase.co')) {
+      setLines(MOCK_LINES)
+      setSel(MOCK_LINES[0])
+      setLoading(false)
+      return
+    }
+
     supabase.auth.getUser().then(async({data:{user}})=>{
       if(!user){window.location.href='/login';return}
       const{data:p}=await supabase.from('profiles').select('role').eq('id',user.id).single()

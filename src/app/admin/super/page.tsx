@@ -41,6 +41,20 @@ export default function SuperAdminDashboard() {
   })
 
   useEffect(() => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+    if (url.includes('placeholder.supabase.co')) {
+      setStats({
+        totalUsers: 4821,
+        totalDrivers: 3,
+        totalCompanies: 1,
+        activeBuses: 23,
+        pendingReports: 1,
+        todayLogins: 142,
+      })
+      setLoading(false)
+      return
+    }
+
     supabase.auth.getUser().then(async ({data:{user}}) => {
       if (!user) { window.location.href='/login'; return }
       const {data:p} = await supabase.from('profiles').select('role').eq('id',user.id).single()

@@ -51,6 +51,15 @@ export default function DriverPage() {
 
   // Auth + resume any active session
   useEffect(() => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+    const isMock = url.includes('placeholder.supabase.co')
+
+    if (isMock) {
+      setDriverName('Néstor García')
+      setDriverId('mock-driver-nestor')
+      return
+    }
+
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { window.location.href = '/login'; return }
       const { data: profile } = await supabase.from('profiles').select('role,name').eq('id', user.id).single()
@@ -135,6 +144,36 @@ export default function DriverPage() {
   const handleQRScan = async () => {
     if (!qrToken.trim() || !driverId) return
     setScanning(true)
+
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+    if (url.includes('placeholder.supabase.co')) {
+      const match = MOCK_QR_TOKENS[qrToken.trim()]
+      if (match) {
+        const mockLine = MOCK_LINES[match.lineIdx % MOCK_LINES.length]
+        const sess: ActiveSession = {
+          sessionId: `mock-session-${Date.now()}`,
+          driverId: driverId,
+          driverName: driverName,
+          busUnit: match.busUnit,
+          lineId: mockLine.id,
+          lineName: mockLine.name,
+          lineNumber: mockLine.line_number,
+          companyName: mockLine.company,
+        }
+        setSession(sess)
+        setPassengers(0)
+        setIsOnline(true)
+        setShowScanner(false)
+        setQrToken('')
+        setScanning(false)
+        setPos({ lat: -34.6037, lng: -58.4173, speed: 0, heading: 0 })
+        toast.success(`¡Turno iniciado! Unidad ${sess.busUnit} · Línea ${mockLine.line_number}`)
+      } else {
+        toast.error('QR inválido o inactivo en modo simulación')
+        setScanning(false)
+      }
+      return
+    }
 
     const { data: qr, error } = await supabase
       .from('bus_qr_codes')
