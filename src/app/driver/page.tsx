@@ -284,6 +284,7 @@ export default function DriverPage() {
     if (!path || path.length === 0) return
 
     let currentIndex = 0
+    let progress = 0
     let pauseCounter = 0
     let currentSpeed = 0
     let lastStoppedStopId = ''
@@ -294,12 +295,18 @@ export default function DriverPage() {
     simIntervalRef.current = setInterval(() => {
       const stops = getMockStopsForLine(mockLine)
       const currentPoint = path[currentIndex]
+      const nextIdx = (currentIndex + 1) % path.length
+      const nextPoint = path[nextIdx]
 
-      // Find closest stop
+      // Interpolated position for current tick
+      const currentLat = currentPoint.lat + (nextPoint.lat - currentPoint.lat) * progress
+      const currentLng = currentPoint.lng + (nextPoint.lng - currentPoint.lng) * progress
+
+      // Find closest stop based on interpolated position
       let minDistToStop = Infinity
       let targetStop = stops[0]
       stops.forEach(stop => {
-        const dist = Math.hypot(stop.longitude - currentPoint.lng, stop.latitude - currentPoint.lat)
+        const dist = Math.hypot(stop.longitude - currentLng, stop.latitude - currentLat)
         if (dist < minDistToStop) {
           minDistToStop = dist
           targetStop = stop
@@ -309,7 +316,7 @@ export default function DriverPage() {
       // Check if we should trigger a stop pause
       if (minDistToStop < 0.00015 && targetStop.id !== lastStoppedStopId && pauseCounter === 0) {
         lastStoppedStopId = targetStop.id
-        pauseCounter = 8 // pause for 4 seconds (8 ticks)
+        pauseCounter = 80 // pause for 4 seconds (80 ticks of 50ms)
         currentSpeed = 0
         
         const on = Math.floor(Math.random() * 6) + 1
@@ -360,23 +367,37 @@ export default function DriverPage() {
         }
 
         // Smoothly interpolate speed
-        currentSpeed = currentSpeed + (targetSpeed - currentSpeed) * 0.25
+        currentSpeed = currentSpeed + (targetSpeed - currentSpeed) * 0.08
 
-        // Advance index
-        currentIndex = (currentIndex + 1) % path.length
-        const nextPoint = path[(currentIndex + 1) % path.length]
+        // Calculate segment length in km
+        const lat1 = currentPoint.lat * Math.PI / 180
+        const lat2 = nextPoint.lat * Math.PI / 180
+        const dLatRad = lat2 - lat1
+        const dLngRad = (nextPoint.lng - currentPoint.lng) * Math.PI / 180
+        const s = Math.sin(dLatRad / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLngRad / 2) ** 2
+        const segmentKm = 6371 * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s))
+
+        // Advance progress
+        const step = segmentKm > 0 ? ((currentSpeed / 3600) * 0.05) / segmentKm : 1
+        progress = progress + step
+
+        if (progress >= 1) {
+          currentIndex = (currentIndex + 1) % path.length
+          progress = 0
+        }
+
         const dy = nextPoint.lat - currentPoint.lat
         const dx = nextPoint.lng - currentPoint.lng
         const angle = ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360
 
         setPos({
-          lat: currentPoint.lat,
-          lng: currentPoint.lng,
+          lat: currentLat,
+          lng: currentLng,
           speed: Math.round(currentSpeed),
           heading: angle
         })
       }
-    }, 500)
+    }, 50)
 
     return () => {
       if (simIntervalRef.current) { clearInterval(simIntervalRef.current); simIntervalRef.current = null }
@@ -585,8 +606,8 @@ export default function DriverPage() {
         width: '420px',
         flexShrink: 0,
         height: '100vh',
-        background: 'linear-gradient(180deg, #131921 0%, #0b0f19 100%)',
-        borderRight: '1px solid rgba(184, 200, 224, 0.08)',
+        background: '#0b0f19',
+        borderRight: '1px solid rgba(255, 255, 255, 0.06)',
         display: 'flex',
         flexDirection: 'column',
         overflowY: 'auto',
@@ -595,18 +616,41 @@ export default function DriverPage() {
         padding: '24px 20px'
       }}>
         
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
-          <div style={{ width: '46px', height: '46px', borderRadius: '13px', background: 'linear-gradient(145deg,#1E2638,#131921)', border: '1px solid rgba(184,200,224,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 16px rgba(0,0,0,0.6)', flexShrink: 0 }}>
-            <Bus size={20} style={{ color: 'var(--platinum)' }} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <h1 style={{ fontFamily: 'Syne,sans-serif', fontWeight: 700, fontSize: '18px', color: 'var(--text-primary)', margin: 0 }}>Panel del Chofer</h1>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '12px', fontFamily: 'DM Mono', margin: 0 }}>{driverName || 'Chofer Demo'}</p>
+        {/* Brand Logo Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', borderBottom: '1px solid rgba(255, 255, 255, 0.06)', paddingBottom: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '20px', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', fontFamily: 'DM Sans,sans-serif' }}>
+              Bien<span style={{ color: '#8f94a5', fontWeight: 400 }}>Parada</span>
+            </span>
+            <span style={{
+              fontSize: '9px',
+              color: '#fff',
+              background: '#EF4444',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              fontWeight: 700,
+              letterSpacing: '0.05em',
+              fontFamily: 'DM Sans,sans-serif'
+            }}>
+              Chofer
+            </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 12px', borderRadius: '999px', border: `1px solid ${isOnline ? 'rgba(34,211,160,0.25)' : 'rgba(184,200,224,0.1)'}`, background: isOnline ? 'rgba(34,211,160,0.08)' : 'rgba(184,200,224,0.04)' }}>
             {isOnline ? <Wifi size={12} style={{ color: 'var(--go)' }} /> : <WifiOff size={12} style={{ color: 'var(--text-muted)' }} />}
             <span style={{ fontSize: '10px', fontFamily: 'DM Mono', fontWeight: 600, color: isOnline ? 'var(--go)' : 'var(--text-muted)' }}>{isOnline ? 'EN LÍNEA' : 'OFFLINE'}</span>
+          </div>
+        </div>
+
+        {/* User Card (Chofer Profile) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#121527', border: '1px solid rgba(255, 255, 255, 0.04)', borderRadius: '8px', padding: '12px', marginBottom: '20px' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#1b1d2e', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            <span style={{ color: '#fff', fontWeight: 700, fontSize: '14px', fontFamily: 'Syne,sans-serif' }}>
+              {driverName ? driverName.split(' ').map(n => n[0]).join('') : 'CD'}
+            </span>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ color: '#fff', fontWeight: 600, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{driverName || 'Chofer Demo'}</div>
+            <div style={{ color: '#a3a6b8', fontSize: '11px', fontFamily: 'DM Mono', marginTop: '1px' }}>ID: {driverId ? driverId.slice(0, 12) : 'mock-driver'}</div>
           </div>
         </div>
 
