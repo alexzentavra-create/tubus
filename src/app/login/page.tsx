@@ -258,24 +258,19 @@ export default function LoginPage() {
       let email = form.email
       const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
 
-      // Mock login bypass when running without database credentials or using explicit mock credentials
-      const lowerEmail = email.trim().toLowerCase()
-      const pass = form.password.trim().toLowerCase()
-      const isMockUser = 
-        (lowerEmail === 'admin@admin.com' && pass === 'admin') ||
-        (lowerEmail === 'nestor@nestor.ar' && pass === 'nestor') ||
-        (lowerEmail === 'linea12@bienparada.ar' && pass === 'bienparada') ||
-        (lowerEmail === 'usuario@usuario.com' && pass === 'usuario')
-
-      if (url.includes('placeholder.supabase.co') || isMockUser) {
+      // Mock login bypass ONLY when running without database credentials (placeholder Supabase URL)
+      if (url.includes('placeholder.supabase.co')) {
         toast.success('Modo de prueba: ingresando sin base de datos')
-        if (lowerEmail === 'admin@admin.com') {
+        const lowerEmail = email.trim().toLowerCase()
+        const pass = form.password.trim().toLowerCase()
+
+        if (lowerEmail === 'admin@admin.com' && pass === 'admin') {
           window.location.href = '/admin/super'
-        } else if (lowerEmail === 'nestor@nestor.ar') {
+        } else if (lowerEmail === 'nestor@nestor.ar' && pass === 'nestor') {
           window.location.href = '/driver'
-        } else if (lowerEmail === 'linea12@bienparada.ar') {
+        } else if (lowerEmail === 'linea12@bienparada.ar' && pass === 'bienparada') {
           window.location.href = '/admin/company'
-        } else if (lowerEmail === 'usuario@usuario.com') {
+        } else if (lowerEmail === 'usuario@usuario.com' && pass === 'usuario') {
           window.location.href = '/'
         } else {
           // Fallback matching for other mock strings
