@@ -85,40 +85,147 @@ const CARTODB_LIGHT = {
 
 // ─── Premium Bus Marker ────────────────────────────────────────────────────────
 function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: string }) {
-  const isMoving = status === 'moving'
-  const color = isMoving ? lineColor : status === 'at_stop' ? '#F0B429' : '#FF4D6A'
+  const isStopped = status === 'at_stop'
+  const color = isStopped ? '#F0B429' : lineColor
+  const W = 28
+  const L = 58
+  const H = 34
+
   return (
-    <div style={{ position: 'relative', width: '36px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      {isMoving && (
-        <div style={{
-          position: 'absolute', bottom: '36px', left: '50%', transform: 'translateX(-50%)',
-          width: '24px', height: '22px',
-          background: 'linear-gradient(0deg, rgba(254, 240, 138, 0.25) 0%, rgba(254, 240, 138, 0) 100%)',
-          clipPath: 'polygon(30% 100%, 70% 100%, 100% 0%, 0% 0%)', pointerEvents: 'none',
-        }} />
-      )}
+    <div style={{
+      position: 'relative',
+      width: `${W}px`,
+      height: `${L}px`,
+      transformStyle: 'preserve-3d',
+      transform: 'scale(1.6)',
+      transition: 'transform 0.15s ease-out',
+    }}>
+      {/* Top / Roof */}
       <div style={{
-        position: 'absolute', top: '32px', left: '50%', transform: 'translateX(-50%)',
-        width: '14px', height: '10px',
-        background: 'linear-gradient(180deg, rgba(239, 68, 68, 0.22) 0%, rgba(239, 68, 68, 0) 100%)',
-        clipPath: 'polygon(30% 0%, 70% 0%, 100% 100%, 0% 100%)', pointerEvents: 'none',
-      }} />
-      <div style={{
-        width: '10px', height: '26px', borderRadius: '2.5px', background: color,
-        border: '1px solid rgba(255, 255, 255, 0.25)',
-        boxShadow: `0 0 10px ${color}bf, 0 1.5px 3px rgba(0,0,0,0.5)`,
-        position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between',
-        padding: '2px 0', boxSizing: 'border-box',
+        position: 'absolute',
+        width: `${W}px`,
+        height: `${L}px`,
+        background: '#f8fafc',
+        border: '1.5px solid rgba(255, 255, 255, 0.7)',
+        borderRadius: '4px',
+        transform: `translateZ(${H}px)`,
+        boxShadow: `0 8px 24px rgba(0,0,0,0.4)`,
+        boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '6px 0'
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', padding: '0 0.8px', boxSizing: 'border-box', position: 'absolute', top: '0.8px' }}>
-          <div style={{ width: '1.8px', height: '1.8px', borderRadius: '50%', background: '#FEF08A', boxShadow: '0 0 3px #FEF08A' }} />
-          <div style={{ width: '1.8px', height: '1.8px', borderRadius: '50%', background: '#FEF08A', boxShadow: '0 0 3px #FEF08A' }} />
+        <div style={{ width: '18px', height: '12px', background: '#e2e8f0', border: '1px solid #cbd5e1', borderRadius: '2px', display: 'flex', flexDirection: 'column', justifyContent: 'space-around', alignItems: 'center', padding: '1px' }}>
+          <div style={{ width: '12px', height: '1.5px', background: '#94a3b8' }} />
+          <div style={{ width: '12px', height: '1.5px', background: '#94a3b8' }} />
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5px', marginTop: '2.5px', width: '6px', alignItems: 'center' }}>
-          {[0, 1, 2].map(i => (
-            <div key={i} style={{ width: '100%', height: '2.5px', background: 'rgba(6,8,16,0.85)', borderRadius: '0.5px' }} />
-          ))}
+        <div style={{ width: '6px', height: '15px', background: color, borderRadius: '1px' }} />
+        <div style={{ width: '16px', height: '3px', background: '#cbd5e1', borderRadius: '1px' }} />
+      </div>
+
+      {/* Front Face (pointing forward / north on map) */}
+      <div style={{
+        position: 'absolute',
+        width: `${W}px`,
+        height: `${H}px`,
+        left: 0,
+        top: 0,
+        background: '#0f172a',
+        border: '1.2px solid rgba(255,255,255,0.2)',
+        transform: 'rotateX(-90deg)',
+        transformOrigin: 'top center',
+        boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        padding: '3px 2px'
+      }}>
+        <div style={{ background: '#000', border: '1px solid #eab308', borderRadius: '2px', height: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ color: '#eab308', fontSize: '6px', fontWeight: 'bold', fontFamily: 'DM Mono, monospace', transform: 'scale(0.9)' }}>12 PALERMO</div>
         </div>
+        <div style={{ flex: 1, background: 'rgba(34,211,238,0.1)', border: '0.8px solid rgba(34,211,238,0.3)', borderRadius: '1.5px', margin: '2px 0', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: '1px' }}>
+          <div style={{ width: '12px', height: '1px', background: '#1e293b' }} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '6px' }}>
+          <div style={{ width: '5px', height: '4px', background: '#fef08a', borderRadius: '1px', boxShadow: '0 0 8px #fef08a' }} />
+          <div style={{ flex: 1, height: '2px', background: color, margin: '0 3px', borderRadius: '0.5px' }} />
+          <div style={{ width: '5px', height: '4px', background: '#fef08a', borderRadius: '1px', boxShadow: '0 0 8px #fef08a' }} />
+        </div>
+      </div>
+
+      {/* Back Face */}
+      <div style={{
+        position: 'absolute',
+        width: `${W}px`,
+        height: `${H}px`,
+        left: 0,
+        bottom: 0,
+        background: color,
+        border: '1.2px solid rgba(255,255,255,0.2)',
+        transform: 'rotateX(90deg)',
+        transformOrigin: 'bottom center',
+        boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        padding: '3px 2px'
+      }}>
+        <div style={{ height: '9px', background: 'rgba(15,23,42,0.85)', border: '0.5px solid rgba(255,255,255,0.15)', borderRadius: '1px' }} />
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <span style={{ color: '#fff', fontSize: '6px', fontWeight: 'bold', background: 'rgba(0,0,0,0.5)', padding: '1px 3px', borderRadius: '1px' }}>L12</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', height: '4px' }}>
+          <div style={{ width: '5px', height: '3px', background: '#ef4444', borderRadius: '0.5px', boxShadow: '0 0 5px #ef4444' }} />
+          <div style={{ width: '5px', height: '3px', background: '#ef4444', borderRadius: '0.5px', boxShadow: '0 0 5px #ef4444' }} />
+        </div>
+      </div>
+
+      {/* Left Face */}
+      <div style={{
+        position: 'absolute',
+        width: `${H}px`,
+        height: `${L}px`,
+        left: 0,
+        top: 0,
+        background: `linear-gradient(to left, #0f172a 45%, ${color} 45%)`,
+        border: '1.2px solid rgba(255,255,255,0.2)',
+        transform: 'rotateY(90deg)',
+        transformOrigin: 'left center',
+        boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-evenly',
+        alignItems: 'flex-end',
+        padding: '4px 3px'
+      }}>
+        {[0, 1, 2, 3, 4].map(i => (
+          <div key={i} style={{ width: '18px', height: '8px', background: 'rgba(34,211,238,0.15)', border: '1px solid rgba(34,211,238,0.4)', borderRadius: '1.5px' }} />
+        ))}
+      </div>
+
+      {/* Right Face */}
+      <div style={{
+        position: 'absolute',
+        width: `${H}px`,
+        height: `${L}px`,
+        right: 0,
+        top: 0,
+        background: `linear-gradient(to right, #0f172a 45%, ${color} 45%)`,
+        border: '1.2px solid rgba(255,255,255,0.2)',
+        transform: 'rotateY(-90deg)',
+        transformOrigin: 'right center',
+        boxSizing: 'border-box',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-evenly',
+        alignItems: 'flex-start',
+        padding: '4px 3px'
+      }}>
+        {[0, 1, 2, 3, 4].map(i => (
+          <div key={i} style={{ width: '18px', height: '8px', background: 'rgba(34,211,238,0.15)', border: '1px solid rgba(34,211,238,0.4)', borderRadius: '1.5px' }} />
+        ))}
       </div>
     </div>
   )
@@ -314,10 +421,27 @@ export default function DriverPage() {
       })
 
       // Check if we should trigger a stop pause
-      if (minDistToStop < 0.00015 && targetStop.id !== lastStoppedStopId && pauseCounter === 0) {
+      if (minDistToStop < 0.00018 && targetStop.id !== lastStoppedStopId && pauseCounter === 0) {
         lastStoppedStopId = targetStop.id
         pauseCounter = 80 // pause for 4 seconds (80 ticks of 50ms)
         currentSpeed = 0
+        
+        // Snap simulation progress to the stop's path location to prevent jump upon resuming
+        if (typeof (targetStop as any).pathIndex === 'number') {
+          currentIndex = (targetStop as any).pathIndex
+        } else {
+          let closestIdx = currentIndex
+          let minDist = Infinity
+          path.forEach((pt, idx) => {
+            const dist = Math.hypot(pt.lng - targetStop.longitude, pt.lat - targetStop.latitude)
+            if (dist < minDist) {
+              minDist = dist
+              closestIdx = idx
+            }
+          })
+          currentIndex = closestIdx
+        }
+        progress = 0
         
         const on = Math.floor(Math.random() * 6) + 1
         setPassengers(p => {
@@ -327,7 +451,13 @@ export default function DriverPage() {
         })
         setTimeout(() => setBoardingStatus(null), 3000)
         
-        setPos(p => p ? { ...p, speed: 0 } : null)
+        // Snap position exactly to targetStop coordinates so it overlaps perfectly on map!
+        setPos({
+          lat: targetStop.latitude,
+          lng: targetStop.longitude,
+          speed: 0,
+          heading: pos?.heading ?? 0
+        })
         return
       }
 
@@ -348,26 +478,29 @@ export default function DriverPage() {
           if (diff > maxTurnDiff) maxTurnDiff = diff
         }
 
-        // Determine target speed from turns
-        let targetSpeed = 50 // straight stretch speed
+        // Determine target speed from turns (much slower urban speeds with traffic)
+        let targetSpeed = 18 // base straight stretch speed (slower urban speed)
+        
+        // Add dynamic traffic fluctuation (fluctuate by +/- 3 km/h every 12s)
+        const trafficFactor = Math.sin(Date.now() / 12000) * 3
+        targetSpeed = targetSpeed + trafficFactor
+
         if (maxTurnDiff > 45) {
-          targetSpeed = 10 // sharp turn
+          targetSpeed = 6 // sharp turn
         } else if (maxTurnDiff > 25) {
-          targetSpeed = 18 // moderate turn
+          targetSpeed = 9 // moderate turn
         } else if (maxTurnDiff > 10) {
-          targetSpeed = 30 // gentle turn
-        } else {
-          targetSpeed = 48
+          targetSpeed = 12 // gentle turn
         }
 
         // Decelerate if approaching a stop
         if (minDistToStop < 0.0008) {
-          const stopSpeed = Math.max(2, 48 * (minDistToStop / 0.0008))
+          const stopSpeed = Math.max(0.5, 16 * (minDistToStop / 0.0008))
           targetSpeed = Math.min(targetSpeed, stopSpeed)
         }
 
-        // Smoothly interpolate speed
-        currentSpeed = currentSpeed + (targetSpeed - currentSpeed) * 0.08
+        // Smoothly interpolate speed (slower factor 0.015 for gradual acceleration/deceleration)
+        currentSpeed = currentSpeed + (targetSpeed - currentSpeed) * 0.015
 
         // Calculate segment length in km
         const lat1 = currentPoint.lat * Math.PI / 180
@@ -404,7 +537,7 @@ export default function DriverPage() {
     }
   }, [session, isOnline])
 
-  // Center map on driver position
+  // Center map on driver position and handle 3D camera toggling
   useEffect(() => {
     if (pos && autoCenter) {
       if (firstPersonView) {
@@ -421,9 +554,10 @@ export default function DriverPage() {
           ...v,
           latitude: pos.lat,
           longitude: pos.lng,
-          zoom: v.zoom === 17.5 ? 14.5 : v.zoom,
-          pitch: v.pitch === 60 ? 20 : v.pitch,
-          bearing: v.bearing === pos.heading ? 0 : v.bearing
+          // When 3D is toggled off, force it back to flat, original position immediately
+          zoom: 14.5,
+          pitch: 20,
+          bearing: 0
         }))
       }
     }
@@ -618,22 +752,27 @@ export default function DriverPage() {
         
         {/* Brand Logo Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', borderBottom: '1px solid rgba(255, 255, 255, 0.06)', paddingBottom: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '20px', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', fontFamily: 'DM Sans,sans-serif' }}>
-              Bien<span style={{ color: '#8f94a5', fontWeight: 400 }}>Parada</span>
-            </span>
-            <span style={{
-              fontSize: '9px',
-              color: '#fff',
-              background: '#EF4444',
-              padding: '2px 6px',
-              borderRadius: '4px',
-              fontWeight: 700,
-              letterSpacing: '0.05em',
-              fontFamily: 'DM Sans,sans-serif'
-            }}>
-              Chofer
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.15)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <img src="/images/logo.jpg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '20px', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', fontFamily: 'DM Sans,sans-serif' }}>
+                Bien<span style={{ color: '#8f94a5', fontWeight: 400 }}>Parada</span>
+              </span>
+              <span style={{
+                fontSize: '9px',
+                color: '#fff',
+                background: '#EF4444',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                fontWeight: 700,
+                letterSpacing: '0.05em',
+                fontFamily: 'DM Sans,sans-serif'
+              }}>
+                Chofer
+              </span>
+            </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 12px', borderRadius: '999px', border: `1px solid ${isOnline ? 'rgba(34,211,160,0.25)' : 'rgba(184,200,224,0.1)'}`, background: isOnline ? 'rgba(34,211,160,0.08)' : 'rgba(184,200,224,0.04)' }}>
             {isOnline ? <Wifi size={12} style={{ color: 'var(--go)' }} /> : <WifiOff size={12} style={{ color: 'var(--text-muted)' }} />}
@@ -1056,8 +1195,13 @@ export default function DriverPage() {
         </button>
 
         <Map
-          {...viewState}
-          onMove={e => setViewState(e.viewState)}
+          viewState={viewState as any}
+          onMove={e => {
+            if (e.originalEvent) {
+              setViewState(e.viewState)
+              setAutoCenter(false)
+            }
+          }}
           mapStyle={(dayMode ? CARTODB_LIGHT : CARTODB_DARK) as any}
           style={{ width: '100%', height: '100%' }}
         >
@@ -1098,7 +1242,7 @@ export default function DriverPage() {
           {mockLine && stops.map((stop) => {
             const isUpcoming = upcomingStops.some(u => u.stop.id === stop.id)
             return (
-              <Marker key={stop.id} longitude={stop.longitude} latitude={stop.latitude} anchor="center">
+              <Marker key={stop.id} longitude={stop.longitude} latitude={stop.latitude} pitchAlignment="map" rotationAlignment="map" anchor="center">
                 <div
                   title={stop.name}
                   style={{
@@ -1116,7 +1260,7 @@ export default function DriverPage() {
 
           {/* Marker for current bus position */}
           {pos && (
-            <Marker longitude={pos.lng} latitude={pos.lat} rotation={pos.heading} rotationAlignment="map" anchor="center">
+            <Marker longitude={pos.lng} latitude={pos.lat} rotation={pos.heading} rotationAlignment="map" pitchAlignment="map" anchor="center">
               <PremiumBusMarker status={pos.speed > 2 ? 'moving' : 'at_stop'} lineColor={accentColor} />
             </Marker>
           )}

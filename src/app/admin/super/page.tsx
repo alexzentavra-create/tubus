@@ -379,22 +379,27 @@ export default function SuperAdminDashboard() {
         zIndex: 50,
       }}>
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '20px', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
-            Bien<span style={{ color: '#8f94a5', fontWeight: 400 }}>Parada</span>
-          </span>
-          <span style={{
-            fontSize: '9px',
-            color: '#4b49ac',
-            background: 'rgba(75, 73, 172, 0.15)',
-            padding: '2px 6px',
-            borderRadius: '4px',
-            textTransform: 'uppercase',
-            fontWeight: 700,
-            letterSpacing: '0.05em',
-          }}>
-            Admin
-          </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.15)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <img src="/images/logo.jpg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '20px', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
+              Bien<span style={{ color: '#8f94a5', fontWeight: 400 }}>Parada</span>
+            </span>
+            <span style={{
+              fontSize: '9px',
+              color: '#4b49ac',
+              background: 'rgba(75, 73, 172, 0.15)',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              textTransform: 'uppercase',
+              fontWeight: 700,
+              letterSpacing: '0.05em',
+            }}>
+              Admin
+            </span>
+          </div>
         </div>
 
         {/* Right Options */}

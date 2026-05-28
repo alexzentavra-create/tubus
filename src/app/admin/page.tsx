@@ -92,8 +92,12 @@ export default function AdminPanel() {
         {/* Logo */}
         <div style={{padding:'24px 20px 20px',borderBottom:'1px solid rgba(184,200,224,0.07)'}}>
           <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
-            <div style={{width:'36px',height:'36px',borderRadius:'10px',background:'linear-gradient(145deg,#1E2638,#131921)',border:'1px solid rgba(184,200,224,0.15)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-              <Bus size={16} style={{color:'var(--platinum)'}} />
+            <div style={{
+              width:'36px',height:'36px',borderRadius:'10px',
+              border:'1px solid rgba(184,200,224,0.15)',
+              overflow: 'hidden', display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0
+            }}>
+              <img src="/images/logo.jpg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
             <div>
               <div className="font-display" style={{color:'var(--text-primary)',fontWeight:700,fontSize:'14px'}}>BienParada</div>

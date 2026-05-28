@@ -509,11 +509,10 @@ export default function UserMapPage() {
         <div style={{ padding: '18px 14px 14px', borderBottom: prefs.darkMap ? '1px solid rgba(184,200,224,0.07)' : '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
           <div style={{
             width: '36px', height: '36px', borderRadius: '10px',
-            background: prefs.darkMap ? 'linear-gradient(145deg,#1E2638,#131921)' : 'linear-gradient(145deg,#E5E7EB,#FFFFFF)',
             border: prefs.darkMap ? '1px solid rgba(184,200,224,0.18)' : '1px solid rgba(0,0,0,0.12)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+            overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
           }}>
-            <Bus size={16} style={{ color: 'var(--platinum)' }} />
+            <img src="/images/logo.jpg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
           {!collapsed && (
             <div style={{ flex: 1, minWidth: 0 }}>
