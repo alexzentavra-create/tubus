@@ -20,11 +20,204 @@ import toast from 'react-hot-toast'
 const HOURLY = Array.from({length:24},(_,h)=>({h:`${String(h).padStart(2,'0')}:00`,v:Math.round(Math.random()*400+(h>=7&&h<=9||h>=17&&h<=19?700:80))}))
 const WEEKLY = Array.from({length:7},(_,i)=>({d:format(subDays(new Date(),6-i),'EEE',{locale:es}),users:Math.round(Math.random()*1500+2500),drivers:Math.round(Math.random()*20+40)}))
 const LINES_DATA = [
-  {name:'Línea 12',users:1240,trips:89,complaints:3},
-  {name:'Línea 60',users:2100,trips:134,complaints:7},
-  {name:'Línea 132',users:890,trips:67,complaints:2},
-  {name:'Línea 21',users:650,trips:45,complaints:1},
+  {id:'line-1',   name:'Línea 12',  users:1240, trips:89,  complaints:3},
+  {id:'line-28',  name:'Línea 28',  users:1650, trips:112, complaints:1},
+  {id:'line-37',  name:'Línea 37',  users:920,  trips:67,  complaints:1},
+  {id:'line-60',  name:'Línea 60',  users:2100, trips:134, complaints:7},
+  {id:'line-152', name:'Línea 152', users:1450, trips:98,  complaints:2},
 ]
+
+const LINE_DETAILS: Record<string, {
+  companyName: string
+  activeDrivers: number
+  totalPassengers: number
+  avgRating: number
+  dailyDriversHistory: { day: string; count: number }[]
+  hourlyFlow: { h: string; passengers: number }[]
+  driversList: { name: string; email: string; unit: string; rating: number; online: boolean }[]
+  complaintsList: { type: string; driver: string; bus: string; status: 'pending'|'resolved'; time: string; desc: string }[]
+  topStops: { name: string; count: number; wait: number }[]
+}> = {
+  'line-1': {
+    companyName: 'Transportes Callao S.A.',
+    activeDrivers: 5,
+    totalPassengers: 1240,
+    avgRating: 4.8,
+    dailyDriversHistory: [
+      { day: 'Lun', count: 6 },
+      { day: 'Mar', count: 6 },
+      { day: 'Mié', count: 5 },
+      { day: 'Jue', count: 7 },
+      { day: 'Vie', count: 8 },
+      { day: 'Sáb', count: 4 },
+      { day: 'Dom', count: 3 }
+    ],
+    hourlyFlow: Array.from({length:12}, (_, i) => {
+      const h = 7 + i
+      return {
+        h: `${String(h).padStart(2, '0')}:00`,
+        passengers: Math.round(50 + Math.sin((i / 11) * Math.PI) * 120 + Math.random() * 20)
+      }
+    }),
+    driversList: [
+      { name: 'Néstor García', email: 'nestor@nestor.ar', unit: '001', rating: 4.8, online: true },
+      { name: 'Roberto Sánchez', email: 'roberto@demo.ar', unit: '003', rating: 4.9, online: true },
+      { name: 'Carlos Martínez', email: 'carlos@demo.ar', unit: '002', rating: 4.6, online: false },
+      { name: 'Juan Gómez', email: 'juan@demo.ar', unit: '005', rating: 4.5, online: true }
+    ],
+    complaintsList: [
+      { type: 'No paró', driver: 'Carlos Martínez', bus: '002', status: 'pending', time: 'Hace 15 min', desc: 'El chofer no se detuvo a pesar de haber pasajeros esperando y hacer señas.' },
+      { type: 'Mal trato', driver: 'Juan Gómez', bus: '005', status: 'resolved', time: 'Ayer', desc: 'Se negó a abrir la puerta trasera al solicitar la parada.' }
+    ],
+    topStops: [
+      { name: 'Av. Pueyrredón y Corrientes', count: 380, wait: 6 },
+      { name: 'Av. Corrientes y Callao', count: 290, wait: 5 },
+      { name: 'Av. Santa Fe y Pueyrredón', count: 260, wait: 5 }
+    ]
+  },
+  'line-28': {
+    companyName: 'DOTA S.A.',
+    activeDrivers: 4,
+    totalPassengers: 1650,
+    avgRating: 4.7,
+    dailyDriversHistory: [
+      { day: 'Lun', count: 5 },
+      { day: 'Mar', count: 6 },
+      { day: 'Mié', count: 6 },
+      { day: 'Jue', count: 5 },
+      { day: 'Vie', count: 6 },
+      { day: 'Sáb', count: 3 },
+      { day: 'Dom', count: 2 }
+    ],
+    hourlyFlow: Array.from({length:12}, (_, i) => {
+      const h = 7 + i
+      return {
+        h: `${String(h).padStart(2, '0')}:00`,
+        passengers: Math.round(40 + Math.sin((i / 11) * Math.PI) * 150 + Math.random() * 25)
+      }
+    }),
+    driversList: [
+      { name: 'Carlos M.', email: 'carlos@demo.ar', unit: '002', rating: 4.6, online: true },
+      { name: 'Pablo García', email: 'pablo@demo.ar', unit: '006', rating: 4.9, online: false },
+      { name: 'Jorge Rodríguez', email: 'jorge@demo.ar', unit: '004', rating: 4.7, online: true }
+    ],
+    complaintsList: [
+      { type: 'Peligrosa', driver: 'Carlos M.', bus: '002', status: 'pending', time: 'Hace 1h', desc: 'Conducía a exceso de velocidad en zona residencial.' }
+    ],
+    topStops: [
+      { name: 'Obelisco', count: 450, wait: 4 },
+      { name: 'Santa Fe y Callao', count: 370, wait: 5 },
+      { name: 'Palermo - Santa Fe', count: 310, wait: 5 }
+    ]
+  },
+  'line-37': {
+    companyName: '4 de Septiembre S.A.',
+    activeDrivers: 3,
+    totalPassengers: 920,
+    avgRating: 4.5,
+    dailyDriversHistory: [
+      { day: 'Lun', count: 4 },
+      { day: 'Mar', count: 4 },
+      { day: 'Mié', count: 3 },
+      { day: 'Jue', count: 4 },
+      { day: 'Vie', count: 5 },
+      { day: 'Sáb', count: 2 },
+      { day: 'Dom', count: 1 }
+    ],
+    hourlyFlow: Array.from({length:12}, (_, i) => {
+      const h = 7 + i
+      return {
+        h: `${String(h).padStart(2, '0')}:00`,
+        passengers: Math.round(30 + Math.sin((i / 11) * Math.PI) * 90 + Math.random() * 15)
+      }
+    }),
+    driversList: [
+      { name: 'Roberto S.', email: 'roberto@demo.ar', unit: '003', rating: 4.9, online: true },
+      { name: 'Ana Martínez', email: 'ana@demo.ar', unit: '008', rating: 4.5, online: false }
+    ],
+    complaintsList: [
+      { type: 'Defecto', driver: 'Ana Martínez', bus: '008', status: 'resolved', time: 'Hace 3h', desc: 'El timbre de solicitud de parada no funcionaba.' }
+    ],
+    topStops: [
+      { name: 'Aeroparque', count: 200, wait: 12 },
+      { name: 'Callao y Corrientes', count: 280, wait: 5 },
+      { name: 'Diagonal Norte', count: 340, wait: 4 }
+    ]
+  },
+  'line-60': {
+    companyName: 'MONSA S.A.',
+    activeDrivers: 8,
+    totalPassengers: 2100,
+    avgRating: 4.6,
+    dailyDriversHistory: [
+      { day: 'Lun', count: 9 },
+      { day: 'Mar', count: 9 },
+      { day: 'Mié', count: 8 },
+      { day: 'Jue', count: 10 },
+      { day: 'Vie', count: 11 },
+      { day: 'Sáb', count: 6 },
+      { day: 'Dom', count: 4 }
+    ],
+    hourlyFlow: Array.from({length:12}, (_, i) => {
+      const h = 7 + i
+      return {
+        h: `${String(h).padStart(2, '0')}:00`,
+        passengers: Math.round(70 + Math.sin((i / 11) * Math.PI) * 220 + Math.random() * 30)
+      }
+    }),
+    driversList: [
+      { name: 'Carlos Martínez', email: 'carlos@demo.ar', unit: '020', rating: 4.6, online: true },
+      { name: 'Diego Rodríguez', email: 'diego@demo.ar', unit: '022', rating: 4.2, online: false },
+      { name: 'Pablo García', email: 'pablo@demo.ar', unit: '024', rating: 5.0, online: true },
+      { name: 'Luis Fernández', email: 'luis@demo.ar', unit: '026', rating: 4.7, online: true }
+    ],
+    complaintsList: [
+      { type: 'No paró', driver: 'Diego Rodríguez', bus: '022', status: 'pending', time: 'Hace 30 min', desc: 'No se detuvo en Plaza Italia.' },
+      { type: 'Mal trato', driver: 'Luis Fernández', bus: '026', status: 'pending', time: 'Hace 2h', desc: 'Cerró la puerta antes de terminar de subir.' }
+    ],
+    topStops: [
+      { name: 'Constitución', count: 520, wait: 5 },
+      { name: 'Plaza Italia', count: 430, wait: 6 },
+      { name: 'Tigre Terminal', count: 280, wait: 10 }
+    ]
+  },
+  'line-152': {
+    companyName: 'Empresa Tandilense S.A.',
+    activeDrivers: 6,
+    totalPassengers: 1450,
+    avgRating: 4.7,
+    dailyDriversHistory: [
+      { day: 'Lun', count: 7 },
+      { day: 'Mar', count: 7 },
+      { day: 'Mié', count: 6 },
+      { day: 'Jue', count: 8 },
+      { day: 'Vie', count: 9 },
+      { day: 'Sáb', count: 5 },
+      { day: 'Dom', count: 3 }
+    ],
+    hourlyFlow: Array.from({length:12}, (_, i) => {
+      const h = 7 + i
+      return {
+        h: `${String(h).padStart(2, '0')}:00`,
+        passengers: Math.round(60 + Math.sin((i / 11) * Math.PI) * 160 + Math.random() * 20)
+      }
+    }),
+    driversList: [
+      { name: 'Roberto S.', email: 'roberto@demo.ar', unit: '010', rating: 4.9, online: true },
+      { name: 'Jorge R.', email: 'jorge@demo.ar', unit: '012', rating: 4.7, online: false },
+      { name: 'Ana C.', email: 'ana@demo.ar', unit: '014', rating: 4.8, online: true }
+    ],
+    complaintsList: [
+      { type: 'Peligrosa', driver: 'Jorge R.', bus: '012', status: 'resolved', time: 'Ayer', desc: 'Realizó maniobras bruscas al cambiar de carril.' }
+    ],
+    topStops: [
+      { name: 'La Boca', count: 250, wait: 8 },
+      { name: 'Plaza de Mayo', count: 480, wait: 4 },
+      { name: 'Olivos Terminal', count: 180, wait: 12 }
+    ]
+  }
+}
+
 const COMPLAINT_TYPES=[{n:'No paró',v:38,c:'#FF4D6A'},{n:'Mal trato',v:22,c:'#F0B429'},{n:'Peligrosa',v:18,c:'#8B5CF6'},{n:'Defecto',v:14,c:'#3B82F6'},{n:'Otro',v:8,c:'#22D3A0'}]
 
 const TTP={contentStyle:{background:'rgba(10,14,20,0.97)',border:'1px solid rgba(184,200,224,0.12)',borderRadius:'10px',fontSize:'12px',fontFamily:'DM Mono'},labelStyle:{color:'#C2C8D4'},itemStyle:{color:'#8A95A8'}}
@@ -35,10 +228,16 @@ export default function SuperAdminDashboard() {
   const supabase = createClient()
   const [tab, setTab] = useState<Tab>('overview')
   const [loading, setLoading] = useState(true)
+  const [selectedLineId, setSelectedLineId] = useState<string | null>(null)
   const [stats, setStats] = useState({
     totalUsers: 0, totalDrivers: 0, totalCompanies: 0,
     activeBuses: 0, pendingReports: 0, todayLogins: 0,
   })
+
+  const handleTabChange = (t: Tab) => {
+    setTab(t)
+    setSelectedLineId(null)
+  }
 
   useEffect(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
@@ -117,7 +316,7 @@ export default function SuperAdminDashboard() {
               <Bus size={16} style={{color:'#22D3A0'}}/>
             </div>
             <div>
-              <div style={{color:'#fff',fontWeight:700,fontSize:'13px',fontFamily:'Syne,sans-serif'}}>Bien Parada</div>
+              <div style={{color:'#fff',fontWeight:700,fontSize:'14px',fontFamily:'DM Sans,sans-serif',letterSpacing:'-0.01em'}}>Bien Parada</div>
               <div style={{color:'rgba(34,211,160,0.7)',fontSize:'9px',fontFamily:'DM Mono',letterSpacing:'0.08em'}}>SUPER ADMIN</div>
             </div>
           </div>
@@ -125,7 +324,7 @@ export default function SuperAdminDashboard() {
 
         <nav style={{flex:1,padding:'12px 8px',display:'flex',flexDirection:'column',gap:'2px'}}>
           {TABS.map(({id,icon:Icon,label})=>(
-            <button key={id} onClick={()=>setTab(id)} style={{display:'flex',alignItems:'center',gap:'9px',padding:'9px 10px',borderRadius:'9px',border:`1px solid ${tab===id?'rgba(184,200,224,0.15)':'transparent'}`,background:tab===id?'rgba(184,200,224,0.08)':'transparent',color:tab===id?'var(--platinum)':'var(--text-muted)',fontSize:'13px',fontWeight:500,cursor:'pointer',transition:'all 200ms',textAlign:'left'}}>
+            <button key={id} onClick={()=>handleTabChange(id)} style={{display:'flex',alignItems:'center',gap:'9px',padding:'9px 10px',borderRadius:'9px',border:`1px solid ${tab===id?'rgba(184,200,224,0.15)':'transparent'}`,background:tab===id?'rgba(184,200,224,0.08)':'transparent',color:tab===id?'var(--platinum)':'var(--text-muted)',fontSize:'13px',fontWeight:500,cursor:'pointer',transition:'all 200ms',textAlign:'left'}}>
               <Icon size={14}/>{label}
             </button>
           ))}
@@ -146,7 +345,7 @@ export default function SuperAdminDashboard() {
         {/* Topbar */}
         <div style={{borderBottom:'1px solid rgba(184,200,224,0.06)',padding:'14px 24px',display:'flex',alignItems:'center',justifyContent:'space-between',background:'rgba(6,8,16,0.5)',backdropFilter:'blur(12px)',position:'sticky',top:0,zIndex:10}}>
           <div>
-            <h1 style={{color:'#fff',fontWeight:700,fontSize:'17px',fontFamily:'Syne,sans-serif',margin:0}}>{TABS.find(t=>t.id===tab)?.label}</h1>
+            <h1 style={{color:'#fff',fontWeight:700,fontSize:'18px',fontFamily:'DM Sans,sans-serif',letterSpacing:'-0.01em',margin:0}}>{TABS.find(t=>t.id===tab)?.label}</h1>
             <p style={{color:'var(--text-muted)',fontSize:'11px',fontFamily:'DM Mono',margin:'2px 0 0'}}>
               {format(new Date(),"EEEE d 'de' MMMM yyyy",{locale:es})}
             </p>
@@ -163,7 +362,7 @@ export default function SuperAdminDashboard() {
         </div>
 
         <div style={{padding:'20px 24px'}}>
-          {tab==='overview' && <OverviewTab stats={stats}/>}
+          {tab==='overview' && <OverviewTab stats={stats} selectedLineId={selectedLineId} setSelectedLineId={setSelectedLineId}/>}
           {tab==='companies' && <CompaniesTab/>}
           {tab==='drivers'   && <DriversTab/>}
           {tab==='users'     && <UsersTab stats={stats}/>}
@@ -184,8 +383,8 @@ function KPI({icon:Icon,label,value,sub,color}:{icon:any;label:string;value:stri
           <Icon size={16} style={{color}}/>
         </div>
         <div>
-          <div style={{color:'var(--text-muted)',fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:'3px'}}>{label}</div>
-          <div style={{color:'#fff',fontWeight:800,fontSize:'22px',lineHeight:1,fontFamily:'Syne,sans-serif'}}>{value}</div>
+          <div style={{color:'var(--text-secondary)',fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:'5px'}}>{label}</div>
+          <div style={{color:'#fff',fontWeight:700,fontSize:'26px',lineHeight:1.1,fontFamily:'DM Sans,sans-serif',letterSpacing:'-0.03em'}}>{value}</div>
           {sub && <div style={{color:'var(--text-muted)',fontSize:'10px',marginTop:'3px'}}>{sub}</div>}
         </div>
       </div>
@@ -193,7 +392,11 @@ function KPI({icon:Icon,label,value,sub,color}:{icon:any;label:string;value:stri
   )
 }
 
-function OverviewTab({stats}:{stats:any}) {
+function OverviewTab({stats, selectedLineId, setSelectedLineId}:{stats:any; selectedLineId: string | null; setSelectedLineId: (id: string | null) => void}) {
+  if (selectedLineId) {
+    return <LineDetailView lineId={selectedLineId} onBack={() => setSelectedLineId(null)} />
+  }
+
   return (
     <div style={{display:'flex',flexDirection:'column',gap:'18px'}}>
       <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'10px'}}>
@@ -206,7 +409,7 @@ function OverviewTab({stats}:{stats:any}) {
       </div>
 
       <div className="glass" style={{padding:'18px'}}>
-        <div style={{color:'var(--text-muted)',fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:'12px'}}>Actividad de usuarios — últimas 24h</div>
+        <div style={{color:'var(--text-secondary)',fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:'12px'}}>Actividad de usuarios — últimas 24h</div>
         <ResponsiveContainer width="100%" height={180}>
           <AreaChart data={HOURLY}>
             <defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#22D3A0" stopOpacity={0.2}/><stop offset="95%" stopColor="#22D3A0" stopOpacity={0}/></linearGradient></defs>
@@ -221,7 +424,7 @@ function OverviewTab({stats}:{stats:any}) {
 
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'14px'}}>
         <div className="glass" style={{padding:'18px'}}>
-          <div style={{color:'var(--text-muted)',fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:'12px'}}>Uso semanal</div>
+          <div style={{color:'var(--text-secondary)',fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:'12px'}}>Uso semanal</div>
           <ResponsiveContainer width="100%" height={150}>
             <BarChart data={WEEKLY}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(184,200,224,0.04)"/>
@@ -233,7 +436,7 @@ function OverviewTab({stats}:{stats:any}) {
           </ResponsiveContainer>
         </div>
         <div className="glass" style={{padding:'18px'}}>
-          <div style={{color:'var(--text-muted)',fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:'12px'}}>Tipos de denuncias</div>
+          <div style={{color:'var(--text-secondary)',fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:'12px'}}>Tipos de denuncias</div>
           <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
             <PieChart width={110} height={110}>
               <Pie data={COMPLAINT_TYPES} cx={50} cy={50} innerRadius={28} outerRadius={48} dataKey="v" strokeWidth={0}>
@@ -255,10 +458,10 @@ function OverviewTab({stats}:{stats:any}) {
 
       {/* Per-line table */}
       <div className="glass" style={{padding:'18px'}}>
-        <div style={{color:'var(--text-muted)',fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:'14px'}}>Actividad por línea</div>
+        <div style={{color:'var(--text-secondary)',fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:'14px'}}>Actividad por línea (Hacé clic para ver detalles)</div>
         <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
           {LINES_DATA.map((l,i)=>(
-            <div key={i} style={{display:'flex',alignItems:'center',gap:'14px',padding:'10px 12px',borderRadius:'10px',background:'rgba(6,8,16,0.5)',border:'1px solid rgba(184,200,224,0.06)'}}>
+            <div key={i} onClick={()=>setSelectedLineId(l.id)} style={{display:'flex',alignItems:'center',gap:'14px',padding:'10px 12px',borderRadius:'10px',background:'rgba(6,8,16,0.5)',border:'1px solid rgba(184,200,224,0.06)',cursor:'pointer',transition:'all var(--t-fast) var(--ease-out)'}} className="action-btn">
               <div style={{width:'32px',height:'32px',borderRadius:'8px',background:'rgba(34,211,160,0.08)',border:'1px solid rgba(34,211,160,0.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                 <Bus size={14} style={{color:'#22D3A0'}}/>
               </div>
@@ -270,6 +473,127 @@ function OverviewTab({stats}:{stats:any}) {
                 <AlertTriangle size={11} style={{color:'#FF4D6A'}}/><span style={{color:'#FF4D6A',fontSize:'10px',fontFamily:'DM Mono'}}>{l.complaints}</span>
               </div>}
               <ChevronRight size={14} style={{color:'var(--text-muted)',flexShrink:0}}/>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface LineDetailViewProps {
+  lineId: string
+  onBack: () => void
+}
+
+function LineDetailView({ lineId, onBack }: LineDetailViewProps) {
+  const details = LINE_DETAILS[lineId] || LINE_DETAILS['line-1']
+  const lineInfo = LINES_DATA.find(l => l.id === lineId) || { name: 'Línea Desconocida' }
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:'18px'}}>
+      {/* Back button & Header */}
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <button onClick={onBack} style={{display:'flex',alignItems:'center',gap:'6px',background:'rgba(184,200,224,0.06)',border:'1px solid rgba(184,200,224,0.1)',padding:'8px 14px',borderRadius:'8px',color:'var(--platinum)',fontSize:'12px',cursor:'pointer',transition:'all 200ms',fontWeight:500}}>
+          ← Volver al Resumen
+        </button>
+        <div style={{textAlign:'right'}}>
+          <span style={{color:'var(--go)',fontSize:'10px',fontFamily:'DM Mono',fontWeight:600,padding:'3px 8px',borderRadius:'999px',background:'rgba(34,211,160,0.08)',border:'1px solid rgba(34,211,160,0.2)'}}>MONITOREADA</span>
+        </div>
+      </div>
+
+      <div className="glass" style={{padding:'20px',display:'flex',flexDirection:'column',gap:'4px'}}>
+        <h2 style={{color:'#fff',fontWeight:700,fontSize:'22px',fontFamily:'DM Sans,sans-serif',margin:0,letterSpacing:'-0.02em'}}>{lineInfo.name}</h2>
+        <p style={{color:'var(--text-secondary)',fontSize:'12px',fontFamily:'DM Mono',margin:0}}>{details.companyName}</p>
+      </div>
+
+      {/* Line Specific KPIs */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'10px'}}>
+        <KPI icon={Bus} label="Choferes Activos" value={details.activeDrivers} color="var(--platinum)" sub="en servicio hoy"/>
+        <KPI icon={Users} label="Pasajeros Hoy" value={details.totalPassengers.toLocaleString()} color="#3B82F6" sub="boletos emitidos"/>
+        <KPI icon={Star} label="Calificación Prom." value={details.avgRating} color="var(--near)" sub="promedio de usuarios"/>
+        <KPI icon={AlertTriangle} label="Denuncias Recibidas" value={details.complaintsList.length} color="#FF4D6A" sub="últimas 24 horas"/>
+      </div>
+
+      {/* Charts Section */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'14px'}}>
+        <div className="glass" style={{padding:'18px'}}>
+          <div style={{color:'var(--text-secondary)',fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:'12px'}}>Choferes en servicio por día</div>
+          <ResponsiveContainer width="100%" height={150}>
+            <BarChart data={details.dailyDriversHistory}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(184,200,224,0.04)"/>
+              <XAxis dataKey="day" tick={{fill:'#4A5568',fontSize:10}}/>
+              <YAxis tick={{fill:'#4A5568',fontSize:10}}/>
+              <Tooltip {...TTP}/>
+              <Bar dataKey="count" name="Choferes" fill="rgba(34,211,160,0.35)" stroke="#22D3A0" strokeWidth={0.5} radius={[3,3,0,0]}/>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="glass" style={{padding:'18px'}}>
+          <div style={{color:'var(--text-secondary)',fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:'12px'}}>Flujo de Pasajeros por Hora</div>
+          <ResponsiveContainer width="100%" height={150}>
+            <AreaChart data={details.hourlyFlow}>
+              <defs><linearGradient id="gLine" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3B82F6" stopOpacity={0.2}/><stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/></linearGradient></defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(184,200,224,0.04)"/>
+              <XAxis dataKey="h" tick={{fill:'#4A5568',fontSize:10}}/>
+              <YAxis tick={{fill:'#4A5568',fontSize:10}}/>
+              <Tooltip {...TTP}/>
+              <Area type="monotone" dataKey="passengers" name="Pasajeros" stroke="#3B82F6" fill="url(#gLine)" strokeWidth={1.5}/>
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Lists Section: Drivers & Complaints */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'14px'}}>
+        {/* Drivers list */}
+        <div className="glass" style={{padding:'18px',display:'flex',flexDirection:'column',gap:'12px'}}>
+          <div style={{color:'var(--text-secondary)',fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.08em',textTransform:'uppercase'}}>Personal Activo / Reciente</div>
+          <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+            {details.driversList.map((d,i)=>(
+              <div key={i} style={{display:'flex',alignItems:'center',gap:'10px',padding:'8px 10px',borderRadius:'8px',background:'rgba(6,8,16,0.4)',border:'1px solid rgba(184,200,224,0.04)'}}>
+                <div style={{width:'6px',height:'6px',borderRadius:'50%',background:d.online?'#22D3A0':'#4A5568'}}/>
+                <div style={{flex:1}}>
+                  <div style={{color:'#fff',fontWeight:600,fontSize:'12px'}}>{d.name}</div>
+                  <div style={{color:'var(--text-muted)',fontSize:'10px',fontFamily:'DM Mono'}}>Int. {d.unit} · {d.email}</div>
+                </div>
+                <div style={{display:'flex',alignItems:'center',gap:'2px'}}>
+                  <Star size={10} style={{color:'var(--near)',fill:'var(--near)'}}/>
+                  <span style={{color:'#fff',fontSize:'11px',fontWeight:700,fontFamily:'DM Mono'}}>{d.rating}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Complaints list */}
+        <div className="glass" style={{padding:'18px',display:'flex',flexDirection:'column',gap:'12px'}}>
+          <div style={{color:'var(--text-secondary)',fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.08em',textTransform:'uppercase'}}>Denuncias de Usuarios</div>
+          <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+            {details.complaintsList.map((c,i)=>(
+              <div key={i} style={{padding:'10px',borderRadius:'8px',background:'rgba(255,77,106,0.03)',border:'1px solid rgba(255,77,106,0.1)',display:'flex',flexDirection:'column',gap:'4px'}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',width:'100%'}}>
+                  <span style={{color:'#FF4D6A',fontWeight:700,fontSize:'11px',fontFamily:'DM Mono',letterSpacing:'0.02em'}}>{c.type.toUpperCase()}</span>
+                  <span style={{color:'var(--text-muted)',fontSize:'10px',fontFamily:'DM Mono',marginLeft:'auto'}}>{c.time}</span>
+                </div>
+                <div style={{color:'var(--text-secondary)',fontSize:'11px',lineHeight:1.4}}>{c.desc}</div>
+                <div style={{color:'var(--text-muted)',fontSize:'9px',fontFamily:'DM Mono',marginTop:'2px'}}>Acusado: {c.driver} (Interno {c.bus})</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Busiest Stops */}
+      <div className="glass" style={{padding:'18px'}}>
+        <div style={{color:'var(--text-secondary)',fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:'12px'}}>Paradas con mayor afluencia</div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'10px'}}>
+          {details.topStops.map((stop,i)=>(
+            <div key={i} style={{background:'rgba(6,8,16,0.5)',border:'1px solid rgba(184,200,224,0.04)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
+              <div style={{color:'#fff',fontWeight:600,fontSize:'13px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginBottom:'4px'}}>{stop.name}</div>
+              <div style={{color:'var(--go)',fontWeight:700,fontSize:'18px',fontFamily:'DM Sans,sans-serif'}}>{stop.count}</div>
+              <div style={{color:'var(--text-muted)',fontSize:'9px',fontFamily:'DM Mono',marginTop:'2px'}}>usuarios/día · {stop.wait} min esp.</div>
             </div>
           ))}
         </div>
@@ -406,12 +730,12 @@ function AnalyticsTab() {
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'14px'}}>
         <div className="glass" style={{padding:'18px'}}>
           <div style={{color:'var(--text-muted)',fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:'10px'}}>Hora pico promedio</div>
-          <div style={{color:'#fff',fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'36px'}}>08:00</div>
+          <div style={{color:'#fff',fontFamily:'DM Sans,sans-serif',fontWeight:700,fontSize:'34px',letterSpacing:'-0.03em'}}>08:00</div>
           <div style={{color:'var(--text-muted)',fontSize:'12px',marginTop:'4px'}}>Mañana (7-9h) y tarde (17-19h)</div>
         </div>
         <div className="glass" style={{padding:'18px'}}>
           <div style={{color:'var(--text-muted)',fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.08em',textTransform:'uppercase',marginBottom:'10px'}}>Línea más usada</div>
-          <div style={{color:'#fff',fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'28px'}}>Línea 60</div>
+          <div style={{color:'#fff',fontFamily:'DM Sans,sans-serif',fontWeight:700,fontSize:'28px',letterSpacing:'-0.02em'}}>Línea 60</div>
           <div style={{color:'var(--text-muted)',fontSize:'12px',marginTop:'4px'}}>2,100 usuarios activos</div>
         </div>
       </div>
