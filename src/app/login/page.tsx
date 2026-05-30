@@ -52,7 +52,7 @@ function CityBackground() {
       else{dir='U';const c=cols[Math.floor(Math.random()*cols.length)];sx=c+laneOff['U'];sy=H+50;sc=c}
       
       // Ensure spawn position is clear to prevent immediate overlapping collisions
-      const isClear = !vehs.some(o => Math.hypot(o.cx - sx, o.cy - sy) < 65)
+      const isClear = !vehs.some(o => Math.hypot(o.cx - sx, o.cy - sy) < 50)
       if(!isClear) return
 
       const spd=isBus?0.55+Math.random()*0.5:0.7+Math.random()*0.9
@@ -85,7 +85,14 @@ function CityBackground() {
     }
     const isBlocked=(v:Veh)=>{
       const fx=Math.cos(v.ang),fy=Math.sin(v.ang),px=-fy,py=fx
-      const safeDist=v.len/2+18
+      // Reduce safe distance as the vehicle is stuck longer to resolve deadlocks
+      let stuckFactor = 1.0
+      if (v.stuck > 15) {
+        stuckFactor = Math.max(0, 1 - (v.stuck - 15) / 35) // goes to 0 at stuck >= 50
+      }
+      if (stuckFactor === 0) return false // Creep/nudge forward to break deadlocks
+      
+      const safeDist = (v.len/2 + 18) * stuckFactor
       return vehs.some(o=>{
         if(o.id===v.id)return false
         const rx=o.cx-v.cx,ry=o.cy-v.cy,fwd=rx*fx+ry*fy
@@ -146,8 +153,8 @@ function CityBackground() {
         ctx.shadowBlur=0
       })
     }
-    for(let i=0;i<18;i++)spawn(true,(['T','B','L','R']as const)[i%4])
-    for(let i=0;i<38;i++)spawn(false,(['T','B','L','R']as const)[i%4])
+    for(let i=0;i<45;i++)spawn(true,(['T','B','L','R']as const)[i%4])
+    for(let i=0;i<100;i++)spawn(false,(['T','B','L','R']as const)[i%4])
     let frame=0,spawnT=0,animId:number
     const leftOf:Record<Dir,Dir>={R:'U',L:'D',D:'R',U:'L'}
     const rightOf:Record<Dir,Dir>={R:'D',L:'U',D:'L',U:'R'}
@@ -156,7 +163,18 @@ function CityBackground() {
       for(let i=vehs.length-1;i>=0;i--){
         const v=vehs[i]
         if(v.cx<-120||v.cx>W+120||v.cy<-120||v.cy>H+120){vehs.splice(i,1);continue}
-        if(v.waiting){v.wf--;v.stuck++;if(v.wf<=0||v.stuck>200){v.waiting=false;v.stuck=0}continue}
+        if(v.waiting){
+          v.wf--;
+          v.stuck++;
+          if(v.stuck > 240){
+            vehs.splice(i,1)
+            continue
+          }
+          if(v.wf<=0){
+            v.waiting=false
+          }
+          continue
+        }
         if(isBlocked(v)){v.waiting=true;v.wf=8;continue}
         if(v.ph.type==='turn'){
           const ts=v.ph as TurnSeg
@@ -171,11 +189,11 @@ function CityBackground() {
             v.cx=bez(ts.p0x,ts.p1x,ts.p2x,ts.p3x,ts.t);v.cy=bez(ts.p0y,ts.p1y,ts.p2y,ts.p3y,ts.t)
             const bdx=bezD(ts.p0x,ts.p1x,ts.p2x,ts.p3x,ts.t),bdy=bezD(ts.p0y,ts.p1y,ts.p2y,ts.p3y,ts.t)
             if(Math.abs(bdx)+Math.abs(bdy)>0.01)v.ang=Math.atan2(bdy,bdx)
+            v.stuck=0
           }
           if(v.isY&&v.rp.length<800)v.rp.push([v.cx,v.cy])
           continue
         }
-        if(v.waiting){v.wf--;v.stuck++;if(v.wf<=0||v.stuck>200){v.waiting=false;v.stuck=0}continue}
         const seg=v.ph as Seg,inter=nearInter(v)
         if(inter&&inter.dist<22){
           const st=lState(inter.cx,inter.cy,frame)
@@ -184,12 +202,75 @@ function CityBackground() {
           if(!green){v.waiting=true;v.wf=12;continue}
           const occ=vehs.some(o=>{if(o.id===v.id)return false;return Math.abs(o.cx-inter.cx)<ROAD*0.9&&Math.abs(o.cy-inter.cy)<ROAD*0.9})
           if(occ){v.waiting=true;v.wf=8;continue}
-          if(v.tp>0){
-            const rand=Math.random()
-            let chosen=seg.dir
-            if(rand<v.tp)chosen=leftOf[seg.dir]
-            else if(rand<v.tp*2)chosen=rightOf[seg.dir]
-            if(chosen!==seg.dir){v.ph=buildTurn(v,inter,chosen);continue}
+          
+          // Check if there are any stuck vehicles on the street segment up to 200 pixels down
+          const isStreetStuck = (d: Dir, maxDist = 200) => {
+            return vehs.some(o => {
+              if (o.id === v.id) return false
+              const rx = o.cx - inter.cx, ry = o.cy - inter.cy
+              const fwd = rx * DX[d] + ry * DY[d]
+              if (fwd > 5 && fwd < maxDist && Math.abs(rx * DY[d] - ry * DX[d]) < LANE) {
+                return o.waiting && o.stuck > 15
+              }
+              return false
+            })
+          }
+
+          const dStraight = seg.dir
+          const dLeft = leftOf[seg.dir]
+          const dRight = rightOf[seg.dir]
+
+          // Check if immediately blocked or has a stuck vehicle ahead
+          const straightBlocked = vehs.some(o => {
+            if(o.id===v.id)return false
+            const rx=o.cx-inter.cx,ry=o.cy-inter.cy
+            const fwd=rx*DX[dStraight]+ry*DY[dStraight]
+            return fwd>5 && fwd<110 && Math.abs(rx*DY[dStraight]-ry*DX[dStraight])<LANE
+          }) || isStreetStuck(dStraight)
+
+          const leftBlocked = vehs.some(o => {
+            if(o.id===v.id)return false
+            const rx=o.cx-inter.cx,ry=o.cy-inter.cy
+            const fwd=rx*DX[dLeft]+ry*DY[dLeft]
+            return fwd>5 && fwd<80 && Math.abs(rx*DX[dLeft]-ry*DX[dLeft])<LANE
+          }) || isStreetStuck(dLeft)
+
+          const rightBlocked = vehs.some(o => {
+            if(o.id===v.id)return false
+            const rx=o.cx-inter.cx,ry=o.cy-inter.cy
+            const fwd=rx*DX[dRight]+ry*DY[dRight]
+            return fwd>5 && fwd<80 && Math.abs(rx*DX[dRight]-ry*DX[dRight])<LANE
+          }) || isStreetStuck(dRight)
+
+          let chosen = dStraight
+          const options: Dir[] = []
+          if (!straightBlocked) options.push(dStraight)
+          if (!leftBlocked) options.push(dLeft)
+          if (!rightBlocked) options.push(dRight)
+
+          if (options.length > 0) {
+            let preferred = dStraight
+            if (v.tp > 0) {
+              const rand = Math.random()
+              if (rand < v.tp) preferred = dLeft
+              else if (rand < v.tp * 2) preferred = dRight
+            }
+
+            if (options.includes(preferred)) {
+              chosen = preferred
+            } else {
+              chosen = options[Math.floor(Math.random() * options.length)]
+            }
+          } else {
+            chosen = Math.random() < 0.5 ? dStraight : (Math.random() < 0.5 ? dLeft : dRight)
+          }
+
+          if(chosen!==seg.dir){
+            v.ph=buildTurn(v,inter,chosen)
+            v.waiting=false
+            v.wf=0
+            v.stuck=0
+            continue
           }
         }
         const dx=DX[seg.dir],dy=DY[seg.dir]
@@ -197,6 +278,7 @@ function CityBackground() {
         if(seg.dir==='R'||seg.dir==='L')v.cy=seg.sc+laneOff[seg.dir]
         else v.cx=seg.sc+laneOff[seg.dir]
         v.ang=dirAngle[seg.dir]
+        v.stuck=0
         if(v.isY&&v.rp.length<800)v.rp.push([v.cx,v.cy])
       }
     }
@@ -227,7 +309,7 @@ function CityBackground() {
       })
       vehs.filter(v=>v.type==='car').forEach(drawV)
       vehs.filter(v=>v.type==='bus').forEach(drawV)
-      spawnT++;if(spawnT>90&&vehs.length<70){spawn(Math.random()<0.38,(['T','B','L','R']as const)[Math.floor(Math.random()*4)]);spawnT=0}
+      spawnT++;if(spawnT>25&&vehs.length<220){spawn(Math.random()<0.35,(['T','B','L','R']as const)[Math.floor(Math.random()*4)]);spawnT=0}
       frame++;update();animId=requestAnimationFrame(render)
     }
     render()
