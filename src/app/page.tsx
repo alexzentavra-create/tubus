@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import Map, { Marker, Popup, NavigationControl, GeolocateControl, Source, Layer } from 'react-map-gl/maplibre'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Bus, Search, ChevronDown, X, Star, MapPin, Bell,
+  Bus, Search, ChevronDown, X, Star, MapPin, Bell, AlertTriangle,
   LogOut, Heart, ChevronRight, User, Sliders, Moon, Globe,
   Navigation as NavIcon, LayoutDashboard, Menu,
   Locate, Plus, Minus, Sun
@@ -91,6 +91,8 @@ interface UserPrefs {
   fontSize: 'normal' | 'large'
   showPassengerCount: boolean
   autoZoomOnBus: boolean
+  favBuses?: string[]
+  favDrivers?: string[]
 }
 
 const DEFAULT_PREFS: UserPrefs = {
@@ -98,6 +100,7 @@ const DEFAULT_PREFS: UserPrefs = {
   notifyNearbyBus: true, notifyNearbyRadius: 0.5, notifyFavLines: true,
   darkMap: true, language: 'es', fontSize: 'normal',
   showPassengerCount: true, autoZoomOnBus: true,
+  favBuses: [], favDrivers: [],
 }
 
 function loadPrefs(): UserPrefs {
@@ -806,7 +809,30 @@ export default function UserMapPage() {
 
           {selectedBus && (
             <Popup longitude={selectedBus.longitude} latitude={selectedBus.latitude} anchor="bottom" offset={44} closeButton={false} onClose={() => setSelectedBus(null)}>
-              <MiniPopup bus={selectedBus} />
+              <MiniPopup
+                bus={selectedBus}
+                onReport={() => setShowReport(true)}
+                isFavBus={(prefs.favBuses || []).includes(selectedBus.bus_unit)}
+                isFavDriver={(prefs.favDrivers || []).includes(selectedBus.driver_name)}
+                onToggleFavBus={() => {
+                  const current = prefs.favBuses || []
+                  const exists = current.includes(selectedBus.bus_unit)
+                  updatePrefs({
+                    favBuses: exists
+                      ? current.filter(u => u !== selectedBus.bus_unit)
+                      : [...current, selectedBus.bus_unit]
+                  })
+                }}
+                onToggleFavDriver={() => {
+                  const current = prefs.favDrivers || []
+                  const exists = current.includes(selectedBus.driver_name)
+                  updatePrefs({
+                    favDrivers: exists
+                      ? current.filter(d => d !== selectedBus.driver_name)
+                      : [...current, selectedBus.driver_name]
+                  })
+                }}
+              />
             </Popup>
           )}
         </Map>
@@ -1402,7 +1428,17 @@ export default function UserMapPage() {
             >
               <div style={{ maxWidth: '520px', margin: '0 auto', padding: '0 16px' }}>
                 {activePanel === 'favourites' && (
-                  <FavouritesPanel prefs={prefs} lines={allLines} onSelectLine={l => { setSelectedLines([l]); setActivePanel('map') }} onUpdatePrefs={updatePrefs} />
+                  <FavouritesPanel
+                    prefs={prefs}
+                    lines={allLines}
+                    buses={buses}
+                    onSelectLine={l => { setSelectedLines([l]); setActivePanel('map') }}
+                    onUpdatePrefs={updatePrefs}
+                    onSelectBus={bus => {
+                      handleBusClick(bus)
+                      setActivePanel('map')
+                    }}
+                  />
                 )}
                 {activePanel === 'settings' && (
                   <SettingsPanel prefs={prefs} onUpdatePrefs={updatePrefs} />
@@ -1487,14 +1523,18 @@ export default function UserMapPage() {
 }
 
 // ─── Favourites Panel ─────────────────────────────────────────────────────────
-function FavouritesPanel({ prefs, lines, onSelectLine, onUpdatePrefs }: {
-  prefs: UserPrefs; lines: BusLine[]
+function FavouritesPanel({ prefs, lines, buses, onSelectLine, onUpdatePrefs, onSelectBus }: {
+  prefs: UserPrefs; lines: BusLine[]; buses: BusPosition[]
   onSelectLine: (l: BusLine) => void
   onUpdatePrefs: (p: Partial<UserPrefs>) => void
+  onSelectBus: (b: BusPosition) => void
 }) {
   const favLines = lines.filter(l => prefs.favBusLines.includes(l.id))
   const allStops = lines.flatMap(line => getMockStopsForLine(line))
   const favStops = allStops.filter(s => prefs.favStops.includes(s.id))
+  
+  const favBuses = prefs.favBuses || []
+  const favDrivers = prefs.favDrivers || []
 
   return (
     <div>
@@ -1509,6 +1549,36 @@ function FavouritesPanel({ prefs, lines, onSelectLine, onUpdatePrefs }: {
       {favStops.length === 0 ? <EmptyHint text="Tocá una parada en el mapa para guardarla" /> : favStops.map(stop => (
         <FavStopCard key={stop.id} stop={stop} onRemove={() => onUpdatePrefs({ favStops: prefs.favStops.filter(id => id !== stop.id) })} />
       ))}
+
+      <SectionHeader icon={<Bus size={13} />} title="Colectivos guardados" style={{ marginTop: '20px' }} />
+      {favBuses.length === 0 ? (
+        <EmptyHint text="Tocá 'Colectivo' en el popup del mapa para guardar un interno" />
+      ) : (
+        favBuses.map(busUnit => (
+          <FavBusCard
+            key={busUnit}
+            busUnit={busUnit}
+            buses={buses}
+            onSelect={onSelectBus}
+            onRemove={() => onUpdatePrefs({ favBuses: favBuses.filter(u => u !== busUnit) })}
+          />
+        ))
+      )}
+
+      <SectionHeader icon={<User size={13} />} title="Choferes guardados" style={{ marginTop: '20px' }} />
+      {favDrivers.length === 0 ? (
+        <EmptyHint text="Tocá 'Chofer' en el popup del mapa para guardar un chofer" />
+      ) : (
+        favDrivers.map(driverName => (
+          <FavDriverCard
+            key={driverName}
+            driverName={driverName}
+            buses={buses}
+            onSelect={onSelectBus}
+            onRemove={() => onUpdatePrefs({ favDrivers: favDrivers.filter(d => d !== driverName) })}
+          />
+        ))
+      )}
 
       <SectionHeader icon={<Bell size={13} />} title="Notificaciones" style={{ marginTop: '20px' }} />
       <GlassCard>
@@ -1685,6 +1755,126 @@ function FavStopCard({ stop, onRemove }: { stop: BusStop; onRemove: () => void }
   )
 }
 
+function FavBusCard({
+  busUnit,
+  buses,
+  onSelect,
+  onRemove
+}: {
+  busUnit: string
+  buses: BusPosition[]
+  onSelect: (b: BusPosition) => void
+  onRemove: () => void
+}) {
+  const onlineBus = buses.find(b => b.bus_unit === busUnit)
+  const isOnline = !!onlineBus
+
+  return (
+    <div
+      onClick={() => isOnline && onSelect(onlineBus)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '11px',
+        padding: '11px 13px',
+        borderRadius: '13px',
+        background: 'rgba(19,25,33,0.95)',
+        border: '1px solid rgba(184,200,224,0.1)',
+        marginBottom: '5px',
+        cursor: isOnline ? 'pointer' : 'default',
+        transition: 'all 0.2s'
+      }}
+    >
+      <div
+        style={{
+          width: '9px',
+          height: '9px',
+          borderRadius: '50%',
+          background: isOnline ? '#10B981' : '#6B7280',
+          flexShrink: 0,
+          boxShadow: isOnline ? '0 0 8px rgba(16,185,129,0.8)' : 'none'
+        }}
+      />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600 }}>
+          Interno {busUnit}
+        </div>
+        <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'DM Mono', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {isOnline 
+            ? `En servicio • Línea ${onlineBus.line_number}${onlineBus.ramal ? ` (${onlineBus.ramal})` : ''} • ${onlineBus.speed_kmh} km/h`
+            : 'Desconectado • Fuera de ruta'}
+        </div>
+      </div>
+      <button
+        onClick={(e) => { e.stopPropagation(); onRemove(); }}
+        style={{ padding: '4px', background: 'none', border: 'none', cursor: 'pointer' }}
+      >
+        <X size={13} style={{ color: 'var(--text-muted)' }} />
+      </button>
+    </div>
+  )
+}
+
+function FavDriverCard({
+  driverName,
+  buses,
+  onSelect,
+  onRemove
+}: {
+  driverName: string
+  buses: BusPosition[]
+  onSelect: (b: BusPosition) => void
+  onRemove: () => void
+}) {
+  const onlineBus = buses.find(b => b.driver_name === driverName)
+  const isOnline = !!onlineBus
+
+  return (
+    <div
+      onClick={() => isOnline && onSelect(onlineBus)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '11px',
+        padding: '11px 13px',
+        borderRadius: '13px',
+        background: 'rgba(19,25,33,0.95)',
+        border: '1px solid rgba(184,200,224,0.1)',
+        marginBottom: '5px',
+        cursor: isOnline ? 'pointer' : 'default',
+        transition: 'all 0.2s'
+      }}
+    >
+      <div
+        style={{
+          width: '9px',
+          height: '9px',
+          borderRadius: '50%',
+          background: isOnline ? '#EC4899' : '#6B7280',
+          flexShrink: 0,
+          boxShadow: isOnline ? '0 0 8px rgba(236,72,153,0.8)' : 'none'
+        }}
+      />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600 }}>
+          Chofer: {driverName}
+        </div>
+        <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'DM Mono', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {isOnline 
+            ? `En servicio • Línea ${onlineBus.line_number} • Interno ${onlineBus.bus_unit}`
+            : 'Fuera de servicio'}
+        </div>
+      </div>
+      <button
+        onClick={(e) => { e.stopPropagation(); onRemove(); }}
+        style={{ padding: '4px', background: 'none', border: 'none', cursor: 'pointer' }}
+      >
+        <X size={13} style={{ color: 'var(--text-muted)' }} />
+      </button>
+    </div>
+  )
+}
+
 function EmptyHint({ text }: { text: string }) {
   return <div style={{ padding: '18px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px', borderRadius: '12px', border: '1px dashed rgba(184,200,224,0.12)', marginBottom: '6px' }}>{text}</div>
 }
@@ -1797,7 +1987,21 @@ function PremiumBusMarker({ bus, lineColor, isSelected, showPassengers }: { bus:
 
 
 // ─── Mini popup ───────────────────────────────────────────────────────────────
-function MiniPopup({ bus }: { bus: BusPosition }) {
+function MiniPopup({
+  bus,
+  onReport,
+  isFavBus,
+  isFavDriver,
+  onToggleFavBus,
+  onToggleFavDriver
+}: {
+  bus: BusPosition
+  onReport: () => void
+  isFavBus: boolean
+  isFavDriver: boolean
+  onToggleFavBus: () => void
+  onToggleFavDriver: () => void
+}) {
   const reportsCount = bus.reports_count ?? 0
   const busColor = bus.line_number === '12' ? '#EF4444' : 
                    bus.line_number === '28' ? '#16A34A' :
@@ -1889,6 +2093,83 @@ function MiniPopup({ bus }: { bus: BusPosition }) {
         <div>
           Pasajeros: <strong style={{ color: '#EAB308', fontFamily: 'DM Mono' }}>{bus.passenger_count}</strong>
         </div>
+      </div>
+
+      {/* Action Buttons Row */}
+      <div style={{ display: 'flex', gap: '6px', marginTop: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '10px' }}>
+        <button
+          onClick={(e) => { e.stopPropagation(); onReport(); }}
+          style={{
+            flex: 1,
+            padding: '7px 8px',
+            borderRadius: '10px',
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.25)',
+            color: '#FCA5A5',
+            fontSize: '11px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '4px',
+            transition: 'all 0.2s',
+            boxShadow: '0 2px 4px rgba(239,68,68,0.1)'
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.18)'; e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.25)'; }}
+        >
+          <AlertTriangle size={11} />
+          Denunciar
+        </button>
+
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleFavBus(); }}
+          style={{
+            padding: '7px 10px',
+            borderRadius: '10px',
+            background: isFavBus ? 'rgba(234, 179, 8, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+            border: `1px solid ${isFavBus ? 'rgba(234, 179, 8, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,
+            color: isFavBus ? '#FBBF24' : '#E5E7EB',
+            fontSize: '11px',
+            fontWeight: 500,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '4px',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = isFavBus ? 'rgba(234, 179, 8, 0.22)' : 'rgba(255, 255, 255, 0.08)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = isFavBus ? 'rgba(234, 179, 8, 0.15)' : 'rgba(255, 255, 255, 0.03)'; }}
+        >
+          <Star size={11} style={{ fill: isFavBus ? '#FBBF24' : 'none' }} />
+          Colectivo
+        </button>
+
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleFavDriver(); }}
+          style={{
+            padding: '7px 10px',
+            borderRadius: '10px',
+            background: isFavDriver ? 'rgba(236, 72, 153, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+            border: `1px solid ${isFavDriver ? 'rgba(236, 72, 153, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,
+            color: isFavDriver ? '#F472B6' : '#E5E7EB',
+            fontSize: '11px',
+            fontWeight: 500,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '4px',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = isFavDriver ? 'rgba(236, 72, 153, 0.22)' : 'rgba(255, 255, 255, 0.08)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = isFavDriver ? 'rgba(236, 72, 153, 0.15)' : 'rgba(255, 255, 255, 0.03)'; }}
+        >
+          <Heart size={11} style={{ fill: isFavDriver ? '#F472B6' : 'none' }} />
+          Chofer
+        </button>
       </div>
     </div>
   )
