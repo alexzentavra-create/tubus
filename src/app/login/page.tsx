@@ -50,6 +50,11 @@ function CityBackground() {
       else if(edge==='R'){dir='L';const r=rows[Math.floor(Math.random()*rows.length)];sx=W+50;sy=r+laneOff['L'];sc=r}
       else if(edge==='T'){dir='D';const c=cols[Math.floor(Math.random()*cols.length)];sx=c+laneOff['D'];sy=-50;sc=c}
       else{dir='U';const c=cols[Math.floor(Math.random()*cols.length)];sx=c+laneOff['U'];sy=H+50;sc=c}
+      
+      // Ensure spawn position is clear to prevent immediate overlapping collisions
+      const isClear = !vehs.some(o => Math.hypot(o.cx - sx, o.cy - sy) < 65)
+      if(!isClear) return
+
       const spd=isBus?0.55+Math.random()*0.5:0.7+Math.random()*0.9
       const len=isBus?28:13,wid=isBus?10:6
       const ci=isBus?Math.floor(Math.random()*BC.length):-1
@@ -79,13 +84,15 @@ function CityBackground() {
       return best
     }
     const isBlocked=(v:Veh)=>{
-      if(v.ph.type!=='straight')return false
-      const dx=DX[(v.ph as Seg).dir],dy=DY[(v.ph as Seg).dir],gap=v.len+5
+      const fx=Math.cos(v.ang),fy=Math.sin(v.ang),px=-fy,py=fx
+      const safeDist=v.len/2+18
       return vehs.some(o=>{
         if(o.id===v.id)return false
-        const rx=o.cx-v.cx,ry=o.cy-v.cy,fwd=rx*dx+ry*dy
-        if(fwd<=2||fwd>gap)return false
-        return Math.abs(rx*dy-ry*dx)<v.wid+3
+        const rx=o.cx-v.cx,ry=o.cy-v.cy,fwd=rx*fx+ry*fy
+        if(fwd<=1||fwd>(safeDist+o.len/2))return false
+        const side=rx*px+ry*py
+        const laneWidth=(v.wid/2+o.wid/2+3)
+        return Math.abs(side)<laneWidth
       })
     }
     const drawV=(v:Veh)=>{
@@ -149,6 +156,8 @@ function CityBackground() {
       for(let i=vehs.length-1;i>=0;i--){
         const v=vehs[i]
         if(v.cx<-120||v.cx>W+120||v.cy<-120||v.cy>H+120){vehs.splice(i,1);continue}
+        if(v.waiting){v.wf--;v.stuck++;if(v.wf<=0||v.stuck>200){v.waiting=false;v.stuck=0}continue}
+        if(isBlocked(v)){v.waiting=true;v.wf=8;continue}
         if(v.ph.type==='turn'){
           const ts=v.ph as TurnSeg
           ts.t+=ts.spd*0.022
@@ -183,7 +192,6 @@ function CityBackground() {
             if(chosen!==seg.dir){v.ph=buildTurn(v,inter,chosen);continue}
           }
         }
-        if(isBlocked(v)){v.waiting=true;v.wf=6;continue}
         const dx=DX[seg.dir],dy=DY[seg.dir]
         v.cx+=dx*v.spd;v.cy+=dy*v.spd
         if(seg.dir==='R'||seg.dir==='L')v.cy=seg.sc+laneOff[seg.dir]
@@ -246,6 +254,7 @@ export default function LoginPage() {
   const [mode, setMode] = useState<Mode>('login')
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [acceptTerms, setAcceptTerms] = useState(false)
   const [form, setForm] = useState({ email:'', password:'', name:'', age:'', weeklyTrips:'' })
   const set = (k:keyof typeof form) => (e:React.ChangeEvent<HTMLInputElement>) => setForm(f=>({...f,[k]:e.target.value}))
 
@@ -253,6 +262,12 @@ export default function LoginPage() {
 
   const handleSubmit = async (e:React.FormEvent) => {
     e.preventDefault(); setLoading(true)
+
+    if (!acceptTerms) {
+      toast.error('Debe aceptar los términos y condiciones para continuar')
+      setLoading(false)
+      return
+    }
 
     if (mode === 'login') {
       let email = form.email
@@ -398,6 +413,33 @@ export default function LoginPage() {
                   <Input type="number" placeholder="Edad" value={form.age} onChange={set('age')} right={<Calendar size={15}/>}/>
                   <Input type="number" placeholder="Veces por semana que tomás el colectivo" value={form.weeklyTrips} onChange={set('weeklyTrips')} right={<BarChart2 size={15}/>}/>
                 </>)}
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: '4px 0 10px', fontSize: '12px', color: 'rgba(255,255,255,0.45)', fontFamily: 'DM Sans, sans-serif', userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={acceptTerms}
+                    onChange={(e) => setAcceptTerms(e.target.checked)}
+                    style={{
+                      accentColor: '#22D3A0',
+                      width: '14px',
+                      height: '14px',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <span>
+                    Acepto los{' '}
+                    <a
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        toast.success('Términos y condiciones aceptados')
+                      }}
+                      style={{ color: 'rgba(255,255,255,0.7)', textDecoration: 'underline' }}
+                    >
+                      términos y condiciones
+                    </a>
+                  </span>
+                </label>
 
                 <button type="submit" disabled={loading} className="action-btn"
                   style={{width:'100%',padding:'13px',marginTop:'4px',background:loading?'rgba(255,255,255,0.6)':'#ffffff',color:'#07090F',fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:'14px',letterSpacing:'0.03em',border:'none',borderRadius:'10px',cursor:loading?'not-allowed':'pointer',boxShadow:'0 4px 24px rgba(255,255,255,0.12)',transition:'all 250ms',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}>
