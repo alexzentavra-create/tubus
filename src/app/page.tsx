@@ -92,6 +92,8 @@ interface UserPrefs {
   autoZoomOnBus: boolean
   favBuses?: string[]
   favDrivers?: string[]
+  filterByPassengers?: boolean
+  maxPassengers?: number
 }
 
 const DEFAULT_PREFS: UserPrefs = {
@@ -100,6 +102,8 @@ const DEFAULT_PREFS: UserPrefs = {
   darkMap: true, language: 'es', fontSize: 'normal',
   showPassengerCount: true, autoZoomOnBus: true,
   favBuses: [], favDrivers: [],
+  filterByPassengers: false,
+  maxPassengers: 10,
 }
 
 function loadPrefs(): UserPrefs {
@@ -1597,6 +1601,32 @@ function FavouritesPanel({ prefs, lines, buses, onSelectLine, onUpdatePrefs, onS
             <input type="range" min="0.2" max="2" step="0.1" value={prefs.notifyNearbyRadius}
               onChange={e => onUpdatePrefs({ notifyNearbyRadius: parseFloat(e.target.value) })}
               style={{ width: '120px', accentColor: 'var(--platinum)' }} />
+          </div>
+        )}
+        <Divider />
+        <ToggleRow label="Filtrar avisos por cantidad de pasajeros" value={prefs.filterByPassengers || false} onChange={v => onUpdatePrefs({ filterByPassengers: v })} />
+        {prefs.filterByPassengers && (
+          <div style={{ padding: '8px 16px 12px', display: 'flex', alignItems: 'center', gap: '12px', borderTop: '1px solid rgba(184, 200, 224, 0.05)' }}>
+            <span style={{ color: 'var(--text-muted)', fontSize: '12px', flex: 1 }}>Avisar solo si tiene menos de:</span>
+            <input type="number" min="0" max="100" value={prefs.maxPassengers ?? 10}
+              onChange={e => {
+                const val = parseInt(e.target.value)
+                onUpdatePrefs({ maxPassengers: isNaN(val) ? 0 : val })
+              }}
+              style={{
+                width: '65px',
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '1px solid rgba(184, 200, 224, 0.15)',
+                color: 'var(--text-primary)',
+                borderRadius: '6px',
+                padding: '4px 8px',
+                fontSize: '12px',
+                outline: 'none',
+                textAlign: 'center',
+                fontFamily: 'DM Mono, monospace'
+              }}
+            />
+            <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>personas</span>
           </div>
         )}
       </GlassCard>
