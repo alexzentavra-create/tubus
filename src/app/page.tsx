@@ -433,6 +433,13 @@ export default function UserMapPage() {
     }
   }, [trackedBusId, buses])
 
+  // Close selected bus popup when switching tabs/panels
+  useEffect(() => {
+    if (activePanel !== 'map') {
+      setSelectedBus(null)
+    }
+  }, [activePanel])
+
   const handleLocated = useCallback((e: any) => {
     const { latitude, longitude } = e.coords
     supabase.rpc('get_nearby_stops', { user_lat: latitude, user_lng: longitude })
@@ -640,6 +647,8 @@ export default function UserMapPage() {
               if (originCoord) {
                 setTravelRoute(solveRoute(originCoord, { lat, lng }))
               }
+            } else {
+              setSelectedBus(null)
             }
           }}
         >
