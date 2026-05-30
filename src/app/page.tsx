@@ -16,7 +16,6 @@ import {
   MOCK_LINES, MOCK_STOPS, initMockBuses, tickMockBuses, getMockBusesForLine, getLineBounds, getMockStopsForLine, getMockRoutePathForLine, getMockRoutePathsForLine
 } from '@/lib/mockData'
 import ReportModal from '@/components/user/ReportModal'
-import BusInfoSheet from '@/components/user/BusInfoSheet'
 import LineSelector, { Tab as LineSelectorTab } from '@/components/user/LineSelector'
 import NearbyStops from '@/components/user/NearbyStops'
 
@@ -1453,9 +1452,7 @@ export default function UserMapPage() {
 
         {/* ── BOTTOM SHEETS ── */}
         <AnimatePresence>
-          {selectedBus && activePanel === 'map' ? (
-            <BusInfoSheet key="bus" bus={selectedBus} onClose={() => setSelectedBus(null)} onReport={() => setShowReport(true)} />
-          ) : (pinNearbyStopsMode || nearbyStops.length > 0) && activePanel === 'map' ? (
+          {(pinNearbyStopsMode || nearbyStops.length > 0) && activePanel === 'map' ? (
             <NearbyStops
               key="stops"
               stops={nearbyStops}
