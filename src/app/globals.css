@@ -352,3 +352,17 @@ html, body {
   transform-style: preserve-3d !important;
   backface-visibility: visible !important;
 }
+
+/* Custom Maplibre Popup overrides to remove native white background and borders */
+.maplibregl-popup {
+  z-index: 50 !important;
+}
+.maplibregl-popup-content {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border: none !important;
+}
+.maplibregl-popup-tip {
+  display: none !important; /* Hide the native white triangle tip */
+}

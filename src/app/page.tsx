@@ -2017,11 +2017,23 @@ function MiniPopup({
   onToggleFavBus: () => void
   onToggleFavDriver: () => void
 }) {
-  const reportsCount = bus.reports_count ?? 0
   const busColor = bus.line_number === '12' ? '#EF4444' : 
                    bus.line_number === '28' ? '#16A34A' :
                    bus.line_number === '37' ? '#15803D' :
                    bus.line_number === '60' ? '#EAB308' : '#1D4ED8';
+
+  // Deterministically generate amenities based on bus unit to make them consistent but different
+  const getBusAmenities = (busUnit: string) => {
+    const digits = busUnit.split('').filter(c => '0123456789'.includes(c)).join('')
+    const num = parseInt(digits) || 0
+    const hasAC = num % 3 !== 0      // 2 out of 3 have AC (most of them)
+    const isNew = num % 4 !== 0      // 3 out of 4 are under 5 years old
+    const hasRamp = num % 5 !== 0    // 4 out of 5 have wheelchair ramps (some have no ramp)
+    return { hasAC, isNew, hasRamp }
+  }
+
+  const amenities = getBusAmenities(bus.bus_unit)
+
   return (
     <div style={{
       background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.95) 0%, rgba(10, 15, 26, 0.98) 100%)',
@@ -2029,7 +2041,7 @@ function MiniPopup({
       borderRadius: '16px',
       padding: '12px',
       color: 'white',
-      width: '230px',
+      width: '260px',
       boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
       fontFamily: 'DM Sans, sans-serif',
       backdropFilter: 'blur(10px)',
@@ -2039,7 +2051,7 @@ function MiniPopup({
       <div style={{
         position: 'relative',
         width: '100%',
-        height: '90px',
+        height: '110px',
         borderRadius: '10px',
         background: 'rgba(255, 255, 255, 0.02)',
         border: '1px solid rgba(255, 255, 255, 0.06)',
@@ -2050,9 +2062,9 @@ function MiniPopup({
         marginBottom: '10px'
       }}>
         <img
-          src={`/images/bus-${bus.line_number}.png`}
+          src={bus.line_number === '12' ? '/images/bus-12-real.jpg' : `/images/bus-${bus.line_number}.png`}
           alt={`Bus ${bus.line_number}`}
-          style={{ width: 'auto', height: '100%', objectFit: 'contain' }}
+          style={{ width: '100%', height: '100%', objectFit: bus.line_number === '12' ? 'cover' : 'contain' }}
         />
         <div style={{
           position: 'absolute',
@@ -2071,42 +2083,52 @@ function MiniPopup({
         </div>
       </div>
 
-      <div style={{ fontWeight: 700, fontSize: '13px', marginBottom: '2px', color: '#F3F4F6' }}>
-        Interno: {bus.bus_unit}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+        <div style={{ fontWeight: 700, fontSize: '13px', color: '#F3F4F6' }}>
+          Interno: {bus.bus_unit}
+        </div>
+        {bus.passenger_count > 0 && (
+          <div style={{ fontSize: '10px', color: '#EAB308', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
+            <span>👥 {bus.passenger_count} a bordo</span>
+          </div>
+        )}
       </div>
-      <div style={{ color: '#9CA3AF', fontSize: '11px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+
+      <div style={{ color: '#9CA3AF', fontSize: '11px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '4px' }}>
         <span>Chofer: <strong>{bus.driver_name}</strong></span>
         <span style={{ color: '#10B981', fontWeight: 'bold' }}>✓</span>
       </div>
 
-      {/* Reports badge */}
+      {/* Amenities Ticked & Unticked Grid */}
       <div style={{
-        background: reportsCount > 0 ? 'rgba(239, 68, 68, 0.12)' : 'rgba(16, 185, 129, 0.08)',
-        border: `1px solid ${reportsCount > 0 ? 'rgba(239, 68, 68, 0.25)' : 'rgba(16, 185, 129, 0.2)'}`,
-        borderRadius: '8px',
-        padding: '5px 8px',
-        fontSize: '11px',
-        color: reportsCount > 0 ? '#FCA5A5' : '#D1FAE5',
-        marginBottom: '10px',
+        background: 'rgba(255, 255, 255, 0.02)',
+        border: '1px solid rgba(255, 255, 255, 0.05)',
+        borderRadius: '10px',
+        padding: '10px',
+        marginBottom: '12px',
         display: 'flex',
-        alignItems: 'center',
+        flexDirection: 'column',
         gap: '6px',
+        fontSize: '11px',
+        color: '#D1D5DB'
       }}>
-        <span style={{ fontSize: '12px' }}>{reportsCount > 0 ? '⚠' : '🛡'}</span>
-        <span>
-          {reportsCount > 0 
-            ? `${reportsCount} ${reportsCount === 1 ? 'denuncia activa' : 'denuncias activas'}`
-            : 'Sin denuncias activas'}
-        </span>
-      </div>
-
-      {/* Stats */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '8px', fontSize: '11px', color: '#9CA3AF' }}>
-        <div>
-          Velocidad: <strong style={{ color: 'white', fontFamily: 'DM Mono' }}>{bus.speed_kmh} km/h</strong>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>Aire Acondicionado</span>
+          <span style={{ color: amenities.hasAC ? '#10B981' : '#EF4444', fontWeight: 'bold', fontSize: '12px' }}>
+            {amenities.hasAC ? '✓' : '✗'}
+          </span>
         </div>
-        <div>
-          Pasajeros: <strong style={{ color: '#EAB308', fontFamily: 'DM Mono' }}>{bus.passenger_count}</strong>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>Antigüedad &lt; 5 años</span>
+          <span style={{ color: amenities.isNew ? '#10B981' : '#EF4444', fontWeight: 'bold', fontSize: '12px' }}>
+            {amenities.isNew ? '✓' : '✗'}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>Rampa para Silla de Ruedas</span>
+          <span style={{ color: amenities.hasRamp ? '#10B981' : '#EF4444', fontWeight: 'bold', fontSize: '12px' }}>
+            {amenities.hasRamp ? '✓' : '✗'}
+          </span>
         </div>
       </div>
 
