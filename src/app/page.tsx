@@ -673,8 +673,8 @@ export default function UserMapPage() {
               const line = lines.find(l => l.id === bus.line_id)
               const lineColor = line?.color || '#B8C8E0'
               return (
-                <Marker key={bus.id} longitude={bus.longitude} latitude={bus.latitude} anchor="center" rotation={bus.heading} rotationAlignment="map" onClick={() => handleBusClick(bus)}>
-                  <PremiumBusMarker bus={bus} lineColor={lineColor} isSelected={selectedBus?.id === bus.id} showPassengers={prefs.showPassengerCount} />
+                 <Marker key={bus.id} longitude={bus.longitude} latitude={bus.latitude} anchor="center" rotation={bus.heading} rotationAlignment="map">
+                  <PremiumBusMarker bus={bus} lineColor={lineColor} isSelected={selectedBus?.id === bus.id} showPassengers={prefs.showPassengerCount} onClick={() => handleBusClick(bus)} />
                 </Marker>
               )
             })}
@@ -1889,11 +1889,29 @@ function ProfileRow({ label, value }: { label: string; value: string }) {
 }
 
 // ─── Bus Marker ───────────────────────────────────────────────────────────────
-function PremiumBusMarker({ bus, lineColor, isSelected, showPassengers }: { bus: BusPosition; lineColor: string; isSelected: boolean; showPassengers: boolean }) {
+function PremiumBusMarker({
+  bus,
+  lineColor,
+  isSelected,
+  showPassengers,
+  onClick
+}: {
+  bus: BusPosition;
+  lineColor: string;
+  isSelected: boolean;
+  showPassengers: boolean;
+  onClick?: () => void;
+}) {
   const isMoving = bus.status === 'moving'
   const color = isMoving ? lineColor : bus.status === 'at_stop' ? '#F0B429' : '#FF4D6A'
   return (
-    <div style={{ position: 'relative', width: '36px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+    <div
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.();
+      }}
+      style={{ position: 'relative', width: '36px', height: '50px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+    >
       {/* Headlight glow beam (pointing North/Up) */}
       {isMoving && (
         <div style={{
