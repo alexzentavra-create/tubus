@@ -1675,7 +1675,14 @@ function SettingsPanel({ prefs, onUpdatePrefs }: { prefs: UserPrefs; onUpdatePre
 
       <SectionHeader icon={<Sliders size={13} />} title="Próximamente" style={{ marginTop: '20px' }} />
       <GlassCard>
-        {['Historial de viajes', 'Recargar SUBE desde app', 'Alertas de demora por línea', 'Compartir ubicación'].map((item, i, arr) => (
+        {[
+          'Historial de viajes',
+          'Incorporación de Línea 39',
+          'Incorporación de Línea 59',
+          'Incorporación de Línea 102',
+          'Alertas de demora por línea',
+          'Compartir ubicación'
+        ].map((item, i, arr) => (
           <div key={item}>
             <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{item}</span>
