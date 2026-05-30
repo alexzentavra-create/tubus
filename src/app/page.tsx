@@ -2041,7 +2041,7 @@ function MiniPopup({
       borderRadius: '16px',
       padding: '12px',
       color: 'white',
-      width: '260px',
+      width: '280px',
       boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
       fontFamily: 'DM Sans, sans-serif',
       backdropFilter: 'blur(10px)',
@@ -2138,7 +2138,7 @@ function MiniPopup({
           onClick={(e) => { e.stopPropagation(); onReport(); }}
           style={{
             flex: 1,
-            padding: '7px 8px',
+            padding: '7px 4px',
             borderRadius: '10px',
             background: 'rgba(239, 68, 68, 0.1)',
             border: '1px solid rgba(239, 68, 68, 0.25)',
@@ -2163,7 +2163,8 @@ function MiniPopup({
         <button
           onClick={(e) => { e.stopPropagation(); onToggleFavBus(); }}
           style={{
-            padding: '7px 10px',
+            flex: 1,
+            padding: '7px 4px',
             borderRadius: '10px',
             background: isFavBus ? 'rgba(234, 179, 8, 0.15)' : 'rgba(255, 255, 255, 0.03)',
             border: `1px solid ${isFavBus ? 'rgba(234, 179, 8, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,
@@ -2187,7 +2188,8 @@ function MiniPopup({
         <button
           onClick={(e) => { e.stopPropagation(); onToggleFavDriver(); }}
           style={{
-            padding: '7px 10px',
+            flex: 1,
+            padding: '7px 4px',
             borderRadius: '10px',
             background: isFavDriver ? 'rgba(236, 72, 153, 0.15)' : 'rgba(255, 255, 255, 0.03)',
             border: `1px solid ${isFavDriver ? 'rgba(236, 72, 153, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,

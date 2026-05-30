@@ -354,15 +354,16 @@ html, body {
 }
 
 /* Custom Maplibre Popup overrides to remove native white background and borders */
-.maplibregl-popup {
+.maplibregl-popup, .mapboxgl-popup {
   z-index: 50 !important;
+  max-width: none !important;
 }
-.maplibregl-popup-content {
+.maplibregl-popup-content, .mapboxgl-popup-content {
   background: transparent !important;
   box-shadow: none !important;
   padding: 0 !important;
   border: none !important;
 }
-.maplibregl-popup-tip {
+.maplibregl-popup-tip, .mapboxgl-popup-tip {
   display: none !important; /* Hide the native white triangle tip */
 }
