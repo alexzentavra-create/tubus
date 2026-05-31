@@ -746,6 +746,42 @@ export const OFFICIAL_ROUTES: Record<string, OfficialRoute> = {
     {
       "lat": -34.580195,
       "lng": -58.422788
+    },
+    {
+      "lat": -34.5796,
+      "lng": -58.4235
+    },
+    {
+      "lat": -34.5790,
+      "lng": -58.4242
+    },
+    {
+      "lat": -34.5784,
+      "lng": -58.4249
+    },
+    {
+      "lat": -34.5778,
+      "lng": -58.4256
+    },
+    {
+      "lat": -34.5772,
+      "lng": -58.4262
+    },
+    {
+      "lat": -34.5766,
+      "lng": -58.4269
+    },
+    {
+      "lat": -34.5760,
+      "lng": -58.4276
+    },
+    {
+      "lat": -34.5754,
+      "lng": -58.4283
+    },
+    {
+      "lat": -34.5746,
+      "lng": -58.4292
     }
   ],
   "stops": [
@@ -982,10 +1018,24 @@ export const OFFICIAL_ROUTES: Record<string, OfficialRoute> = {
     },
     {
       "id": "202433",
-      "name": "4335 SANTA FE AV.",
+      "name": "4335 SANTA FE AV. (Plaza Italia)",
       "lat": -34.580195,
       "lng": -58.422788,
       "pathIndex": 184
+    },
+    {
+      "id": "2032411",
+      "name": "4600 SANTA FE AV. (Pacífico)",
+      "lat": -34.5772,
+      "lng": -58.4262,
+      "pathIndex": 189
+    },
+    {
+      "id": "2032412",
+      "name": "Av. Luis M. Campos / Plaza Falucho (Terminal)",
+      "lat": -34.5746,
+      "lng": -58.4292,
+      "pathIndex": 193
     }
   ]
 },

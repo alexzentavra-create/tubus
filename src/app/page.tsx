@@ -375,19 +375,7 @@ export default function UserMapPage() {
     setUseMockBuses(false)
     if (selectedLines.length === 0) return
 
-    // Combine stops for all selected lines
-    const combinedStops = selectedLines.flatMap(line => getMockStopsForLine(line))
-    // Merge stops with exact same coordinates to prevent duplicates on map
-    const uniqueStops: BusStop[] = []
-    const coordsSet = new Set()
-    combinedStops.forEach(s => {
-      const key = `${s.latitude.toFixed(4)},${s.longitude.toFixed(4)}`
-      if (!coordsSet.has(key)) {
-        coordsSet.add(key)
-        uniqueStops.push(s)
-      }
-    })
-    setLineStops(uniqueStops)
+    // lineStops is updated via a separate useEffect that monitors directionFilter
 
     // Reinitialise simulator fresh for the selected lines, then start ticking
     initMockBuses(selectedLines)
@@ -429,6 +417,25 @@ export default function UserMapPage() {
       if (mockTickRef.current) { clearInterval(mockTickRef.current); mockTickRef.current = null }
     }
   }, [selectedLines])
+
+  // Update lineStops dynamically when selectedLines or directionFilter changes
+  useEffect(() => {
+    if (selectedLines.length === 0) {
+      setLineStops([])
+      return
+    }
+    const combinedStops = selectedLines.flatMap(line => getMockStopsForLine(line, directionFilter))
+    const uniqueStops: BusStop[] = []
+    const coordsSet = new Set()
+    combinedStops.forEach(s => {
+      const key = `${s.latitude.toFixed(4)},${s.longitude.toFixed(4)}`
+      if (!coordsSet.has(key)) {
+        coordsSet.add(key)
+        uniqueStops.push(s)
+      }
+    })
+    setLineStops(uniqueStops)
+  }, [selectedLines, directionFilter])
 
   // Center on tracked bus
   useEffect(() => {
@@ -494,7 +501,7 @@ export default function UserMapPage() {
   const dirLabels = getDirectionLabels()
   // Render paths for all selected lines (supporting multiple branches)
   const routeGeoJsons = selectedLines.map(line => {
-    const paths = getMockRoutePathsForLine(line)
+    const paths = getMockRoutePathsForLine(line, directionFilter)
     return {
       id: `route-${line.id}`,
       color: line.color,

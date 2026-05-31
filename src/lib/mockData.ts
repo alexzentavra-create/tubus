@@ -96,55 +96,91 @@ function routeTemplateForLine(line: BusLine): BusStop[] {
   return MOCK_STOPS[MOCK_LINES[0].id]
 }
 
-export function getMockStopsForLine(line: BusLine): BusStop[] {
-  if (line.line_number === '60') {
-    const routeA = OFFICIAL_ROUTES['60']
-    const routeB = OFFICIAL_ROUTES['60-B']
-    const stopsA = (routeA?.stops || []).map((stop, index) => ({
-      id: `${line.id}-official-${stop.id}`,
+export function getMockStopsForLine(line: BusLine, direction: 'all' | 'ida' | 'vuelta' = 'all'): BusStop[] {
+  const getOutboundStops = () => {
+    if (line.line_number === '60') {
+      const routeA = OFFICIAL_ROUTES['60']
+      const routeB = OFFICIAL_ROUTES['60-B']
+      const stopsA = (routeA?.stops || []).map((stop, index) => ({
+        id: `${line.id}-official-${stop.id}-ida`,
+        line_id: line.id,
+        name: stop.name,
+        street_name: 'Recorrido Ramal A (Tigre)',
+        stop_number: index + 1,
+        latitude: stop.lat,
+        longitude: stop.lng,
+        direction: 'ida' as const,
+        avg_wait_minutes: 5,
+        total_daily_users: 150,
+      }))
+      const stopsB = (routeB?.stops || []).map((stop, index) => ({
+        id: `${line.id}-official-${stop.id}-ida`,
+        line_id: line.id,
+        name: stop.name,
+        street_name: 'Recorrido Ramal B (Escobar)',
+        stop_number: index + 1,
+        latitude: stop.lat,
+        longitude: stop.lng,
+        direction: 'ida' as const,
+        avg_wait_minutes: 7,
+        total_daily_users: 100,
+      }))
+      
+      const uniqueStops: BusStop[] = []
+      const coords = new Set<string>()
+      ;[...stopsA, ...stopsB].forEach(s => {
+        const key = `${s.latitude.toFixed(4)},${s.longitude.toFixed(4)}`
+        if (!coords.has(key)) {
+          coords.add(key)
+          uniqueStops.push(s)
+        }
+      })
+      return uniqueStops
+    }
+    return routeTemplateForLine(line).map(stop => ({
+      ...stop,
+      id: `${line.id}-${stop.id}-ida`,
       line_id: line.id,
-      name: stop.name,
-      street_name: 'Recorrido Ramal A (Tigre)',
-      stop_number: index + 1,
-      latitude: stop.lat,
-      longitude: stop.lng,
       direction: 'ida' as const,
-      avg_wait_minutes: 5,
-      total_daily_users: 150,
     }))
-    const stopsB = (routeB?.stops || []).map((stop, index) => ({
-      id: `${line.id}-official-${stop.id}`,
-      line_id: line.id,
-      name: stop.name,
-      street_name: 'Recorrido Ramal B (Escobar)',
-      stop_number: index + 1,
-      latitude: stop.lat,
-      longitude: stop.lng,
-      direction: 'ida' as const,
-      avg_wait_minutes: 7,
-      total_daily_users: 100,
-    }))
-    
-    // Merge stops with exact same coordinates
-    const uniqueStops: BusStop[] = []
-    const coords = new Set<string>()
-    ;[...stopsA, ...stopsB].forEach(s => {
-      const key = `${s.latitude.toFixed(4)},${s.longitude.toFixed(4)}`
-      if (!coords.has(key)) {
-        coords.add(key)
-        uniqueStops.push(s)
+  }
+
+  const getInboundStops = () => {
+    const outbound = getOutboundStops()
+    return [...outbound].reverse().map((stop, index) => {
+      let name = stop.name
+      let lat = stop.latitude
+      let lng = stop.longitude
+
+      if (line.line_number === '12' && name.includes('CALLAO AV.')) {
+        name = name.replace('CALLAO AV.', 'RIOBAMBA')
+        lat = lat - 0.0008
+        lng = lng - 0.0013
+      }
+
+      return {
+        ...stop,
+        id: stop.id.replace('-ida', '-vuelta'),
+        name,
+        street_name: name,
+        stop_number: index + 1,
+        latitude: lat,
+        longitude: lng,
+        direction: 'vuelta' as const,
       }
     })
-    return uniqueStops
   }
-  return routeTemplateForLine(line).map(stop => ({
-    ...stop,
-    id: `${line.id}-${stop.id}`,
-    line_id: line.id,
-  }))
+
+  if (direction === 'ida') {
+    return getOutboundStops()
+  } else if (direction === 'vuelta') {
+    return getInboundStops()
+  } else {
+    return [...getOutboundStops(), ...getInboundStops()]
+  }
 }
 
-function getMockStopsForBus(bus: BusPosition): BusStop[] {
+function getMockStopsForBus(bus: BusPosition, direction?: 'ida' | 'vuelta'): BusStop[] {
   const line = MOCK_LINES.find(l => l.id === bus.line_id) || {
     id: bus.line_id,
     line_number: bus.line_number,
@@ -155,35 +191,64 @@ function getMockStopsForBus(bus: BusPosition): BusStop[] {
     is_active: true,
   }
 
-  return getMockStopsForLine(line)
+  return getMockStopsForLine(line, direction)
 }
 
-function getRoutePathForLine(line: BusLine): RoutePoint[] {
+function getRoutePathForLine(line: BusLine, direction: 'ida' | 'vuelta' = 'ida'): RoutePoint[] {
   const officialRoute = officialRouteForLine(line)
-  if (officialRoute?.path.length) return officialRoute.path
+  let path: RoutePoint[] = []
 
-  return getMockStopsForLine(line).map(stop => ({
-    lat: stop.latitude,
-    lng: stop.longitude,
-  }))
+  if (officialRoute?.path.length) {
+    path = officialRoute.path
+  } else {
+    path = getMockStopsForLine(line, 'ida').map(stop => ({
+      lat: stop.latitude,
+      lng: stop.longitude,
+    }))
+  }
+
+  if (direction === 'vuelta') {
+    const reversed = [...path].reverse()
+    if (line.line_number === '12') {
+      return reversed.map(p => {
+        if (p.lat > -34.6085 && p.lat < -34.5950 && p.lng > -58.3950 && p.lng < -58.3910) {
+          return {
+            lat: p.lat - 0.0008,
+            lng: p.lng - 0.0013
+          }
+        }
+        return p
+      })
+    }
+    return reversed
+  }
+
+  return path
 }
 
-export function getMockRoutePathForLine(line: BusLine): RoutePoint[] {
-  return getRoutePathForLine(line)
+export function getMockRoutePathForLine(line: BusLine, direction: 'ida' | 'vuelta' = 'ida'): RoutePoint[] {
+  return getRoutePathForLine(line, direction)
 }
 
 // Support multiple paths for branches (like Line 60)
-export function getMockRoutePathsForLine(line: BusLine): RoutePoint[][] {
+export function getMockRoutePathsForLine(line: BusLine, direction: 'all' | 'ida' | 'vuelta' = 'all'): RoutePoint[][] {
   if (line.line_number === '60') {
     return [
       OFFICIAL_ROUTES['60']?.path || [],
       OFFICIAL_ROUTES['60-B']?.path || []
     ]
   }
-  return [getRoutePathForLine(line)]
+  if (direction === 'all') {
+    return [
+      getRoutePathForLine(line, 'ida'),
+      getRoutePathForLine(line, 'vuelta')
+    ]
+  } else {
+    return [getRoutePathForLine(line, direction)]
+  }
 }
 
-function getRoutePathForBus(bus: BusPosition): RoutePoint[] {
+function getRoutePathForBus(bus: BusPosition, direction: 'ida' | 'vuelta' = 'ida'): RoutePoint[] {
   const line = MOCK_LINES.find(l => l.id === bus.line_id) || {
     id: bus.line_id,
     line_number: bus.line_number,
@@ -194,7 +259,7 @@ function getRoutePathForBus(bus: BusPosition): RoutePoint[] {
     is_active: true,
   }
 
-  return getRoutePathForLine(line)
+  return getRoutePathForLine(line, direction)
 }
 
 function distanceKm(a: RoutePoint, b: RoutePoint): number {
@@ -227,8 +292,16 @@ function nearestStopAhead(stops: BusStop[], path: RoutePoint[], pathIndex: numbe
     : [...projectedStops].reverse().find(item => item.pathIndex < pathIndex)?.stop || stops[0]
 }
 
-function shouldPauseAtPathIndex(stops: BusStop[], path: RoutePoint[], pathIndex: number): boolean {
-  const point = path[pathIndex]
+function shouldPauseAtPathIndex(stops: BusStop[], path: RoutePoint[], pathIndex: number, direction: 1 | -1 = 1, line_number?: string): boolean {
+  let point = path[pathIndex]
+  if (line_number === '12' && direction === -1) {
+    if (point.lat > -34.6085 && point.lat < -34.5950 && point.lng > -58.3950 && point.lng < -58.3910) {
+      point = {
+        lat: point.lat - 0.0008,
+        lng: point.lng - 0.0013
+      }
+    }
+  }
   return stops.some((stop, index) => (
     distanceKm(point, { lat: stop.latitude, lng: stop.longitude }) < 0.035
   ))
@@ -310,6 +383,15 @@ function makeBus(line: BusLine, unitNum: number, totalBuses: number): MockBusSta
   const ramal = isLine60 ? (branchId === '60' ? 'A' : 'B') : undefined
   const reports_count = (unitNum % 3 === 0) ? 0 : (unitNum % 3 === 1 ? 1 : 2)
 
+  let initialLat = point.lat
+  let initialLng = point.lng
+  if (line.line_number === '12' && initialDirection === -1) {
+    if (initialLat > -34.6085 && initialLat < -34.5950 && initialLng > -58.3950 && initialLng < -58.3910) {
+      initialLat -= 0.0008
+      initialLng -= 0.0013
+    }
+  }
+
   const bus: BusPosition = {
     id:              `mock-${line.id}-${unitNum}`,
     driver_id:       `mock-driver-${line.id}-${unitNum}`,
@@ -317,8 +399,8 @@ function makeBus(line: BusLine, unitNum: number, totalBuses: number): MockBusSta
     line_number:     line.line_number,
     bus_unit:        `${line.line_number}-${driverInfo.unit}`,
     driver_name:     driverInfo.name,
-    latitude:        point.lat,
-    longitude:       point.lng,
+    latitude:        initialLat,
+    longitude:       initialLng,
     heading:         0,
     speed_kmh:       0,
     next_stop_id:    nextStop.id,
@@ -380,29 +462,30 @@ export function tickMockBuses(): BusPosition[] {
     let stops: BusStop[] = []
     let path: RoutePoint[] = []
 
+    const currentDirection: 'ida' | 'vuelta' = s.direction === 1 ? 'ida' : 'vuelta'
+    s.bus.direction = currentDirection
+
     if (s.branchId) {
       const route = OFFICIAL_ROUTES[s.branchId]
       path = route.path
       stops = route.stops.map((stop, index) => ({
-        id: `${s.bus.line_id}-official-${stop.id}`,
+        id: `${s.bus.line_id}-official-${stop.id}-${currentDirection}`,
         line_id: s.bus.line_id,
         name: stop.name,
         street_name: stop.name,
         stop_number: index + 1,
         latitude: stop.lat,
         longitude: stop.lng,
-        direction: 'ida',
+        direction: currentDirection,
         avg_wait_minutes: 6,
         total_daily_users: 120,
       }))
     } else {
-      stops = getMockStopsForBus(s.bus)
-      path = getRoutePathForBus(s.bus)
+      stops = getMockStopsForBus(s.bus, currentDirection)
+      path = getRoutePathForBus(s.bus, 'ida') // Always outbound path to index correctly
     }
 
     if (!stops || stops.length < 2 || path.length < 2) return
-
-    s.bus.direction = s.direction === 1 ? 'ida' : 'vuelta'
 
     // ── Paused at stop ──
     if (s.pauseUntil > now) {
@@ -456,8 +539,17 @@ export function tickMockBuses(): BusPosition[] {
     s.progress = Math.min(s.progress + step, 1)
 
     // Interpolate position
-    s.bus.latitude   = curPoint.lat + dLat * s.progress
-    s.bus.longitude  = curPoint.lng + dLng * s.progress
+    let finalLat = curPoint.lat + dLat * s.progress
+    let finalLng = curPoint.lng + dLng * s.progress
+    if (s.bus.line_number === '12' && s.direction === -1) {
+      if (finalLat > -34.6085 && finalLat < -34.5950 && finalLng > -58.3950 && finalLng < -58.3910) {
+        finalLat -= 0.0008
+        finalLng -= 0.0013
+      }
+    }
+
+    s.bus.latitude   = finalLat
+    s.bus.longitude  = finalLng
     s.bus.heading    = heading(curPoint.lat, curPoint.lng, nextPoint.lat, nextPoint.lng)
     s.bus.speed_kmh  = Math.round(currentSpeedKmh)
     s.bus.status     = 'moving'
@@ -474,11 +566,20 @@ export function tickMockBuses(): BusPosition[] {
     if (s.progress >= 1) {
       s.stopIndex  = nextIdx
       s.progress   = 0
-      s.bus.latitude   = nextPoint.lat
-      s.bus.longitude  = nextPoint.lng
+      
+      let nextLat = nextPoint.lat
+      let nextLng = nextPoint.lng
+      if (s.bus.line_number === '12' && s.direction === -1) {
+        if (nextLat > -34.6085 && nextLat < -34.5950 && nextLng > -58.3950 && nextLng < -58.3910) {
+          nextLat -= 0.0008
+          nextLng -= 0.0013
+        }
+      }
+      s.bus.latitude   = nextLat
+      s.bus.longitude  = nextLng
 
       // Arrived at a stop -> pause (random length up to 10 seconds)
-      if (shouldPauseAtPathIndex(stops, path, nextIdx)) {
+      if (shouldPauseAtPathIndex(stops, path, nextIdx, s.direction, s.bus.line_number)) {
         s.bus.status     = 'at_stop'
         s.bus.speed_kmh  = 0
         s.bus.passenger_count = Math.max(2, s.bus.passenger_count + Math.floor(Math.random() * 8) - 3)
