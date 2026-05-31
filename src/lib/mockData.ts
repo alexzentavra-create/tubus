@@ -290,10 +290,11 @@ function makeBus(line: BusLine, unitNum: number, totalBuses: number): MockBusSta
     path = getRoutePathForLine(line)
   }
   
+  const initialDirection = unitNum % 2 === 0 ? 1 : -1
   const fraction = unitNum / totalBuses
   const pathIndex = Math.min(Math.floor(path.length * fraction), path.length - 2)
   const point = path[pathIndex]
-  const nextStop = nearestStopAhead(stops, path, pathIndex, 1) || stops[0]
+  const nextStop = nearestStopAhead(stops, path, pathIndex, initialDirection) || stops[0]
   
   const lineDrivers = LINE_DRIVERS[line.line_number] || []
   const driverInfo = lineDrivers[unitNum % lineDrivers.length] || {
@@ -328,13 +329,14 @@ function makeBus(line: BusLine, unitNum: number, totalBuses: number): MockBusSta
     timestamp:       new Date().toISOString(),
     ramal,
     reports_count,
+    direction:       initialDirection === 1 ? 'ida' : 'vuelta'
   }
 
   return {
     bus,
     stopIndex:    pathIndex,
     progress:    0,
-    direction:   1,
+    direction:   initialDirection,
     pauseUntil:  Date.now() + 1000 + unitNum * 1500,
     speedKmh,
     baseSpeedKmh: speedKmh,
@@ -352,7 +354,7 @@ export function initMockBuses(lines: BusLine[] = MOCK_LINES) {
     if (!path || path.length < 2) return
     const isLine12 = line.line_number === '12'
     const isLine60 = line.line_number === '60'
-    const totalBuses = isLine12 ? 8 : (isLine60 ? 8 : 4)
+    const totalBuses = isLine12 ? 14 : (isLine60 ? 14 : 8)
     for (let i = 0; i < totalBuses; i++) {
       STATE.set(`${line.id}-${i}`, makeBus(line, i, totalBuses))
     }
@@ -399,6 +401,8 @@ export function tickMockBuses(): BusPosition[] {
     }
 
     if (!stops || stops.length < 2 || path.length < 2) return
+
+    s.bus.direction = s.direction === 1 ? 'ida' : 'vuelta'
 
     // ── Paused at stop ──
     if (s.pauseUntil > now) {

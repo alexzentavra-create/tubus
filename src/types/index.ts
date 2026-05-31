@@ -81,6 +81,7 @@ export interface BusPosition {
   timestamp: string
   ramal?: string
   reports_count?: number
+  direction?: 'ida' | 'vuelta'
 }
 
 // ─── Reports & Complaints ─────────────────────────────────────────────────────

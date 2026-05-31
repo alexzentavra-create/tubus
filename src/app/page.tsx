@@ -149,6 +149,7 @@ export default function UserMapPage() {
   // Branch & Interno filtering state
   const [branchFilter, setBranchFilter]     = useState<string>('all')
   const [trackedBusId, setTrackedBusId]     = useState<string | null>(null)
+  const [directionFilter, setDirectionFilter] = useState<'all' | 'ida' | 'vuelta'>('all')
 
   // Travel Planner state
   const [travelPlannerOpen, setTravelPlannerOpen] = useState(false)
@@ -416,6 +417,7 @@ export default function UserMapPage() {
     // Reset branch and tracked bus filters when selection changes
     setBranchFilter('all')
     setTrackedBusId(null)
+    setDirectionFilter('all')
 
     mockTickRef.current = setInterval(() => {
       const selectedIds = selectedLines.map(l => l.id)
@@ -479,6 +481,17 @@ export default function UserMapPage() {
 
   const allLines = lines.length > 0 ? lines : MOCK_LINES
   const sidebarW = collapsed ? 64 : SIDEBAR_W
+
+  const getDirectionLabels = () => {
+    const lineNum = selectedLines[0]?.line_number
+    if (lineNum === '12') return { ida: 'A Palermo', vuelta: 'A Barracas' }
+    if (lineNum === '28') return { ida: 'A Puente La Noria', vuelta: 'A Retiro' }
+    if (lineNum === '37') return { ida: 'A Plaza Italia', vuelta: 'A Est. Lanús' }
+    if (lineNum === '60') return { ida: 'A Tigre/Escobar', vuelta: 'A Constitución' }
+    if (lineNum === '152') return { ida: 'A Olivos', vuelta: 'A La Boca' }
+    return { ida: 'Ida (Salida)', vuelta: 'Vuelta (Regreso)' }
+  }
+  const dirLabels = getDirectionLabels()
   // Render paths for all selected lines (supporting multiple branches)
   const routeGeoJsons = selectedLines.map(line => {
     const paths = getMockRoutePathsForLine(line)
@@ -679,6 +692,7 @@ export default function UserMapPage() {
             .filter(bus => {
               if (bus.line_number === '60' && branchFilter !== 'all' && bus.ramal !== branchFilter) return false
               if (trackedBusId && bus.id !== trackedBusId) return false
+              if (directionFilter !== 'all' && bus.direction !== directionFilter) return false
               return true
             })
             .map(bus => {
@@ -1028,6 +1042,24 @@ export default function UserMapPage() {
                 </>
               )}
 
+              {/* Direction Outbound/Inbound Filter */}
+              <span style={{ fontSize: '11px', color: '#9CA3AF', fontFamily: 'DM Mono' }}>SENTIDO:</span>
+              <select
+                value={directionFilter}
+                onChange={e => { setDirectionFilter(e.target.value as any); setTrackedBusId(null) }}
+                style={{
+                  background: prefs.darkMap ? 'rgba(184,200,224,0.05)' : 'rgba(0,0,0,0.04)',
+                  color: 'var(--text-primary)',
+                  border: prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)',
+                  borderRadius: '6px', fontSize: '11px', padding: '3px 6px', outline: 'none', marginRight: '4px'
+                }}
+              >
+                <option value="all" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Ambos sentidos</option>
+                <option value="ida" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>{dirLabels.ida}</option>
+                <option value="vuelta" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>{dirLabels.vuelta}</option>
+              </select>
+              <div style={{ width: '1px', height: '14px', background: 'rgba(184,200,224,0.15)', margin: '0 4px' }} />
+
               <span style={{ fontSize: '11px', color: '#9CA3AF', fontFamily: 'DM Mono' }}>SEGUIR:</span>
               <select
                 value={trackedBusId || 'all'}
@@ -1043,6 +1075,7 @@ export default function UserMapPage() {
                 {buses
                   .filter(b => {
                     if (b.line_number === '60' && branchFilter !== 'all' && b.ramal !== branchFilter) return false
+                    if (directionFilter !== 'all' && b.direction !== directionFilter) return false
                     return true
                   })
                   .map(b => (
