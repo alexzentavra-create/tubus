@@ -1,6 +1,4 @@
 'use client'
-import PhoneWrapper from '@/components/PhoneWrapper'
-
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bus, Navigation, Wifi, WifiOff, Users, Power, AlertCircle, Gauge, Clock, QrCode, CheckCircle, LogOut, Zap, MapPin, Sun, Moon } from 'lucide-react'
@@ -848,8 +846,7 @@ export default function DriverPage() {
   const upcomingStops = getUpcomingStops()
 
   return (
-    <PhoneWrapper defaultMode="phone" title="Chofer App">
-      <div style={{ display: 'flex', width: '100%', height: '100%', overflow: 'hidden', background: 'var(--void)', color: 'var(--text-primary)', fontFamily: 'DM Sans,sans-serif' }}>
+    <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', background: 'var(--void)', color: 'var(--text-primary)', fontFamily: 'DM Sans,sans-serif' }}>
       
       {/* ═══════════════════════════════════════════════════════════════
           LEFT CONTROL PANEL
@@ -1433,6 +1430,6 @@ export default function DriverPage() {
       </div>
 
     </div>
-    </PhoneWrapper>
+    
   )
 }

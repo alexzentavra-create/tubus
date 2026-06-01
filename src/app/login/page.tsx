@@ -1,6 +1,4 @@
 'use client'
-import PhoneWrapper from '@/components/PhoneWrapper'
-
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bus, Mail, Lock, Eye, EyeOff, ArrowRight, User, BarChart2, Calendar } from 'lucide-react'
@@ -14,16 +12,9 @@ function CityBackground() {
   useEffect(() => {
     const canvas = canvasRef.current; if (!canvas) return
     const ctx = canvas.getContext('2d'); if (!ctx) return
-    const parent = canvas.parentElement || document.body
-    let W = parent.clientWidth || window.innerWidth, H = parent.clientHeight || window.innerHeight
+    let W = window.innerWidth, H = window.innerHeight
     canvas.width = W; canvas.height = H
-    const onResize = () => {
-      const p = canvas.parentElement || document.body
-      W = p.clientWidth || window.innerWidth
-      H = p.clientHeight || window.innerHeight
-      canvas.width = W
-      canvas.height = H
-    }
+    const onResize = () => { W = window.innerWidth; H = window.innerHeight; canvas.width = W; canvas.height = H }
     window.addEventListener('resize', onResize)
     const GAP=160,ROAD=32,LANE=ROAD/2,NEAR=-LANE/2,FAR=LANE/2,CYCLE=360
     const getCols=()=>{const a=[];for(let x=GAP;x<W;x+=GAP)a.push(x);return a}
@@ -323,7 +314,7 @@ function CityBackground() {
     render()
     return()=>{window.removeEventListener('resize',onResize);cancelAnimationFrame(animId)}
   },[])
-  return <canvas ref={canvasRef} style={{position:'absolute',inset:0,width:'100%',height:'100%',zIndex:0}}/>
+  return <canvas ref={canvasRef} style={{position:'fixed',inset:0,width:'100%',height:'100%',zIndex:0}}/>
 }
 
 function Input({type='text',placeholder,value,onChange,right}:{type?:string;placeholder:string;value:string;onChange:(e:React.ChangeEvent<HTMLInputElement>)=>void;right?:React.ReactNode}) {
@@ -455,8 +446,7 @@ export default function LoginPage() {
   }
 
   return (
-    <PhoneWrapper defaultMode="phone" title="Inicio de Sesión">
-      <div style={{minHeight:'100%',height:'100%',width:'100%',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'16px 12px',background:'var(--void)',fontFamily:'DM Sans,sans-serif',position:'relative',overflow:'hidden'}}>
+    <div style={{minHeight:'100vh',width:'100vw',display:'flex',alignItems:'center',justifyContent:'center',padding:'16px 12px',background:'var(--void)',fontFamily:'DM Sans,sans-serif',position:'relative',overflow:'hidden'}}>
       <CityBackground/>
       <div style={{position:'fixed',inset:0,background:'radial-gradient(ellipse at center,rgba(6,8,16,0.1) 0%,rgba(6,8,16,0.65) 100%)',zIndex:1,pointerEvents:'none'}}/>
 
@@ -599,6 +589,6 @@ export default function LoginPage() {
         </div>
       </motion.div>
     </div>
-    </PhoneWrapper>
+    
   )
 }
