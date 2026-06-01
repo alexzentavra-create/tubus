@@ -1,4 +1,5 @@
 'use client'
+import PhoneWrapper from '@/components/PhoneWrapper'
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
@@ -352,9 +353,11 @@ export default function SuperAdminDashboard() {
   ]
 
   if (loading) return (
-    <div style={{minHeight:'100vh',background:'#0b0f19',display:'flex',alignItems:'center',justifyContent:'center'}}>
+    <PhoneWrapper defaultMode="computer" title="Super Admin Dashboard">
+      <div style={{minHeight:'100vh',background:'#0b0f19',display:'flex',alignItems:'center',justifyContent:'center'}}>
       <div style={{color:'#8f94a5',fontFamily:'DM Mono',fontSize:'13px'}}>Cargando panel...</div>
     </div>
+    </PhoneWrapper>
   )
 
   return (

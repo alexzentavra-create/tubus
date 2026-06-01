@@ -1,4 +1,5 @@
 'use client'
+import PhoneWrapper from '@/components/PhoneWrapper'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Map, { Marker, Popup, NavigationControl, GeolocateControl, Source, Layer } from 'react-map-gl/maplibre'
@@ -519,7 +520,8 @@ export default function UserMapPage() {
   const showTravelPins = travelPlannerOpen || showLineSelector || !!mapSelectionMode
 
   return (
-    <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', background: 'var(--void)' }}>
+    <PhoneWrapper defaultMode="phone" title="Pasajeros App">
+      <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', background: 'var(--void)' }}>
 
       {/* ═══════════════════════════════════════════════════════════════
           LEFT SIDEBAR — permanent, collapsible
@@ -1569,6 +1571,7 @@ export default function UserMapPage() {
         </AnimatePresence>
       </div>
     </div>
+    </PhoneWrapper>
   )
 }
 

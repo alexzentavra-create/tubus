@@ -1,4 +1,5 @@
 'use client'
+import PhoneWrapper from '@/components/PhoneWrapper'
 import { useState, useEffect } from 'react'
 import { AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, CartesianGrid } from 'recharts'
 import { Bus, Users, AlertTriangle, TrendingUp, Download, Clock, MapPin, Star, BarChart2, Activity, RefreshCw } from 'lucide-react'
@@ -86,7 +87,8 @@ export default function AdminPanel() {
   if(loading) return <div style={{minHeight:'100vh',background:'var(--void)',display:'flex',alignItems:'center',justifyContent:'center'}}><div style={{color:'var(--text-muted)',fontFamily:'DM Mono'}}>Cargando...</div></div>
 
   return (
-    <div style={{minHeight:'100vh',background:'var(--void)',display:'flex',overflow:'hidden',height:'100vh',fontFamily:'DM Sans'}}>
+    <PhoneWrapper defaultMode="computer" title="Panel de Control de Líneas">
+      <div style={{minHeight:'100vh',background:'var(--void)',display:'flex',overflow:'hidden',height:'100vh',fontFamily:'DM Sans'}}>
       {/* Sidebar */}
       <aside style={{width:'240px',background:'linear-gradient(180deg,#0D1117,#0A0E14)',borderRight:'1px solid rgba(184,200,224,0.07)',display:'flex',flexDirection:'column',flexShrink:0}}>
         {/* Logo */}
@@ -155,6 +157,7 @@ export default function AdminPanel() {
         </div>
       </main>
     </div>
+    </PhoneWrapper>
   )
 }
 

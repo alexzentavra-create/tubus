@@ -1,4 +1,5 @@
 'use client'
+import PhoneWrapper from '@/components/PhoneWrapper'
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -447,7 +448,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{minHeight:'100vh',width:'100vw',display:'flex',alignItems:'center',justifyContent:'center',padding:'24px 16px',background:'var(--void)',fontFamily:'DM Sans,sans-serif',position:'relative',overflow:'hidden'}}>
+    <PhoneWrapper defaultMode="phone" title="Inicio de Sesión">
+      <div style={{minHeight:'100vh',width:'100vw',display:'flex',alignItems:'center',justifyContent:'center',padding:'24px 16px',background:'var(--void)',fontFamily:'DM Sans,sans-serif',position:'relative',overflow:'hidden'}}>
       <CityBackground/>
       <div style={{position:'fixed',inset:0,background:'radial-gradient(ellipse at center,rgba(6,8,16,0.1) 0%,rgba(6,8,16,0.65) 100%)',zIndex:1,pointerEvents:'none'}}/>
 
@@ -615,5 +617,6 @@ export default function LoginPage() {
         </div>
       </motion.div>
     </div>
+    </PhoneWrapper>
   )
 }

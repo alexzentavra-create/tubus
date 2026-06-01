@@ -1,4 +1,5 @@
 'use client'
+import PhoneWrapper from '@/components/PhoneWrapper'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -847,7 +848,8 @@ export default function DriverPage() {
   const upcomingStops = getUpcomingStops()
 
   return (
-    <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', background: 'var(--void)', color: 'var(--text-primary)', fontFamily: 'DM Sans,sans-serif' }}>
+    <PhoneWrapper defaultMode="phone" title="Chofer App">
+      <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', background: 'var(--void)', color: 'var(--text-primary)', fontFamily: 'DM Sans,sans-serif' }}>
       
       {/* ═══════════════════════════════════════════════════════════════
           LEFT CONTROL PANEL
@@ -1431,5 +1433,6 @@ export default function DriverPage() {
       </div>
 
     </div>
+    </PhoneWrapper>
   )
 }
