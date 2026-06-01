@@ -137,11 +137,12 @@ export function getMockStopsForLine(line: BusLine, direction: 'all' | 'ida' | 'v
       })
       return uniqueStops
     }
+    const dir = (line.line_number === '37' || line.line_number === '28') ? 'vuelta' : 'ida'
     return routeTemplateForLine(line).map(stop => ({
       ...stop,
       id: `${line.id}-${stop.id}-ida`,
       line_id: line.id,
-      direction: 'ida' as const,
+      direction: dir as 'ida' | 'vuelta',
     }))
   }
 
@@ -164,6 +165,19 @@ export function getMockStopsForLine(line: BusLine, direction: 'all' | 'ida' | 'v
         }
       }
 
+      if (line.line_number === '37') {
+        if (name.includes('RODRIGUEZ PE') || name.includes('RODRIGUEZ PE?A')) {
+          name = name.replace(/RODRIGUEZ PE\?A|RODRIGUEZ PEÑA/, 'CALLAO AV.')
+          lat = lat - 0.0008
+          lng = lng - 0.0013
+        } else if (name.includes('LAS HERAS')) {
+          name = name.replace('LAS HERAS GENERAL AV.', 'SANTA FE AV.').replace('LAS HERAS', 'SANTA FE AV.')
+          lat = lat - 0.0046
+          lng = lng - 0.0045
+        }
+      }
+
+      const dir = (line.line_number === '37' || line.line_number === '28') ? 'ida' : 'vuelta'
       return {
         ...stop,
         id: stop.id.replace('-ida', '-vuelta'),
@@ -172,15 +186,16 @@ export function getMockStopsForLine(line: BusLine, direction: 'all' | 'ida' | 'v
         stop_number: index + 1,
         latitude: lat,
         longitude: lng,
-        direction: 'vuelta' as const,
+        direction: dir as 'ida' | 'vuelta',
       }
     })
   }
 
+  const isLine37or28 = line.line_number === '37' || line.line_number === '28'
   if (direction === 'ida') {
-    return getOutboundStops()
+    return isLine37or28 ? getInboundStops() : getOutboundStops()
   } else if (direction === 'vuelta') {
-    return getInboundStops()
+    return isLine37or28 ? getOutboundStops() : getInboundStops()
   } else {
     return [...getOutboundStops(), ...getInboundStops()]
   }
@@ -213,7 +228,10 @@ function getRoutePathForLine(line: BusLine, direction: 'ida' | 'vuelta' = 'ida')
     }))
   }
 
-  if (direction === 'vuelta') {
+  const isLine37or28 = line.line_number === '37' || line.line_number === '28'
+  const shouldReverse = isLine37or28 ? (direction === 'ida') : (direction === 'vuelta')
+
+  if (shouldReverse) {
     const reversed = [...path].reverse()
     if (line.line_number === '12') {
       return reversed.map(p => {
@@ -221,6 +239,23 @@ function getRoutePathForLine(line: BusLine, direction: 'ida' | 'vuelta' = 'ida')
           return {
             lat: p.lat - 0.0008,
             lng: p.lng - 0.0013
+          }
+        }
+        return p
+      })
+    }
+    if (line.line_number === '37') {
+      return reversed.map(p => {
+        if (p.lat > -34.6110 && p.lat < -34.5930 && p.lng > -58.3930 && p.lng < -58.3900) {
+          return {
+            lat: p.lat - 0.0008,
+            lng: p.lng - 0.0013
+          }
+        }
+        if (p.lat > -34.5930 && p.lat < -34.5800 && p.lng > -58.4220 && p.lng < -58.3910) {
+          return {
+            lat: p.lat - 0.0046,
+            lng: p.lng - 0.0045
           }
         }
         return p
@@ -308,6 +343,20 @@ function shouldPauseAtPathIndex(stops: BusStop[], path: RoutePoint[], pathIndex:
       }
     }
   }
+  if (line_number === '37' && direction === -1) {
+    if (point.lat > -34.6110 && point.lat < -34.5930 && point.lng > -58.3930 && point.lng < -58.3900) {
+      point = {
+        lat: point.lat - 0.0008,
+        lng: point.lng - 0.0013
+      }
+    }
+    if (point.lat > -34.5930 && point.lat < -34.5800 && point.lng > -58.4220 && point.lng < -58.3910) {
+      point = {
+        lat: point.lat - 0.0046,
+        lng: point.lng - 0.0045
+      }
+    }
+  }
   return stops.some((stop, index) => (
     distanceKm(point, { lat: stop.latitude, lng: stop.longitude }) < 0.035
   ))
@@ -340,6 +389,14 @@ const LINE_DRIVERS: Record<string, { name: string; unit: string; online: boolean
     { name: 'Jorge R.', unit: '012', online: false, rating: 4.7, email: 'jorge@demo.ar' },
     { name: 'Ana C.', unit: '014', online: true, rating: 4.8, email: 'ana@demo.ar' },
   ],
+}
+
+export function getDirectionForBus(line_number: string, simDirection: 1 | -1): 'ida' | 'vuelta' {
+  const isInverted = line_number === '28' || line_number === '37'
+  if (isInverted) {
+    return simDirection === 1 ? 'vuelta' : 'ida'
+  }
+  return simDirection === 1 ? 'ida' : 'vuelta'
 }
 
 function makeBus(line: BusLine, unitNum: number, totalBuses: number): MockBusState {
@@ -397,6 +454,18 @@ function makeBus(line: BusLine, unitNum: number, totalBuses: number): MockBusSta
       initialLng -= 0.0013
     }
   }
+  if (line.line_number === '37' && initialDirection === -1) {
+    if (initialLat > -34.6110 && initialLat < -34.5930 && initialLng > -58.3930 && initialLng < -58.3900) {
+      initialLat -= 0.0008
+      initialLng -= 0.0013
+    }
+    if (initialLat > -34.5930 && initialLat < -34.5800 && initialLng > -58.4220 && initialLng < -58.3910) {
+      initialLat -= 0.0046
+      initialLng -= 0.0045
+    }
+  }
+
+  const busDirection = getDirectionForBus(line.line_number, initialDirection)
 
   const bus: BusPosition = {
     id:              `mock-${line.id}-${unitNum}`,
@@ -417,7 +486,7 @@ function makeBus(line: BusLine, unitNum: number, totalBuses: number): MockBusSta
     timestamp:       new Date().toISOString(),
     ramal,
     reports_count,
-    direction:       initialDirection === 1 ? 'ida' : 'vuelta'
+    direction:       busDirection
   }
 
   return {
@@ -468,7 +537,7 @@ export function tickMockBuses(): BusPosition[] {
     let stops: BusStop[] = []
     let path: RoutePoint[] = []
 
-    const currentDirection: 'ida' | 'vuelta' = s.direction === 1 ? 'ida' : 'vuelta'
+    const currentDirection = getDirectionForBus(s.bus.line_number, s.direction)
     s.bus.direction = currentDirection
 
     if (s.branchId) {
@@ -553,6 +622,16 @@ export function tickMockBuses(): BusPosition[] {
         finalLng -= 0.0013
       }
     }
+    if (s.bus.line_number === '37' && s.direction === -1) {
+      if (finalLat > -34.6110 && finalLat < -34.5930 && finalLng > -58.3930 && finalLng < -58.3900) {
+        finalLat -= 0.0008
+        finalLng -= 0.0013
+      }
+      if (finalLat > -34.5930 && finalLat < -34.5800 && finalLng > -58.4220 && finalLng < -58.3910) {
+        finalLat -= 0.0046
+        finalLng -= 0.0045
+      }
+    }
 
     s.bus.latitude   = finalLat
     s.bus.longitude  = finalLng
@@ -579,6 +658,16 @@ export function tickMockBuses(): BusPosition[] {
         if (nextLat > -34.6240 && nextLat < -34.5950 && nextLng > -58.3950 && nextLng < -58.3910) {
           nextLat -= 0.0008
           nextLng -= 0.0013
+        }
+      }
+      if (s.bus.line_number === '37' && s.direction === -1) {
+        if (nextLat > -34.6110 && nextLat < -34.5930 && nextLng > -58.3930 && nextLng < -58.3900) {
+          nextLat -= 0.0008
+          nextLng -= 0.0013
+        }
+        if (nextLat > -34.5930 && nextLat < -34.5800 && nextLng > -58.4220 && nextLng < -58.3910) {
+          nextLat -= 0.0046
+          nextLng -= 0.0045
         }
       }
       s.bus.latitude   = nextLat
