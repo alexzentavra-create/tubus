@@ -336,14 +336,14 @@ function Input({type='text',placeholder,value,onChange,right}:{type?:string;plac
           width:'100%',
           padding:'11px 40px 11px 14px',
           background:f?'rgba(10,14,20,0.9)':'rgba(6,8,16,0.7)',
-          border:`1px solid ${f?'rgba(184,200,224,0.3)':'rgba(184,200,224,0.08)'}`,
+          border:'1px solid rgba(184,200,224,0.12)',
           borderRadius:'var(--r-sm)',
           color:'var(--text-primary)',
           fontSize:'14px',
           fontFamily:'DM Sans,sans-serif',
           outline:'none',
           transition:'all var(--t-fast) var(--ease-in-out)',
-          boxShadow: f ? '0 0 0 3px rgba(184,200,224,0.06), 0 2px 8px rgba(0,0,0,0.3) inset' : '0 2px 8px rgba(0,0,0,0.3) inset',
+          boxShadow:'0 2px 8px rgba(0,0,0,0.3) inset',
           boxSizing:'border-box' as const
         }}
       />
