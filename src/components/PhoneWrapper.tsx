@@ -75,10 +75,9 @@ export default function PhoneWrapper({
       {/* Main Content Area */}
       {isPhoneMode ? (
         /* 📱 Phone Format Container */
-        <div className="flex-1 w-full py-12 px-4 flex items-center justify-center relative bg-gradient-to-b from-[#080b11] via-[#0b0f19] to-[#07090e]">
-          {/* Ambient Glowing Background Blobs */}
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-blue-600/10 rounded-full blur-[100px] pointer-events-none" />
-          <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 translate-y-1/2 w-[300px] h-[300px] bg-purple-600/5 rounded-full blur-[80px] pointer-events-none" />
+        <div className="flex-1 w-full py-12 px-4 flex items-center justify-center relative bg-[#f4f4f0] transition-all duration-300">
+          {/* Subtle elegant shadow under the phone for realistic surface placement */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(0,0,0,0.01)_0%,rgba(0,0,0,0.04)_100%)] pointer-events-none" />
 
           {/* Premium Smartphone Frame Mockup */}
           <div className="relative mx-auto transition-all duration-500 hover:scale-[1.01]">

@@ -323,7 +323,7 @@ function CityBackground() {
     render()
     return()=>{window.removeEventListener('resize',onResize);cancelAnimationFrame(animId)}
   },[])
-  return <canvas ref={canvasRef} style={{position:'fixed',inset:0,width:'100%',height:'100%',zIndex:0}}/>
+  return <canvas ref={canvasRef} style={{position:'absolute',inset:0,width:'100%',height:'100%',zIndex:0}}/>
 }
 
 function Input({type='text',placeholder,value,onChange,right}:{type?:string;placeholder:string;value:string;onChange:(e:React.ChangeEvent<HTMLInputElement>)=>void;right?:React.ReactNode}) {
@@ -334,7 +334,7 @@ function Input({type='text',placeholder,value,onChange,right}:{type?:string;plac
         onFocus={()=>setF(true)} onBlur={()=>setF(false)}
         style={{
           width:'100%',
-          padding:'14px 44px 14px 16px',
+          padding:'11px 40px 11px 14px',
           background:f?'rgba(10,14,20,0.9)':'rgba(6,8,16,0.7)',
           border:`1px solid ${f?'rgba(184,200,224,0.3)':'rgba(184,200,224,0.08)'}`,
           borderRadius:'var(--r-sm)',
@@ -456,25 +456,25 @@ export default function LoginPage() {
 
   return (
     <PhoneWrapper defaultMode="phone" title="Inicio de Sesión">
-      <div style={{minHeight:'100%',height:'100%',width:'100%',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'24px 16px',background:'var(--void)',fontFamily:'DM Sans,sans-serif',position:'relative',overflow:'hidden'}}>
+      <div style={{minHeight:'100%',height:'100%',width:'100%',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'16px 12px',background:'var(--void)',fontFamily:'DM Sans,sans-serif',position:'relative',overflow:'hidden'}}>
       <CityBackground/>
       <div style={{position:'fixed',inset:0,background:'radial-gradient(ellipse at center,rgba(6,8,16,0.1) 0%,rgba(6,8,16,0.65) 100%)',zIndex:1,pointerEvents:'none'}}/>
 
-      <motion.div initial={{opacity:0,y:28,scale:0.97}} animate={{opacity:1,y:0,scale:1}} transition={{duration:0.5,ease:[0.22,1,0.36,1]}} style={{width:'100%',maxWidth:'380px',position:'relative',zIndex:2}}>
+      <motion.div initial={{opacity:0,y:28,scale:0.97}} animate={{opacity:1,y:0,scale:1}} transition={{duration:0.5,ease:[0.22,1,0.36,1]}} style={{width:'100%',maxWidth:'320px',position:'relative',zIndex:2}}>
 
-        <div style={{textAlign:'center',marginBottom:'24px'}}>
+        <div style={{textAlign:'center',marginBottom:'12px'}}>
           <motion.div style={{
-            width:'56px',height:'56px',borderRadius:'16px',
+            width:'44px',height:'44px',borderRadius:'12px',
             border:'1px solid rgba(184,200,224,0.15)',
             overflow: 'hidden',
             display:'flex',alignItems:'center',justifyContent:'center',
-            margin:'0 auto 12px',
+            margin:'0 auto 8px',
             background: 'var(--elevated)'
           }} animate={{boxShadow:['0 0 16px rgba(34,211,160,0.1)','0 0 32px rgba(34,211,160,0.24)','0 0 16px rgba(34,211,160,0.1)']}} transition={{duration:3,repeat:Infinity,ease:'easeInOut'}}>
             <img src="/images/logo.jpg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </motion.div>
-          <h1 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'32px',color:'var(--text-primary)',letterSpacing:'-0.02em',margin:0,textShadow:'0 2px 24px rgba(0,0,0,0.5)'}}>BienParada</h1>
-          <p style={{color:'var(--text-secondary)',fontSize:'13px',marginTop:'4px',fontFamily:'DM Sans,sans-serif'}}>Seguí tu colectivo en tiempo real</p>
+          <h1 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'24px',color:'var(--text-primary)',letterSpacing:'-0.02em',margin:0,textShadow:'0 2px 24px rgba(0,0,0,0.5)'}}>BienParada</h1>
+          <p style={{color:'var(--text-secondary)',fontSize:'11px',marginTop:'2px',fontFamily:'DM Sans,sans-serif'}}>Seguí tu colectivo en tiempo real</p>
         </div>
 
         <div style={{
@@ -490,22 +490,22 @@ export default function LoginPage() {
           <div style={{position:'absolute',top:0,left:'20px',right:'20px',height:'1px',background:'linear-gradient(90deg,transparent,rgba(184,200,224,0.2),transparent)'}}/>
 
           <AnimatePresence mode="wait">
-            <motion.div key={mode} initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-6}} transition={{duration:0.18}} style={{padding:'28px 24px 30px'}}>
+            <motion.div key={mode} initial={{opacity:0,y:6}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-6}} transition={{duration:0.18}} style={{padding:'18px 16px 20px'}}>
 
-              <h2 style={{fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:'20px',color:'var(--text-primary)',textAlign:'center',margin:'0 0 20px'}}>
+              <h2 style={{fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:'16px',color:'var(--text-primary)',textAlign:'center',margin:'0 0 12px'}}>
                 {mode==='login' ? 'Ingresar' : 'Crear cuenta'}
               </h2>
 
               {/* Mode toggle */}
-              <div style={{display:'flex',gap:'4px',padding:'4px',background:'rgba(6,8,16,0.8)',border:'1px solid rgba(184,200,224,0.08)',borderRadius:'12px',marginBottom:'20px'}}>
+              <div style={{display:'flex',gap:'4px',padding:'4px',background:'rgba(6,8,16,0.8)',border:'1px solid rgba(184,200,224,0.08)',borderRadius:'12px',marginBottom:'12px'}}>
                 {(['login','register'] as Mode[]).map(m=>(
-                  <button key={m} onClick={()=>setMode(m)} style={{flex:1,padding:'8px',borderRadius:'8px',fontSize:'12px',fontFamily:'Syne,sans-serif',fontWeight:600,letterSpacing:'0.04em',textTransform:'uppercase' as const,border:'none',cursor:'pointer',transition:'all 180ms',background:mode===m?'rgba(255,255,255,0.07)':'transparent',color:mode===m?'var(--text-primary)':'var(--text-secondary)'}}>
+                  <button key={m} onClick={()=>setMode(m)} style={{flex:1,padding:'6px',borderRadius:'8px',fontSize:'11px',fontFamily:'Syne,sans-serif',fontWeight:600,letterSpacing:'0.04em',textTransform:'uppercase' as const,border:'none',cursor:'pointer',transition:'all 180ms',background:mode===m?'rgba(255,255,255,0.07)':'transparent',color:mode===m?'var(--text-primary)':'var(--text-secondary)'}}>
                     {m==='login'?'Ingresar':'Registrarse'}
                   </button>
                 ))}
               </div>
 
-              <form onSubmit={handleSubmit} style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+              <form onSubmit={handleSubmit} style={{display:'flex',flexDirection:'column',gap:'8px'}}>
                 {mode==='register' && (
                   <Input type="text" placeholder="Tu nombre" value={form.name} onChange={set('name')} right={<User size={15}/>}/>
                 )}
@@ -528,7 +528,7 @@ export default function LoginPage() {
                   <Input type="number" placeholder="Veces por semana que tomás el colectivo" value={form.weeklyTrips} onChange={set('weeklyTrips')} right={<BarChart2 size={15}/>}/>
                 </>)}
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: '4px 0 10px', fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'DM Sans, sans-serif', userSelect: 'none' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: '2px 0 6px', fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'DM Sans, sans-serif', userSelect: 'none' }}>
                   <input
                     type="checkbox"
                     checked={acceptTerms}
@@ -564,7 +564,7 @@ export default function LoginPage() {
                     color:'#0A0E14',
                     fontFamily:'Syne,sans-serif',
                     fontWeight:700,
-                    fontSize:'13px',
+                    fontSize:'12px',
                     letterSpacing:'0.06em',
                     textTransform:'skewX(0deg) uppercase' as any,
                     border:'none',
@@ -582,41 +582,16 @@ export default function LoginPage() {
                 </button>
               </form>
 
-              <p style={{textAlign:'center',fontSize:'12px',color:'var(--text-secondary)',marginTop:'18px',marginBottom:0}}>
+              <p style={{textAlign:'center',fontSize:'12px',color:'var(--text-secondary)',marginTop:'12px',marginBottom:0}}>
                 {mode==='login'?'¿No tenés cuenta? ':'¿Ya tenés cuenta? '}
                 <button onClick={()=>setMode(mode==='login'?'register':'login')} style={{background:'none',border:'none',cursor:'pointer',color:'var(--text-primary)',fontWeight:600,fontSize:'12px',fontFamily:'DM Sans',padding:0,textDecoration:'underline',textUnderlineOffset:'2px'}}>
                   {mode==='login'?'Registrarse':'Ingresar'}
                 </button>
               </p>
 
-              {mode==='login' && (<>
-                <div style={{display:'flex',alignItems:'center',gap:'10px',margin:'18px 0 14px'}}>
-                  <div style={{flex:1,height:'1px',background:'rgba(255,255,255,0.07)'}}/><span style={{fontSize:'10px',color:'var(--text-muted)',fontFamily:'DM Mono',letterSpacing:'0.08em'}}>O</span><div style={{flex:1,height:'1px',background:'rgba(255,255,255,0.07)'}}/>
-                </div>
-                <button onClick={loginWithGoogle} style={{
-                  width:'100%',
-                  display:'flex',
-                  alignItems:'center',
-                  justifyContent:'center',
-                  gap:'10px',
-                  background:'rgba(184,200,224,0.06)',
-                  border:'1px solid rgba(184,200,224,0.15)',
-                  borderRadius:'var(--r-md)',
-                  padding:'13px 20px',
-                  color:'var(--platinum)',
-                  fontFamily:'DM Sans,sans-serif',
-                  fontWeight:500,
-                  fontSize:'14px',
-                  cursor:'pointer',
-                  transition:'all var(--t-base) var(--ease-out)',
-                  boxShadow:'0 2px 8px rgba(0,0,0,0.3), 0 1px 0 rgba(184,200,224,0.05) inset'
-                }}>
-                  <svg width="15" height="15" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
-                  Continuar con Google
-                </button>
-              </>)}
 
-              <p style={{textAlign:'center',fontSize:'10px',color:'var(--text-muted)',fontFamily:'DM Mono',marginTop:'20px',letterSpacing:'0.04em'}}>
+
+              <p style={{textAlign:'center',fontSize:'10px',color:'var(--text-muted)',fontFamily:'DM Mono',marginTop:'12px',letterSpacing:'0.04em'}}>
                 Choferes: ingresan con email y contraseña
               </p>
             </motion.div>
