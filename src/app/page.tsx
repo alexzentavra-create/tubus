@@ -521,7 +521,7 @@ export default function UserMapPage() {
 
   return (
     <PhoneWrapper defaultMode="phone" title="Pasajeros App">
-      <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', background: 'var(--void)' }}>
+      <div style={{ display: 'flex', width: '100%', height: '100%', overflow: 'hidden', background: 'var(--void)' }}>
 
       {/* ═══════════════════════════════════════════════════════════════
           LEFT SIDEBAR — permanent, collapsible

@@ -208,7 +208,7 @@ export default function CompanyDashboard() {
 
   if (loading) return (
     <PhoneWrapper defaultMode="computer" title="Panel de Compañía">
-      <div style={{minHeight:'100vh',background:'#0b0f19',display:'flex',alignItems:'center',justifyContent:'center'}}>
+      <div style={{minHeight:'100%',background:'#0b0f19',display:'flex',flexDirection:'column',width:'100%',height:'100%',alignItems:'center',justifyContent:'center'}}>
       <div style={{color:'#8f94a5',fontFamily:'DM Mono',fontSize:'13px'}}>Cargando panel...</div>
     </div>
     </PhoneWrapper>

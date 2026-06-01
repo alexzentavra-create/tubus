@@ -88,7 +88,7 @@ export default function AdminPanel() {
 
   return (
     <PhoneWrapper defaultMode="computer" title="Panel de Control de Líneas">
-      <div style={{minHeight:'100vh',background:'var(--void)',display:'flex',overflow:'hidden',height:'100vh',fontFamily:'DM Sans'}}>
+      <div style={{minHeight:'100%',background:'var(--void)',display:'flex',overflow:'hidden',height:'100%',width:'100%',fontFamily:'DM Sans'}}>
       {/* Sidebar */}
       <aside style={{width:'240px',background:'linear-gradient(180deg,#0D1117,#0A0E14)',borderRight:'1px solid rgba(184,200,224,0.07)',display:'flex',flexDirection:'column',flexShrink:0}}>
         {/* Logo */}

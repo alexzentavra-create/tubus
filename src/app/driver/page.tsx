@@ -849,7 +849,7 @@ export default function DriverPage() {
 
   return (
     <PhoneWrapper defaultMode="phone" title="Chofer App">
-      <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', background: 'var(--void)', color: 'var(--text-primary)', fontFamily: 'DM Sans,sans-serif' }}>
+      <div style={{ display: 'flex', width: '100%', height: '100%', overflow: 'hidden', background: 'var(--void)', color: 'var(--text-primary)', fontFamily: 'DM Sans,sans-serif' }}>
       
       {/* ═══════════════════════════════════════════════════════════════
           LEFT CONTROL PANEL
