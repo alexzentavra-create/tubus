@@ -152,10 +152,16 @@ export function getMockStopsForLine(line: BusLine, direction: 'all' | 'ida' | 'v
       let lat = stop.latitude
       let lng = stop.longitude
 
-      if (line.line_number === '12' && name.includes('CALLAO AV.')) {
-        name = name.replace('CALLAO AV.', 'RIOBAMBA')
-        lat = lat - 0.0008
-        lng = lng - 0.0013
+      if (line.line_number === '12') {
+        if (name.includes('CALLAO AV.')) {
+          name = name.replace('CALLAO AV.', 'RIOBAMBA')
+          lat = lat - 0.0008
+          lng = lng - 0.0013
+        } else if (name.includes('ENTRE RIOS AV.')) {
+          name = name.replace('ENTRE RIOS AV.', 'COMBATE DE LOS POZOS')
+          lat = lat - 0.0008
+          lng = lng - 0.0013
+        }
       }
 
       return {
@@ -211,7 +217,7 @@ function getRoutePathForLine(line: BusLine, direction: 'ida' | 'vuelta' = 'ida')
     const reversed = [...path].reverse()
     if (line.line_number === '12') {
       return reversed.map(p => {
-        if (p.lat > -34.6085 && p.lat < -34.5950 && p.lng > -58.3950 && p.lng < -58.3910) {
+        if (p.lat > -34.6240 && p.lat < -34.5950 && p.lng > -58.3950 && p.lng < -58.3910) {
           return {
             lat: p.lat - 0.0008,
             lng: p.lng - 0.0013
@@ -295,7 +301,7 @@ function nearestStopAhead(stops: BusStop[], path: RoutePoint[], pathIndex: numbe
 function shouldPauseAtPathIndex(stops: BusStop[], path: RoutePoint[], pathIndex: number, direction: 1 | -1 = 1, line_number?: string): boolean {
   let point = path[pathIndex]
   if (line_number === '12' && direction === -1) {
-    if (point.lat > -34.6085 && point.lat < -34.5950 && point.lng > -58.3950 && point.lng < -58.3910) {
+    if (point.lat > -34.6240 && point.lat < -34.5950 && point.lng > -58.3950 && point.lng < -58.3910) {
       point = {
         lat: point.lat - 0.0008,
         lng: point.lng - 0.0013
@@ -386,7 +392,7 @@ function makeBus(line: BusLine, unitNum: number, totalBuses: number): MockBusSta
   let initialLat = point.lat
   let initialLng = point.lng
   if (line.line_number === '12' && initialDirection === -1) {
-    if (initialLat > -34.6085 && initialLat < -34.5950 && initialLng > -58.3950 && initialLng < -58.3910) {
+    if (initialLat > -34.6240 && initialLat < -34.5950 && initialLng > -58.3950 && initialLng < -58.3910) {
       initialLat -= 0.0008
       initialLng -= 0.0013
     }
@@ -542,7 +548,7 @@ export function tickMockBuses(): BusPosition[] {
     let finalLat = curPoint.lat + dLat * s.progress
     let finalLng = curPoint.lng + dLng * s.progress
     if (s.bus.line_number === '12' && s.direction === -1) {
-      if (finalLat > -34.6085 && finalLat < -34.5950 && finalLng > -58.3950 && finalLng < -58.3910) {
+      if (finalLat > -34.6240 && finalLat < -34.5950 && finalLng > -58.3950 && finalLng < -58.3910) {
         finalLat -= 0.0008
         finalLng -= 0.0013
       }
@@ -570,7 +576,7 @@ export function tickMockBuses(): BusPosition[] {
       let nextLat = nextPoint.lat
       let nextLng = nextPoint.lng
       if (s.bus.line_number === '12' && s.direction === -1) {
-        if (nextLat > -34.6085 && nextLat < -34.5950 && nextLng > -58.3950 && nextLng < -58.3910) {
+        if (nextLat > -34.6240 && nextLat < -34.5950 && nextLng > -58.3950 && nextLng < -58.3910) {
           nextLat -= 0.0008
           nextLng -= 0.0013
         }
