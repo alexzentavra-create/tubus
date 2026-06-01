@@ -6267,62 +6267,139 @@ export const OFFICIAL_ROUTES: Record<string, OfficialRoute> = {
 ],
   "stops": [
     {
-        "id": "28s1",
-        "name": "Retiro Terminal",
-        "lat": -34.591,
-        "lng": -58.375,
-        "pathIndex": 1
+      "id": "28s1",
+      "name": "Retiro Terminal (Av. Ramos Mejia)",
+      "lat": -34.591368,
+      "lng": -58.374351,
+      "pathIndex": 0
     },
     {
-        "id": "28s2",
-        "name": "Aeroparque",
-        "lat": -34.5593,
-        "lng": -58.4156,
-        "pathIndex": 136
+      "id": "28s2",
+      "name": "Av. del Libertador y Av. Callao",
+      "lat": -34.588339,
+      "lng": -58.380962,
+      "pathIndex": 44
     },
     {
-        "id": "28s3",
-        "name": "Ciudad Universitaria",
-        "lat": -34.5428,
-        "lng": -58.4453,
-        "pathIndex": 163
+      "id": "28s3",
+      "name": "Av. del Libertador y Av. Coronel Diaz",
+      "lat": -34.573574,
+      "lng": -58.396675,
+      "pathIndex": 106
     },
     {
-        "id": "28s4",
-        "name": "Puente Saavedra",
-        "lat": -34.539,
-        "lng": -58.476,
-        "pathIndex": 293
+      "id": "28s4",
+      "name": "Aeroparque (Av. Costanera Obligado)",
+      "lat": -34.560909,
+      "lng": -58.41786,
+      "pathIndex": 137
     },
     {
-        "id": "28s5",
-        "name": "Av. General Paz y Balb\u00edn",
-        "lat": -34.555,
-        "lng": -58.508,
-        "pathIndex": 435
+      "id": "28s5",
+      "name": "Ciudad Universitaria (Pabellon 1)",
+      "lat": -34.546477,
+      "lng": -58.441116,
+      "pathIndex": 160
     },
     {
-        "id": "28s6",
-        "name": "Av. General Paz y Constituyentes",
-        "lat": -34.573,
-        "lng": -58.512,
-        "pathIndex": 509
+      "id": "28s6",
+      "name": "Ciudad Universitaria (Pabellon 2)",
+      "lat": -34.543743,
+      "lng": -58.446074,
+      "pathIndex": 164
     },
     {
-        "id": "28s7",
-        "name": "Liniers",
-        "lat": -34.638,
-        "lng": -58.528,
-        "pathIndex": 684
+      "id": "28s7",
+      "name": "Puente Saavedra (Avenida General Paz)",
+      "lat": -34.538252,
+      "lng": -58.475419,
+      "pathIndex": 356
     },
     {
-        "id": "28s8",
-        "name": "Puente de la Noria",
-        "lat": -34.698,
-        "lng": -58.452,
-        "pathIndex": 908
+      "id": "28s8",
+      "name": "Av. General Paz y Av. Cabildo",
+      "lat": -34.539103,
+      "lng": -58.475958,
+      "pathIndex": 294
+    },
+    {
+      "id": "28s9",
+      "name": "Av. General Paz y Av. Ricardo Balbin",
+      "lat": -34.555106,
+      "lng": -58.508001,
+      "pathIndex": 436
+    },
+    {
+      "id": "28s10",
+      "name": "Av. General Paz y Av. de los Constituyentes",
+      "lat": -34.572757,
+      "lng": -58.512197,
+      "pathIndex": 511
+    },
+    {
+      "id": "28s11",
+      "name": "Av. General Paz y Av. San Martin",
+      "lat": -34.597635,
+      "lng": -58.522442,
+      "pathIndex": 577
+    },
+    {
+      "id": "28s12",
+      "name": "Av. General Paz y Av. Lope de Vega",
+      "lat": -34.616265,
+      "lng": -58.530998,
+      "pathIndex": 607
+    },
+    {
+      "id": "28s13",
+      "name": "Av. General Paz y Av. Francisco Beiro",
+      "lat": -34.625244,
+      "lng": -58.530478,
+      "pathIndex": 614
+    },
+    {
+      "id": "28s14",
+      "name": "Av. General Paz y Av. Rivadavia (Liniers)",
+      "lat": -34.638395,
+      "lng": -58.527826,
+      "pathIndex": 685
+    },
+    {
+      "id": "28s15",
+      "name": "Av. General Paz y Emilio Castro",
+      "lat": -34.657346,
+      "lng": -58.52453,
+      "pathIndex": 765
+    },
+    {
+      "id": "28s16",
+      "name": "Av. General Paz y Av. Juan Bautista Alberdi",
+      "lat": -34.664773,
+      "lng": -58.51468,
+      "pathIndex": 781
+    },
+    {
+      "id": "28s17",
+      "name": "Av. General Paz y Av. Eva Peron",
+      "lat": -34.67719,
+      "lng": -58.49823,
+      "pathIndex": 795
+    },
+    {
+      "id": "28s18",
+      "name": "Av. General Paz y Autopista Dellepiane",
+      "lat": -34.689134,
+      "lng": -58.482406,
+      "pathIndex": 804
+    },
+    {
+      "id": "28s19",
+      "name": "Puente de la Noria Terminal",
+      "lat": -34.697976,
+      "lng": -58.451973,
+      "pathIndex": 908
     }
-]
+  ]
 },
   "37": {
   "line": "37",
@@ -14308,69 +14385,104 @@ export const OFFICIAL_ROUTES: Record<string, OfficialRoute> = {
 ],
   "stops": [
     {
-        "id": "60s1",
-        "name": "Barracas - Montes de Oca",
-        "lat": -34.635,
-        "lng": -58.374,
-        "pathIndex": 0
+      "id": "60s1",
+      "name": "Barracas (Av. Montes de Oca)",
+      "lat": -34.635011,
+      "lng": -58.374087,
+      "pathIndex": 0
     },
     {
-        "id": "60s2",
-        "name": "Plaza Constituci\u00f3n",
-        "lat": -34.6268,
-        "lng": -58.3808,
-        "pathIndex": 50
+      "id": "60s2",
+      "name": "Plaza Constitucion",
+      "lat": -34.626563,
+      "lng": -58.380896,
+      "pathIndex": 50
     },
     {
-        "id": "60s3",
-        "name": "Congreso - Callao",
-        "lat": -34.609,
-        "lng": -58.392,
-        "pathIndex": 151
+      "id": "60s3",
+      "name": "Av. Entre Rios y Av. Juan de Garay",
+      "lat": -34.627062,
+      "lng": -58.385973,
+      "pathIndex": 75
     },
     {
-        "id": "60s4",
-        "name": "Plaza Italia",
-        "lat": -34.581,
-        "lng": -58.421,
-        "pathIndex": 373
+      "id": "60s4",
+      "name": "Congreso (Av. Entre Rios y Av. Rivadavia)",
+      "lat": -34.609228,
+      "lng": -58.391958,
+      "pathIndex": 150
     },
     {
-        "id": "60s5",
-        "name": "Barrancas de Belgrano",
-        "lat": -34.5606,
-        "lng": -58.4569,
-        "pathIndex": 518
+      "id": "60s5",
+      "name": "Av. Callao y Av. Corrientes",
+      "lat": -34.604126,
+      "lng": -58.392325,
+      "pathIndex": 165
     },
     {
-        "id": "60s6",
-        "name": "Puente Saavedra",
-        "lat": -34.539,
-        "lng": -58.476,
-        "pathIndex": 689
+      "id": "60s6",
+      "name": "Av. Callao y Av. Santa Fe",
+      "lat": -34.597226,
+      "lng": -58.393199,
+      "pathIndex": 186
     },
     {
-        "id": "60s7",
-        "name": "Quinta de Olivos",
-        "lat": -34.52,
-        "lng": -58.482,
-        "pathIndex": 784
+      "id": "60s7",
+      "name": "Av. General Las Heras y Pueyrredon",
+      "lat": -34.582837,
+      "lng": -58.408227,
+      "pathIndex": 305
     },
     {
-        "id": "60s8",
-        "name": "San Isidro",
-        "lat": -34.475,
-        "lng": -58.508,
-        "pathIndex": 990
+      "id": "60s8",
+      "name": "Av. General Las Heras y Coronel Diaz",
+      "lat": -34.581872,
+      "lng": -58.412055,
+      "pathIndex": 324
     },
     {
-        "id": "60s9",
-        "name": "Tigre Terminal",
-        "lat": -34.425,
-        "lng": -58.58,
-        "pathIndex": 1266
+      "id": "60s9",
+      "name": "Plaza Italia (Las Heras)",
+      "lat": -34.580705,
+      "lng": -58.421217,
+      "pathIndex": 376
+    },
+    {
+      "id": "60s10",
+      "name": "Barrancas de Belgrano",
+      "lat": -34.560675,
+      "lng": -58.456833,
+      "pathIndex": 518
+    },
+    {
+      "id": "60s11",
+      "name": "Puente Saavedra (Av. Cabildo)",
+      "lat": -34.538607,
+      "lng": -58.475828,
+      "pathIndex": 626
+    },
+    {
+      "id": "60s12",
+      "name": "Quinta de Olivos",
+      "lat": -34.520121,
+      "lng": -58.482255,
+      "pathIndex": 784
+    },
+    {
+      "id": "60s13",
+      "name": "San Isidro Terminal (Av. Centenario)",
+      "lat": -34.475122,
+      "lng": -58.508347,
+      "pathIndex": 990
+    },
+    {
+      "id": "60s14",
+      "name": "Tigre Terminal (Av. Cazon)",
+      "lat": -34.425133,
+      "lng": -58.580153,
+      "pathIndex": 1266
     }
-]
+  ]
 },
   "71": {
   "line": "71",
@@ -23248,83 +23360,209 @@ export const OFFICIAL_ROUTES: Record<string, OfficialRoute> = {
 ],
   "stops": [
     {
-        "id": "152s1",
-        "name": "La Boca - Almirante Brown",
-        "lat": -34.63,
-        "lng": -58.36,
-        "pathIndex": 0
+      "id": "152s1",
+      "name": "La Boca Terminal (Av. Almirante Brown)",
+      "lat": -34.630919,
+      "lng": -58.359999,
+      "pathIndex": 3
     },
     {
-        "id": "152s2",
-        "name": "Parque Lezama",
-        "lat": -34.6265,
-        "lng": -58.37,
-        "pathIndex": 64
+      "id": "152s2",
+      "name": "Av. Almirante Brown y Brandsen",
+      "lat": -34.630956,
+      "lng": -58.3623,
+      "pathIndex": 9
     },
     {
-        "id": "152s3",
-        "name": "Av. Paseo Col\u00f3n y Humberto I",
-        "lat": -34.6186,
-        "lng": -58.3702,
-        "pathIndex": 84
+      "id": "152s3",
+      "name": "Av. Almirante Brown y Suarez",
+      "lat": -34.628791,
+      "lng": -58.365613,
+      "pathIndex": 19
     },
     {
-        "id": "152s4",
-        "name": "Plaza de Mayo - Leandro N. Alem",
-        "lat": -34.6083,
-        "lng": -58.3703,
-        "pathIndex": 112
+      "id": "152s4",
+      "name": "Parque Lezama (Av. Paseo Colon)",
+      "lat": -34.626568,
+      "lng": -58.370966,
+      "pathIndex": 64
     },
     {
-        "id": "152s5",
-        "name": "Retiro",
-        "lat": -34.591,
-        "lng": -58.375,
-        "pathIndex": 261
+      "id": "152s5",
+      "name": "Av. Paseo Colon y Humberto I",
+      "lat": -34.618598,
+      "lng": -58.370161,
+      "pathIndex": 84
     },
     {
-        "id": "152s6",
-        "name": "Av. Santa Fe y Callao",
-        "lat": -34.5972,
-        "lng": -58.393,
-        "pathIndex": 355
+      "id": "152s6",
+      "name": "Av. Paseo Colon y Chile",
+      "lat": -34.613616,
+      "lng": -58.37186,
+      "pathIndex": 94
     },
     {
-        "id": "152s7",
-        "name": "Av. Santa Fe y Pueyrred\u00f3n",
-        "lat": -34.599,
-        "lng": -58.4,
-        "pathIndex": 379
+      "id": "152s7",
+      "name": "Av. Paseo Colon y Av. Belgrano",
+      "lat": -34.611303,
+      "lng": -58.371989,
+      "pathIndex": 96
     },
     {
-        "id": "152s8",
-        "name": "Plaza Italia",
-        "lat": -34.581,
-        "lng": -58.421,
-        "pathIndex": 533
+      "id": "152s8",
+      "name": "Plaza de Mayo (Av. Leandro N. Alem)",
+      "lat": -34.608839,
+      "lng": -58.370273,
+      "pathIndex": 112
     },
     {
-        "id": "152s9",
-        "name": "Av. Cabildo y Juramento",
-        "lat": -34.562,
-        "lng": -58.456,
-        "pathIndex": 681
+      "id": "152s9",
+      "name": "Av. Leandro N. Alem y Viamonte",
+      "lat": -34.599685,
+      "lng": -58.370637,
+      "pathIndex": 171
     },
     {
-        "id": "152s10",
-        "name": "Puente Saavedra",
-        "lat": -34.539,
-        "lng": -58.476,
-        "pathIndex": 861
+      "id": "152s10",
+      "name": "Av. Leandro N. Alem y Plaza Roma",
+      "lat": -34.595542,
+      "lng": -58.372301,
+      "pathIndex": 184
     },
     {
-        "id": "152s11",
-        "name": "Olivos - Av. Maip\u00fa",
-        "lat": -34.51,
-        "lng": -58.485,
-        "pathIndex": 975
+      "id": "152s11",
+      "name": "Retiro Terminal (Av. Ramos Mejia)",
+      "lat": -34.591368,
+      "lng": -58.374351,
+      "pathIndex": 260
+    },
+    {
+      "id": "152s12",
+      "name": "Av. Santa Fe y Av. Callao",
+      "lat": -34.597225,
+      "lng": -58.393,
+      "pathIndex": 355
+    },
+    {
+      "id": "152s13",
+      "name": "Av. Santa Fe y Av. Pueyrredon",
+      "lat": -34.599405,
+      "lng": -58.399792,
+      "pathIndex": 379
+    },
+    {
+      "id": "152s14",
+      "name": "Av. Santa Fe y Av. Coronel Diaz",
+      "lat": -34.593453,
+      "lng": -58.40491,
+      "pathIndex": 421
+    },
+    {
+      "id": "152s15",
+      "name": "Av. Santa Fe y Av. Scalabrini Ortiz",
+      "lat": -34.585646,
+      "lng": -58.41522,
+      "pathIndex": 474
+    },
+    {
+      "id": "152s16",
+      "name": "Plaza Italia (Avenida Santa Fe 4300)",
+      "lat": -34.580265,
+      "lng": -58.422458,
+      "pathIndex": 547
+    },
+    {
+      "id": "152s17",
+      "name": "Av. Cabildo y Santos Dumont",
+      "lat": -34.574588,
+      "lng": -58.436159,
+      "pathIndex": 598
+    },
+    {
+      "id": "152s18",
+      "name": "Av. Cabildo y Av. Federico Lacroze",
+      "lat": -34.569937,
+      "lng": -58.444686,
+      "pathIndex": 624
+    },
+    {
+      "id": "152s19",
+      "name": "Av. Cabildo y Av. Elcano",
+      "lat": -34.566889,
+      "lng": -58.450668,
+      "pathIndex": 647
+    },
+    {
+      "id": "152s20",
+      "name": "Av. Cabildo y Av. Juramento",
+      "lat": -34.561757,
+      "lng": -58.4562,
+      "pathIndex": 682
+    },
+    {
+      "id": "152s21",
+      "name": "Av. Cabildo y Av. Congreso",
+      "lat": -34.555305,
+      "lng": -58.462504,
+      "pathIndex": 715
+    },
+    {
+      "id": "152s22",
+      "name": "Av. Cabildo y Av. Larralde",
+      "lat": -34.547509,
+      "lng": -58.469205,
+      "pathIndex": 747
+    },
+    {
+      "id": "152s23",
+      "name": "Puente Saavedra (Av. Cabildo 4900)",
+      "lat": -34.538607,
+      "lng": -58.475828,
+      "pathIndex": 798
+    },
+    {
+      "id": "152s24",
+      "name": "Av. Maipu y Zufriategui",
+      "lat": -34.53547,
+      "lng": -58.477484,
+      "pathIndex": 818
+    },
+    {
+      "id": "152s25",
+      "name": "Av. Maipu y Laprida",
+      "lat": -34.5315,
+      "lng": -58.47945,
+      "pathIndex": 919
+    },
+    {
+      "id": "152s26",
+      "name": "Av. Maipu y Melo",
+      "lat": -34.525655,
+      "lng": -58.48264,
+      "pathIndex": 941
+    },
+    {
+      "id": "152s27",
+      "name": "Av. Maipu y Quinta de Olivos",
+      "lat": -34.520963,
+      "lng": -58.48515,
+      "pathIndex": 954
+    },
+    {
+      "id": "152s28",
+      "name": "Av. Maipu y Ugarte",
+      "lat": -34.511958,
+      "lng": -58.483442,
+      "pathIndex": 972
+    },
+    {
+      "id": "152s29",
+      "name": "Olivos Terminal (Av. Maipu 2600)",
+      "lat": -34.509969,
+      "lng": -58.485022,
+      "pathIndex": 975
     }
-]
+  ]
 },
   "60-B": {
   "line": "60",
@@ -28427,68 +28665,103 @@ export const OFFICIAL_ROUTES: Record<string, OfficialRoute> = {
 ],
   "stops": [
     {
-        "id": "60s1",
-        "name": "Barracas - Montes de Oca",
-        "lat": -34.635,
-        "lng": -58.374,
-        "pathIndex": 0
+      "id": "60bs1",
+      "name": "Barracas (Av. Montes de Oca)",
+      "lat": -34.635011,
+      "lng": -58.374087,
+      "pathIndex": 0
     },
     {
-        "id": "60s2",
-        "name": "Plaza Constituci\u00f3n",
-        "lat": -34.6268,
-        "lng": -58.3808,
-        "pathIndex": 50
+      "id": "60bs2",
+      "name": "Plaza Constitucion",
+      "lat": -34.626563,
+      "lng": -58.380896,
+      "pathIndex": 50
     },
     {
-        "id": "60s3",
-        "name": "Congreso - Callao",
-        "lat": -34.609,
-        "lng": -58.392,
-        "pathIndex": 151
+      "id": "60bs3",
+      "name": "Av. Entre Rios y Av. Juan de Garay",
+      "lat": -34.627062,
+      "lng": -58.385973,
+      "pathIndex": 75
     },
     {
-        "id": "60s4",
-        "name": "Plaza Italia",
-        "lat": -34.581,
-        "lng": -58.421,
-        "pathIndex": 373
+      "id": "60bs4",
+      "name": "Congreso (Av. Entre Rios y Av. Rivadavia)",
+      "lat": -34.609228,
+      "lng": -58.391958,
+      "pathIndex": 150
     },
     {
-        "id": "60s5",
-        "name": "Barrancas de Belgrano",
-        "lat": -34.5606,
-        "lng": -58.4569,
-        "pathIndex": 518
+      "id": "60bs5",
+      "name": "Av. Callao y Av. Corrientes",
+      "lat": -34.604126,
+      "lng": -58.392325,
+      "pathIndex": 165
     },
     {
-        "id": "60s6",
-        "name": "Puente Saavedra",
-        "lat": -34.539,
-        "lng": -58.476,
-        "pathIndex": 689
+      "id": "60bs6",
+      "name": "Av. Callao y Av. Santa Fe",
+      "lat": -34.597226,
+      "lng": -58.393199,
+      "pathIndex": 186
     },
     {
-        "id": "60s7",
-        "name": "Panamericana y Gral. Paz",
-        "lat": -34.532,
-        "lng": -58.487,
-        "pathIndex": 763
+      "id": "60bs7",
+      "name": "Av. General Las Heras y Pueyrredon",
+      "lat": -34.582837,
+      "lng": -58.408227,
+      "pathIndex": 305
     },
     {
-        "id": "60s8",
-        "name": "Panamericana y M\u00e1rquez",
-        "lat": -34.488,
-        "lng": -58.541,
-        "pathIndex": 919
+      "id": "60bs8",
+      "name": "Av. General Las Heras y Coronel Diaz",
+      "lat": -34.581872,
+      "lng": -58.412055,
+      "pathIndex": 324
     },
     {
-        "id": "60s9",
-        "name": "Escobar Terminal",
-        "lat": -34.3486,
-        "lng": -58.7912,
-        "pathIndex": 1272
+      "id": "60bs9",
+      "name": "Plaza Italia (Las Heras)",
+      "lat": -34.580705,
+      "lng": -58.421217,
+      "pathIndex": 376
+    },
+    {
+      "id": "60bs10",
+      "name": "Barrancas de Belgrano",
+      "lat": -34.560675,
+      "lng": -58.456833,
+      "pathIndex": 518
+    },
+    {
+      "id": "60bs11",
+      "name": "Puente Saavedra (Av. Cabildo)",
+      "lat": -34.538607,
+      "lng": -58.475828,
+      "pathIndex": 626
+    },
+    {
+      "id": "60bs12",
+      "name": "Quinta de Olivos",
+      "lat": -34.530019,
+      "lng": -58.478715,
+      "pathIndex": 749
+    },
+    {
+      "id": "60bs13",
+      "name": "San Isidro Terminal (Av. Centenario)",
+      "lat": -34.488692,
+      "lng": -58.540295,
+      "pathIndex": 917
+    },
+    {
+      "id": "60bs14",
+      "name": "Tigre Terminal (Av. Cazon)",
+      "lat": -34.487298,
+      "lng": -58.591987,
+      "pathIndex": 1040
     }
-]
+  ]
 }
 };
