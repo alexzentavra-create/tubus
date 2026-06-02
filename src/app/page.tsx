@@ -1908,7 +1908,8 @@ export default function UserMapPage() {
         {activePanel === 'map' && (
           <div style={{
             position: 'absolute',
-            bottom: isMobile ? '80px' : '110px',
+            top: '50%',
+            transform: 'translateY(-50%)',
             right: '14px',
             zIndex: 10,
             display: 'flex',
