@@ -37,25 +37,37 @@ export async function GET(request: NextRequest) {
 
   try {
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 6000) // 6s timeout for resilience
+    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10s timeout for resilience
 
+    console.log(`[GCBA API] Fetching vehicle positions for Line ${lineNumber} from URL: ${url}`)
     const response = await fetch(url, { signal: controller.signal })
     clearTimeout(timeoutId)
 
+    console.log(`[GCBA API] Response status code: ${response.status} for Line ${lineNumber}`)
     if (!response.ok) {
-      throw new Error(`GCBA API returned status ${response.status}`)
+      const errText = await response.text().catch(() => '')
+      throw new Error(`GCBA API returned status ${response.status}: ${errText}`)
     }
 
     const data = await response.json()
+    console.log(`[GCBA API] Successfully parsed JSON. Received ${Array.isArray(data) ? data.length : 'non-array'} items from GCBA.`)
+
     if (!Array.isArray(data)) {
       throw new Error('GCBA API response is not an array')
     }
 
-    // Match exclusively by route_short_name prefix (e.g. 12A, 12B, 12, but not 123) to avoid agency-internal route_id clashes
+    // Match by route_short_name or route_id with loose matching and stripping of leading zeros
     const regex = new RegExp(`^0*${lineNumber}(?![0-9])`, 'i')
-    const matchedBuses = data.filter(b => regex.test(b.route_short_name))
+    const matchedBuses = data.filter(b => {
+      const rsn = (b.route_short_name || '').toString().trim()
+      const rid = (b.route_id || '').toString().trim()
+      return regex.test(rsn) || regex.test(rid) || rsn.replace(/^0+/, '') === lineNumber || rid.replace(/^0+/, '') === lineNumber
+    })
+
+    console.log(`[GCBA API] Line ${lineNumber}: Filtered ${matchedBuses.length} matching buses out of ${data.length} total.`)
 
     if (matchedBuses.length === 0) {
+      console.warn(`[GCBA API] Line ${lineNumber}: No matching vehicles found in GCBA payload.`)
       return NextResponse.json({ data: [], count: 0, source: 'realtime' })
     }
 
@@ -91,7 +103,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ data: mappedBuses, count: mappedBuses.length, source: 'realtime' })
   } catch (error: any) {
-    console.error(`GCBA API error for Line ${lineNumber}:`, error.message)
-    return NextResponse.json({ data: [], count: 0, source: 'realtime' })
+    console.error(`[GCBA API ERROR] Error processing vehicle positions for Line ${lineNumber}:`, error)
+    return NextResponse.json({ data: [], count: 0, source: 'realtime', error: error.message })
   }
 }

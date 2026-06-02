@@ -464,19 +464,30 @@ export default function UserMapPage() {
         let hasSimulationSource = false
 
         for (const line of selectedLines) {
+          console.log(`[Frontend] Fetching live buses for Line ${line.line_number} (${line.id})...`)
           const res = await fetch(`/api/buses?line_id=${line.id}&line_number=${line.line_number}`)
-          if (!res.ok) continue
+          if (!res.ok) {
+            console.error(`[Frontend ERROR] Fetch failed for Line ${line.line_number} (status: ${res.status})`)
+            continue
+          }
           const json = await res.json()
+          if (json.error) {
+            console.error(`[Frontend ERROR] API error reported for Line ${line.line_number}:`, json.error)
+          }
           if (json.data && Array.isArray(json.data)) {
+            console.log(`[Frontend] Line ${line.line_number}: Received ${json.data.length} buses from ${json.source}`)
             allFetched.push(...json.data)
             if (json.source === 'simulation') {
               hasSimulationSource = true
             }
+          } else {
+            console.warn(`[Frontend WARNING] Invalid or empty data payload for Line ${line.line_number}:`, json)
           }
         }
 
         // Filter out buses not in selected lines just in case
         const activeFetched = allFetched.filter(b => selectedIds.includes(b.line_id))
+        console.log(`[Frontend] Total active matched buses for selected lines: ${activeFetched.length}`)
 
         // Set simulated/realtime indicator badge on UI
         setUseMockBuses(hasSimulationSource)
@@ -510,6 +521,7 @@ export default function UserMapPage() {
         // Purge vehicles missing for more than 3 polling cycles (destruction)
         Object.keys(busSeenStateRef.current).forEach(id => {
           if (busSeenStateRef.current[id].missingCycles > 3) {
+            console.log(`[Frontend] Purging inactive bus ID ${id} from circulation`)
             delete busSeenStateRef.current[id]
             delete busReckoningRef.current[id]
           }
@@ -621,15 +633,17 @@ export default function UserMapPage() {
           })
         }
 
-        // If buses is empty, initialize directly to avoid lag on first load
+        // Trigger initial state population: immediately update state to include all pooled buses
         setBuses(prev => {
           const remaining = prev.filter(b => busSeenStateRef.current[b.id] !== undefined)
           const existingIds = new Set(remaining.map(b => b.id))
           const toAdd = pooledBuses.filter(b => !existingIds.has(b.id))
+          console.log(`[Frontend] Updating map state. Existing: ${remaining.length}, New added: ${toAdd.length}`)
           return [...remaining, ...toAdd]
         })
-      } catch (e) {
-        console.error('Error fetching dynamic bus positions:', e)
+      } catch (e: any) {
+        console.error('[Frontend ERROR] Error fetching dynamic bus positions:', e)
+        toast.error(`Error al obtener posiciones en tiempo real: ${e.message || e}`)
       }
     }
 
