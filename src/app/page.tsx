@@ -1119,46 +1119,6 @@ export default function UserMapPage() {
           >
             {isMobile && selectedLines.length === 0 ? (
               <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
-                {/* Por línea */}
-                <motion.button
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => {
-                    setLineSelectorTab('line')
-                    setShowLineSelector(true)
-                  }}
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    padding: '11px 10px',
-                    borderRadius: '12px',
-                    fontFamily: 'DM Sans, sans-serif',
-                    fontSize: '13px',
-                    fontWeight: lineSelectorTab === 'line' ? 700 : 500,
-                    cursor: 'pointer',
-                    transition: 'all 200ms',
-                    background: lineSelectorTab === 'line'
-                      ? (prefs.darkMap ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.95)')
-                      : (prefs.darkMap ? 'rgba(15, 23, 42, 0.55)' : 'rgba(255, 255, 255, 0.6)'),
-                    color: lineSelectorTab === 'line'
-                      ? 'var(--text-primary)'
-                      : 'var(--text-muted)',
-                    border: lineSelectorTab === 'line'
-                      ? (prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.22)' : '1px solid rgba(0, 0, 0, 0.15)')
-                      : (prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.06)'),
-                    boxShadow: prefs.darkMap 
-                      ? '0 4px 20px rgba(0,0,0,0.4)' 
-                      : '0 4px 12px rgba(0,0,0,0.05)',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)'
-                  }}
-                >
-                  <Bus size={14} style={{ color: lineSelectorTab === 'line' ? 'var(--text-primary)' : 'var(--text-muted)' }} />
-                  <span>Por línea</span>
-                </motion.button>
-
                 {/* Recorrido */}
                 <motion.button
                   whileTap={{ scale: 0.96 }}
@@ -1237,6 +1197,46 @@ export default function UserMapPage() {
                 >
                   <MapPin size={14} style={{ color: lineSelectorTab === 'nearby' ? 'var(--text-primary)' : 'var(--text-muted)' }} />
                   <span>Cerca mío</span>
+                </motion.button>
+
+                {/* Por línea */}
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => {
+                    setLineSelectorTab('line')
+                    setShowLineSelector(true)
+                  }}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    padding: '11px 10px',
+                    borderRadius: '12px',
+                    fontFamily: 'DM Sans, sans-serif',
+                    fontSize: '13px',
+                    fontWeight: lineSelectorTab === 'line' ? 700 : 500,
+                    cursor: 'pointer',
+                    transition: 'all 200ms',
+                    background: lineSelectorTab === 'line'
+                      ? (prefs.darkMap ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.95)')
+                      : (prefs.darkMap ? 'rgba(15, 23, 42, 0.55)' : 'rgba(255, 255, 255, 0.6)'),
+                    color: lineSelectorTab === 'line'
+                      ? 'var(--text-primary)'
+                      : 'var(--text-muted)',
+                    border: lineSelectorTab === 'line'
+                      ? (prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.22)' : '1px solid rgba(0, 0, 0, 0.15)')
+                      : (prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.06)'),
+                    boxShadow: prefs.darkMap 
+                      ? '0 4px 20px rgba(0,0,0,0.4)' 
+                      : '0 4px 12px rgba(0,0,0,0.05)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)'
+                  }}
+                >
+                  <Bus size={14} style={{ color: lineSelectorTab === 'line' ? 'var(--text-primary)' : 'var(--text-muted)' }} />
+                  <span>Por línea</span>
                 </motion.button>
               </div>
             ) : (

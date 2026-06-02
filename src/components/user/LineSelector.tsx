@@ -103,52 +103,29 @@ export default function LineSelector({
 
   return (
     <motion.div
-      style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+      style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
     >
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }} onClick={onClose} />
 
       <motion.div
         className="glass-dark"
-        style={{ position: 'relative', width: '100%', maxWidth: '440px', margin: '0 16px 16px', overflow: 'hidden', borderRadius: 'var(--r-xl)', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
-        initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }}
-        transition={{ type: 'spring', damping: 28 }}
+        style={{ position: 'relative', width: '100%', maxWidth: '440px', margin: '0', overflow: 'hidden', borderRadius: 'var(--r-xl)', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}
+        initial={{ scale: 0.95, y: 15, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.95, y: 15, opacity: 0 }}
+        transition={{ type: 'spring', damping: 28, stiffness: 220 }}
       >
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 20px 0', flexShrink: 0 }}>
           <h3 className="font-display" style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '17px', letterSpacing: '-0.01em' }}>
-            Elegí una línea
+            {tab === 'line' ? 'Elegí una línea' : tab === 'route' ? 'Planificar Recorrido' : 'Paradas Cercanas'}
           </h3>
           <button onClick={onClose} style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(184,200,224,0.06)', border: '1px solid rgba(184,200,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
             <X size={14} style={{ color: 'var(--text-secondary)' }} />
           </button>
         </div>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: '6px', padding: '14px 16px 0', flexShrink: 0 }}>
-          {tabs.map(t => {
-            const active = tab === t.id
-            const Icon = t.icon
-            return (
-              <button
-                key={t.id}
-                onClick={() => setTab(t.id)}
-                style={{
-                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
-                  padding: '8px 6px', borderRadius: '10px', border: `1px solid ${active ? 'rgba(184,200,224,0.22)' : 'rgba(184,200,224,0.07)'}`,
-                  background: active ? 'rgba(184,200,224,0.1)' : 'rgba(6,8,16,0.4)',
-                  cursor: 'pointer', transition: 'all 200ms',
-                }}
-              >
-                <Icon size={12} style={{ color: active ? 'var(--platinum)' : 'var(--text-muted)' }} />
-                <span style={{ fontSize: '11px', fontFamily: 'DM Sans', color: active ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: active ? 600 : 400 }}>{t.label}</span>
-              </button>
-            )
-          })}
-        </div>
-
         {/* Content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px 20px' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 20px' }}>
           {/* ── LINE TAB ── */}
           {tab === 'line' && (
             <>
