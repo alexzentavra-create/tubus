@@ -91,12 +91,23 @@ const selectedTripIds = new Set()
 const selectedShapeIds = new Set()
 
 for (const [line, route] of selectedRoutes) {
-  const trip = trips.find(item => item.route_id === route.route_id && item.direction_id === '0')
+  // Find outbound trip (direction_id = 0) and inbound trip (direction_id = 1)
+  const tripIda = trips.find(item => item.route_id === route.route_id && item.direction_id === '0')
     || trips.find(item => item.route_id === route.route_id)
-  if (!trip) throw new Error(`Missing GTFS trip for line ${line}`)
-  selectedTrips.set(line, trip)
-  selectedTripIds.add(trip.trip_id)
-  selectedShapeIds.add(trip.shape_id)
+  
+  const tripVuelta = trips.find(item => item.route_id === route.route_id && item.direction_id === '1')
+    || trips.find(item => item.route_id === route.route_id)
+
+  selectedTrips.set(line, { ida: tripIda, vuelta: tripVuelta })
+  
+  if (tripIda) {
+    selectedTripIds.add(tripIda.trip_id)
+    selectedShapeIds.add(tripIda.shape_id)
+  }
+  if (tripVuelta) {
+    selectedTripIds.add(tripVuelta.trip_id)
+    selectedShapeIds.add(tripVuelta.shape_id)
+  }
 }
 
 const stops = new Map()
@@ -151,21 +162,48 @@ for (const row of readCsv(`${GTFS_DIR}/shapes.txt`)) {
 
 const officialRoutes = {}
 for (const [line, route] of selectedRoutes) {
-  const trip = selectedTrips.get(line)
-  const path = (shapesById.get(trip.shape_id) || [])
-    .sort((a, b) => a.sequence - b.sequence)
-    .map(({ lat, lng }) => ({ lat, lng }))
-  const routeStops = (stopTimesByTrip.get(trip.trip_id) || [])
-    .sort((a, b) => a.sequence - b.sequence)
-    .map(({ sequence, ...stop }) => projectStopToPath(stop, path))
+  const tripCombo = selectedTrips.get(line)
+  
+  // Process outbound (ida)
+  let pathIda = []
+  let routeStopsIda = []
+  if (tripCombo.ida) {
+    pathIda = (shapesById.get(tripCombo.ida.shape_id) || [])
+      .sort((a, b) => a.sequence - b.sequence)
+      .map(({ lat, lng }) => ({ lat, lng }))
+    
+    routeStopsIda = (stopTimesByTrip.get(tripCombo.ida.trip_id) || [])
+      .sort((a, b) => a.sequence - b.sequence)
+      .map(({ sequence, ...stop }) => projectStopToPath(stop, pathIda))
+  }
+
+  // Process inbound (vuelta)
+  let pathVuelta = []
+  let routeStopsVuelta = []
+  if (tripCombo.vuelta) {
+    pathVuelta = (shapesById.get(tripCombo.vuelta.shape_id) || [])
+      .sort((a, b) => a.sequence - b.sequence)
+      .map(({ lat, lng }) => ({ lat, lng }))
+    
+    routeStopsVuelta = (stopTimesByTrip.get(tripCombo.vuelta.trip_id) || [])
+      .sort((a, b) => a.sequence - b.sequence)
+      .map(({ sequence, ...stop }) => projectStopToPath(stop, pathVuelta))
+  }
 
   officialRoutes[line] = {
     line,
     routeShortName: route.route_short_name,
-    routeName: route.route_desc,
-    headsign: trip.trip_headsign,
-    path: simplify(path, 220),
-    stops: routeStops,
+    routeName: route.route_desc || route.route_long_name || route.route_short_name,
+    ida: {
+      headsign: tripCombo.ida?.trip_headsign || 'Ida',
+      path: simplify(pathIda, 220),
+      stops: routeStopsIda,
+    },
+    vuelta: {
+      headsign: tripCombo.vuelta?.trip_headsign || 'Vuelta',
+      path: simplify(pathVuelta, 220),
+      stops: routeStopsVuelta,
+    }
   }
 }
 

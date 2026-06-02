@@ -76,131 +76,37 @@ function officialRouteForLine(line: BusLine): OfficialRoute | null {
   return OFFICIAL_ROUTES[line.line_number.replace(/^0+/, '')] || null
 }
 
-function routeTemplateForLine(line: BusLine): BusStop[] {
+function routeTemplateForLine(line: BusLine, direction: 'ida' | 'vuelta' = 'ida'): BusStop[] {
   const officialRoute = officialRouteForLine(line)
   if (officialRoute) {
-    return officialRoute.stops.map((stop, index) => ({
-      id: `${line.id}-official-${stop.id}`,
-      line_id: line.id,
-      name: stop.name,
-      street_name: stop.name,
-      stop_number: index + 1,
-      latitude: stop.lat,
-      longitude: stop.lng,
-      direction: 'ida',
-      avg_wait_minutes: 6,
-      total_daily_users: 120,
-    }))
+    const dirObj = direction === 'vuelta' ? officialRoute.vuelta : officialRoute.ida
+    if (dirObj?.stops) {
+      return dirObj.stops.map((stop, index) => ({
+        id: `${line.id}-official-${stop.id}-${direction}`,
+        line_id: line.id,
+        name: stop.name,
+        street_name: stop.name,
+        stop_number: index + 1,
+        latitude: stop.lat,
+        longitude: stop.lng,
+        direction: direction,
+        avg_wait_minutes: 6,
+        total_daily_users: 120,
+      }))
+    }
   }
 
-  const directStops = MOCK_STOPS[line.id]
-  if (directStops?.length) return directStops
-
-  return MOCK_STOPS[MOCK_LINES[0].id]
+  const directStops = MOCK_STOPS[line.id] || MOCK_STOPS[MOCK_LINES[0].id]
+  return directStops.filter(s => s.direction === direction)
 }
 
 export function getMockStopsForLine(line: BusLine, direction: 'all' | 'ida' | 'vuelta' = 'all'): BusStop[] {
-  const getOutboundStops = () => {
-    if (line.line_number === '60') {
-      const routeA = OFFICIAL_ROUTES['60']
-      const routeB = OFFICIAL_ROUTES['60-B']
-      const stopsA = (routeA?.stops || []).map((stop, index) => ({
-        id: `${line.id}-official-${stop.id}-ida`,
-        line_id: line.id,
-        name: stop.name,
-        street_name: 'Recorrido Ramal A (Tigre)',
-        stop_number: index + 1,
-        latitude: stop.lat,
-        longitude: stop.lng,
-        direction: 'ida' as const,
-        avg_wait_minutes: 5,
-        total_daily_users: 150,
-      }))
-      const stopsB = (routeB?.stops || []).map((stop, index) => ({
-        id: `${line.id}-official-${stop.id}-ida`,
-        line_id: line.id,
-        name: stop.name,
-        street_name: 'Recorrido Ramal B (Escobar)',
-        stop_number: index + 1,
-        latitude: stop.lat,
-        longitude: stop.lng,
-        direction: 'ida' as const,
-        avg_wait_minutes: 7,
-        total_daily_users: 100,
-      }))
-      
-      const uniqueStops: BusStop[] = []
-      const coords = new Set<string>()
-      ;[...stopsA, ...stopsB].forEach(s => {
-        const key = `${s.latitude.toFixed(4)},${s.longitude.toFixed(4)}`
-        if (!coords.has(key)) {
-          coords.add(key)
-          uniqueStops.push(s)
-        }
-      })
-      return uniqueStops
-    }
-    const dir = (line.line_number === '37' || line.line_number === '28') ? 'vuelta' : 'ida'
-    return routeTemplateForLine(line).map(stop => ({
-      ...stop,
-      id: `${line.id}-${stop.id}-ida`,
-      line_id: line.id,
-      direction: dir as 'ida' | 'vuelta',
-    }))
-  }
-
-  const getInboundStops = () => {
-    const outbound = getOutboundStops()
-    return [...outbound].reverse().map((stop, index) => {
-      let name = stop.name
-      let lat = stop.latitude
-      let lng = stop.longitude
-
-      if (line.line_number === '12') {
-        if (name.includes('CALLAO AV.')) {
-          name = name.replace('CALLAO AV.', 'RIOBAMBA')
-          lat = lat - 0.0008
-          lng = lng - 0.0013
-        } else if (name.includes('ENTRE RIOS AV.')) {
-          name = name.replace('ENTRE RIOS AV.', 'COMBATE DE LOS POZOS')
-          lat = lat - 0.0008
-          lng = lng - 0.0013
-        }
-      }
-
-      if (line.line_number === '37') {
-        if (name.includes('RODRIGUEZ PE') || name.includes('RODRIGUEZ PE?A')) {
-          name = name.replace(/RODRIGUEZ PE\?A|RODRIGUEZ PEÑA/, 'CALLAO AV.')
-          lat = lat - 0.0008
-          lng = lng - 0.0013
-        } else if (name.includes('LAS HERAS')) {
-          name = name.replace('LAS HERAS GENERAL AV.', 'SANTA FE AV.').replace('LAS HERAS', 'SANTA FE AV.')
-          lat = lat - 0.0046
-          lng = lng - 0.0045
-        }
-      }
-
-      const dir = (line.line_number === '37' || line.line_number === '28') ? 'ida' : 'vuelta'
-      return {
-        ...stop,
-        id: stop.id.replace('-ida', '-vuelta'),
-        name,
-        street_name: name,
-        stop_number: index + 1,
-        latitude: lat,
-        longitude: lng,
-        direction: dir as 'ida' | 'vuelta',
-      }
-    })
-  }
-
-  const isLine37or28 = line.line_number === '37' || line.line_number === '28'
   if (direction === 'ida') {
-    return isLine37or28 ? getInboundStops() : getOutboundStops()
+    return routeTemplateForLine(line, 'ida')
   } else if (direction === 'vuelta') {
-    return isLine37or28 ? getOutboundStops() : getInboundStops()
+    return routeTemplateForLine(line, 'vuelta')
   } else {
-    return [...getOutboundStops(), ...getInboundStops()]
+    return [...routeTemplateForLine(line, 'ida'), ...routeTemplateForLine(line, 'vuelta')]
   }
 }
 
@@ -220,68 +126,24 @@ function getMockStopsForBus(bus: BusPosition, direction?: 'ida' | 'vuelta'): Bus
 
 function getRoutePathForLine(line: BusLine, direction: 'ida' | 'vuelta' = 'ida'): RoutePoint[] {
   const officialRoute = officialRouteForLine(line)
-  let path: RoutePoint[] = []
-
-  if (officialRoute?.path.length) {
-    path = officialRoute.path
-  } else {
-    path = getMockStopsForLine(line, 'ida').map(stop => ({
-      lat: stop.latitude,
-      lng: stop.longitude,
-    }))
+  if (officialRoute) {
+    const dirObj = direction === 'vuelta' ? officialRoute.vuelta : officialRoute.ida
+    if (dirObj?.path?.length) {
+      return dirObj.path
+    }
   }
 
-  const isLine37or28 = line.line_number === '37' || line.line_number === '28'
-  const shouldReverse = isLine37or28 ? (direction === 'ida') : (direction === 'vuelta')
-
-  if (shouldReverse) {
-    const reversed = [...path].reverse()
-    if (line.line_number === '12') {
-      return reversed.map(p => {
-        if (p.lat > -34.6240 && p.lat < -34.5950 && p.lng > -58.3950 && p.lng < -58.3910) {
-          return {
-            lat: p.lat - 0.0008,
-            lng: p.lng - 0.0013
-          }
-        }
-        return p
-      })
-    }
-    if (line.line_number === '37') {
-      return reversed.map(p => {
-        if (p.lat > -34.6110 && p.lat < -34.5930 && p.lng > -58.3930 && p.lng < -58.3900) {
-          return {
-            lat: p.lat - 0.0008,
-            lng: p.lng - 0.0013
-          }
-        }
-        if (p.lat > -34.5930 && p.lat < -34.5800 && p.lng > -58.4220 && p.lng < -58.3910) {
-          return {
-            lat: p.lat - 0.0046,
-            lng: p.lng - 0.0045
-          }
-        }
-        return p
-      })
-    }
-    return reversed
-  }
-
-  return path
+  return getMockStopsForLine(line, direction).map(stop => ({
+    lat: stop.latitude,
+    lng: stop.longitude,
+  }))
 }
 
 export function getMockRoutePathForLine(line: BusLine, direction: 'ida' | 'vuelta' = 'ida'): RoutePoint[] {
   return getRoutePathForLine(line, direction)
 }
 
-// Support multiple paths for branches (like Line 60)
 export function getMockRoutePathsForLine(line: BusLine, direction: 'all' | 'ida' | 'vuelta' = 'all'): RoutePoint[][] {
-  if (line.line_number === '60') {
-    return [
-      OFFICIAL_ROUTES['60']?.path || [],
-      OFFICIAL_ROUTES['60-B']?.path || []
-    ]
-  }
   if (direction === 'all') {
     return [
       getRoutePathForLine(line, 'ida'),
@@ -421,32 +283,37 @@ function makeBus(line: BusLine, unitNum: number, totalBuses: number): MockBusSta
   const isLine60 = line.line_number === '60'
   const branchId = isLine60 ? (unitNum % 2 === 0 ? '60' : '60-B') : null
   
+  const initialDirection = unitNum % 2 === 0 ? 1 : -1
+  const busDirection = getDirectionForBus(line.line_number, initialDirection)
+  
   let path: RoutePoint[] = []
   let stops: BusStop[] = []
   
   if (isLine60 && branchId) {
     const route = OFFICIAL_ROUTES[branchId]
-    path = route.path
-    stops = route.stops.map((stop, index) => ({
-      id: `${line.id}-official-${stop.id}`,
+    const dirObj = busDirection === 'vuelta' ? route.vuelta : route.ida
+    path = dirObj.path
+    stops = dirObj.stops.map((stop, index) => ({
+      id: `${line.id}-official-${stop.id}-${busDirection}`,
       line_id: line.id,
       name: stop.name,
       street_name: stop.name,
       stop_number: index + 1,
       latitude: stop.lat,
       longitude: stop.lng,
-      direction: 'ida',
+      direction: busDirection,
       avg_wait_minutes: 6,
       total_daily_users: 120,
     }))
   } else {
-    stops = getMockStopsForLine(line)
-    path = getRoutePathForLine(line)
+    stops = getMockStopsForLine(line, busDirection)
+    path = getRoutePathForLine(line, busDirection)
   }
   
-  const initialDirection = unitNum % 2 === 0 ? 1 : -1
   const fraction = unitNum / totalBuses
-  const pathIndex = Math.min(Math.floor(path.length * fraction), path.length - 2)
+  const pathIndex = initialDirection === 1 
+    ? Math.min(Math.floor(path.length * fraction), path.length - 2)
+    : Math.max(1, Math.floor(path.length * (1 - fraction)))
   const point = path[pathIndex]
   const nextStop = nearestStopAhead(stops, path, pathIndex, initialDirection) || stops[0]
   
@@ -483,8 +350,6 @@ function makeBus(line: BusLine, unitNum: number, totalBuses: number): MockBusSta
     }
   }
 
-  const busDirection = getDirectionForBus(line.line_number, initialDirection)
-
   const bus: BusPosition = {
     id:              `mock-${line.id}-${unitNum}`,
     driver_id:       `mock-driver-${line.id}-${unitNum}`,
@@ -500,7 +365,7 @@ function makeBus(line: BusLine, unitNum: number, totalBuses: number): MockBusSta
     next_stop_name:  nextStop.name,
     eta_minutes:     2,
     status:          'at_stop',
-    passenger_count: Math.floor(Math.random() * 22) + 6,
+    passenger_count: 0,
     timestamp:       new Date().toISOString(),
     ramal,
     reports_count,
@@ -560,8 +425,9 @@ export function tickMockBuses(): BusPosition[] {
 
     if (s.branchId) {
       const route = OFFICIAL_ROUTES[s.branchId]
-      path = route.path
-      stops = route.stops.map((stop, index) => ({
+      const dirObj = currentDirection === 'vuelta' ? route.vuelta : route.ida
+      path = dirObj.path
+      stops = dirObj.stops.map((stop, index) => ({
         id: `${s.bus.line_id}-official-${stop.id}-${currentDirection}`,
         line_id: s.bus.line_id,
         name: stop.name,
@@ -575,7 +441,7 @@ export function tickMockBuses(): BusPosition[] {
       }))
     } else {
       stops = getMockStopsForBus(s.bus, currentDirection)
-      path = getRoutePathForBus(s.bus, 'ida') // Always outbound path to index correctly
+      path = getRoutePathForBus(s.bus, currentDirection)
     }
 
     if (!stops || stops.length < 2 || path.length < 2) return
@@ -613,7 +479,21 @@ export function tickMockBuses(): BusPosition[] {
 
     // Reached end of route → reverse
     if (nextIdx < 0 || nextIdx >= path.length) {
-      s.direction  = s.direction === 1 ? -1 : 1
+      const nextDir = s.direction === 1 ? -1 : 1
+      s.direction  = nextDir
+      
+      const nextBusDirection = getDirectionForBus(s.bus.line_number, nextDir)
+      let nextPath: RoutePoint[] = []
+      if (s.branchId) {
+        const route = OFFICIAL_ROUTES[s.branchId]
+        nextPath = nextBusDirection === 'vuelta' ? route.vuelta.path : route.ida.path
+      } else {
+        nextPath = getRoutePathForBus(s.bus, nextBusDirection)
+      }
+      
+      s.stopIndex = nextDir === 1 ? 0 : nextPath.length - 1
+      s.progress = 0
+      
       s.pauseUntil = now + (3000 + Math.random() * 5000) // stop for 3-8s
       out.push({ ...s.bus })
       return
@@ -695,7 +575,7 @@ export function tickMockBuses(): BusPosition[] {
       if (shouldPauseAtPathIndex(stops, path, nextIdx, s.direction, s.bus.line_number)) {
         s.bus.status     = 'at_stop'
         s.bus.speed_kmh  = 0
-        s.bus.passenger_count = Math.max(2, s.bus.passenger_count + Math.floor(Math.random() * 8) - 3)
+        s.bus.passenger_count = 0
         s.pauseUntil = now + (3000 + Math.random() * 7000) // stop for 3-10s
       }
     }

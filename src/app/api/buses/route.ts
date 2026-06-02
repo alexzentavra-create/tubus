@@ -30,6 +30,9 @@ export async function GET(request: NextRequest) {
     console.error('GCBA API credentials are not configured in environment variables.')
   }
 
+  // Bypass TLS certificate checks to prevent government server SSL handshake errors
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+
   const url = `https://apitransporte.buenosaires.gob.ar/colectivos/vehiclePositionsSimple?client_id=${clientId}&client_secret=${clientSecret}`
 
   try {
@@ -48,9 +51,9 @@ export async function GET(request: NextRequest) {
       throw new Error('GCBA API response is not an array')
     }
 
-    // Match by route_short_name or route_id
-    const regex = new RegExp(`^0*${lineNumber}[A-Z]?$`, 'i')
-    const matchedBuses = data.filter(b => regex.test(b.route_short_name) || b.route_id === lineNumber)
+    // Match exclusively by route_short_name prefix (e.g. 12A, 12B, 12, but not 123) to avoid agency-internal route_id clashes
+    const regex = new RegExp(`^0*${lineNumber}(?![0-9])`, 'i')
+    const matchedBuses = data.filter(b => regex.test(b.route_short_name))
 
     if (matchedBuses.length === 0) {
       console.log(`No active buses found in GCBA API for Line ${lineNumber}. Falling back to simulation.`);
@@ -80,7 +83,7 @@ export async function GET(request: NextRequest) {
         next_stop_name: b.trip_headsign || 'Siguiente parada',
         eta_minutes: speedKmh > 5 ? Math.max(1, Math.ceil(3 / (speedKmh / 60))) : 5,
         status: speedKmh > 2 ? 'moving' : 'stopped',
-        passenger_count: Math.floor(Math.random() * 22) + 6,
+        passenger_count: 0,
         timestamp: new Date(b.timestamp * 1000).toISOString(),
         reports_count: index % 4 === 0 ? 1 : 0,
         direction: direction

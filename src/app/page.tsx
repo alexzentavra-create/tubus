@@ -135,6 +135,7 @@ export default function UserMapPage() {
 
   const [user, setUser]                     = useState<any>(null)
   const [buses, setBuses]                   = useState<BusPosition[]>([])
+  const [trafficState, setTrafficState]     = useState<Record<string, { color: string, timestamp: number }>>({})
   
   // Mobile, Onboarding and Desktop-Preview states
   const [isMobile, setIsMobile]             = useState(false)
@@ -477,6 +478,72 @@ export default function UserMapPage() {
         })
         targetBusesRef.current = newTargets
 
+        // Persistent Traffic State Engine (Sticky Traffic Memory Segment updates)
+        const newSegmentColors: Record<string, { color: string; timestamp: number }> = {}
+        activeFetched.forEach(bus => {
+          const lineNum = bus.line_number
+          const routeKey = lineNum.replace(/^0+/, '')
+          const officialRoute = OFFICIAL_ROUTES[routeKey]
+          if (!officialRoute) return
+
+          const busDir = bus.direction || 'ida'
+          const dirObj = busDir === 'vuelta' ? officialRoute.vuelta : officialRoute.ida
+          if (!dirObj || !dirObj.path || !dirObj.stops || dirObj.stops.length < 2) return
+
+          const path = dirObj.path
+          const stops = dirObj.stops
+
+          // Find closest coordinate in route shape path
+          let closestIdx = 0
+          let minDistance = Infinity
+          path.forEach((pt, idx) => {
+            const d = distanceKm({ latitude: bus.latitude, longitude: bus.longitude }, { lat: pt.lat, lng: pt.lng })
+            if (d < minDistance) {
+              minDistance = d
+              closestIdx = idx
+            }
+          })
+
+          // Update state if vehicle coordinate aligns with route path within 500 meters
+          if (minDistance < 0.5) {
+            let segmentIdx = 0
+            for (let idx = 0; idx < stops.length - 1; idx++) {
+              if (closestIdx <= stops[idx + 1].pathIndex) {
+                segmentIdx = idx
+                break
+              }
+              segmentIdx = idx
+            }
+
+            let color = '#10B981' // GREEN (Fluid: >= 22 km/h)
+            if (bus.speed_kmh < 10) {
+              color = '#EF4444' // RED (Heavy: < 10 km/h)
+            } else if (bus.speed_kmh < 22) {
+              color = '#F59E0B' // YELLOW (Moderate: 10-21 km/h)
+            }
+
+            const key = `${lineNum}-${busDir}-${segmentIdx}`
+            newSegmentColors[key] = { color, timestamp: Date.now() }
+          }
+        })
+
+        if (Object.keys(newSegmentColors).length > 0) {
+          setTrafficState(prev => {
+            const now = Date.now()
+            const next = { ...prev }
+            Object.entries(newSegmentColors).forEach(([key, val]) => {
+              next[key] = val
+            })
+            // Garbage collect expired items
+            Object.keys(next).forEach(key => {
+              if (now - next[key].timestamp > 30 * 60 * 1000) {
+                delete next[key]
+              }
+            })
+            return next
+          })
+        }
+
         // If buses is empty, initialize directly to avoid lag on first load
         setBuses(prev => {
           if (prev.length === 0) {
@@ -544,6 +611,25 @@ export default function UserMapPage() {
       if (apiPollRef.current) { clearInterval(apiPollRef.current); apiPollRef.current = null }
     }
   }, [selectedLines])
+
+  // Prune expired traffic segments older than 30 minutes on a recurring schedule
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTrafficState(prev => {
+        const now = Date.now()
+        let changed = false
+        const next = { ...prev }
+        Object.keys(next).forEach(key => {
+          if (now - next[key].timestamp > 30 * 60 * 1000) {
+            delete next[key]
+            changed = true
+          }
+        })
+        return changed ? next : prev
+      })
+    }, 15000)
+    return () => clearInterval(interval)
+  }, [])
 
   // Update lineStops dynamically when selectedLines or directionFilter changes
   useEffect(() => {
@@ -643,72 +729,53 @@ export default function UserMapPage() {
     }
   })
 
-  // Real-time Traffic GeoJson Generator (Dynamic segment mapping based on live bus speeds)
+  // Real-time Traffic GeoJson Generator (Segmented route mapping based on persistent stop-bounded traffic color states)
   const trafficGeoJsons = showTraffic ? selectedLines.map(line => {
-    const paths = getMockRoutePathsForLine(line, 'all')
     const features: any[] = []
+    const lineNum = line.line_number
+    const routeKey = lineNum.replace(/^0+/, '')
+    const officialRoute = OFFICIAL_ROUTES[routeKey]
 
-    paths.forEach((path, pathIdx) => {
-      const SEG_SIZE = 5
-      const slices: { slice: { lat: number; lng: number }[], speeds: number[] }[] = []
+    if (officialRoute) {
+      // Determine which directions to show based on directionFilter
+      const directionsToShow = directionFilter === 'all' ? ['ida', 'vuelta'] : [directionFilter]
 
-      // 1. Group path into segments of SEG_SIZE points
-      for (let i = 0; i < path.length - 1; i += SEG_SIZE - 1) {
-        const slice = path.slice(i, i + SEG_SIZE)
-        if (slice.length < 2) continue
-        slices.push({ slice, speeds: [] })
-      }
+      directionsToShow.forEach(dir => {
+        const dirObj = dir === 'vuelta' ? officialRoute.vuelta : officialRoute.ida
+        if (dirObj && dirObj.path && dirObj.stops && dirObj.stops.length >= 2) {
+          const path = dirObj.path
+          const stops = dirObj.stops
+          const N = stops.length
 
-      // 2. Filter buses for this specific line
-      const lineBuses = buses.filter(b => b.line_id === line.id)
+          for (let k = 0; k < N - 1; k++) {
+            const startIndex = (k === 0) ? 0 : stops[k].pathIndex
+            const endIndex = (k === N - 2) ? path.length - 1 : stops[k+1].pathIndex
+            const slice = path.slice(startIndex, endIndex + 1)
+            if (slice.length < 2) continue
 
-      // 3. Map each bus to its nearest road segment (slice)
-      lineBuses.forEach(bus => {
-        let bestSliceIdx = 0
-        let minDistance = Infinity
+            const key = `${lineNum}-${dir}-${k}`
+            const state = trafficState[key]
+            let trafficColor = 'rgba(107, 114, 128, 0.35)' // Neutral gray solid base route color by default
 
-        slices.forEach((sObj, sIdx) => {
-          sObj.slice.forEach(pt => {
-            const d = distanceKm({ latitude: bus.latitude, longitude: bus.longitude }, { lat: pt.lat, lng: pt.lng })
-            if (d < minDistance) {
-              minDistance = d
-              bestSliceIdx = sIdx
+            if (state) {
+              // Confirm cache validity within 30-minute window
+              if (Date.now() - state.timestamp <= 30 * 60 * 1000) {
+                trafficColor = state.color
+              }
             }
-          })
-        })
 
-        // If the bus is within 500 meters of the route, associate its speed with the segment
-        if (minDistance < 0.5) {
-          slices[bestSliceIdx].speeds.push(bus.speed_kmh)
-        }
-      })
-
-      // 4. Color segments based on the average speeds of the mapped buses
-      slices.forEach(sObj => {
-        let trafficColor = 'rgba(107, 114, 128, 0.35)' // Neutral gray if no live data is available
-
-        if (sObj.speeds.length > 0) {
-          const avgSpeed = sObj.speeds.reduce((sum, s) => sum + s, 0) / sObj.speeds.length
-
-          if (avgSpeed >= 22) {
-            trafficColor = '#10B981' // GREEN (Fluid: >= 22 km/h)
-          } else if (avgSpeed >= 10) {
-            trafficColor = '#F59E0B' // YELLOW (Moderate: 10-21 km/h)
-          } else {
-            trafficColor = '#EF4444' // RED (Heavy: < 10 km/h)
+            features.push({
+              type: 'Feature' as const,
+              properties: { color: trafficColor },
+              geometry: {
+                type: 'LineString' as const,
+                coordinates: slice.map(point => [point.lng, point.lat]),
+              }
+            })
           }
         }
-
-        features.push({
-          type: 'Feature',
-          properties: { color: trafficColor },
-          geometry: {
-            type: 'LineString',
-            coordinates: sObj.slice.map(point => [point.lng, point.lat]),
-          }
-        })
       })
-    })
+    }
 
     return {
       id: `traffic-${line.id}`,

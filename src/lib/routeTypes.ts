@@ -9,11 +9,16 @@ export interface OfficialRouteStop extends RoutePoint {
   pathIndex: number
 }
 
+export interface OfficialRouteDirection {
+  headsign: string
+  path: RoutePoint[]
+  stops: OfficialRouteStop[]
+}
+
 export interface OfficialRoute {
   line: string
   routeShortName: string
   routeName: string
-  headsign: string
-  path: RoutePoint[]
-  stops: OfficialRouteStop[]
+  ida: OfficialRouteDirection
+  vuelta: OfficialRouteDirection
 }
