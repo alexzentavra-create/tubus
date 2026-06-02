@@ -13,7 +13,7 @@ import { createClient } from '@/lib/supabase'
 import { OFFICIAL_ROUTES } from '@/lib/officialRoutes'
 import type { BusPosition, BusLine, BusStop } from '@/types'
 import {
-  MOCK_LINES, MOCK_STOPS, initMockBuses, tickMockBuses, getMockBusesForLine, getLineBounds, getMockStopsForLine, getMockRoutePathForLine, getMockRoutePathsForLine
+  MOCK_LINES, getLineBounds, getMockStopsForLine, getMockRoutePathsForLine
 } from '@/lib/mockData'
 import ReportModal from '@/components/user/ReportModal'
 import LineSelector, { Tab as LineSelectorTab } from '@/components/user/LineSelector'
@@ -132,6 +132,13 @@ export default function UserMapPage() {
   const mockTickRef   = useRef<ReturnType<typeof setInterval> | null>(null)
   const targetBusesRef = useRef<Record<string, BusPosition>>({})
   const apiPollRef     = useRef<ReturnType<typeof setInterval> | null>(null)
+  const busSeenStateRef = useRef<Record<string, { bus: BusPosition; missingCycles: number }>>({})
+  const busReckoningRef = useRef<Record<string, {
+    lastTelemetryReceivedTime: number;
+    blendStartCoords: { lat: number; lng: number } | null;
+    currentCoords: { lat: number; lng: number };
+    pathIndex: number;
+  }>>({})
 
   const [user, setUser]                     = useState<any>(null)
   const [buses, setBuses]                   = useState<BusPosition[]>([])
@@ -203,6 +210,12 @@ export default function UserMapPage() {
     const dLng = (b.lng - a.longitude) * Math.PI / 180
     const s = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2
     return 6371 * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s))
+  }
+
+  const heading = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+    const dy = lat2 - lat1
+    const dx = lng2 - lng1
+    return ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360
   }
 
   const getNearestStreetName = (lat: number, lng: number) => {
@@ -419,9 +432,6 @@ export default function UserMapPage() {
 
     // lineStops is updated via a separate useEffect that monitors directionFilter
 
-    // Reinitialise simulator fresh for the selected lines
-    initMockBuses(selectedLines)
-
     // Fit map bounds to the selected lines
     let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180
     let hasBounds = false
@@ -471,12 +481,79 @@ export default function UserMapPage() {
         // Set simulated/realtime indicator badge on UI
         setUseMockBuses(hasSimulationSource)
 
-        // Store new positions as targets
-        const newTargets: Record<string, BusPosition> = {}
+        // Store new positions as targets and implement dynamic vehicle pooling
+        const fetchedIds = new Set(activeFetched.map(b => b.id))
         activeFetched.forEach(bus => {
+          const existing = busSeenStateRef.current[bus.id]
+          if (existing) {
+            busSeenStateRef.current[bus.id] = { bus, missingCycles: 0 }
+          } else {
+            busSeenStateRef.current[bus.id] = { bus, missingCycles: 0 }
+            if (!busReckoningRef.current[bus.id]) {
+              busReckoningRef.current[bus.id] = {
+                lastTelemetryReceivedTime: Date.now(),
+                blendStartCoords: null,
+                currentCoords: { lat: bus.latitude, lng: bus.longitude },
+                pathIndex: 0
+              }
+            }
+          }
+        })
+
+        // Increment missing count for absent vehicles
+        Object.keys(busSeenStateRef.current).forEach(id => {
+          if (!fetchedIds.has(id)) {
+            busSeenStateRef.current[id].missingCycles += 1
+          }
+        })
+
+        // Purge vehicles missing for more than 3 polling cycles (destruction)
+        Object.keys(busSeenStateRef.current).forEach(id => {
+          if (busSeenStateRef.current[id].missingCycles > 3) {
+            delete busSeenStateRef.current[id]
+            delete busReckoningRef.current[id]
+          }
+        })
+
+        const pooledBuses = Object.values(busSeenStateRef.current).map(item => item.bus)
+
+        // Store new pooled positions as targets
+        const newTargets: Record<string, BusPosition> = {}
+        pooledBuses.forEach(bus => {
           newTargets[bus.id] = bus
         })
         targetBusesRef.current = newTargets
+
+        // Pre-compute dead reckoning transition details for next coordinates blending
+        activeFetched.forEach(bus => {
+          const reckoning = busReckoningRef.current[bus.id]
+          if (reckoning) {
+            const hasChanged = reckoning.currentCoords.lat !== bus.latitude || reckoning.currentCoords.lng !== bus.longitude
+            if (hasChanged) {
+              reckoning.blendStartCoords = { lat: reckoning.currentCoords.lat, lng: reckoning.currentCoords.lng }
+              reckoning.lastTelemetryReceivedTime = Date.now()
+            }
+
+            const routeKey = bus.line_number.replace(/^0+/, '')
+            const officialRoute = OFFICIAL_ROUTES[routeKey]
+            if (officialRoute) {
+              const busDir = bus.direction || 'ida'
+              const dirObj = busDir === 'vuelta' ? officialRoute.vuelta : officialRoute.ida
+              if (dirObj && dirObj.path && dirObj.path.length > 0) {
+                let closestIdx = 0
+                let minD = Infinity
+                dirObj.path.forEach((pt, idx) => {
+                  const d = distanceKm({ latitude: bus.latitude, longitude: bus.longitude }, { lat: pt.lat, lng: pt.lng })
+                  if (d < minD) {
+                    minD = d
+                    closestIdx = idx
+                  }
+                })
+                reckoning.pathIndex = closestIdx
+              }
+            }
+          }
+        })
 
         // Persistent Traffic State Engine (Sticky Traffic Memory Segment updates)
         const newSegmentColors: Record<string, { color: string; timestamp: number }> = {}
@@ -546,10 +623,10 @@ export default function UserMapPage() {
 
         // If buses is empty, initialize directly to avoid lag on first load
         setBuses(prev => {
-          if (prev.length === 0) {
-            return activeFetched
-          }
-          return prev
+          const remaining = prev.filter(b => busSeenStateRef.current[b.id] !== undefined)
+          const existingIds = new Set(remaining.map(b => b.id))
+          const toAdd = pooledBuses.filter(b => !existingIds.has(b.id))
+          return [...remaining, ...toAdd]
         })
       } catch (e) {
         console.error('Error fetching dynamic bus positions:', e)
@@ -562,35 +639,117 @@ export default function UserMapPage() {
     // Poll every 15 seconds (within 15-30s range requested by user)
     apiPollRef.current = setInterval(fetchBusesRealtime, 15000)
 
-    // Smooth LERP animation tick (50ms interval)
+    let lastTick = Date.now()
+
+    // Smooth LERP/Dead Reckoning animation tick (50ms interval)
     mockTickRef.current = setInterval(() => {
+      const now = Date.now()
+      const dt = Math.min((now - lastTick) / 1000, 0.1) // clamp dt to max 100ms
+      lastTick = now
+
       setBuses(prevBuses => {
         const targets = targetBusesRef.current
         const nextBuses: BusPosition[] = []
 
-        // 1. Smoothly interpolate existing buses towards targets
+        // 1. Smoothly interpolate/extrapolate existing buses
         prevBuses.forEach(bus => {
           const target = targets[bus.id]
           if (target) {
-            const dLat = target.latitude - bus.latitude
-            const dLng = target.longitude - bus.longitude
-            
-            // Snap to target if very close
-            if (Math.abs(dLat) < 0.00001 && Math.abs(dLng) < 0.00001) {
+            const reckoning = busReckoningRef.current[bus.id]
+            if (!reckoning) {
+              busReckoningRef.current[bus.id] = {
+                lastTelemetryReceivedTime: now,
+                blendStartCoords: null,
+                currentCoords: { lat: target.latitude, lng: target.longitude },
+                pathIndex: 0
+              }
               nextBuses.push({
                 ...target,
-                latitude: target.latitude,
-                longitude: target.longitude
+                passenger_count: 0
               })
-            } else {
-              // Smooth step towards target coordinate (10% of distance per 50ms)
-              const step = 0.10
-              nextBuses.push({
-                ...target, // Keep latest status, eta, passenger count, etc.
-                latitude: bus.latitude + dLat * step,
-                longitude: bus.longitude + dLng * step
-              })
+              return
             }
+
+            const elapsedMs = now - reckoning.lastTelemetryReceivedTime
+            let nextLat = target.latitude
+            let nextLng = target.longitude
+            let nextHeading = target.heading || 0
+
+            const routeKey = target.line_number.replace(/^0+/, '')
+            const officialRoute = OFFICIAL_ROUTES[routeKey]
+            const busDir = target.direction || 'ida'
+            const dirObj = busDir === 'vuelta' ? officialRoute?.vuelta : officialRoute?.ida
+            const path = dirObj?.path || []
+
+            if (elapsedMs <= 1000) {
+              // Correction Blending
+              const start = reckoning.blendStartCoords || { lat: target.latitude, lng: target.longitude }
+              const t = Math.max(0, Math.min(1, elapsedMs / 1000))
+              nextLat = start.lat + (target.latitude - start.lat) * t
+              nextLng = start.lng + (target.longitude - start.lng) * t
+              reckoning.currentCoords = { lat: nextLat, lng: nextLng }
+
+              if (path.length > 0) {
+                const idx = reckoning.pathIndex
+                const nextPointForHeading = path[idx + 1] || path[idx]
+                if (nextPointForHeading && (nextPointForHeading.lat !== nextLat || nextPointForHeading.lng !== nextLng)) {
+                  nextHeading = heading(nextLat, nextLng, nextPointForHeading.lat, nextPointForHeading.lng)
+                } else if (idx > 0 && path[idx - 1]) {
+                  nextHeading = heading(path[idx - 1].lat, path[idx - 1].lng, nextLat, nextLng)
+                }
+              }
+            } else {
+              // Dead Reckoning extrapolation along road path
+              const speedKmh = Math.max(0, target.speed_kmh - 5)
+              if (path.length > 0 && speedKmh > 0) {
+                const speedMs = (speedKmh * 1000) / 3600
+                const stepDistanceKm = (speedMs * dt) / 1000
+
+                let currLat = reckoning.currentCoords.lat
+                let currLng = reckoning.currentCoords.lng
+                let idx = reckoning.pathIndex
+                let distanceToMove = stepDistanceKm
+
+                while (distanceToMove > 0 && idx < path.length - 1) {
+                  const nextPt = path[idx + 1]
+                  const distToNext = distanceKm({ latitude: currLat, longitude: currLng }, { lat: nextPt.lat, lng: nextPt.lng })
+                  if (distanceToMove >= distToNext) {
+                    distanceToMove -= distToNext
+                    currLat = nextPt.lat
+                    currLng = nextPt.lng
+                    idx++
+                  } else {
+                    const ratio = distanceToMove / distToNext
+                    currLat = currLat + (nextPt.lat - currLat) * ratio
+                    currLng = currLng + (nextPt.lng - currLng) * ratio
+                    distanceToMove = 0
+                  }
+                }
+
+                nextLat = currLat
+                nextLng = currLng
+                reckoning.currentCoords = { lat: currLat, lng: currLng }
+                reckoning.pathIndex = idx
+
+                const nextPointForHeading = path[idx + 1] || path[idx]
+                if (nextPointForHeading && (nextPointForHeading.lat !== currLat || nextPointForHeading.lng !== currLng)) {
+                  nextHeading = heading(currLat, currLng, nextPointForHeading.lat, nextPointForHeading.lng)
+                } else if (idx > 0 && path[idx - 1]) {
+                  nextHeading = heading(path[idx - 1].lat, path[idx - 1].lng, currLat, currLng)
+                }
+              } else {
+                nextLat = reckoning.currentCoords.lat
+                nextLng = reckoning.currentCoords.lng
+              }
+            }
+
+            nextBuses.push({
+              ...target,
+              latitude: nextLat,
+              longitude: nextLng,
+              heading: nextHeading,
+              passenger_count: 0
+            })
           }
         })
 
@@ -598,7 +757,19 @@ export default function UserMapPage() {
         Object.keys(targets).forEach(id => {
           const alreadyExists = prevBuses.some(b => b.id === id)
           if (!alreadyExists) {
-            nextBuses.push(targets[id])
+            const bus = targets[id]
+            if (!busReckoningRef.current[id]) {
+              busReckoningRef.current[id] = {
+                lastTelemetryReceivedTime: now,
+                blendStartCoords: null,
+                currentCoords: { lat: bus.latitude, lng: bus.longitude },
+                pathIndex: 0
+              }
+            }
+            nextBuses.push({
+              ...bus,
+              passenger_count: 0
+            })
           }
         })
 
@@ -3051,7 +3222,7 @@ function PremiumBusMarker({
       </div>
 
       {/* Passenger badge */}
-      {showPassengers && bus.passenger_count > 0 && (
+      {showPassengers && (
         <div style={{
           position: 'absolute',
           top: '2px',
@@ -3069,7 +3240,7 @@ function PremiumBusMarker({
           zIndex: 5,
         }}>
           <span style={{ fontSize: '7px', fontFamily: 'DM Mono', fontWeight: 600, color: 'var(--platinum-dim)' }}>
-            {bus.passenger_count}
+            0
           </span>
         </div>
       )}
@@ -3168,11 +3339,9 @@ function MiniPopup({
         <div style={{ fontWeight: 700, fontSize: '13px', color: '#F3F4F6' }}>
           Interno: {bus.bus_unit}
         </div>
-        {bus.passenger_count > 0 && (
-          <div style={{ fontSize: '10px', color: '#EAB308', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
-            <span>👥 {bus.passenger_count} a bordo</span>
-          </div>
-        )}
+        <div style={{ fontSize: '10px', color: '#EAB308', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
+          <span>👥 0 a bordo</span>
+        </div>
       </div>
 
       <div style={{ color: '#9CA3AF', fontSize: '11px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '4px' }}>

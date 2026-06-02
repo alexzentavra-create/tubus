@@ -1,6 +1,6 @@
 // src/app/api/buses/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { MOCK_LINES, tickMockBuses, getDirectionForBus } from '@/lib/mockData'
+import { MOCK_LINES } from '@/lib/mockData'
 import type { BusPosition } from '@/types'
 
 const LINE_DRIVERS: Record<string, string[]> = {
@@ -56,8 +56,7 @@ export async function GET(request: NextRequest) {
     const matchedBuses = data.filter(b => regex.test(b.route_short_name))
 
     if (matchedBuses.length === 0) {
-      console.log(`No active buses found in GCBA API for Line ${lineNumber}. Falling back to simulation.`);
-      return returnSimulatedBuses(lineId, lineNumber)
+      return NextResponse.json({ data: [], count: 0, source: 'realtime' })
     }
 
     const drivers = LINE_DRIVERS[lineNumber] || ['Chofer Auxiliar']
@@ -92,13 +91,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ data: mappedBuses, count: mappedBuses.length, source: 'realtime' })
   } catch (error: any) {
-    console.error(`GCBA API error for Line ${lineNumber}:`, error.message, '. Falling back to simulation.')
-    return returnSimulatedBuses(lineId, lineNumber)
+    console.error(`GCBA API error for Line ${lineNumber}:`, error.message)
+    return NextResponse.json({ data: [], count: 0, source: 'realtime' })
   }
-}
-
-function returnSimulatedBuses(lineId: string, lineNumber: string) {
-  const ticked = tickMockBuses()
-  const simulated = ticked.filter(b => b.line_id === lineId || b.line_number === lineNumber)
-  return NextResponse.json({ data: simulated, count: simulated.length, source: 'simulation' })
 }
