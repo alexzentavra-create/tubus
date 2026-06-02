@@ -30,20 +30,20 @@
 
 /* Light Theme Variables */
 :root.light, html.light {
-  --void:        #F3F4F6;
-  --deep:        #E5E7EB;
+  --void:        #F8FAFC;
+  --deep:        #E2E8F0;
   --base:        #FFFFFF;
-  --surface:     #F9FAFB;
+  --surface:     #F1F5F9;
   --elevated:    #FFFFFF;
-  --border:      rgba(0, 0, 0, 0.08);
-  --border-bright: rgba(0, 0, 0, 0.14);
-  --platinum:    #111827;
-  --platinum-dim: #4B5563;
-  --shimmer:     #6B7280;
-  --titanium:    #374151;
-  --text-primary:   #111827;
-  --text-secondary: #4B5563;
-  --text-muted:     #9CA3AF;
+  --border:      rgba(30, 41, 59, 0.12);
+  --border-bright: rgba(30, 41, 59, 0.18);
+  --platinum:    #1E3A8A;
+  --platinum-dim: #2563EB;
+  --shimmer:     #3B82F6;
+  --titanium:    #1D4ED8;
+  --text-primary:   #1E3A8A;
+  --text-secondary: #3B82F6;
+  --text-muted:     #64748B;
 }
 
 *, *::before, *::after { box-sizing: border-box; }

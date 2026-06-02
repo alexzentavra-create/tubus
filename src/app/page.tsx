@@ -6,7 +6,7 @@ import {
   Bus, Search, ChevronDown, X, Star, MapPin, Bell, AlertTriangle,
   LogOut, Heart, ChevronRight, User, Sliders, Moon, Globe,
   Navigation as NavIcon, LayoutDashboard, Menu,
-  Locate, Plus, Minus, Sun, Route
+  Locate, Plus, Minus, Sun, Route, Activity
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { OFFICIAL_ROUTES } from '@/lib/officialRoutes'
@@ -189,6 +189,7 @@ export default function UserMapPage() {
   const [selectedBoardingBusId, setSelectedBoardingBusId] = useState<string | null>(null)
   const [mapSelectionMode, setMapSelectionMode] = useState<'origin' | 'destination' | null>(null)
   const [lineSelectorTab, setLineSelectorTab] = useState<LineSelectorTab>('line')
+  const [showTraffic, setShowTraffic] = useState(false)
 
   // Helper distance function
   const distanceKm = (a: { latitude: number; longitude: number } | BusStop, b: { lat: number; lng: number }) => {
@@ -542,6 +543,39 @@ export default function UserMapPage() {
     }
   })
 
+  // Real-time Traffic GeoJson Generator (Segmented Google-style lines)
+  const trafficGeoJsons = showTraffic ? (selectedLines.length > 0 ? selectedLines : allLines).map(line => {
+    const paths = getMockRoutePathsForLine(line, 'all')
+    const features: any[] = []
+
+    paths.forEach((path, pathIdx) => {
+      const SEG_SIZE = 5
+      for (let i = 0; i < path.length - 1; i += SEG_SIZE - 1) {
+        const slice = path.slice(i, i + SEG_SIZE)
+        if (slice.length < 2) continue
+
+        // Seeded random for stable traffic segment colors
+        const seed = parseInt(line.id.replace(/\D/g, '') || '0') + pathIdx + i
+        const rand = (Math.sin(seed) * 10000) % 1
+        const trafficColor = rand > 0.3 ? '#10B981' : (rand > -0.4 ? '#F59E0B' : '#EF4444')
+
+        features.push({
+          type: 'Feature',
+          properties: { color: trafficColor },
+          geometry: {
+            type: 'LineString',
+            coordinates: slice.map(point => [point.lng, point.lat]),
+          }
+        })
+      }
+    })
+
+    return {
+      id: `traffic-${line.id}`,
+      features
+    }
+  }) : []
+
   const showTravelPins = travelPlannerOpen || showLineSelector || !!mapSelectionMode
 
   return (
@@ -844,6 +878,33 @@ export default function UserMapPage() {
                 id={`${item.id}-line`}
                 type="line"
                 paint={{ 'line-color': item.color, 'line-width': 3, 'line-opacity': 0.75 }}
+              />
+            </Source>
+          ))}
+
+          {/* Traffic Overlay Layers */}
+          {showTraffic && trafficGeoJsons.map(item => (
+            <Source key={item.id} id={item.id} type="geojson" data={{
+              type: 'FeatureCollection',
+              features: item.features as any
+            }}>
+              <Layer
+                id={`${item.id}-casing`}
+                type="line"
+                paint={{
+                  'line-color': prefs.darkMap ? '#060810' : '#FFFFFF',
+                  'line-width': 5,
+                  'line-opacity': 0.8
+                }}
+              />
+              <Layer
+                id={`${item.id}-lines`}
+                type="line"
+                paint={{
+                  'line-color': ['get', 'color'],
+                  'line-width': 3,
+                  'line-opacity': 0.95
+                }}
               />
             </Source>
           ))}
@@ -1663,36 +1724,20 @@ export default function UserMapPage() {
               <Locate size={16} />
             </button>
 
-            {/* Zoom In Button */}
+            {/* Traffic Layer Toggle Button */}
             <button
-              onClick={() => setViewState(v => ({ ...v, zoom: Math.min(20, v.zoom + 1) }))}
+              onClick={() => setShowTraffic(prev => !prev)}
               style={{
                 width: '40px', height: '40px', borderRadius: '50%',
-                background: prefs.darkMap ? 'rgba(10,14,20,0.9)' : 'rgba(255,255,255,0.9)',
-                border: prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)',
+                background: showTraffic ? '#22D3A0' : (prefs.darkMap ? 'rgba(10,14,20,0.9)' : 'rgba(255,255,255,0.9)'),
+                border: showTraffic ? '1px solid #22D3A0' : (prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)'),
                 boxShadow: prefs.darkMap ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', color: 'var(--text-primary)', transition: 'all 200ms'
+                cursor: 'pointer', color: showTraffic ? '#060810' : 'var(--text-primary)', transition: 'all 200ms'
               }}
-              title="Acercar (+)"
+              title="Tránsito en tiempo real"
             >
-              <Plus size={16} />
-            </button>
-
-            {/* Zoom Out Button */}
-            <button
-              onClick={() => setViewState(v => ({ ...v, zoom: Math.max(1, v.zoom - 1) }))}
-              style={{
-                width: '40px', height: '40px', borderRadius: '50%',
-                background: prefs.darkMap ? 'rgba(10,14,20,0.9)' : 'rgba(255,255,255,0.9)',
-                border: prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)',
-                boxShadow: prefs.darkMap ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', color: 'var(--text-primary)', transition: 'all 200ms'
-              }}
-              title="Alejar (-)"
-            >
-              <Minus size={16} />
+              <Activity size={16} />
             </button>
 
             {/* Pin Nearby Stops Button */}
@@ -1717,10 +1762,26 @@ export default function UserMapPage() {
                 border: pinNearbyStopsMode ? '1px solid #FF4D6A' : (prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)'),
                 boxShadow: prefs.darkMap ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', color: pinNearbyStopsMode ? 'white' : 'var(--text-primary)', transition: 'all 200ms'
+                cursor: 'pointer', color: pinNearbyStopsMode ? 'white' : 'var(--text-primary)', transition: 'all 200ms',
+                position: 'relative',
+                zIndex: onboardingStep === 1 ? 2003 : 1,
+                transform: onboardingStep === 1 ? 'scale(1.15)' : 'scale(1)',
               }}
               title="Pin de paradas cercanas"
             >
+              {onboardingStep === 1 && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: '-4px',
+                    borderRadius: '50%',
+                    border: '1.5px dashed #FF4D6A',
+                    boxShadow: '0 0 15px rgba(255, 77, 106, 0.4)',
+                    animation: 'pulse 2s infinite',
+                    pointerEvents: 'none'
+                  }}
+                />
+              )}
               <MapPin size={16} />
             </button>
 
@@ -1786,7 +1847,7 @@ export default function UserMapPage() {
                 overflowY: 'auto',
                 paddingTop: isMobile ? '64px' : '72px',
                 paddingBottom: isMobile ? '80px' : '20px',
-                background: 'rgba(6,8,16,0.85)',
+                background: prefs.darkMap ? 'rgba(6,8,16,0.85)' : 'rgba(248,250,252,0.88)',
                 backdropFilter: 'blur(12px)',
                 WebkitBackdropFilter: 'blur(12px)'
               }}
@@ -1916,7 +1977,7 @@ export default function UserMapPage() {
             {NAV_ITEMS.map((item, idx) => {
               const Icon = item.icon
               const active = activePanel === item.id
-              const isStepHighlight = onboardingStep === idx
+              const isStepHighlight = (onboardingStep === 0 && idx === 0) || (onboardingStep === 2 && idx === 1) || (onboardingStep === 3 && idx === 2) || (onboardingStep === 4 && idx === 3)
 
               return (
                 <button
@@ -2099,10 +2160,20 @@ export default function UserMapPage() {
               {(() => {
                 const descriptions = [
                   "🗺️ **Mapa en Vivo**: Visualizá la ubicación en tiempo real de todos los colectivos en servicio. Hacé click en cualquier unidad para ver su velocidad, ocupación y chofer asignado.",
+                  "📍 **Paradas Cercanas**: Presioná este botón de pin para escanear y visualizar al instante todas las paradas de colectivo y horarios en un radio cercano en el mapa.",
                   "❤️ **Tus Favoritos**: Guardá tus líneas frecuentes, paradas de uso diario, internos y choferes con el botón ★ del mapa para tener acceso instantáneo en esta pestaña.",
                   "⚙️ **Preferencias**: Modificá el estilo del mapa (claro u oscuro), activá alertas dinámicas basadas en la proximidad de los colectivos y personalizá el tamaño de los textos.",
                   "👤 **Tu Perfil**: Visualizá el correo de tu cuenta de pasajero, tu rol en la plataforma, la fecha de registro en el sistema y cerrá tu sesión con total seguridad."
                 ]
+
+                const showArrow = onboardingStep !== 1
+                const arrowLeft = onboardingStep === 0 
+                  ? '12.5%' 
+                  : (onboardingStep === 2 
+                      ? '37.5%' 
+                      : (onboardingStep === 3 
+                          ? '62.5%' 
+                          : '87.5%'))
 
                 return (
                   <motion.div
@@ -2123,13 +2194,13 @@ export default function UserMapPage() {
                       flexDirection: 'column',
                       gap: '12px',
                       position: 'absolute',
-                      bottom: '90px',
+                      bottom: onboardingStep === 1 ? '160px' : '90px',
                       fontFamily: 'DM Sans, sans-serif'
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(184, 200, 224, 0.1)', paddingBottom: '8px' }}>
                       <span style={{ fontSize: '11px', fontFamily: 'DM Mono', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                        Paso {onboardingStep + 1} de {NAV_ITEMS.length}
+                        Paso {onboardingStep + 1} de {descriptions.length}
                       </span>
                       <button
                         onClick={() => {
@@ -2171,9 +2242,17 @@ export default function UserMapPage() {
                       <button
                         onClick={() => {
                           const nextStep = onboardingStep + 1
-                          if (nextStep < NAV_ITEMS.length) {
+                          if (nextStep < descriptions.length) {
                             setOnboardingStep(nextStep)
-                            setActivePanel(NAV_ITEMS[nextStep].id)
+                            if (nextStep === 0 || nextStep === 1) {
+                              setActivePanel('map')
+                            } else if (nextStep === 2) {
+                              setActivePanel('favourites')
+                            } else if (nextStep === 3) {
+                              setActivePanel('settings')
+                            } else if (nextStep === 4) {
+                              setActivePanel('profile')
+                            }
                           } else {
                             setOnboardingStep(-1)
                             localStorage.setItem('tubus_onboarding_completed', 'true')
@@ -2195,23 +2274,25 @@ export default function UserMapPage() {
                           gap: '4px'
                         }}
                       >
-                        {onboardingStep === NAV_ITEMS.length - 1 ? '¡Entendido!' : 'Siguiente ➔'}
+                        {onboardingStep === descriptions.length - 1 ? '¡Entendido!' : 'Siguiente ➔'}
                       </button>
                     </div>
                     
-                    <div
-                      style={{
-                        position: 'absolute',
-                        bottom: '-6px',
-                        left: `${12.5 + onboardingStep * 25}%`,
-                        transform: 'translateX(-50%) rotate(45deg)',
-                        width: '12px',
-                        height: '12px',
-                        background: 'rgba(10, 15, 26, 0.99)',
-                        borderRight: '1px solid rgba(184, 200, 224, 0.15)',
-                        borderBottom: '1px solid rgba(184, 200, 224, 0.15)'
-                      }}
-                    />
+                    {showArrow && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: '-6px',
+                          left: arrowLeft,
+                          transform: 'translateX(-50%) rotate(45deg)',
+                          width: '12px',
+                          height: '12px',
+                          background: 'rgba(10, 15, 26, 0.99)',
+                          borderRight: '1px solid rgba(184, 200, 224, 0.15)',
+                          borderBottom: '1px solid rgba(184, 200, 224, 0.15)'
+                        }}
+                      />
+                    )}
                   </motion.div>
                 )
               })()}
@@ -2473,14 +2554,14 @@ function SectionHeader({ icon, title, style }: { icon: React.ReactNode; title: s
 
 function GlassCard({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ background: 'linear-gradient(145deg,rgba(19,25,33,0.95),rgba(10,14,20,0.97))', border: '1px solid rgba(184,200,224,0.1)', borderRadius: '14px', overflow: 'hidden', marginBottom: '6px' }}>
+    <div style={{ background: 'var(--base)', border: '1px solid var(--border)', borderRadius: '14px', overflow: 'hidden', marginBottom: '6px' }}>
       {children}
     </div>
   )
 }
 
 function Divider() {
-  return <div style={{ height: '1px', background: 'rgba(184,200,224,0.06)', margin: '0 16px' }} />
+  return <div style={{ height: '1px', background: 'var(--border)', margin: '0 16px' }} />
 }
 
 function ToggleRow({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
@@ -2488,8 +2569,8 @@ function ToggleRow({ label, value, onChange }: { label: string; value: boolean; 
     <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
       <span style={{ color: 'var(--text-secondary)', fontSize: '13px', flex: 1 }}>{label}</span>
       <button onClick={() => onChange(!value)}
-        style={{ width: '40px', height: '22px', borderRadius: '999px', border: 'none', cursor: 'pointer', background: value ? 'rgba(34,211,160,0.8)' : 'rgba(184,200,224,0.15)', position: 'relative', transition: 'background 200ms', flexShrink: 0 }}>
-        <div style={{ position: 'absolute', top: '2px', left: value ? '20px' : '2px', width: '18px', height: '18px', borderRadius: '50%', background: 'white', transition: 'left 200ms', boxShadow: '0 1px 4px rgba(0,0,0,0.4)' }} />
+        style={{ width: '40px', height: '22px', borderRadius: '999px', border: 'none', cursor: 'pointer', background: value ? 'rgba(34,211,160,0.8)' : 'var(--border)', position: 'relative', transition: 'background 200ms', flexShrink: 0 }}>
+        <div style={{ position: 'absolute', top: '2px', left: value ? '20px' : '2px', width: '18px', height: '18px', borderRadius: '50%', background: 'white', transition: 'left 200ms', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
       </button>
     </div>
   )
@@ -2497,7 +2578,7 @@ function ToggleRow({ label, value, onChange }: { label: string; value: boolean; 
 
 function FavLineCard({ line, onSelect, onRemove }: { line: BusLine; onSelect: () => void; onRemove: () => void }) {
   return (
-    <div onClick={onSelect} style={{ display: 'flex', alignItems: 'center', gap: '11px', padding: '11px 13px', borderRadius: '13px', background: 'rgba(19,25,33,0.95)', border: '1px solid rgba(184,200,224,0.1)', marginBottom: '5px', cursor: 'pointer' }}>
+    <div onClick={onSelect} style={{ display: 'flex', alignItems: 'center', gap: '11px', padding: '11px 13px', borderRadius: '13px', background: 'var(--base)', border: '1px solid var(--border)', marginBottom: '5px', cursor: 'pointer' }}>
       <div style={{ width: '9px', height: '9px', borderRadius: '50%', background: line.color, flexShrink: 0, boxShadow: `0 0 8px ${line.color}80` }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600 }}>Línea {line.line_number}</div>
@@ -2512,7 +2593,7 @@ function FavLineCard({ line, onSelect, onRemove }: { line: BusLine; onSelect: ()
 
 function FavStopCard({ stop, onRemove }: { stop: BusStop; onRemove: () => void }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '11px', padding: '11px 13px', borderRadius: '13px', background: 'rgba(19,25,33,0.95)', border: '1px solid rgba(184,200,224,0.1)', marginBottom: '5px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '11px', padding: '11px 13px', borderRadius: '13px', background: 'var(--base)', border: '1px solid var(--border)', marginBottom: '5px' }}>
       <MapPin size={13} style={{ color: 'var(--platinum-dim)', flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ color: 'var(--text-primary)', fontSize: '13px', fontWeight: 500 }}>{stop.name}</div>
@@ -2548,8 +2629,8 @@ function FavBusCard({
         gap: '11px',
         padding: '11px 13px',
         borderRadius: '13px',
-        background: 'rgba(19,25,33,0.95)',
-        border: '1px solid rgba(184,200,224,0.1)',
+        background: 'var(--base)',
+        border: '1px solid var(--border)',
         marginBottom: '5px',
         cursor: isOnline ? 'pointer' : 'default',
         transition: 'all 0.2s'
@@ -2608,8 +2689,8 @@ function FavDriverCard({
         gap: '11px',
         padding: '11px 13px',
         borderRadius: '13px',
-        background: 'rgba(19,25,33,0.95)',
-        border: '1px solid rgba(184,200,224,0.1)',
+        background: 'var(--base)',
+        border: '1px solid var(--border)',
         marginBottom: '5px',
         cursor: isOnline ? 'pointer' : 'default',
         transition: 'all 0.2s'
