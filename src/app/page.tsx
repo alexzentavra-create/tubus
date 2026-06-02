@@ -133,17 +133,21 @@ export default function UserMapPage() {
   const [user, setUser]                     = useState<any>(null)
   const [buses, setBuses]                   = useState<BusPosition[]>([])
   
-  // Mobile and Onboarding states
+  // Mobile, Onboarding and Desktop-Preview states
   const [isMobile, setIsMobile]             = useState(false)
+  const [forceMobilePreview, setForceMobilePreview] = useState(false)
+  const [physicalMobile, setPhysicalMobile] = useState(false)
   const [onboardingStep, setOnboardingStep] = useState<number>(-1)
   const [showWelcome, setShowWelcome]       = useState(false)
 
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768)
+    const checkViewport = () => {
+      const pm = window.innerWidth <= 768
+      setPhysicalMobile(pm)
+      setIsMobile(pm || forceMobilePreview)
     }
-    checkMobile()
-    window.addEventListener('resize', checkMobile)
+    checkViewport()
+    window.addEventListener('resize', checkViewport)
 
     const completed = localStorage.getItem('tubus_onboarding_completed')
     if (!completed) {
@@ -151,9 +155,9 @@ export default function UserMapPage() {
     }
 
     return () => {
-      window.removeEventListener('resize', checkMobile)
+      window.removeEventListener('resize', checkViewport)
     }
-  }, [])
+  }, [forceMobilePreview])
 
   const [lines, setLines]                   = useState<BusLine[]>([])
   const [selectedLines, setSelectedLines]   = useState<BusLine[]>([])
@@ -541,7 +545,132 @@ export default function UserMapPage() {
   const showTravelPins = travelPlannerOpen || showLineSelector || !!mapSelectionMode
 
   return (
-    <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', background: 'var(--void)' }}>
+    <div style={{
+      display: 'flex',
+      width: '100vw',
+      height: '100vh',
+      overflow: 'hidden',
+      background: (!physicalMobile && forceMobilePreview) ? '#0b0f19' : 'var(--void)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      position: 'relative'
+    }}>
+      {/* Ambient background glow for phone mockup */}
+      {!physicalMobile && forceMobilePreview && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'radial-gradient(circle at center, rgba(184,200,224,0.06) 0%, rgba(30,27,75,0.08) 50%, rgba(3,7,18,0.3) 100%)',
+          zIndex: 1,
+          pointerEvents: 'none'
+        }} />
+      )}
+
+      {/* Desktop Previewer Mode Switcher */}
+      {!physicalMobile && (
+        <div style={{
+          position: 'absolute',
+          top: '16px',
+          right: '16px',
+          zIndex: 5000,
+          background: 'rgba(10, 14, 20, 0.95)',
+          border: '1px solid rgba(184, 200, 224, 0.15)',
+          borderRadius: '12px',
+          padding: '4px',
+          display: 'flex',
+          gap: '4px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)'
+        }}>
+          <button
+            onClick={() => setForceMobilePreview(false)}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '8px',
+              border: 'none',
+              background: !forceMobilePreview ? 'rgba(184,200,224,0.12)' : 'transparent',
+              color: !forceMobilePreview ? 'var(--text-primary)' : 'var(--text-muted)',
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+          >
+            🖥️ Computadora
+          </button>
+          <button
+            onClick={() => setForceMobilePreview(true)}
+            style={{
+              padding: '6px 12px',
+              borderRadius: '8px',
+              border: 'none',
+              background: forceMobilePreview ? 'rgba(184,200,224,0.12)' : 'transparent',
+              color: forceMobilePreview ? 'var(--text-primary)' : 'var(--text-muted)',
+              fontSize: '11px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+          >
+            📱 Celular (Preview)
+          </button>
+        </div>
+      )}
+
+      {/* Inner App Container with conditional Phone Mockup styling */}
+      <div style={{
+        position: 'relative',
+        display: 'flex',
+        overflow: 'hidden',
+        background: 'var(--void)',
+        ...( (!physicalMobile && forceMobilePreview) ? {
+          width: '375px',
+          height: '812px',
+          borderRadius: '40px',
+          border: '12px solid #111827',
+          boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.05)',
+          zIndex: 2
+        } : {
+          width: '100%',
+          height: '100%'
+        } )
+      }}>
+        {/* Top Notch / Dynamic Island for mockup mode */}
+        {!physicalMobile && forceMobilePreview && (
+          <div style={{
+            position: 'absolute',
+            top: '8px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '110px',
+            height: '28px',
+            background: '#111827',
+            borderRadius: '16px',
+            zIndex: 10000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#1f2937', marginLeft: '50px' }} />
+          </div>
+        )}
+
+        {/* Bottom Home Indicator Bar for mockup mode */}
+        {!physicalMobile && forceMobilePreview && (
+          <div style={{
+            position: 'absolute',
+            bottom: '6px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '120px',
+            height: '4px',
+            background: 'rgba(255, 255, 255, 0.3)',
+            borderRadius: '2px',
+            zIndex: 10000,
+            pointerEvents: 'none'
+          }} />
+        )}
 
       {/* ═══════════════════════════════════════════════════════════════
           LEFT SIDEBAR — permanent, collapsible
@@ -1958,6 +2087,7 @@ export default function UserMapPage() {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
       </div>
     </div>
     
