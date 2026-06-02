@@ -4,14 +4,14 @@ import { OFFICIAL_ROUTES } from './officialRoutes'
 import type { OfficialRoute, RoutePoint } from './routeTypes'
 
 export const MOCK_LINES: BusLine[] = [
-  { id: 'line-1',   line_number: '12',  name: 'Línea 12 - Once / Villa Urquiza',        color: '#EF4444', company: 'Transportes Callao S.A.', total_stops: 10, is_active: true },
-  { id: 'line-28',  line_number: '28',  name: 'Línea 28 - Retiro / Puente La Noria',    color: '#16A34A', company: 'DOTA S.A.',        total_stops: 8,  is_active: true },
-  { id: 'line-3',   line_number: '37',  name: 'Línea 37 - Aeropuerto / Centro',         color: '#15803D', company: '4 de Septiembre S.A.', total_stops: 8,  is_active: true },
-  { id: 'line-39',  line_number: '39',  name: 'Línea 39 - Chacarita / Barracas',        color: '#F97316', company: 'Transportes Santa Fe S.A.C.I.', total_stops: 10, is_active: true },
-  { id: 'line-59',  line_number: '59',  name: 'Línea 59 - Estación Buenos Aires / San Isidro', color: '#10B981', company: 'Microomnibus Ciudad de Buenos Aires S.A.T.C.I.', total_stops: 12, is_active: true },
-  { id: 'line-60',  line_number: '60',  name: 'Línea 60 - Constitución / Tigre',        color: '#EAB308', company: 'MONSA S.A.',       total_stops: 9,  is_active: true },
-  { id: 'line-102', line_number: '102', name: 'Línea 102 - Palermo / Barracas',         color: '#3B82F6', company: 'Transportes Sargento Cabral S.C.', total_stops: 11, is_active: true },
-  { id: 'line-152', line_number: '152', name: 'Línea 152 - La Boca / Olivos',          color: '#1D4ED8', company: 'Empresa Tandilense S.A.', total_stops: 11, is_active: true },
+  { id: 'line-1',   line_number: '12',  name: 'Línea 12 - Once / Villa Urquiza',        color: '#EF4444', company: 'Transportes Callao S.A.', total_stops: 69, is_active: true },
+  { id: 'line-28',  line_number: '28',  name: 'Línea 28 - Retiro / Puente La Noria',    color: '#16A34A', company: 'DOTA S.A.',        total_stops: 95,  is_active: true },
+  { id: 'line-3',   line_number: '37',  name: 'Línea 37 - Aeropuerto / Centro',         color: '#15803D', company: '4 de Septiembre S.A.', total_stops: 142, is_active: true },
+  { id: 'line-39',  line_number: '39',  name: 'Línea 39 - Chacarita / Barracas',        color: '#F97316', company: 'Transportes Santa Fe S.A.C.I.', total_stops: 97, is_active: true },
+  { id: 'line-59',  line_number: '59',  name: 'Línea 59 - Estación Buenos Aires / San Isidro', color: '#10B981', company: 'Microomnibus Ciudad de Buenos Aires S.A.T.C.I.', total_stops: 172, is_active: true },
+  { id: 'line-60',  line_number: '60',  name: 'Línea 60 - Constitución / Tigre',        color: '#EAB308', company: 'MONSA S.A.',       total_stops: 81,  is_active: true },
+  { id: 'line-102', line_number: '102', name: 'Línea 102 - Palermo / Barracas',         color: '#3B82F6', company: 'Transportes Sargento Cabral S.C.', total_stops: 65, is_active: true },
+  { id: 'line-152', line_number: '152', name: 'Línea 152 - La Boca / Olivos',          color: '#1D4ED8', company: 'Empresa Tandilense S.A.', total_stops: 129, is_active: true },
 ]
 
 // Real Buenos Aires street coordinates for each line
