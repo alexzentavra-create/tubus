@@ -257,9 +257,7 @@ html, body {
 .divider-platinum { height: 1px; background: linear-gradient(90deg, transparent, rgba(184,200,224,0.12), transparent); }
 
 /* MAPBOX */
-.mapboxgl-ctrl-group { background: rgba(19,25,33,0.95) !important; backdrop-filter: blur(12px) !important; border: 1px solid rgba(184,200,224,0.1) !important; border-radius: var(--r-sm) !important; box-shadow: 0 4px 16px rgba(0,0,0,0.6) !important; }
-.mapboxgl-ctrl-group button { background: transparent !important; color: var(--platinum) !important; }
-.mapboxgl-ctrl-group button:hover { background: rgba(184,200,224,0.08) !important; }
+.mapboxgl-ctrl-group, .maplibregl-ctrl-group { display: none !important; }
 .mapboxgl-popup-content { background: rgba(13,17,23,0.98) !important; backdrop-filter: blur(24px) !important; border: 1px solid rgba(184,200,224,0.12) !important; border-radius: var(--r-md) !important; color: var(--text-primary) !important; padding: 0 !important; box-shadow: 0 12px 48px rgba(0,0,0,0.8) !important; }
 .mapboxgl-popup-tip { border-top-color: rgba(13,17,23,0.98) !important; border-bottom-color: rgba(13,17,23,0.98) !important; }
 .mapboxgl-ctrl-attrib { background: rgba(6,8,16,0.7) !important; color: var(--text-muted) !important; font-size: 10px !important; }

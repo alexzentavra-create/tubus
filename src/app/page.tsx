@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Map, { Marker, Popup, NavigationControl, GeolocateControl, Source, Layer } from 'react-map-gl/maplibre'
+import { toast } from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Bus, Search, ChevronDown, X, Star, MapPin, Bell, AlertTriangle,
@@ -387,12 +388,21 @@ export default function UserMapPage() {
   useEffect(() => {
     if (typeof document !== 'undefined') {
       if (prefs.darkMap) {
+        document.documentElement.classList.add('dark')
         document.documentElement.classList.remove('light')
       } else {
+        document.documentElement.classList.remove('dark')
         document.documentElement.classList.add('light')
       }
     }
   }, [prefs.darkMap])
+
+  // Turn off traffic overlay if no lines are selected
+  useEffect(() => {
+    if (selectedLines.length === 0) {
+      setShowTraffic(false)
+    }
+  }, [selectedLines])
 
   // ── line subscription + mock fallback ──
   useEffect(() => {
@@ -544,7 +554,7 @@ export default function UserMapPage() {
   })
 
   // Real-time Traffic GeoJson Generator (Segmented Google-style lines)
-  const trafficGeoJsons = showTraffic ? (selectedLines.length > 0 ? selectedLines : allLines).map(line => {
+  const trafficGeoJsons = showTraffic ? selectedLines.map(line => {
     const paths = getMockRoutePathsForLine(line, 'all')
     const features: any[] = []
 
@@ -554,10 +564,30 @@ export default function UserMapPage() {
         const slice = path.slice(i, i + SEG_SIZE)
         if (slice.length < 2) continue
 
-        // Seeded random for stable traffic segment colors
+        // Seeded stable random value between 0 and 1
         const seed = parseInt(line.id.replace(/\D/g, '') || '0') + pathIdx + i
-        const rand = (Math.sin(seed) * 10000) % 1
-        const trafficColor = rand > 0.3 ? '#10B981' : (rand > -0.4 ? '#F59E0B' : '#EF4444')
+        const rand = Math.abs((Math.sin(seed) * 10000) % 1)
+        
+        // Dynamic traffic color based on actual local hour of day
+        const currentHour = new Date().getHours()
+        let trafficColor = '#10B981' // Default fluid green
+        
+        if (currentHour >= 0 && currentHour < 6) {
+          // Late night / extreme early morning (12 AM - 6 AM): 98% Green, 2% Yellow, 0% Red
+          trafficColor = rand < 0.98 ? '#10B981' : '#F59E0B'
+        } else if (currentHour >= 6 && currentHour < 10) {
+          // Morning rush hour (6 AM - 10 AM): 30% Green, 45% Yellow, 25% Red
+          trafficColor = rand < 0.3 ? '#10B981' : (rand < 0.75 ? '#F59E0B' : '#EF4444')
+        } else if (currentHour >= 17 && currentHour < 20) {
+          // Evening rush hour (5 PM - 8 PM): 25% Green, 50% Yellow, 25% Red
+          trafficColor = rand < 0.25 ? '#10B981' : (rand < 0.75 ? '#F59E0B' : '#EF4444')
+        } else if (currentHour >= 10 && currentHour < 17) {
+          // Daytime (10 AM - 5 PM): 60% Green, 30% Yellow, 10% Red
+          trafficColor = rand < 0.6 ? '#10B981' : (rand < 0.9 ? '#F59E0B' : '#EF4444')
+        } else {
+          // Night fading (8 PM - 12 AM): 85% Green, 12% Yellow, 3% Red
+          trafficColor = rand < 0.85 ? '#10B981' : (rand < 0.97 ? '#F59E0B' : '#EF4444')
+        }
 
         features.push({
           type: 'Feature',
@@ -1726,7 +1756,22 @@ export default function UserMapPage() {
 
             {/* Traffic Layer Toggle Button */}
             <button
-              onClick={() => setShowTraffic(prev => !prev)}
+              onClick={() => {
+                if (selectedLines.length === 0) {
+                  toast('⚠️ Debés seleccionar una línea antes de poder ver el tránsito', {
+                    id: 'traffic-select-line-warning',
+                    duration: 3000,
+                    style: {
+                      background: 'rgba(255, 77, 106, 0.95)',
+                      color: '#ffffff',
+                      border: '1px solid rgba(255, 77, 106, 0.3)',
+                      fontWeight: 600,
+                    }
+                  })
+                } else {
+                  setShowTraffic(prev => !prev)
+                }
+              }}
               style={{
                 width: '40px', height: '40px', borderRadius: '50%',
                 background: showTraffic ? '#22D3A0' : (prefs.darkMap ? 'rgba(10,14,20,0.9)' : 'rgba(255,255,255,0.9)'),
@@ -2160,7 +2205,7 @@ export default function UserMapPage() {
               {(() => {
                 const descriptions = [
                   "🗺️ **Mapa en Vivo**: Visualizá la ubicación en tiempo real de todos los colectivos en servicio. Hacé click en cualquier unidad para ver su velocidad, ocupación y chofer asignado.",
-                  "📍 **Paradas Cercanas**: Presioná este botón de pin para escanear y visualizar al instante todas las paradas de colectivo y horarios en un radio cercano en el mapa.",
+                  "📍 **Botón de Pin (Paradas Cercanas)**: Presioná este botón con el icono de pin en el mapa para escanear y visualizar al instante todas las paradas de colectivo y horarios en un radio cercano.",
                   "❤️ **Tus Favoritos**: Guardá tus líneas frecuentes, paradas de uso diario, internos y choferes con el botón ★ del mapa para tener acceso instantáneo en esta pestaña.",
                   "⚙️ **Preferencias**: Modificá el estilo del mapa (claro u oscuro), activá alertas dinámicas basadas en la proximidad de los colectivos y personalizá el tamaño de los textos.",
                   "👤 **Tu Perfil**: Visualizá el correo de tu cuenta de pasajero, tu rol en la plataforma, la fecha de registro en el sistema y cerrá tu sesión con total seguridad."
