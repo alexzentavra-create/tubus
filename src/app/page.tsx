@@ -643,40 +643,60 @@ export default function UserMapPage() {
     }
   })
 
-  // Real-time Traffic GeoJson Generator (Segmented Google-style lines)
+  // Real-time Traffic GeoJson Generator (Dynamic segment mapping based on live bus speeds)
   const trafficGeoJsons = showTraffic ? selectedLines.map(line => {
     const paths = getMockRoutePathsForLine(line, 'all')
     const features: any[] = []
 
     paths.forEach((path, pathIdx) => {
       const SEG_SIZE = 5
+      const slices: { slice: { lat: number; lng: number }[], speeds: number[] }[] = []
+
+      // 1. Group path into segments of SEG_SIZE points
       for (let i = 0; i < path.length - 1; i += SEG_SIZE - 1) {
         const slice = path.slice(i, i + SEG_SIZE)
         if (slice.length < 2) continue
+        slices.push({ slice, speeds: [] })
+      }
 
-        // Seeded stable random value between 0 and 1
-        const seed = parseInt(line.id.replace(/\D/g, '') || '0') + pathIdx + i
-        const rand = Math.abs((Math.sin(seed) * 10000) % 1)
-        
-        // Dynamic traffic color based on actual local hour of day
-        const currentHour = new Date().getHours()
-        let trafficColor = '#10B981' // Default fluid green
-        
-        if (currentHour >= 0 && currentHour < 6) {
-          // Late night / extreme early morning (12 AM - 6 AM): 98% Green, 2% Yellow, 0% Red
-          trafficColor = rand < 0.98 ? '#10B981' : '#F59E0B'
-        } else if (currentHour >= 6 && currentHour < 10) {
-          // Morning rush hour (6 AM - 10 AM): 30% Green, 45% Yellow, 25% Red
-          trafficColor = rand < 0.3 ? '#10B981' : (rand < 0.75 ? '#F59E0B' : '#EF4444')
-        } else if (currentHour >= 17 && currentHour < 20) {
-          // Evening rush hour (5 PM - 8 PM): 25% Green, 50% Yellow, 25% Red
-          trafficColor = rand < 0.25 ? '#10B981' : (rand < 0.75 ? '#F59E0B' : '#EF4444')
-        } else if (currentHour >= 10 && currentHour < 17) {
-          // Daytime (10 AM - 5 PM): 60% Green, 30% Yellow, 10% Red
-          trafficColor = rand < 0.6 ? '#10B981' : (rand < 0.9 ? '#F59E0B' : '#EF4444')
-        } else {
-          // Night fading (8 PM - 12 AM): 85% Green, 12% Yellow, 3% Red
-          trafficColor = rand < 0.85 ? '#10B981' : (rand < 0.97 ? '#F59E0B' : '#EF4444')
+      // 2. Filter buses for this specific line
+      const lineBuses = buses.filter(b => b.line_id === line.id)
+
+      // 3. Map each bus to its nearest road segment (slice)
+      lineBuses.forEach(bus => {
+        let bestSliceIdx = 0
+        let minDistance = Infinity
+
+        slices.forEach((sObj, sIdx) => {
+          sObj.slice.forEach(pt => {
+            const d = distanceKm({ latitude: bus.latitude, longitude: bus.longitude }, { lat: pt.lat, lng: pt.lng })
+            if (d < minDistance) {
+              minDistance = d
+              bestSliceIdx = sIdx
+            }
+          })
+        })
+
+        // If the bus is within 500 meters of the route, associate its speed with the segment
+        if (minDistance < 0.5) {
+          slices[bestSliceIdx].speeds.push(bus.speed_kmh)
+        }
+      })
+
+      // 4. Color segments based on the average speeds of the mapped buses
+      slices.forEach(sObj => {
+        let trafficColor = 'rgba(107, 114, 128, 0.35)' // Neutral gray if no live data is available
+
+        if (sObj.speeds.length > 0) {
+          const avgSpeed = sObj.speeds.reduce((sum, s) => sum + s, 0) / sObj.speeds.length
+
+          if (avgSpeed >= 22) {
+            trafficColor = '#10B981' // GREEN (Fluid: >= 22 km/h)
+          } else if (avgSpeed >= 10) {
+            trafficColor = '#F59E0B' // YELLOW (Moderate: 10-21 km/h)
+          } else {
+            trafficColor = '#EF4444' // RED (Heavy: < 10 km/h)
+          }
         }
 
         features.push({
@@ -684,10 +704,10 @@ export default function UserMapPage() {
           properties: { color: trafficColor },
           geometry: {
             type: 'LineString',
-            coordinates: slice.map(point => [point.lng, point.lat]),
+            coordinates: sObj.slice.map(point => [point.lng, point.lat]),
           }
         })
-      }
+      })
     })
 
     return {
