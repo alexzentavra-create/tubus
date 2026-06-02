@@ -130,6 +130,8 @@ export default function UserMapPage() {
   const supabase      = createClient()
   const channelRef    = useRef<any>(null)
   const mockTickRef   = useRef<ReturnType<typeof setInterval> | null>(null)
+  const targetBusesRef = useRef<Record<string, BusPosition>>({})
+  const apiPollRef     = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const [user, setUser]                     = useState<any>(null)
   const [buses, setBuses]                   = useState<BusPosition[]>([])
@@ -374,7 +376,7 @@ export default function UserMapPage() {
     setPrefs(loadPrefs())
     supabase.auth.getUser().then(({ data: { user } }) => { if (user) setUser(user) })
     supabase.from('bus_lines').select('*').eq('is_active', true).then(({ data }) => {
-      const ALLOWED_LINES = ['12', '28', '37', '60', '152']
+      const ALLOWED_LINES = ['12', '28', '37', '39', '59', '60', '102', '152']
       const availableLines = (data && data.length > 0 ? data : MOCK_LINES).filter(l => ALLOWED_LINES.includes(l.line_number))
       setLines(availableLines)
     })
@@ -404,21 +406,20 @@ export default function UserMapPage() {
     }
   }, [selectedLines])
 
-  // ── line subscription + mock fallback ──
+  // ── line subscription + real-time API + smooth LERP animation ──
   useEffect(() => {
     if (mockTickRef.current) { clearInterval(mockTickRef.current); mockTickRef.current = null }
+    if (apiPollRef.current) { clearInterval(apiPollRef.current); apiPollRef.current = null }
     setBuses([])
     setLineStops([])
     setUseMockBuses(false)
+    targetBusesRef.current = {}
     if (selectedLines.length === 0) return
 
     // lineStops is updated via a separate useEffect that monitors directionFilter
 
-    // Reinitialise simulator fresh for the selected lines, then start ticking
+    // Reinitialise simulator fresh for the selected lines
     initMockBuses(selectedLines)
-    const initial = selectedLines.flatMap(line => getMockBusesForLine(line.id))
-    setBuses(initial.length > 0 ? initial : [])
-    setUseMockBuses(true)
 
     // Fit map bounds to the selected lines
     let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180
@@ -444,14 +445,103 @@ export default function UserMapPage() {
     setTrackedBusId(null)
     setDirectionFilter('all')
 
+    // Fetch and poll function
+    const fetchBusesRealtime = async () => {
+      try {
+        const selectedIds = selectedLines.map(l => l.id)
+        const allFetched: BusPosition[] = []
+        let hasSimulationSource = false
+
+        for (const line of selectedLines) {
+          const res = await fetch(`/api/buses?line_id=${line.id}&line_number=${line.line_number}`)
+          if (!res.ok) continue
+          const json = await res.json()
+          if (json.data && Array.isArray(json.data)) {
+            allFetched.push(...json.data)
+            if (json.source === 'simulation') {
+              hasSimulationSource = true
+            }
+          }
+        }
+
+        // Filter out buses not in selected lines just in case
+        const activeFetched = allFetched.filter(b => selectedIds.includes(b.line_id))
+
+        // Set simulated/realtime indicator badge on UI
+        setUseMockBuses(hasSimulationSource)
+
+        // Store new positions as targets
+        const newTargets: Record<string, BusPosition> = {}
+        activeFetched.forEach(bus => {
+          newTargets[bus.id] = bus
+        })
+        targetBusesRef.current = newTargets
+
+        // If buses is empty, initialize directly to avoid lag on first load
+        setBuses(prev => {
+          if (prev.length === 0) {
+            return activeFetched
+          }
+          return prev
+        })
+      } catch (e) {
+        console.error('Error fetching dynamic bus positions:', e)
+      }
+    }
+
+    // Call immediately
+    fetchBusesRealtime()
+
+    // Poll every 15 seconds (within 15-30s range requested by user)
+    apiPollRef.current = setInterval(fetchBusesRealtime, 15000)
+
+    // Smooth LERP animation tick (50ms interval)
     mockTickRef.current = setInterval(() => {
-      const selectedIds = selectedLines.map(l => l.id)
-      const ticked = tickMockBuses().filter(b => selectedIds.includes(b.line_id))
-      setBuses(ticked)
-    }, 50) // Liquid smooth 50ms tick frequency!
+      setBuses(prevBuses => {
+        const targets = targetBusesRef.current
+        const nextBuses: BusPosition[] = []
+
+        // 1. Smoothly interpolate existing buses towards targets
+        prevBuses.forEach(bus => {
+          const target = targets[bus.id]
+          if (target) {
+            const dLat = target.latitude - bus.latitude
+            const dLng = target.longitude - bus.longitude
+            
+            // Snap to target if very close
+            if (Math.abs(dLat) < 0.00001 && Math.abs(dLng) < 0.00001) {
+              nextBuses.push({
+                ...target,
+                latitude: target.latitude,
+                longitude: target.longitude
+              })
+            } else {
+              // Smooth step towards target coordinate (10% of distance per 50ms)
+              const step = 0.10
+              nextBuses.push({
+                ...target, // Keep latest status, eta, passenger count, etc.
+                latitude: bus.latitude + dLat * step,
+                longitude: bus.longitude + dLng * step
+              })
+            }
+          }
+        })
+
+        // 2. Add new buses that just appeared in target positions
+        Object.keys(targets).forEach(id => {
+          const alreadyExists = prevBuses.some(b => b.id === id)
+          if (!alreadyExists) {
+            nextBuses.push(targets[id])
+          }
+        })
+
+        return nextBuses
+      })
+    }, 50)
 
     return () => {
       if (mockTickRef.current) { clearInterval(mockTickRef.current); mockTickRef.current = null }
+      if (apiPollRef.current) { clearInterval(apiPollRef.current); apiPollRef.current = null }
     }
   }, [selectedLines])
 

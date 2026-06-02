@@ -1,8 +1,8 @@
 import fs from 'node:fs'
 import readline from 'node:readline'
 
-const TARGET_LINES = ['12', '24', '37', '55', '71', '88', '102', '115']
-const GTFS_DIR = 'data/official/gtfs'
+const TARGET_LINES = ['12', '28', '37', '39', '59', '60', '102', '152']
+const GTFS_DIR = 'scratch/unzip_gtfs'
 const OUT_FILE = 'src/lib/officialRoutes.ts'
 
 function parseCsvLine(line) {

@@ -7,7 +7,10 @@ export const MOCK_LINES: BusLine[] = [
   { id: 'line-1',   line_number: '12',  name: 'Línea 12 - Once / Villa Urquiza',        color: '#EF4444', company: 'Transportes Callao S.A.', total_stops: 10, is_active: true },
   { id: 'line-28',  line_number: '28',  name: 'Línea 28 - Retiro / Puente La Noria',    color: '#16A34A', company: 'DOTA S.A.',        total_stops: 8,  is_active: true },
   { id: 'line-3',   line_number: '37',  name: 'Línea 37 - Aeropuerto / Centro',         color: '#15803D', company: '4 de Septiembre S.A.', total_stops: 8,  is_active: true },
+  { id: 'line-39',  line_number: '39',  name: 'Línea 39 - Chacarita / Barracas',        color: '#F97316', company: 'Transportes Santa Fe S.A.C.I.', total_stops: 10, is_active: true },
+  { id: 'line-59',  line_number: '59',  name: 'Línea 59 - Estación Buenos Aires / San Isidro', color: '#10B981', company: 'Microomnibus Ciudad de Buenos Aires S.A.T.C.I.', total_stops: 12, is_active: true },
   { id: 'line-60',  line_number: '60',  name: 'Línea 60 - Constitución / Tigre',        color: '#EAB308', company: 'MONSA S.A.',       total_stops: 9,  is_active: true },
+  { id: 'line-102', line_number: '102', name: 'Línea 102 - Palermo / Barracas',         color: '#3B82F6', company: 'Transportes Sargento Cabral S.C.', total_stops: 11, is_active: true },
   { id: 'line-152', line_number: '152', name: 'Línea 152 - La Boca / Olivos',          color: '#1D4ED8', company: 'Empresa Tandilense S.A.', total_stops: 11, is_active: true },
 ]
 
@@ -378,11 +381,26 @@ const LINE_DRIVERS: Record<string, { name: string; unit: string; online: boolean
     { name: 'Roberto S.', unit: '003', online: true, rating: 4.9, email: 'roberto@demo.ar' },
     { name: 'Ana Martínez', unit: '008', online: false, rating: 4.5, email: 'ana@demo.ar' },
   ],
+  '39': [
+    { name: 'Esteban Ortiz', unit: '001', online: true, rating: 4.8, email: 'esteban@demo.ar' },
+    { name: 'Lucas Domínguez', unit: '003', online: true, rating: 4.9, email: 'lucas@demo.ar' },
+    { name: 'Martín Pereyra', unit: '002', online: false, rating: 4.6, email: 'martin@demo.ar' },
+  ],
+  '59': [
+    { name: 'Hugo Bianchi', unit: '010', online: true, rating: 4.9, email: 'hugo@demo.ar' },
+    { name: 'Nicolás Silva', unit: '012', online: false, rating: 4.7, email: 'nicolas@demo.ar' },
+    { name: 'Claudio Rossi', unit: '014', online: true, rating: 4.8, email: 'claudio@demo.ar' },
+  ],
   '60': [
     { name: 'Carlos Martínez', unit: '020', online: true, rating: 4.6, email: 'carlos@demo.ar' },
     { name: 'Diego Rodríguez', unit: '022', online: false, rating: 4.2, email: 'diego@demo.ar' },
     { name: 'Pablo García', unit: '024', online: true, rating: 5.0, email: 'pablo@demo.ar' },
     { name: 'Luis Fernández', unit: '026', online: true, rating: 4.7, email: 'luis@demo.ar' },
+  ],
+  '102': [
+    { name: 'Diego Torres', unit: '001', online: true, rating: 4.8, email: 'diego@demo.ar' },
+    { name: 'Fernando Gómez', unit: '003', online: true, rating: 4.9, email: 'fernando@demo.ar' },
+    { name: 'Javier Ortega', unit: '002', online: false, rating: 4.6, email: 'javier@demo.ar' },
   ],
   '152': [
     { name: 'Roberto S.', unit: '010', online: true, rating: 4.9, email: 'roberto@demo.ar' },
