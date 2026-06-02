@@ -132,6 +132,29 @@ export default function UserMapPage() {
 
   const [user, setUser]                     = useState<any>(null)
   const [buses, setBuses]                   = useState<BusPosition[]>([])
+  
+  // Mobile and Onboarding states
+  const [isMobile, setIsMobile]             = useState(false)
+  const [onboardingStep, setOnboardingStep] = useState<number>(-1)
+  const [showWelcome, setShowWelcome]       = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+
+    const completed = localStorage.getItem('tubus_onboarding_completed')
+    if (!completed) {
+      setShowWelcome(true)
+    }
+
+    return () => {
+      window.removeEventListener('resize', checkMobile)
+    }
+  }, [])
+
   const [lines, setLines]                   = useState<BusLine[]>([])
   const [selectedLines, setSelectedLines]   = useState<BusLine[]>([])
   const [selectedBus, setSelectedBus]       = useState<BusPosition | null>(null)
@@ -523,20 +546,21 @@ export default function UserMapPage() {
       {/* ═══════════════════════════════════════════════════════════════
           LEFT SIDEBAR — permanent, collapsible
       ═══════════════════════════════════════════════════════════════ */}
-      <div
-        style={{
-          width: sidebarW, flexShrink: 0, height: '100vh',
-          background: prefs.darkMap
-            ? 'linear-gradient(180deg,rgba(14,20,30,0.99) 0%,rgba(8,12,18,0.99) 100%)'
-            : 'linear-gradient(180deg,rgba(255,255,255,0.99) 0%,rgba(243,244,246,0.99) 100%)',
-          borderRight: prefs.darkMap
-            ? '1px solid rgba(184,200,224,0.08)'
-            : '1px solid rgba(0,0,0,0.08)',
-          display: 'flex', flexDirection: 'column',
-          transition: 'width 220ms ease',
-          overflow: 'hidden', zIndex: 20,
-        }}
-      >
+      {!isMobile && (
+        <div
+          style={{
+            width: sidebarW, flexShrink: 0, height: '100vh',
+            background: prefs.darkMap
+              ? 'linear-gradient(180deg,rgba(14,20,30,0.99) 0%,rgba(8,12,18,0.99) 100%)'
+              : 'linear-gradient(180deg,rgba(255,255,255,0.99) 0%,rgba(243,244,246,0.99) 100%)',
+            borderRight: prefs.darkMap
+              ? '1px solid rgba(184,200,224,0.08)'
+              : '1px solid rgba(0,0,0,0.08)',
+            display: 'flex', flexDirection: 'column',
+            transition: 'width 220ms ease',
+            overflow: 'hidden', zIndex: 20,
+          }}
+        >
         {/* Logo + collapse */}
         <div style={{ padding: '18px 14px 14px', borderBottom: prefs.darkMap ? '1px solid rgba(184,200,224,0.07)' : '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
           <div style={{
@@ -631,6 +655,7 @@ export default function UserMapPage() {
           </button>
         </div>
       </div>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════
           RIGHT AREA — map + panels
@@ -932,7 +957,11 @@ export default function UserMapPage() {
         </AnimatePresence>
 
         {/* ── TOP BAR (Multi-selection & Close) ── */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, padding: '14px 14px 0', pointerEvents: 'none' }}>
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
+          padding: isMobile ? '12px 12px 0' : '14px 14px 0',
+          pointerEvents: 'none', display: 'flex', justifyContent: 'center'
+        }}>
           <motion.div
             initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
             transition={{ type: 'spring', damping: 26, stiffness: 200 }}
@@ -949,11 +978,13 @@ export default function UserMapPage() {
               boxShadow: prefs.darkMap
                 ? '0 8px 40px rgba(0,0,0,0.7)'
                 : '0 8px 30px rgba(0,0,0,0.06)',
-              pointerEvents: 'auto'
+              pointerEvents: 'auto',
+              width: isMobile ? '100%' : 'auto',
+              maxWidth: isMobile ? '480px' : 'none'
             }}
           >
             {selectedLines.length > 0 ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', flex: 1, paddingRight: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', flex: 1, paddingRight: '8px', justifyContent: isMobile ? 'center' : 'flex-start' }}>
                 {selectedLines.map(line => (
                   <div key={line.id} style={{
                     display: 'flex', alignItems: 'center', gap: '6px',
@@ -988,7 +1019,7 @@ export default function UserMapPage() {
             ) : (
               <button
                 onClick={() => { setLineSelectorTab('line'); setShowLineSelector(true); }}
-                style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}
+                style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: isMobile ? 'center' : 'left', justifyContent: isMobile ? 'center' : 'flex-start' }}
               >
                 <Search size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
                 <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Elegí una línea...</span>
@@ -1100,7 +1131,12 @@ export default function UserMapPage() {
             <motion.div
               initial={{ x: -100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -100, opacity: 0 }}
               style={{
-                position: 'absolute', top: '74px', left: '14px', zIndex: 11, width: '320px',
+                position: 'absolute',
+                top: isMobile ? '64px' : '74px',
+                left: isMobile ? '10px' : '14px',
+                right: isMobile ? '10px' : 'auto',
+                zIndex: 11,
+                width: isMobile ? 'auto' : '320px',
                 background: prefs.darkMap
                   ? 'linear-gradient(135deg, rgba(17, 24, 39, 0.95) 0%, rgba(10, 15, 26, 0.98) 100%)'
                   : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(243, 244, 246, 0.98) 100%)',
@@ -1342,7 +1378,15 @@ export default function UserMapPage() {
 
         {/* Unified Floating Controls right side of map */}
         {activePanel === 'map' && (
-          <div style={{ position: 'absolute', bottom: '110px', right: '14px', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{
+            position: 'absolute',
+            bottom: isMobile ? '80px' : '110px',
+            right: '14px',
+            zIndex: 10,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px'
+          }}>
             {/* Geolocate Button */}
             <button
               onClick={handleGeolocate}
@@ -1475,7 +1519,17 @@ export default function UserMapPage() {
             <motion.div
               key={activePanel}
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              style={{ position: 'absolute', inset: 0, zIndex: 15, overflowY: 'auto', paddingTop: '72px', paddingBottom: '20px', background: 'rgba(6,8,16,0.85)', backdropFilter: 'blur(12px)' }}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 15,
+                overflowY: 'auto',
+                paddingTop: isMobile ? '64px' : '72px',
+                paddingBottom: isMobile ? '80px' : '20px',
+                background: 'rgba(6,8,16,0.85)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)'
+              }}
             >
               <div style={{ maxWidth: '520px', margin: '0 auto', padding: '0 16px' }}>
                 {activePanel === 'favourites' && (
@@ -1492,7 +1546,15 @@ export default function UserMapPage() {
                   />
                 )}
                 {activePanel === 'settings' && (
-                  <SettingsPanel prefs={prefs} onUpdatePrefs={updatePrefs} />
+                  <SettingsPanel
+                    prefs={prefs}
+                    onUpdatePrefs={updatePrefs}
+                    onRestartOnboarding={() => {
+                      localStorage.removeItem('tubus_onboarding_completed')
+                      setOnboardingStep(0)
+                      setActivePanel('map')
+                    }}
+                  />
                 )}
                 {activePanel === 'profile' && (
                   <ProfilePanel user={user} onLogout={handleLogout} />
@@ -1564,6 +1626,336 @@ export default function UserMapPage() {
         <AnimatePresence>
           {showReport && selectedBus && (
             <ReportModal bus={selectedBus} onClose={() => setShowReport(false)} />
+          )}
+        </AnimatePresence>
+
+        {/* Mobile Bottom Navigation Bar */}
+        {isMobile && (
+          <div
+            style={{
+              position: 'fixed',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: '64px',
+              background: prefs.darkMap
+                ? 'linear-gradient(0deg, rgba(8,12,18,0.99) 0%, rgba(14,20,30,0.95) 100%)'
+                : 'linear-gradient(0deg, rgba(243,244,246,0.99) 0%, rgba(255,255,255,0.95) 100%)',
+              borderTop: prefs.darkMap
+                ? '1px solid rgba(184,200,224,0.08)'
+                : '1px solid rgba(0,0,0,0.08)',
+              backdropFilter: 'blur(24px)',
+              WebkitBackdropFilter: 'blur(24px)',
+              display: 'flex',
+              justifyContent: 'space-around',
+              alignItems: 'center',
+              zIndex: onboardingStep !== -1 ? 2002 : 100, // Elevated above backdrop blur but below greeting
+              paddingBottom: 'safe-area-inset-bottom'
+            }}
+          >
+            {NAV_ITEMS.map((item, idx) => {
+              const Icon = item.icon
+              const active = activePanel === item.id
+              const isStepHighlight = onboardingStep === idx
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    if (onboardingStep === -1) {
+                      setActivePanel(item.id)
+                    }
+                  }}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '6px 12px',
+                    gap: '3px',
+                    flex: 1,
+                    position: 'relative',
+                    zIndex: isStepHighlight ? 2003 : 1,
+                    opacity: (onboardingStep === -1 || isStepHighlight) ? 1 : 0.25,
+                    transform: isStepHighlight ? 'scale(1.15)' : 'scale(1)',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                  }}
+                >
+                  {isStepHighlight && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        inset: '-4px',
+                        borderRadius: '12px',
+                        background: 'rgba(184,200,224,0.1)',
+                        border: '1.5px dashed rgba(184,200,224,0.4)',
+                        boxShadow: '0 0 15px rgba(184,200,224,0.2)',
+                        animation: 'pulse 2s infinite',
+                        pointerEvents: 'none'
+                      }}
+                    />
+                  )}
+                  <Icon
+                    size={20}
+                    style={{
+                      color: active ? 'var(--platinum)' : 'var(--text-muted)',
+                      transition: 'color 0.2s'
+                    }}
+                  />
+                  <span
+                    style={{
+                      color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      fontSize: '10px',
+                      fontWeight: active ? 600 : 400,
+                      transition: 'color 0.2s'
+                    }}
+                  >
+                    {item.label}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Onboarding Dialogs */}
+        <AnimatePresence>
+          {showWelcome && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(6, 8, 16, 0.85)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 3000,
+                padding: '20px'
+              }}
+            >
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.9, y: 20 }}
+                style={{
+                  background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.95) 0%, rgba(10, 15, 26, 0.98) 100%)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '24px',
+                  padding: '30px 24px',
+                  width: '100%',
+                  maxWidth: '400px',
+                  textAlign: 'center',
+                  boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)',
+                  color: 'white',
+                  fontFamily: 'DM Sans, sans-serif'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+                  <div style={{
+                    width: '72px', height: '72px', borderRadius: '20px',
+                    background: 'rgba(184,200,224,0.06)', border: '1.5px solid rgba(184,200,224,0.15)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}>
+                    <img src="/images/logo.jpg" alt="Logo" style={{ width: '100%', height: '100%', borderRadius: '18px', objectFit: 'cover' }} />
+                  </div>
+                </div>
+                <h2 style={{ fontSize: '22px', fontWeight: 800, marginBottom: '8px', letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+                  ¡Te damos la bienvenida a Bien Parada!
+                </h2>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.6', marginBottom: '24px' }}>
+                  La aplicación definitiva para moverte de forma segura e inteligente por Buenos Aires. Hacé un tour rápido para conocer las funcionalidades principales de tu panel.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button
+                    onClick={() => {
+                      setShowWelcome(false)
+                      setOnboardingStep(0)
+                      setActivePanel('map')
+                    }}
+                    style={{
+                      background: 'var(--platinum)',
+                      color: 'var(--void)',
+                      border: 'none',
+                      borderRadius: '12px',
+                      padding: '12px',
+                      fontSize: '14px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 15px rgba(255,255,255,0.1)'
+                    }}
+                  >
+                    Comenzar Recorrido ➔
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowWelcome(false)
+                      localStorage.setItem('tubus_onboarding_completed', 'true')
+                    }}
+                    style={{
+                      background: 'transparent',
+                      color: 'var(--text-muted)',
+                      border: 'none',
+                      borderRadius: '12px',
+                      padding: '10px',
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Saltar Introducción
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+
+          {onboardingStep !== -1 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(6, 8, 16, 0.7)',
+                backdropFilter: 'blur(15px)',
+                WebkitBackdropFilter: 'blur(15px)',
+                zIndex: 2000,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+                padding: '20px'
+              }}
+            >
+              {(() => {
+                const descriptions = [
+                  "🗺️ **Mapa en Vivo**: Visualizá la ubicación en tiempo real de todos los colectivos en servicio. Hacé click en cualquier unidad para ver su velocidad, ocupación y chofer asignado.",
+                  "❤️ **Tus Favoritos**: Guardá tus líneas frecuentes, paradas de uso diario, internos y choferes con el botón ★ del mapa para tener acceso instantáneo en esta pestaña.",
+                  "⚙️ **Preferencias**: Modificá el estilo del mapa (claro u oscuro), activá alertas dinámicas basadas en la proximidad de los colectivos y personalizá el tamaño de los textos.",
+                  "👤 **Tu Perfil**: Visualizá el correo de tu cuenta de pasajero, tu rol en la plataforma, la fecha de registro en el sistema y cerrá tu sesión con total seguridad."
+                ]
+
+                return (
+                  <motion.div
+                    key={onboardingStep}
+                    initial={{ scale: 0.9, y: 10, opacity: 0 }}
+                    animate={{ scale: 1, y: 0, opacity: 1 }}
+                    transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(20, 27, 45, 0.98) 0%, rgba(10, 15, 26, 0.99) 100%)',
+                      border: '1px solid rgba(184, 200, 224, 0.15)',
+                      boxShadow: '0 15px 35px rgba(0,0,0,0.6)',
+                      borderRadius: '20px',
+                      padding: '20px',
+                      width: '100%',
+                      maxWidth: '340px',
+                      color: 'white',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                      position: 'absolute',
+                      bottom: '90px',
+                      fontFamily: 'DM Sans, sans-serif'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(184, 200, 224, 0.1)', paddingBottom: '8px' }}>
+                      <span style={{ fontSize: '11px', fontFamily: 'DM Mono', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                        Paso {onboardingStep + 1} de {NAV_ITEMS.length}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setOnboardingStep(-1)
+                          localStorage.setItem('tubus_onboarding_completed', 'true')
+                        }}
+                        style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer' }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+
+                    <p style={{ fontSize: '13px', lineHeight: '1.5', color: '#E5E7EB', margin: 0 }}>
+                      {descriptions[onboardingStep].split('**')[0]}
+                      <strong>{descriptions[onboardingStep].split('**')[1]}</strong>
+                      {descriptions[onboardingStep].split('**')[2]}
+                    </p>
+
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                      <button
+                        onClick={() => {
+                          setOnboardingStep(-1)
+                          localStorage.setItem('tubus_onboarding_completed', 'true')
+                        }}
+                        style={{
+                          background: 'transparent',
+                          color: 'var(--text-muted)',
+                          border: '1px solid rgba(184,200,224,0.15)',
+                          borderRadius: '8px',
+                          padding: '6px 12px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          flex: 1
+                        }}
+                      >
+                        Saltar
+                      </button>
+                      <button
+                        onClick={() => {
+                          const nextStep = onboardingStep + 1
+                          if (nextStep < NAV_ITEMS.length) {
+                            setOnboardingStep(nextStep)
+                            setActivePanel(NAV_ITEMS[nextStep].id)
+                          } else {
+                            setOnboardingStep(-1)
+                            localStorage.setItem('tubus_onboarding_completed', 'true')
+                          }
+                        }}
+                        style={{
+                          background: 'var(--platinum)',
+                          color: 'var(--void)',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '6px 12px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          flex: 2,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        {onboardingStep === NAV_ITEMS.length - 1 ? '¡Entendido!' : 'Siguiente ➔'}
+                      </button>
+                    </div>
+                    
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: '-6px',
+                        left: `${12.5 + onboardingStep * 25}%`,
+                        transform: 'translateX(-50%) rotate(45deg)',
+                        width: '12px',
+                        height: '12px',
+                        background: 'rgba(10, 15, 26, 0.99)',
+                        borderRight: '1px solid rgba(184, 200, 224, 0.15)',
+                        borderBottom: '1px solid rgba(184, 200, 224, 0.15)'
+                      }}
+                    />
+                  </motion.div>
+                )
+              })()}
+            </motion.div>
           )}
         </AnimatePresence>
       </div>
@@ -1675,7 +2067,15 @@ function FavouritesPanel({ prefs, lines, buses, onSelectLine, onUpdatePrefs, onS
 }
 
 // ─── Settings Panel ───────────────────────────────────────────────────────────
-function SettingsPanel({ prefs, onUpdatePrefs }: { prefs: UserPrefs; onUpdatePrefs: (p: Partial<UserPrefs>) => void }) {
+function SettingsPanel({
+  prefs,
+  onUpdatePrefs,
+  onRestartOnboarding
+}: {
+  prefs: UserPrefs
+  onUpdatePrefs: (p: Partial<UserPrefs>) => void
+  onRestartOnboarding?: () => void
+}) {
   return (
     <div>
       <PanelTitle>Preferencias</PanelTitle>
@@ -1693,6 +2093,32 @@ function SettingsPanel({ prefs, onUpdatePrefs }: { prefs: UserPrefs; onUpdatePre
           </div>
         </div>
       </GlassCard>
+
+      {onRestartOnboarding && (
+        <>
+          <SectionHeader icon={<Sliders size={13} />} title="Guía interactiva" style={{ marginTop: '20px' }} />
+          <GlassCard>
+            <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Tour de la Aplicación</span>
+              <button
+                onClick={onRestartOnboarding}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(184,200,224,0.2)',
+                  background: 'rgba(184,200,224,0.06)',
+                  color: 'var(--text-primary)',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                Reiniciar Tutorial
+              </button>
+            </div>
+          </GlassCard>
+        </>
+      )}
 
       <SectionHeader icon={<NavIcon size={13} />} title="Mapa y viaje" style={{ marginTop: '20px' }} />
       <GlassCard>
