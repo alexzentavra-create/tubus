@@ -1,6 +1,5 @@
 // src/app/api/buses/route.ts
 import { NextRequest, NextResponse } from 'next/server'
-import { MOCK_LINES } from '@/lib/mockData'
 import type { BusPosition } from '@/types'
 
 const LINE_DRIVERS: Record<string, string[]> = {
@@ -23,87 +22,86 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'line_id and line_number are required' }, { status: 400 })
   }
 
-  const clientId = process.env.GCBA_CLIENT_ID || 'f0433788933f43c2b63cbcf59824ff29'
-  const clientSecret = process.env.GCBA_CLIENT_SECRET || 'A49c4180737440e6b75F61577d2cbf79'
-
-  if (!process.env.GCBA_CLIENT_ID || !process.env.GCBA_CLIENT_SECRET) {
-    console.log('[GCBA API] Falling back to default built-in API credentials.')
-  }
-
-  // Bypass TLS certificate checks to prevent government server SSL handshake errors
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
-
-  const url = `https://apitransporte.buenosaires.gob.ar/colectivos/vehiclePositionsSimple?client_id=${clientId}&client_secret=${clientSecret}`
+  const apiKey = process.env.TRANSITLAND_API_KEY || 'dummy_transitland_key'
+  const url = `https://transit.land/api/v2/rest/vehicles?apikey=${apiKey}`
 
   try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10s timeout for resilience
+    console.log(`[Transitland API] Fetching real-time vehicles for Line ${lineNumber} from URL: ${url}`)
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'TuBus Buenos Aires'
+      }
+    })
 
-    console.log(`[GCBA API] Fetching vehicle positions for Line ${lineNumber} from URL: ${url}`)
-    const response = await fetch(url, { signal: controller.signal })
-    clearTimeout(timeoutId)
-
-    console.log(`[GCBA API] Response status code: ${response.status} for Line ${lineNumber}`)
+    console.log(`[Transitland API] Response status code: ${response.status} for Line ${lineNumber}`)
     if (!response.ok) {
       const errText = await response.text().catch(() => '')
-      throw new Error(`GCBA API returned status ${response.status}: ${errText}`)
+      throw new Error(`Transitland API returned status ${response.status}: ${errText}`)
     }
 
     const data = await response.json()
-    console.log(`[GCBA API] Successfully parsed JSON. Received ${Array.isArray(data) ? data.length : 'non-array'} items from GCBA.`)
+    const vehiclesList = data.vehicles || []
+    console.log(`[Transitland API] Successfully parsed JSON. Received ${vehiclesList.length} items from Transitland.`)
 
-    if (!Array.isArray(data)) {
-      throw new Error('GCBA API response is not an array')
-    }
-
-    // Match by route_short_name or route_id with loose matching and stripping of leading zeros
+    // Filter vehicles by matching the requested route / line number
     const regex = new RegExp(`^0*${lineNumber}(?![0-9])`, 'i')
-    const matchedBuses = data.filter(b => {
-      const rsn = (b.route_short_name || '').toString().trim()
-      const rid = (b.route_id || '').toString().trim()
-      return regex.test(rsn) || regex.test(rid) || rsn.replace(/^0+/, '') === lineNumber || rid.replace(/^0+/, '') === lineNumber
+    const matchedVehicles = vehiclesList.filter((v: any) => {
+      const rsn = (v.route_short_name || '').toString().trim()
+      const rid = (v.route_id || '').toString().trim()
+      const roid = (v.route_onestop_id || '').toString().trim()
+      return regex.test(rsn) || regex.test(rid) || regex.test(roid) || 
+             rsn.replace(/^0+/, '') === lineNumber || 
+             rid.replace(/^0+/, '') === lineNumber ||
+             roid.replace(/^0+/, '') === lineNumber
     })
 
-    console.log(`[GCBA API] Line ${lineNumber}: Filtered ${matchedBuses.length} matching buses out of ${data.length} total.`)
+    console.log(`[Transitland API] Line ${lineNumber}: Filtered ${matchedVehicles.length} matching buses out of ${vehiclesList.length} total.`)
 
-    if (matchedBuses.length === 0) {
-      console.warn(`[GCBA API] Line ${lineNumber}: No matching vehicles found in GCBA payload.`)
+    if (matchedVehicles.length === 0) {
+      console.warn(`[Transitland API] Line ${lineNumber}: No matching vehicles found in Transitland payload.`)
       return NextResponse.json({ data: [], count: 0, source: 'realtime' })
     }
 
     const drivers = LINE_DRIVERS[lineNumber] || ['Chofer Auxiliar']
-    
-    // Map GCBA data to our internal BusPosition format
-    const mappedBuses: BusPosition[] = matchedBuses.map((b, index) => {
+
+    // Map Transitland vehicle telemetry to our internal BusPosition format
+    const mappedBuses: BusPosition[] = matchedVehicles.map((v: any, index: number) => {
       const driverName = drivers[index % drivers.length]
-      const speedKmh = Math.round(b.speed * 3.6) // speed in GCBA is m/s
-      const direction = b.direction === 1 ? 'vuelta' : 'ida' // GCBA direction: 0 = Outbound/Ida, 1 = Inbound/Vuelta
+      const speedKmh = v.speed_kmh !== undefined ? Math.round(v.speed_kmh) : (v.speed !== undefined ? Math.round(v.speed * 3.6) : 25)
       
+      // Transitland direction typically: 0 = Outbound/Ida, 1 = Inbound/Vuelta, or direction_id
+      const dirVal = v.direction_id !== undefined ? v.direction_id : (v.direction !== undefined ? v.direction : 0)
+      const direction = (dirVal === 1 || dirVal === 'vuelta' || dirVal === '1') ? 'vuelta' : 'ida'
+
+      const lat = v.latitude !== undefined ? v.latitude : (v.geometry?.coordinates?.[1] !== undefined ? v.geometry.coordinates[1] : 0)
+      const lng = v.longitude !== undefined ? v.longitude : (v.geometry?.coordinates?.[0] !== undefined ? v.geometry.coordinates[0] : 0)
+
       return {
-        id: `real-${lineId}-${b.id || index}`,
+        id: `real-${lineId}-${v.id || v.vehicle_id || index}`,
         driver_id: `real-driver-${lineId}-${index}`,
         line_id: lineId,
         line_number: lineNumber,
         bus_unit: `${lineNumber}-${String(100 + (index % 900))}`,
         driver_name: driverName,
-        latitude: b.latitude,
-        longitude: b.longitude,
-        heading: b.bearing || 0,
+        latitude: lat,
+        longitude: lng,
+        heading: v.bearing || v.heading || 0,
         speed_kmh: speedKmh,
         next_stop_id: `stop-${lineNumber}-${index}`,
-        next_stop_name: b.trip_headsign || 'Siguiente parada',
+        next_stop_name: v.trip_headsign || v.headsign || 'Siguiente parada',
         eta_minutes: speedKmh > 5 ? Math.max(1, Math.ceil(3 / (speedKmh / 60))) : 5,
         status: speedKmh > 2 ? 'moving' : 'stopped',
         passenger_count: 0,
-        timestamp: new Date(b.timestamp * 1000).toISOString(),
+        timestamp: v.timestamp ? new Date(v.timestamp).toISOString() : new Date().toISOString(),
         reports_count: index % 4 === 0 ? 1 : 0,
-        direction: direction
+        direction: direction,
+        ramal: v.route_onestop_id || v.route_id || v.shape_id || `${lineNumber}-A`
       }
     })
 
     return NextResponse.json({ data: mappedBuses, count: mappedBuses.length, source: 'realtime' })
   } catch (error: any) {
-    console.error(`[GCBA API ERROR] Error processing vehicle positions for Line ${lineNumber}:`, error)
+    console.error(`[Transitland API ERROR] Error processing vehicle positions for Line ${lineNumber}:`, error)
     return NextResponse.json({ data: [], count: 0, source: 'realtime', error: error.message })
   }
 }

@@ -172,6 +172,12 @@ export default function UserMapPage() {
 
   const [lines, setLines]                   = useState<BusLine[]>([])
   const [selectedLines, setSelectedLines]   = useState<BusLine[]>([])
+  const [transitlandRoutes, setTransitlandRoutes] = useState<any[]>([])
+  const [transitlandShapes, setTransitlandShapes] = useState<any[]>([])
+  const transitlandShapesRef = useRef<any[]>([])
+  useEffect(() => {
+    transitlandShapesRef.current = transitlandShapes
+  }, [transitlandShapes])
   const [selectedBus, setSelectedBus]       = useState<BusPosition | null>(null)
   const [showReport, setShowReport]         = useState(false)
   const [showLineSelector, setShowLineSelector] = useState(false)
@@ -497,6 +503,47 @@ export default function UserMapPage() {
     }
   }, [selectedLines])
 
+  // Load dynamic Transitland routes and shapes when selection changes
+  useEffect(() => {
+    if (selectedLines.length === 0) {
+      setTransitlandRoutes([])
+      setTransitlandShapes([])
+      return
+    }
+
+    const loadTransitlandData = async () => {
+      try {
+        console.log('[Transitland Frontend] Fetching dynamic routes for selected lines...')
+        const routesPromises = selectedLines.map(async (line) => {
+          const res = await fetch(`/api/routes?line_number=${line.line_number}`)
+          if (!res.ok) throw new Error(`Failed to fetch routes for Line ${line.line_number}`)
+          const json = await res.json()
+          return json.routes || []
+        })
+        const routesListList = await Promise.all(routesPromises)
+        const routes = routesListList.flat()
+        setTransitlandRoutes(routes)
+
+        console.log(`[Transitland Frontend] Fetched ${routes.length} routes. Fetching shapes...`)
+        const shapesPromises = routes.map(async (route: any) => {
+          const res = await fetch(`/api/shapes?route_id=${route.onestop_id}`)
+          if (!res.ok) throw new Error(`Failed to fetch shapes for Route ${route.onestop_id}`)
+          const json = await res.json()
+          return json.shapes || []
+        })
+        const shapesListList = await Promise.all(shapesPromises)
+        const shapes = shapesListList.flat()
+        setTransitlandShapes(shapes)
+        console.log(`[Transitland Frontend] Successfully loaded ${shapes.length} dynamic shapes.`)
+      } catch (err) {
+        console.error('[Transitland Frontend ERROR] Error loading dynamic Transitland data:', err)
+      }
+    }
+
+    loadTransitlandData()
+  }, [selectedLines])
+
+
   // ── line subscription + real-time API + smooth LERP animation ──
   useEffect(() => {
     if (mockTickRef.current) { clearInterval(mockTickRef.current); mockTickRef.current = null }
@@ -572,20 +619,21 @@ export default function UserMapPage() {
         // Store new positions as targets and implement dynamic vehicle pooling (with distance filtering)
         const pooledBusesList: BusPosition[] = []
         activeFetched.forEach(bus => {
-          // Verify if bus coordinate is close to official route path (within 5 km) to filter out depots/false positives
+          // Find the dynamic shape that matches this bus's ramal (sub-route)
           const routeKey = bus.line_number.replace(/^0+/, '')
-          const officialRoute = OFFICIAL_ROUTES[routeKey]
-          const busDir = bus.direction || 'ida'
-          const dirObj = busDir === 'vuelta' ? officialRoute?.vuelta : officialRoute?.ida
-          const path = dirObj?.path || []
+          const matchingShape = transitlandShapesRef.current.find(s => s.onestop_id === bus.ramal)
+          const path = matchingShape 
+            ? matchingShape.geometry.coordinates.map(([lng, lat]: any) => ({ lat, lng }))
+            : (bus.direction === 'vuelta' ? OFFICIAL_ROUTES[routeKey]?.vuelta?.path : OFFICIAL_ROUTES[routeKey]?.ida?.path) || []
 
           let snapIdx = 0
           if (path.length > 0) {
             let minDistance = Infinity
-            path.forEach(pt => {
+            path.forEach((pt: any, idx: number) => {
               const d = distanceKm({ latitude: bus.latitude, longitude: bus.longitude }, { lat: pt.lat, lng: pt.lng })
               if (d < minDistance) {
                 minDistance = d
+                snapIdx = idx
               }
             })
             if (minDistance > 5.0) {
@@ -593,7 +641,7 @@ export default function UserMapPage() {
               return
             }
 
-            // Map-Matching / 'Snap-to-Route' alignment algorithm (drift threshold of 5000m to match the depot filtering)
+            // Snap coordinate directly onto the center vectors of the street segments using dynamic shapes
             const snap = snapCoordinatesToRoute(bus.latitude, bus.longitude, path, 5000)
             if (snap.snapped) {
               bus.latitude = snap.latitude
@@ -661,22 +709,22 @@ export default function UserMapPage() {
             }
 
             const routeKey = bus.line_number.replace(/^0+/, '')
-            const officialRoute = OFFICIAL_ROUTES[routeKey]
-            if (officialRoute) {
-              const busDir = bus.direction || 'ida'
-              const dirObj = busDir === 'vuelta' ? officialRoute.vuelta : officialRoute.ida
-              if (dirObj && dirObj.path && dirObj.path.length > 0) {
-                let closestIdx = 0
-                let minD = Infinity
-                dirObj.path.forEach((pt, idx) => {
-                  const d = distanceKm({ latitude: bus.latitude, longitude: bus.longitude }, { lat: pt.lat, lng: pt.lng })
-                  if (d < minD) {
-                    minD = d
-                    closestIdx = idx
-                  }
-                })
-                reckoning.pathIndex = closestIdx
-              }
+            const matchingShape = transitlandShapesRef.current.find(s => s.onestop_id === bus.ramal)
+            const path = matchingShape 
+              ? matchingShape.geometry.coordinates.map(([lng, lat]: any) => ({ lat, lng }))
+              : (bus.direction === 'vuelta' ? OFFICIAL_ROUTES[routeKey]?.vuelta?.path : OFFICIAL_ROUTES[routeKey]?.ida?.path) || []
+
+            if (path && path.length > 0) {
+              let closestIdx = 0
+              let minD = Infinity
+              path.forEach((pt: any, idx: number) => {
+                const d = distanceKm({ latitude: bus.latitude, longitude: bus.longitude }, { lat: pt.lat, lng: pt.lng })
+                if (d < minD) {
+                  minD = d
+                  closestIdx = idx
+                }
+              })
+              reckoning.pathIndex = closestIdx
             }
           }
         })
@@ -687,19 +735,21 @@ export default function UserMapPage() {
           const lineNum = bus.line_number
           const routeKey = lineNum.replace(/^0+/, '')
           const officialRoute = OFFICIAL_ROUTES[routeKey]
-          if (!officialRoute) return
+
+          const matchingShape = transitlandShapesRef.current.find(s => s.onestop_id === bus.ramal)
+          const path = matchingShape 
+            ? matchingShape.geometry.coordinates.map(([lng, lat]: any) => ({ lat, lng }))
+            : (bus.direction === 'vuelta' ? OFFICIAL_ROUTES[routeKey]?.vuelta?.path : OFFICIAL_ROUTES[routeKey]?.ida?.path) || []
 
           const busDir = bus.direction || 'ida'
-          const dirObj = busDir === 'vuelta' ? officialRoute.vuelta : officialRoute.ida
-          if (!dirObj || !dirObj.path || !dirObj.stops || dirObj.stops.length < 2) return
-
-          const path = dirObj.path
-          const stops = dirObj.stops
+          const stopsObj = busDir === 'vuelta' ? officialRoute?.vuelta : officialRoute?.ida
+          if (!stopsObj || !stopsObj.stops || stopsObj.stops.length < 2 || !path || path.length < 2) return
+          const stops = stopsObj.stops
 
           // Find closest coordinate in route shape path
           let closestIdx = 0
           let minDistance = Infinity
-          path.forEach((pt, idx) => {
+          path.forEach((pt: any, idx: number) => {
             const d = distanceKm({ latitude: bus.latitude, longitude: bus.longitude }, { lat: pt.lat, lng: pt.lng })
             if (d < minDistance) {
               minDistance = d
@@ -804,10 +854,10 @@ export default function UserMapPage() {
             let nextHeading = target.heading || 0
 
             const routeKey = target.line_number.replace(/^0+/, '')
-            const officialRoute = OFFICIAL_ROUTES[routeKey]
-            const busDir = target.direction || 'ida'
-            const dirObj = busDir === 'vuelta' ? officialRoute?.vuelta : officialRoute?.ida
-            const path = dirObj?.path || []
+            const matchingShape = transitlandShapesRef.current.find(s => s.onestop_id === target.ramal)
+            const path = matchingShape 
+              ? matchingShape.geometry.coordinates.map(([lng, lat]: any) => ({ lat, lng }))
+              : (target.direction === 'vuelta' ? OFFICIAL_ROUTES[routeKey]?.vuelta?.path : OFFICIAL_ROUTES[routeKey]?.ida?.path) || []
 
             if (elapsedMs <= 1000) {
               // Correction Blending
@@ -1011,9 +1061,15 @@ export default function UserMapPage() {
     return { ida: 'Ida (Salida)', vuelta: 'Vuelta (Regreso)' }
   }
   const dirLabels = getDirectionLabels()
-  // Render paths for all selected lines (supporting multiple branches)
   const routeGeoJsons = selectedLines.map(line => {
-    const paths = getMockRoutePathsForLine(line, directionFilter)
+    const lineShapes = transitlandShapes.filter(s => {
+      return s.route_onestop_id?.includes(line.line_number) || s.onestop_id?.includes(line.line_number)
+    })
+
+    const paths = lineShapes.length > 0
+      ? lineShapes.map(s => s.geometry.coordinates.map(([lng, lat]: any) => ({ lat, lng })))
+      : getMockRoutePathsForLine(line, directionFilter)
+
     return {
       id: `route-${line.id}`,
       color: line.color,
@@ -1022,7 +1078,7 @@ export default function UserMapPage() {
         properties: { color: line.color },
         geometry: {
           type: 'LineString' as const,
-          coordinates: path.map(point => [point.lng, point.lat]),
+          coordinates: path.map((point: any) => [point.lng, point.lat]),
         }
       }))
     }
