@@ -218,6 +218,77 @@ export default function UserMapPage() {
     return ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360
   }
 
+  // Map-Matching / 'Snap-to-Route' algorithm to align raw GPS coordinates to active route polylines
+  const snapCoordinatesToRoute = (
+    lat: number,
+    lng: number,
+    path: { lat: number; lng: number }[],
+    driftThresholdMeters: number = 70
+  ) => {
+    if (!path || path.length < 2) {
+      return { latitude: lat, longitude: lng, heading: null, snapped: false, segmentIndex: 0 };
+    }
+
+    let minDistance = Infinity;
+    let bestSnappedPt = { lat, lng };
+    let bestSegmentIdx = 0;
+
+    for (let i = 0; i < path.length - 1; i++) {
+      const A = path[i];
+      const B = path[i + 1];
+
+      // Flat earth approximation with longitude scaling for Buenos Aires latitude (~-34.6)
+      const latAvg = (A.lat + B.lat) / 2;
+      const xScale = Math.cos(latAvg * Math.PI / 180);
+
+      const dx = (B.lng - A.lng) * xScale;
+      const dy = B.lat - A.lat;
+      const px = (lng - A.lng) * xScale;
+      const py = lat - A.lat;
+
+      const lenSq = dx * dx + dy * dy;
+      let t = lenSq !== 0 ? (px * dx + py * dy) / lenSq : 0;
+      t = Math.max(0, Math.min(1, t)); // Clamp to segment length
+
+      const C = {
+        lat: A.lat + t * (B.lat - A.lat),
+        lng: A.lng + t * (B.lng - A.lng)
+      };
+
+      // Calculate distance in kilometers using existing helper
+      const distKm = distanceKm({ latitude: lat, longitude: lng }, C);
+      const distMeters = distKm * 1000;
+
+      if (distMeters < minDistance) {
+        minDistance = distMeters;
+        bestSnappedPt = C;
+        bestSegmentIdx = i;
+      }
+    }
+
+    if (minDistance <= driftThresholdMeters) {
+      // Calculate heading from snapped point to the next sequential coordinate on the line path
+      const nextPt = path[bestSegmentIdx + 1] || path[bestSegmentIdx];
+      let segHeading = 0;
+      if (nextPt.lat !== bestSnappedPt.lat || nextPt.lng !== bestSnappedPt.lng) {
+        segHeading = heading(bestSnappedPt.lat, bestSnappedPt.lng, nextPt.lat, nextPt.lng);
+      } else if (bestSegmentIdx > 0 && path[bestSegmentIdx - 1]) {
+        segHeading = heading(path[bestSegmentIdx - 1].lat, path[bestSegmentIdx - 1].lng, bestSnappedPt.lat, bestSnappedPt.lng);
+      }
+
+      return {
+        latitude: bestSnappedPt.lat,
+        longitude: bestSnappedPt.lng,
+        heading: segHeading,
+        snapped: true,
+        segmentIndex: bestSegmentIdx
+      };
+    }
+
+    return { latitude: lat, longitude: lng, heading: null, snapped: false, segmentIndex: 0 };
+  };
+
+
   const getNearestStreetName = (lat: number, lng: number) => {
     const presets = [
       { name: "Av. 9 de Julio (Obelisco)", lat: -34.6037, lng: -58.3816 },
@@ -508,6 +579,7 @@ export default function UserMapPage() {
           const dirObj = busDir === 'vuelta' ? officialRoute?.vuelta : officialRoute?.ida
           const path = dirObj?.path || []
 
+          let snapIdx = 0
           if (path.length > 0) {
             let minDistance = Infinity
             path.forEach(pt => {
@@ -519,6 +591,17 @@ export default function UserMapPage() {
             if (minDistance > 5.0) {
               console.log(`[Frontend] Skipping bus ID ${bus.id} because it is too far from route (${minDistance.toFixed(1)} km)`)
               return
+            }
+
+            // Map-Matching / 'Snap-to-Route' alignment algorithm (drift threshold of 70m)
+            const snap = snapCoordinatesToRoute(bus.latitude, bus.longitude, path, 70)
+            if (snap.snapped) {
+              bus.latitude = snap.latitude
+              bus.longitude = snap.longitude
+              if (snap.heading !== null) {
+                bus.heading = snap.heading
+              }
+              snapIdx = snap.segmentIndex
             }
           }
 
@@ -534,7 +617,7 @@ export default function UserMapPage() {
                 lastTelemetryReceivedTime: Date.now(),
                 blendStartCoords: null,
                 currentCoords: { lat: bus.latitude, lng: bus.longitude },
-                pathIndex: 0
+                pathIndex: snapIdx
               }
             }
           }

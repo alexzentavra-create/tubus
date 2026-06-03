@@ -3,6 +3,11 @@ const nextConfig = {
   // NOTE: Do NOT add output: 'standalone' — breaks @netlify/plugin-nextjs
   reactStrictMode: true,
 
+  experimental: {
+    workerThreads: false,
+    cpus: 1,
+  },
+
   images: {
     domains: [
       'lh3.googleusercontent.com',
