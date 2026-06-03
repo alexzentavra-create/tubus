@@ -593,8 +593,8 @@ export default function UserMapPage() {
               return
             }
 
-            // Map-Matching / 'Snap-to-Route' alignment algorithm (drift threshold of 70m)
-            const snap = snapCoordinatesToRoute(bus.latitude, bus.longitude, path, 70)
+            // Map-Matching / 'Snap-to-Route' alignment algorithm (drift threshold of 5000m to match the depot filtering)
+            const snap = snapCoordinatesToRoute(bus.latitude, bus.longitude, path, 5000)
             if (snap.snapped) {
               bus.latitude = snap.latitude
               bus.longitude = snap.longitude
