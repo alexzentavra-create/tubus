@@ -492,9 +492,32 @@ export default function UserMapPage() {
         // Set simulated/realtime indicator badge on UI
         setUseMockBuses(hasSimulationSource)
 
-        // Store new positions as targets and implement dynamic vehicle pooling
-        const fetchedIds = new Set(activeFetched.map(b => b.id))
+        // Store new positions as targets and implement dynamic vehicle pooling (with distance filtering)
+        const pooledBusesList: BusPosition[] = []
         activeFetched.forEach(bus => {
+          // Verify if bus coordinate is close to official route path (within 5 km) to filter out depots/false positives
+          const routeKey = bus.line_number.replace(/^0+/, '')
+          const officialRoute = OFFICIAL_ROUTES[routeKey]
+          const busDir = bus.direction || 'ida'
+          const dirObj = busDir === 'vuelta' ? officialRoute?.vuelta : officialRoute?.ida
+          const path = dirObj?.path || []
+
+          if (path.length > 0) {
+            let minDistance = Infinity
+            path.forEach(pt => {
+              const d = distanceKm({ latitude: bus.latitude, longitude: bus.longitude }, { lat: pt.lat, lng: pt.lng })
+              if (d < minDistance) {
+                minDistance = d
+              }
+            })
+            if (minDistance > 5.0) {
+              console.log(`[Frontend] Skipping bus ID ${bus.id} because it is too far from route (${minDistance.toFixed(1)} km)`)
+              return
+            }
+          }
+
+          pooledBusesList.push(bus)
+
           const existing = busSeenStateRef.current[bus.id]
           if (existing) {
             busSeenStateRef.current[bus.id] = { bus, missingCycles: 0 }
@@ -510,6 +533,8 @@ export default function UserMapPage() {
             }
           }
         })
+
+        const fetchedIds = new Set(pooledBusesList.map(b => b.id))
 
         // Increment missing count for absent vehicles
         Object.keys(busSeenStateRef.current).forEach(id => {
