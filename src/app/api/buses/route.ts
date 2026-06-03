@@ -23,11 +23,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'line_id and line_number are required' }, { status: 400 })
   }
 
-  const clientId = process.env.GCBA_CLIENT_ID
-  const clientSecret = process.env.GCBA_CLIENT_SECRET
+  const clientId = process.env.GCBA_CLIENT_ID || 'f0433788933f43c2b63cbcf59824ff29'
+  const clientSecret = process.env.GCBA_CLIENT_SECRET || 'A49c4180737440e6b75F61577d2cbf79'
 
-  if (!clientId || !clientSecret) {
-    console.error('GCBA API credentials are not configured in environment variables.')
+  if (!process.env.GCBA_CLIENT_ID || !process.env.GCBA_CLIENT_SECRET) {
+    console.log('[GCBA API] Falling back to default built-in API credentials.')
   }
 
   // Bypass TLS certificate checks to prevent government server SSL handshake errors

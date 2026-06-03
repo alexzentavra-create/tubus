@@ -393,6 +393,12 @@ export default function UserMapPage() {
       const ALLOWED_LINES = ['12', '28', '37', '39', '59', '60', '102', '152']
       const availableLines = (data && data.length > 0 ? data : MOCK_LINES).filter(l => ALLOWED_LINES.includes(l.line_number))
       setLines(availableLines)
+      
+      // Default pre-select Line 59 to show active bus markers immediately on map load
+      const defaultLine = availableLines.find(l => l.line_number === '59')
+      if (defaultLine) {
+        setSelectedLines([defaultLine])
+      }
     })
   }, [])
 
