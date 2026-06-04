@@ -1,6 +1,7 @@
 // src/app/api/buses/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import type { BusPosition } from '@/types'
+import { OFFICIAL_ROUTES } from '@/lib/officialRoutes'
 
 const LINE_DRIVERS: Record<string, string[]> = {
   '12': ['Néstor García', 'Roberto Sánchez', 'Carlos Martínez', 'Juan Gómez'],
@@ -11,6 +12,70 @@ const LINE_DRIVERS: Record<string, string[]> = {
   '60': ['Carlos Martínez', 'Diego Rodríguez', 'Pablo García', 'Luis Fernández'],
   '102': ['Diego Torres', 'Fernando Gómez', 'Javier Ortega'],
   '152': ['Roberto S.', 'Jorge R.', 'Ana C.']
+}
+
+function getHeading(pt1: { lat: number; lng: number }, pt2: { lat: number; lng: number }): number {
+  const dy = pt2.lat - pt1.lat
+  const dx = pt2.lng - pt1.lng
+  return Math.round(((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360)
+}
+
+function generateFallbackSimulatedBuses(lineId: string, lineNumber: string): BusPosition[] {
+  const cleanedLineNum = lineNumber.replace(/^0+/, '')
+  const localRoute = OFFICIAL_ROUTES[cleanedLineNum]
+  if (!localRoute) return []
+
+  const mappedBuses: BusPosition[] = []
+  const drivers = LINE_DRIVERS[cleanedLineNum] || ['Chofer Auxiliar']
+  const timeSecs = Math.floor(Date.now() / 1000)
+
+  const directions: ('ida' | 'vuelta')[] = ['ida', 'vuelta']
+  let busIdx = 0
+
+  directions.forEach(direction => {
+    const path = direction === 'vuelta' ? localRoute.vuelta?.path : localRoute.ida?.path
+    if (!path || path.length < 2) return
+
+    const N = path.length
+    const startOffsets = [0.15, 0.55]
+
+    startOffsets.forEach(offset => {
+      const stepIndex = Math.floor(timeSecs / 4)
+      const startNode = Math.floor(N * offset)
+      const index = (stepIndex + startNode) % N
+
+      const pt = path[index]
+      const nextPt = path[(index + 1) % N] || pt
+      const headingVal = getHeading(pt, nextPt)
+      const driverName = drivers[busIdx % drivers.length]
+
+      mappedBuses.push({
+        id: `sim-${lineId}-${direction}-${busIdx}`,
+        driver_id: `sim-driver-${lineId}-${direction}-${busIdx}`,
+        line_id: lineId,
+        line_number: lineNumber,
+        bus_unit: `${lineNumber}-${String(200 + busIdx)}`,
+        driver_name: driverName,
+        latitude: pt.lat,
+        longitude: pt.lng,
+        heading: headingVal,
+        speed_kmh: 24,
+        next_stop_id: `stop-${lineNumber}-${index}`,
+        next_stop_name: localRoute[direction]?.stops?.[Math.min(localRoute[direction].stops.length - 1, Math.floor(index / 10))]?.name || 'Siguiente parada',
+        eta_minutes: 4,
+        status: 'moving',
+        passenger_count: 0,
+        timestamp: new Date().toISOString(),
+        reports_count: 0,
+        direction: direction,
+        ramal: `s-69u-${cleanedLineNum}-${direction === 'vuelta' ? 'vuelta' : 'ida'}`
+      })
+
+      busIdx++
+    })
+  })
+
+  return mappedBuses
 }
 
 export async function GET(request: NextRequest) {
@@ -58,8 +123,9 @@ export async function GET(request: NextRequest) {
     console.log(`[Transitland API] Line ${lineNumber}: Filtered ${matchedVehicles.length} matching buses out of ${vehiclesList.length} total.`)
 
     if (matchedVehicles.length === 0) {
-      console.warn(`[Transitland API] Line ${lineNumber}: No matching vehicles found in Transitland payload.`)
-      return NextResponse.json({ data: [], count: 0, source: 'realtime' })
+      console.warn(`[Transitland API] Line ${lineNumber}: No matching vehicles found in Transitland payload. Generating fallback simulation...`)
+      const fallbackBuses = generateFallbackSimulatedBuses(lineId, lineNumber)
+      return NextResponse.json({ data: fallbackBuses, count: fallbackBuses.length, source: 'simulation' })
     }
 
     const drivers = LINE_DRIVERS[lineNumber] || ['Chofer Auxiliar']
@@ -69,7 +135,6 @@ export async function GET(request: NextRequest) {
       const driverName = drivers[index % drivers.length]
       const speedKmh = v.speed_kmh !== undefined ? Math.round(v.speed_kmh) : (v.speed !== undefined ? Math.round(v.speed * 3.6) : 25)
       
-      // Transitland direction typically: 0 = Outbound/Ida, 1 = Inbound/Vuelta, or direction_id
       const dirVal = v.direction_id !== undefined ? v.direction_id : (v.direction !== undefined ? v.direction : 0)
       const direction = (dirVal === 1 || dirVal === 'vuelta' || dirVal === '1') ? 'vuelta' : 'ida'
 
@@ -102,6 +167,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data: mappedBuses, count: mappedBuses.length, source: 'realtime' })
   } catch (error: any) {
     console.error(`[Transitland API ERROR] Error processing vehicle positions for Line ${lineNumber}:`, error)
-    return NextResponse.json({ data: [], count: 0, source: 'realtime', error: error.message })
+    console.log(`[Transitland API] Generating fallback simulated buses...`)
+    const fallbackBuses = generateFallbackSimulatedBuses(lineId, lineNumber)
+    return NextResponse.json({ data: fallbackBuses, count: fallbackBuses.length, source: 'simulation' })
   }
 }
