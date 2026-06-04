@@ -349,6 +349,7 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [acceptTerms, setAcceptTerms] = useState(false)
+  const [city, setCity] = useState('buenos_aires')
   const [form, setForm] = useState({ email:'', password:'', name:'', age:'', weeklyTrips:'' })
   const set = (k:keyof typeof form) => (e:React.ChangeEvent<HTMLInputElement>) => setForm(f=>({...f,[k]:e.target.value}))
 
@@ -373,6 +374,8 @@ export default function LoginPage() {
         const lowerEmail = email.trim().toLowerCase()
         const pass = form.password.trim().toLowerCase()
 
+        localStorage.setItem('selected_city', city)
+
         if (lowerEmail === 'admin@admin.com' && pass === 'admin') {
           window.location.href = '/admin/super'
         } else if (lowerEmail === 'nestor@nestor.ar' && pass === 'nestor') {
@@ -380,7 +383,7 @@ export default function LoginPage() {
         } else if (lowerEmail === 'linea12@bienparada.ar' && pass === 'bienparada') {
           window.location.href = '/admin/company'
         } else if (lowerEmail === 'usuario@usuario.com' && pass === 'usuario') {
-          window.location.href = '/'
+          window.location.href = `/?city=${city}`
         } else {
           // Fallback matching for other mock strings
           if (lowerEmail.includes('superadmin') || lowerEmail.includes('admin')) {
@@ -390,7 +393,7 @@ export default function LoginPage() {
           } else if (lowerEmail.includes('company') || lowerEmail.includes('linea') || lowerEmail.includes('lineas') || lowerEmail.includes('empresa') || lowerEmail.includes('line')) {
             window.location.href = '/admin/company'
           } else {
-            window.location.href = '/'
+            window.location.href = `/?city=${city}`
           }
         }
         setLoading(false)
@@ -421,10 +424,13 @@ export default function LoginPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { setLoading(false); return }
       const { data: p } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+      
+      localStorage.setItem('selected_city', city)
+
       if (p?.role === 'superadmin') window.location.href = '/admin/super'
       else if (p?.role === 'company') window.location.href = '/admin/company'
       else if (p?.role === 'driver') window.location.href = '/driver'
-      else window.location.href = '/'
+      else window.location.href = `/?city=${city}`
 
     } else {
       const { data, error } = await supabase.auth.signUp({
@@ -517,6 +523,31 @@ export default function LoginPage() {
                   <Input type="number" placeholder="Edad" value={form.age} onChange={set('age')} right={<Calendar size={15}/>}/>
                   <Input type="number" placeholder="Veces por semana que tomás el colectivo" value={form.weeklyTrips} onChange={set('weeklyTrips')} right={<BarChart2 size={15}/>}/>
                 </>)}
+
+                <div style={{display:'flex',flexDirection:'column',gap:'4px',margin:'2px 0 4px'}}>
+                  <label style={{fontSize:'11px',color:'var(--text-secondary)',fontFamily:'DM Sans,sans-serif',fontWeight:500}}>Seleccionar Ciudad</label>
+                  <select
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    style={{
+                      width:'100%',
+                      padding:'11px 14px',
+                      background:'rgba(6,8,16,0.7)',
+                      border:'1px solid rgba(184,200,224,0.12)',
+                      borderRadius:'var(--r-sm)',
+                      color:'var(--text-primary)',
+                      fontSize:'14px',
+                      fontFamily:'DM Sans,sans-serif',
+                      outline:'none',
+                      boxShadow:'0 2px 8px rgba(0,0,0,0.3) inset',
+                      cursor:'pointer',
+                      boxSizing:'border-box' as const
+                    }}
+                  >
+                    <option value="buenos_aires" style={{background:'#0a0e14',color:'#fff'}}>Buenos Aires, Argentina</option>
+                    <option value="santa_cruz" style={{background:'#0a0e14',color:'#fff'}}>Santa Cruz de la Sierra, Bolivia</option>
+                  </select>
+                </div>
 
                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: '2px 0 6px', fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'DM Sans, sans-serif', userSelect: 'none' }}>
                   <input

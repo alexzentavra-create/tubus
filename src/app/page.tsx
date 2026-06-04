@@ -465,16 +465,33 @@ export default function UserMapPage() {
   // ── init ──
   useEffect(() => {
     setPrefs(loadPrefs())
+    
+    // Set initial viewport based on selected city (Buenos Aires or Santa Cruz)
+    const params = new URLSearchParams(window.location.search)
+    const queryCity = params.get('city')
+    const storedCity = localStorage.getItem('selected_city')
+    const activeCity = queryCity || storedCity || 'buenos_aires'
+
+    if (activeCity === 'santa_cruz') {
+      setViewState(v => ({ ...v, latitude: -17.7863, longitude: -63.1812, zoom: 13, pitch: 30, bearing: 0 }))
+    } else {
+      setViewState(v => ({ ...v, latitude: -34.6037, longitude: -58.4173, zoom: 13, pitch: 30, bearing: 0 }))
+    }
+
     supabase.auth.getUser().then(({ data: { user } }) => { if (user) setUser(user) })
     supabase.from('bus_lines').select('*').eq('is_active', true).then(({ data }) => {
       const ALLOWED_LINES = ['12', '28', '37', '39', '59', '60', '102', '152']
       const availableLines = (data && data.length > 0 ? data : MOCK_LINES).filter(l => ALLOWED_LINES.includes(l.line_number))
       setLines(availableLines)
       
-      // Default pre-select Line 59 to show active bus markers immediately on map load
-      const defaultLine = availableLines.find(l => l.line_number === '59')
-      if (defaultLine) {
-        setSelectedLines([defaultLine])
+      // Default pre-select Line 59 only if the city is Buenos Aires
+      if (activeCity === 'buenos_aires') {
+        const defaultLine = availableLines.find(l => l.line_number === '59')
+        if (defaultLine) {
+          setSelectedLines([defaultLine])
+        }
+      } else {
+        setSelectedLines([])
       }
     })
   }, [])
