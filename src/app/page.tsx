@@ -608,15 +608,7 @@ export default function UserMapPage() {
       simulatedBusesRef.current = initializeSimulatedBuses(availableLines)
       setUseMockBuses(true)
       
-      // Default pre-select Line 59 only if the city is Buenos Aires
-      if (activeCity === 'buenos_aires') {
-        const defaultLine = availableLines.find(l => l.line_number === '59')
-        if (defaultLine) {
-          setSelectedLines([defaultLine])
-        }
-      } else {
-        setSelectedLines([])
-      }
+      setSelectedLines([])
     })
   }, [])
 
