@@ -123,6 +123,126 @@ const NAV_ITEMS: { id: Panel; label: string; icon: any }[] = [
   { id: 'profile',    label: 'Mi Perfil',   icon: User },
 ]
 
+const LINE_DRIVERS: Record<string, string[]> = {
+  '12': ['Néstor García', 'Roberto Sánchez', 'Carlos Martínez', 'Juan Gómez'],
+  '28': ['Carlos M.', 'Jorge Rodríguez', 'Pablo García'],
+  '37': ['Roberto S.', 'Ana Martínez'],
+  '39': ['Esteban Ortiz', 'Lucas Domínguez', 'Martín Pereyra'],
+  '59': ['Hugo Bianchi', 'Nicolás Silva', 'Claudio Rossi'],
+  '60': ['Carlos Martínez', 'Diego Rodríguez', 'Pablo García', 'Luis Fernández'],
+  '102': ['Diego Torres', 'Fernando Gómez', 'Javier Ortega'],
+  '152': ['Roberto S.', 'Jorge R.', 'Ana C.']
+}
+
+interface SimulatedBusState extends BusPosition {
+  pathIndex: number
+  segmentProgress: number
+  maxSpeedKmh: number
+  dwellTimeSeconds: number
+  lastStoppedStopIndex: number
+  color?: string
+}
+
+function globalDistanceKm(
+  a: { latitude: number; longitude: number } | { lat: number; lng: number },
+  b: { lat: number; lng: number }
+): number {
+  const lat1 = ('latitude' in a ? a.latitude : (a as any).lat) * Math.PI / 180
+  const lat2 = b.lat * Math.PI / 180
+  const dLat = lat2 - lat1
+  const dLng = (b.lng - ('longitude' in a ? a.longitude : (a as any).lng)) * Math.PI / 180
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2
+  return 6371 * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s))
+}
+
+function getDistanceToPathIndex(
+  path: { lat: number; lng: number }[],
+  currentIdx: number,
+  progress: number,
+  targetIdx: number
+): number {
+  if (targetIdx <= currentIdx) return 0
+
+  const pA = path[currentIdx]
+  const pB = path[currentIdx + 1] || pA
+  const currentLat = pA.lat + (pB.lat - pA.lat) * progress
+  const currentLng = pA.lng + (pB.lng - pA.lng) * progress
+
+  let totalDist = globalDistanceKm({ lat: currentLat, lng: currentLng }, { lat: pB.lat, lng: pB.lng })
+
+  for (let i = currentIdx + 1; i < targetIdx; i++) {
+    const pt1 = path[i]
+    const pt2 = path[i + 1] || pt1
+    totalDist += globalDistanceKm({ lat: pt1.lat, lng: pt1.lng }, { lat: pt2.lat, lng: pt2.lng })
+  }
+
+  return totalDist * 1000 // in meters
+}
+
+const initializeSimulatedBuses = (availableLines: BusLine[]): SimulatedBusState[] => {
+  const allBuses: SimulatedBusState[] = []
+
+  availableLines.forEach(line => {
+    const routeKey = line.line_number.replace(/^0+/, '')
+    const officialRoute = OFFICIAL_ROUTES[routeKey]
+    if (!officialRoute) return
+
+    const drivers = LINE_DRIVERS[routeKey] || ['Chofer Auxiliar']
+    const directions: ('ida' | 'vuelta')[] = ['ida', 'vuelta']
+
+    directions.forEach(direction => {
+      const dirObj = direction === 'vuelta' ? officialRoute.vuelta : officialRoute.ida
+      if (!dirObj || !dirObj.path || dirObj.path.length < 2) return
+
+      const path = dirObj.path
+      const N = path.length
+
+      // 8 buses in each direction
+      for (let i = 0; i < 8; i++) {
+        const busIdx = direction === 'vuelta' ? i + 8 : i
+        const offset = i / 8
+        const pathIndex = Math.floor(N * offset)
+        const pCurr = path[pathIndex]
+        const pNext = path[pathIndex + 1] || pCurr
+
+        const dy = pNext.lat - pCurr.lat
+        const dx = pNext.lng - pCurr.lng
+        const headingVal = ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360
+
+        const passengers = 5 + Math.floor(Math.random() * 35)
+        const maxSpeed = 32 + Math.random() * 16
+
+        allBuses.push({
+          id: `sim-${line.id}-${direction}-${i}`,
+          driver_id: `sim-driver-${line.id}-${direction}-${i}`,
+          line_id: line.id,
+          line_number: line.line_number,
+          bus_unit: `${line.line_number}-${300 + busIdx}`,
+          driver_name: drivers[busIdx % drivers.length] || 'Chofer Auxiliar',
+          color: line.color,
+          direction: direction,
+          pathIndex: pathIndex,
+          segmentProgress: 0,
+          speed_kmh: maxSpeed,
+          maxSpeedKmh: maxSpeed,
+          status: 'moving',
+          passenger_count: passengers,
+          dwellTimeSeconds: 0,
+          lastStoppedStopIndex: -1,
+          latitude: pCurr.lat,
+          longitude: pCurr.lng,
+          heading: headingVal,
+          ramal: `${line.line_number}-A`,
+          reports_count: i % 4 === 0 ? 1 : 0,
+          timestamp: new Date().toISOString()
+        })
+      }
+    })
+  })
+
+  return allBuses
+}
+
 const SIDEBAR_W = 220
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
@@ -130,6 +250,7 @@ export default function UserMapPage() {
   const supabase      = createClient()
   const channelRef    = useRef<any>(null)
   const mockTickRef   = useRef<ReturnType<typeof setInterval> | null>(null)
+  const simulatedBusesRef = useRef<SimulatedBusState[] | null>(null)
   const targetBusesRef = useRef<Record<string, BusPosition>>({})
   const apiPollRef     = useRef<ReturnType<typeof setInterval> | null>(null)
   const busSeenStateRef = useRef<Record<string, { bus: BusPosition; missingCycles: number }>>({})
@@ -484,6 +605,9 @@ export default function UserMapPage() {
       const availableLines = (data && data.length > 0 ? data : MOCK_LINES).filter(l => ALLOWED_LINES.includes(l.line_number))
       setLines(availableLines)
       
+      simulatedBusesRef.current = initializeSimulatedBuses(availableLines)
+      setUseMockBuses(true)
+      
       // Default pre-select Line 59 only if the city is Buenos Aires
       if (activeCity === 'buenos_aires') {
         const defaultLine = availableLines.find(l => l.line_number === '59')
@@ -565,13 +689,12 @@ export default function UserMapPage() {
   useEffect(() => {
     if (mockTickRef.current) { clearInterval(mockTickRef.current); mockTickRef.current = null }
     if (apiPollRef.current) { clearInterval(apiPollRef.current); apiPollRef.current = null }
+    
     setBuses([])
     setLineStops([])
-    setUseMockBuses(false)
-    targetBusesRef.current = {}
+    setUseMockBuses(true)
+    
     if (selectedLines.length === 0) return
-
-    // lineStops is updated via a separate useEffect that monitors directionFilter
 
     // Fit map bounds to the selected lines
     let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180
@@ -592,389 +715,196 @@ export default function UserMapPage() {
       setViewState(v => ({ ...v, latitude: centerLat, longitude: centerLng, zoom: 12.5, pitch: 0 }))
     }
 
-    // Reset branch and tracked bus filters when selection changes
     setBranchFilter('all')
     setTrackedBusId(null)
     setDirectionFilter('all')
 
-    // Fetch and poll function
-    const fetchBusesRealtime = async () => {
-      try {
-        const selectedIds = selectedLines.map(l => l.id)
-        const allFetched: BusPosition[] = []
-        let hasSimulationSource = false
-
-        for (const line of selectedLines) {
-          console.log(`[Frontend] Fetching live buses for Line ${line.line_number} (${line.id})...`)
-          const res = await fetch(`/api/buses?line_id=${line.id}&line_number=${line.line_number}`)
-          if (!res.ok) {
-            console.error(`[Frontend ERROR] Fetch failed for Line ${line.line_number} (status: ${res.status})`)
-            continue
-          }
-          const json = await res.json()
-          if (json.error) {
-            console.error(`[Frontend ERROR] API error reported for Line ${line.line_number}:`, json.error)
-          }
-          if (json.data && Array.isArray(json.data)) {
-            console.log(`[Frontend] Line ${line.line_number}: Received ${json.data.length} buses from ${json.source}`)
-            allFetched.push(...json.data)
-            if (json.source === 'simulation') {
-              hasSimulationSource = true
-            }
-          } else {
-            console.warn(`[Frontend WARNING] Invalid or empty data payload for Line ${line.line_number}:`, json)
-          }
-        }
-
-        // Filter out buses not in selected lines just in case
-        const activeFetched = allFetched.filter(b => selectedIds.includes(b.line_id))
-        console.log(`[Frontend] Total active matched buses for selected lines: ${activeFetched.length}`)
-
-        // Set simulated/realtime indicator badge on UI
-        setUseMockBuses(hasSimulationSource)
-
-        // Store new positions as targets and implement dynamic vehicle pooling (with distance filtering)
-        const pooledBusesList: BusPosition[] = []
-        activeFetched.forEach(bus => {
-          // Find the dynamic shape that matches this bus's ramal (sub-route)
-          const routeKey = bus.line_number.replace(/^0+/, '')
-          const matchingShape = transitlandShapesRef.current.find(s => s.onestop_id === bus.ramal)
-          const path = matchingShape 
-            ? matchingShape.geometry.coordinates.map(([lng, lat]: any) => ({ lat, lng }))
-            : (bus.direction === 'vuelta' ? OFFICIAL_ROUTES[routeKey]?.vuelta?.path : OFFICIAL_ROUTES[routeKey]?.ida?.path) || []
-
-          let snapIdx = 0
-          if (path.length > 0) {
-            let minDistance = Infinity
-            path.forEach((pt: any, idx: number) => {
-              const d = distanceKm({ latitude: bus.latitude, longitude: bus.longitude }, { lat: pt.lat, lng: pt.lng })
-              if (d < minDistance) {
-                minDistance = d
-                snapIdx = idx
-              }
-            })
-            if (minDistance > 5.0) {
-              console.log(`[Frontend] Skipping bus ID ${bus.id} because it is too far from route (${minDistance.toFixed(1)} km)`)
-              return
-            }
-
-            // Snap coordinate directly onto the center vectors of the street segments using dynamic shapes
-            const snap = snapCoordinatesToRoute(bus.latitude, bus.longitude, path, 5000)
-            if (snap.snapped) {
-              bus.latitude = snap.latitude
-              bus.longitude = snap.longitude
-              if (snap.heading !== null) {
-                bus.heading = snap.heading
-              }
-              snapIdx = snap.segmentIndex
-            }
-          }
-
-          pooledBusesList.push(bus)
-
-          const existing = busSeenStateRef.current[bus.id]
-          if (existing) {
-            busSeenStateRef.current[bus.id] = { bus, missingCycles: 0 }
-          } else {
-            busSeenStateRef.current[bus.id] = { bus, missingCycles: 0 }
-            if (!busReckoningRef.current[bus.id]) {
-              busReckoningRef.current[bus.id] = {
-                lastTelemetryReceivedTime: Date.now(),
-                blendStartCoords: null,
-                currentCoords: { lat: bus.latitude, lng: bus.longitude },
-                pathIndex: snapIdx
-              }
-            }
-          }
-        })
-
-        const fetchedIds = new Set(pooledBusesList.map(b => b.id))
-
-        // Increment missing count for absent vehicles
-        Object.keys(busSeenStateRef.current).forEach(id => {
-          if (!fetchedIds.has(id)) {
-            busSeenStateRef.current[id].missingCycles += 1
-          }
-        })
-
-        // Purge vehicles missing for more than 3 polling cycles (destruction)
-        Object.keys(busSeenStateRef.current).forEach(id => {
-          if (busSeenStateRef.current[id].missingCycles > 3) {
-            console.log(`[Frontend] Purging inactive bus ID ${id} from circulation`)
-            delete busSeenStateRef.current[id]
-            delete busReckoningRef.current[id]
-          }
-        })
-
-        const pooledBuses = Object.values(busSeenStateRef.current).map(item => item.bus)
-
-        // Store new pooled positions as targets
-        const newTargets: Record<string, BusPosition> = {}
-        pooledBuses.forEach(bus => {
-          newTargets[bus.id] = bus
-        })
-        targetBusesRef.current = newTargets
-
-        // Pre-compute dead reckoning transition details for next coordinates blending
-        activeFetched.forEach(bus => {
-          const reckoning = busReckoningRef.current[bus.id]
-          if (reckoning) {
-            const hasChanged = reckoning.currentCoords.lat !== bus.latitude || reckoning.currentCoords.lng !== bus.longitude
-            if (hasChanged) {
-              reckoning.blendStartCoords = { lat: reckoning.currentCoords.lat, lng: reckoning.currentCoords.lng }
-              reckoning.lastTelemetryReceivedTime = Date.now()
-            }
-
-            const routeKey = bus.line_number.replace(/^0+/, '')
-            const matchingShape = transitlandShapesRef.current.find(s => s.onestop_id === bus.ramal)
-            const path = matchingShape 
-              ? matchingShape.geometry.coordinates.map(([lng, lat]: any) => ({ lat, lng }))
-              : (bus.direction === 'vuelta' ? OFFICIAL_ROUTES[routeKey]?.vuelta?.path : OFFICIAL_ROUTES[routeKey]?.ida?.path) || []
-
-            if (path && path.length > 0) {
-              let closestIdx = 0
-              let minD = Infinity
-              path.forEach((pt: any, idx: number) => {
-                const d = distanceKm({ latitude: bus.latitude, longitude: bus.longitude }, { lat: pt.lat, lng: pt.lng })
-                if (d < minD) {
-                  minD = d
-                  closestIdx = idx
-                }
-              })
-              reckoning.pathIndex = closestIdx
-            }
-          }
-        })
-
-        // Persistent Traffic State Engine (Sticky Traffic Memory Segment updates)
-        const newSegmentColors: Record<string, { color: string; timestamp: number }> = {}
-        activeFetched.forEach(bus => {
-          const lineNum = bus.line_number
-          const routeKey = lineNum.replace(/^0+/, '')
-          const officialRoute = OFFICIAL_ROUTES[routeKey]
-
-          const matchingShape = transitlandShapesRef.current.find(s => s.onestop_id === bus.ramal)
-          const path = matchingShape 
-            ? matchingShape.geometry.coordinates.map(([lng, lat]: any) => ({ lat, lng }))
-            : (bus.direction === 'vuelta' ? OFFICIAL_ROUTES[routeKey]?.vuelta?.path : OFFICIAL_ROUTES[routeKey]?.ida?.path) || []
-
-          const busDir = bus.direction || 'ida'
-          const stopsObj = busDir === 'vuelta' ? officialRoute?.vuelta : officialRoute?.ida
-          if (!stopsObj || !stopsObj.stops || stopsObj.stops.length < 2 || !path || path.length < 2) return
-          const stops = stopsObj.stops
-
-          // Find closest coordinate in route shape path
-          let closestIdx = 0
-          let minDistance = Infinity
-          path.forEach((pt: any, idx: number) => {
-            const d = distanceKm({ latitude: bus.latitude, longitude: bus.longitude }, { lat: pt.lat, lng: pt.lng })
-            if (d < minDistance) {
-              minDistance = d
-              closestIdx = idx
-            }
-          })
-
-          // Update state if vehicle coordinate aligns with route path within 500 meters
-          if (minDistance < 0.5) {
-            let segmentIdx = 0
-            for (let idx = 0; idx < stops.length - 1; idx++) {
-              if (closestIdx <= stops[idx + 1].pathIndex) {
-                segmentIdx = idx
-                break
-              }
-              segmentIdx = idx
-            }
-
-            let color = '#10B981' // GREEN (Fluid: >= 22 km/h)
-            if (bus.speed_kmh < 10) {
-              color = '#EF4444' // RED (Heavy: < 10 km/h)
-            } else if (bus.speed_kmh < 22) {
-              color = '#F59E0B' // YELLOW (Moderate: 10-21 km/h)
-            }
-
-            const key = `${lineNum}-${busDir}-${segmentIdx}`
-            newSegmentColors[key] = { color, timestamp: Date.now() }
-          }
-        })
-
-        if (Object.keys(newSegmentColors).length > 0) {
-          setTrafficState(prev => {
-            const now = Date.now()
-            const next = { ...prev }
-            Object.entries(newSegmentColors).forEach(([key, val]) => {
-              next[key] = val
-            })
-            // Garbage collect expired items
-            Object.keys(next).forEach(key => {
-              if (now - next[key].timestamp > 30 * 60 * 1000) {
-                delete next[key]
-              }
-            })
-            return next
-          })
-        }
-
-        // Trigger initial state population: immediately update state to include all pooled buses
-        setBuses(prev => {
-          const remaining = prev.filter(b => busSeenStateRef.current[b.id] !== undefined)
-          const existingIds = new Set(remaining.map(b => b.id))
-          const toAdd = pooledBuses.filter(b => !existingIds.has(b.id))
-          console.log(`[Frontend] Updating map state. Existing: ${remaining.length}, New added: ${toAdd.length}`)
-          return [...remaining, ...toAdd]
-        })
-      } catch (e: any) {
-        console.error('[Frontend ERROR] Error fetching dynamic bus positions:', e)
-        toast.error(`Error al obtener posiciones en tiempo real: ${e.message || e}`)
-      }
-    }
-
-    // Call immediately
-    fetchBusesRealtime()
-
-    // Poll every 15 seconds (within 15-30s range requested by user)
-    apiPollRef.current = setInterval(fetchBusesRealtime, 15000)
-
     let lastTick = Date.now()
+    let tickCount = 0
 
-    // Smooth LERP/Dead Reckoning animation tick (50ms interval)
     mockTickRef.current = setInterval(() => {
       const now = Date.now()
-      const dt = Math.min((now - lastTick) / 1000, 0.1) // clamp dt to max 100ms
+      const dt = Math.min((now - lastTick) / 1000, 0.1) // clamp to max 100ms
       lastTick = now
+      tickCount++
 
-      setBuses(prevBuses => {
-        const targets = targetBusesRef.current
-        const nextBuses: BusPosition[] = []
+      if (!simulatedBusesRef.current) return
 
-        // 1. Smoothly interpolate/extrapolate existing buses
-        prevBuses.forEach(bus => {
-          const target = targets[bus.id]
-          if (target) {
-            const reckoning = busReckoningRef.current[bus.id]
-            if (!reckoning) {
-              busReckoningRef.current[bus.id] = {
-                lastTelemetryReceivedTime: now,
-                blendStartCoords: null,
-                currentCoords: { lat: target.latitude, lng: target.longitude },
-                pathIndex: 0
+      const selectedIds = new Set(selectedLines.map(l => l.id))
+      const newTrafficColors: Record<string, { color: string; timestamp: number }> = {}
+
+      // Update all simulated buses
+      simulatedBusesRef.current.forEach(bus => {
+        const routeKey = bus.line_number.replace(/^0+/, '')
+        const officialRoute = OFFICIAL_ROUTES[routeKey]
+        if (!officialRoute) return
+
+        const dirObj = bus.direction === 'vuelta' ? officialRoute.vuelta : officialRoute.ida
+        if (!dirObj || !dirObj.path || dirObj.path.length < 2) return
+
+        const path = dirObj.path
+        const stops = dirObj.stops
+
+        if (bus.status === 'stopped') {
+          bus.speed_kmh = 0
+          bus.dwellTimeSeconds -= dt
+          if (bus.dwellTimeSeconds <= 0) {
+            bus.status = 'moving'
+            bus.dwellTimeSeconds = 0
+            bus.speed_kmh = 5 // start moving slowly
+          }
+        } else {
+          // Find next stop
+          let nextStop = null
+          for (let i = 0; i < stops.length; i++) {
+            const stop = stops[i]
+            if (stop.pathIndex > bus.pathIndex || (stop.pathIndex === bus.pathIndex && bus.segmentProgress < 0.99)) {
+              if (bus.lastStoppedStopIndex !== stop.pathIndex) {
+                nextStop = stop
+                break
               }
-              nextBuses.push({
-                ...target,
-                passenger_count: 0
-              })
-              return
             }
+          }
 
-            const elapsedMs = now - reckoning.lastTelemetryReceivedTime
-            let nextLat = target.latitude
-            let nextLng = target.longitude
-            let nextHeading = target.heading || 0
-
-            const routeKey = target.line_number.replace(/^0+/, '')
-            const matchingShape = transitlandShapesRef.current.find(s => s.onestop_id === target.ramal)
-            const path = matchingShape 
-              ? matchingShape.geometry.coordinates.map(([lng, lat]: any) => ({ lat, lng }))
-              : (target.direction === 'vuelta' ? OFFICIAL_ROUTES[routeKey]?.vuelta?.path : OFFICIAL_ROUTES[routeKey]?.ida?.path) || []
-
-            if (elapsedMs <= 1000) {
-              // Correction Blending
-              const start = reckoning.blendStartCoords || { lat: target.latitude, lng: target.longitude }
-              const t = Math.max(0, Math.min(1, elapsedMs / 1000))
-              nextLat = start.lat + (target.latitude - start.lat) * t
-              nextLng = start.lng + (target.longitude - start.lng) * t
-              reckoning.currentCoords = { lat: nextLat, lng: nextLng }
-
-              if (path.length > 0) {
-                const idx = reckoning.pathIndex
-                const nextPointForHeading = path[idx + 1] || path[idx]
-                if (nextPointForHeading && (nextPointForHeading.lat !== nextLat || nextPointForHeading.lng !== nextLng)) {
-                  nextHeading = heading(nextLat, nextLng, nextPointForHeading.lat, nextPointForHeading.lng)
-                } else if (idx > 0 && path[idx - 1]) {
-                  nextHeading = heading(path[idx - 1].lat, path[idx - 1].lng, nextLat, nextLng)
-                }
-              }
+          if (nextStop) {
+            const distanceToStop = getDistanceToPathIndex(path, bus.pathIndex, bus.segmentProgress, nextStop.pathIndex)
+            if (distanceToStop < 6) {
+              // Stop at the stop!
+              bus.speed_kmh = 0
+              bus.status = 'stopped'
+              bus.dwellTimeSeconds = 3 + Math.random() * 3
+              bus.lastStoppedStopIndex = nextStop.pathIndex
+              const delta = Math.floor(Math.random() * 11) - 5
+              bus.passenger_count = Math.max(5, Math.min(60, bus.passenger_count + delta))
             } else {
-              // Dead Reckoning extrapolation along road path
-              const speedKmh = Math.max(0, target.speed_kmh - 5)
-              if (path.length > 0 && speedKmh > 0) {
-                const speedMs = (speedKmh * 1000) / 3600
-                const stepDistanceKm = (speedMs * dt) / 1000
+              // Accelerate/decelerate approach
+              const decelerationDistance = 80 // meters
+              const targetSpeed = distanceToStop < decelerationDistance
+                ? Math.max(5, bus.maxSpeedKmh * (distanceToStop / decelerationDistance))
+                : bus.maxSpeedKmh
+              bus.speed_kmh = bus.speed_kmh + (targetSpeed - bus.speed_kmh) * dt * 2
+            }
+          } else {
+            // No next stop, heading to terminal (last path node)
+            const distanceToTerminal = getDistanceToPathIndex(path, bus.pathIndex, bus.segmentProgress, path.length - 1)
+            if (distanceToTerminal < 6) {
+              // Turnaround at terminal!
+              bus.direction = bus.direction === 'ida' ? 'vuelta' : 'ida'
+              bus.pathIndex = 0
+              bus.segmentProgress = 0
+              bus.lastStoppedStopIndex = -1
+              bus.speed_kmh = 0
+              bus.status = 'stopped'
+              bus.dwellTimeSeconds = 4 + Math.random() * 3
+            } else {
+              const decelerationDistance = 80
+              const targetSpeed = distanceToTerminal < decelerationDistance
+                ? Math.max(5, bus.maxSpeedKmh * (distanceToTerminal / decelerationDistance))
+                : bus.maxSpeedKmh
+              bus.speed_kmh = bus.speed_kmh + (targetSpeed - bus.speed_kmh) * dt * 2
+            }
+          }
 
-                let currLat = reckoning.currentCoords.lat
-                let currLng = reckoning.currentCoords.lng
-                let idx = reckoning.pathIndex
-                let distanceToMove = stepDistanceKm
+          // Move the bus along path segments
+          if (bus.status === 'moving') {
+            const speedMs = (bus.speed_kmh * 1000) / 3600
+            let distanceToMove = speedMs * dt
 
-                while (distanceToMove > 0 && idx < path.length - 1) {
-                  const nextPt = path[idx + 1]
-                  const distToNext = distanceKm({ latitude: currLat, longitude: currLng }, { lat: nextPt.lat, lng: nextPt.lng })
-                  if (distanceToMove >= distToNext) {
-                    distanceToMove -= distToNext
-                    currLat = nextPt.lat
-                    currLng = nextPt.lng
-                    idx++
-                  } else {
-                    const ratio = distanceToMove / distToNext
-                    currLat = currLat + (nextPt.lat - currLat) * ratio
-                    currLng = currLng + (nextPt.lng - currLng) * ratio
-                    distanceToMove = 0
-                  }
-                }
+            while (distanceToMove > 0) {
+              if (bus.pathIndex >= path.length - 1) {
+                // Turnaround
+                bus.direction = bus.direction === 'ida' ? 'vuelta' : 'ida'
+                bus.pathIndex = 0
+                bus.segmentProgress = 0
+                bus.lastStoppedStopIndex = -1
+                bus.speed_kmh = 0
+                bus.status = 'stopped'
+                bus.dwellTimeSeconds = 4 + Math.random() * 3
+                break
+              }
 
-                nextLat = currLat
-                nextLng = currLng
-                reckoning.currentCoords = { lat: currLat, lng: currLng }
-                reckoning.pathIndex = idx
+              const pCurr = path[bus.pathIndex]
+              const pNext = path[bus.pathIndex + 1]
+              const currLat = pCurr.lat + (pNext.lat - pCurr.lat) * bus.segmentProgress
+              const currLng = pCurr.lng + (pNext.lng - pCurr.lng) * bus.segmentProgress
 
-                const nextPointForHeading = path[idx + 1] || path[idx]
-                if (nextPointForHeading && (nextPointForHeading.lat !== currLat || nextPointForHeading.lng !== currLng)) {
-                  nextHeading = heading(currLat, currLng, nextPointForHeading.lat, nextPointForHeading.lng)
-                } else if (idx > 0 && path[idx - 1]) {
-                  nextHeading = heading(path[idx - 1].lat, path[idx - 1].lng, currLat, currLng)
-                }
+              const distToNextNode = globalDistanceKm({ latitude: currLat, longitude: currLng }, { lat: pNext.lat, lng: pNext.lng }) * 1000
+              if (distanceToMove >= distToNextNode) {
+                distanceToMove -= distToNextNode
+                bus.pathIndex++
+                bus.segmentProgress = 0
               } else {
-                nextLat = reckoning.currentCoords.lat
-                nextLng = reckoning.currentCoords.lng
+                bus.segmentProgress += distanceToMove / distToNextNode
+                distanceToMove = 0
+                if (bus.segmentProgress >= 1) {
+                  bus.pathIndex++
+                  bus.segmentProgress = 0
+                }
               }
             }
-
-            nextBuses.push({
-              ...target,
-              latitude: nextLat,
-              longitude: nextLng,
-              heading: nextHeading,
-              passenger_count: 0
-            })
           }
-        })
+        }
 
-        // 2. Add new buses that just appeared in target positions
-        Object.keys(targets).forEach(id => {
-          const alreadyExists = prevBuses.some(b => b.id === id)
-          if (!alreadyExists) {
-            const bus = targets[id]
-            if (!busReckoningRef.current[id]) {
-              busReckoningRef.current[id] = {
-                lastTelemetryReceivedTime: now,
-                blendStartCoords: null,
-                currentCoords: { lat: bus.latitude, lng: bus.longitude },
-                pathIndex: 0
-              }
+        // Recompute coordinates
+        const pCurr = path[bus.pathIndex]
+        const pNext = path[bus.pathIndex + 1] || pCurr
+        bus.latitude = pCurr.lat + (pNext.lat - pCurr.lat) * bus.segmentProgress
+        bus.longitude = pCurr.lng + (pNext.lng - pCurr.lng) * bus.segmentProgress
+        bus.heading = heading(bus.latitude, bus.longitude, pNext.lat, pNext.lng)
+
+        // Set next stop fields
+        const nextStopIndex = stops.findIndex(s => s.pathIndex > bus.pathIndex || (s.pathIndex === bus.pathIndex && bus.segmentProgress < 0.99))
+        const actualNextStop = nextStopIndex !== -1 ? stops[nextStopIndex] : null
+        bus.next_stop_id = actualNextStop ? actualNextStop.id : 'Terminal'
+        bus.next_stop_name = actualNextStop ? actualNextStop.name : 'Terminal'
+        
+        const distToNext = actualNextStop 
+          ? getDistanceToPathIndex(path, bus.pathIndex, bus.segmentProgress, actualNextStop.pathIndex)
+          : 0
+        bus.eta_minutes = actualNextStop 
+          ? Math.max(1, Math.ceil(distToNext / 1000 / (bus.speed_kmh > 2 ? bus.speed_kmh / 60 : 20 / 60)))
+          : 0
+
+        // Traffic state collection (once a second)
+        if (tickCount % 20 === 0 && selectedIds.has(bus.line_id)) {
+          let segmentIdx = 0
+          for (let idx = 0; idx < stops.length - 1; idx++) {
+            if (bus.pathIndex <= stops[idx + 1].pathIndex) {
+              segmentIdx = idx
+              break
             }
-            nextBuses.push({
-              ...bus,
-              passenger_count: 0
-            })
+            segmentIdx = idx
           }
-        })
-
-        return nextBuses
+          let color = '#10B981'
+          if (bus.speed_kmh < 10) {
+            color = '#EF4444'
+          } else if (bus.speed_kmh < 22) {
+            color = '#F59E0B'
+          }
+          const key = `${bus.line_number}-${bus.direction}-${segmentIdx}`
+          newTrafficColors[key] = { color, timestamp: now }
+        }
       })
+
+      // Apply traffic state updates
+      if (Object.keys(newTrafficColors).length > 0) {
+        setTrafficState(prev => {
+          const next = { ...prev }
+          Object.entries(newTrafficColors).forEach(([key, val]) => {
+            next[key] = val
+          })
+          return next
+        })
+      }
+
+      // Filter and set buses state for rendering
+      const filtered = simulatedBusesRef.current.filter(bus => selectedIds.has(bus.line_id))
+      setBuses(filtered)
+
     }, 50)
 
     return () => {
       if (mockTickRef.current) { clearInterval(mockTickRef.current); mockTickRef.current = null }
-      if (apiPollRef.current) { clearInterval(apiPollRef.current); apiPollRef.current = null }
     }
   }, [selectedLines])
 
@@ -3441,7 +3371,7 @@ function PremiumBusMarker({
           zIndex: 5,
         }}>
           <span style={{ fontSize: '7px', fontFamily: 'DM Mono', fontWeight: 600, color: 'var(--platinum-dim)' }}>
-            0
+            {bus.passenger_count}
           </span>
         </div>
       )}
@@ -3541,7 +3471,7 @@ function MiniPopup({
           Interno: {bus.bus_unit}
         </div>
         <div style={{ fontSize: '10px', color: '#EAB308', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
-          <span>👥 0 a bordo</span>
+          <span>👥 {bus.passenger_count} a bordo</span>
         </div>
       </div>
 

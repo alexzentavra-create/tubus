@@ -30,49 +30,50 @@ function generateFallbackSimulatedBuses(lineId: string, lineNumber: string): Bus
   const timeSecs = Math.floor(Date.now() / 1000)
 
   const directions: ('ida' | 'vuelta')[] = ['ida', 'vuelta']
-  let busIdx = 0
 
   directions.forEach(direction => {
     const path = direction === 'vuelta' ? localRoute.vuelta?.path : localRoute.ida?.path
     if (!path || path.length < 2) return
 
     const N = path.length
-    const startOffsets = [0.15, 0.55]
 
-    startOffsets.forEach(offset => {
-      const stepIndex = Math.floor(timeSecs / 4)
+    for (let i = 0; i < 8; i++) {
+      const busIdx = direction === 'vuelta' ? i + 8 : i
+      const offset = i / 8
+      
+      const busSpeed = 25 + ((timeSecs + busIdx * 45) % 15)
+      const stepIndex = Math.floor(timeSecs / 3)
       const startNode = Math.floor(N * offset)
       const index = (stepIndex + startNode) % N
 
       const pt = path[index]
       const nextPt = path[(index + 1) % N] || pt
       const headingVal = getHeading(pt, nextPt)
-      const driverName = drivers[busIdx % drivers.length]
+      const driverName = drivers[busIdx % drivers.length] || 'Chofer Auxiliar'
+      const passengerCount = 5 + ((timeSecs + busIdx * 80) % 41)
 
       mappedBuses.push({
-        id: `sim-${lineId}-${direction}-${busIdx}`,
-        driver_id: `sim-driver-${lineId}-${direction}-${busIdx}`,
+        id: `sim-${lineId}-${direction}-${i}`,
+        driver_id: `sim-driver-${lineId}-${direction}-${i}`,
         line_id: lineId,
         line_number: lineNumber,
-        bus_unit: `${lineNumber}-${String(200 + busIdx)}`,
+        bus_unit: `${lineNumber}-${String(300 + busIdx)}`,
         driver_name: driverName,
         latitude: pt.lat,
         longitude: pt.lng,
         heading: headingVal,
-        speed_kmh: 24,
+        speed_kmh: busSpeed,
         next_stop_id: `stop-${lineNumber}-${index}`,
         next_stop_name: localRoute[direction]?.stops?.[Math.min(localRoute[direction].stops.length - 1, Math.floor(index / 10))]?.name || 'Siguiente parada',
-        eta_minutes: 4,
-        status: 'moving',
-        passenger_count: 0,
+        eta_minutes: busSpeed > 5 ? Math.max(1, Math.ceil(3 / (busSpeed / 60))) : 5,
+        status: busSpeed > 0 ? 'moving' : 'stopped',
+        passenger_count: passengerCount,
         timestamp: new Date().toISOString(),
-        reports_count: 0,
+        reports_count: i % 4 === 0 ? 1 : 0,
         direction: direction,
-        ramal: `s-69u-${cleanedLineNum}-${direction === 'vuelta' ? 'vuelta' : 'ida'}`
+        ramal: `${lineNumber}-A`
       })
-
-      busIdx++
-    })
+    }
   })
 
   return mappedBuses
