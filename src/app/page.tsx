@@ -1559,6 +1559,7 @@ export default function UserMapPage() {
             <Popup longitude={selectedBus.longitude} latitude={selectedBus.latitude} anchor="bottom" offset={44} closeButton={false} onClose={() => setSelectedBus(null)}>
               <MiniPopup
                 bus={selectedBus}
+                darkMap={prefs.darkMap}
                 onReport={() => setShowReport(true)}
                 isFavBus={(prefs.favBuses || []).includes(selectedBus.bus_unit)}
                 isFavDriver={(prefs.favDrivers || []).includes(selectedBus.driver_name)}
@@ -1611,8 +1612,8 @@ export default function UserMapPage() {
                   justifyContent: 'space-between',
                   padding: '12px 18px',
                   borderRadius: 'var(--r-md)',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-                  border: '1px solid rgba(184,200,224,0.15)',
+                  boxShadow: prefs.darkMap ? '0 8px 32px rgba(0,0,0,0.5)' : '0 8px 32px rgba(0,0,0,0.06)',
+                  border: prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.08)',
                   gap: '12px'
                 }}
               >
@@ -2397,6 +2398,7 @@ export default function UserMapPage() {
               buses={buses}
               selectedLines={selectedLines}
               centerCoord={nearbyStopsPinCoord}
+              darkMap={prefs.darkMap}
               onClose={() => {
                 setPinNearbyStopsMode(false)
                 setNearbyStops([])
@@ -2416,6 +2418,7 @@ export default function UserMapPage() {
             <LineSelector
               lines={allLines}
               selectedLines={selectedLines}
+              darkMap={prefs.darkMap}
               onSelect={line => {
                 setSelectedLines(prev => {
                   const exists = prev.some(l => l.id === line.id)
@@ -2449,7 +2452,7 @@ export default function UserMapPage() {
 
         <AnimatePresence>
           {showReport && selectedBus && (
-            <ReportModal bus={selectedBus} onClose={() => setShowReport(false)} />
+            <ReportModal bus={selectedBus} darkMap={prefs.darkMap} onClose={() => setShowReport(false)} />
           )}
         </AnimatePresence>
 
@@ -3367,6 +3370,7 @@ function PremiumBusMarker({
 // ─── Mini popup ───────────────────────────────────────────────────────────────
 function MiniPopup({
   bus,
+  darkMap,
   onReport,
   isFavBus,
   isFavDriver,
@@ -3374,6 +3378,7 @@ function MiniPopup({
   onToggleFavDriver
 }: {
   bus: BusPosition
+  darkMap: boolean
   onReport: () => void
   isFavBus: boolean
   isFavDriver: boolean
@@ -3399,13 +3404,17 @@ function MiniPopup({
 
   return (
     <div style={{
-      background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.95) 0%, rgba(10, 15, 26, 0.98) 100%)',
-      border: '1px solid rgba(255, 255, 255, 0.1)',
+      background: darkMap
+        ? 'linear-gradient(135deg, rgba(17, 24, 39, 0.95) 0%, rgba(10, 15, 26, 0.98) 100%)'
+        : 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 250, 251, 0.98) 100%)',
+      border: darkMap ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.08)',
       borderRadius: '16px',
       padding: '12px',
-      color: 'white',
+      color: darkMap ? 'white' : 'var(--text-primary)',
       width: '280px',
-      boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+      boxShadow: darkMap
+        ? '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)'
+        : '0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
       fontFamily: 'DM Sans, sans-serif',
       backdropFilter: 'blur(10px)',
       WebkitBackdropFilter: 'blur(10px)',
@@ -3416,8 +3425,8 @@ function MiniPopup({
         width: '100%',
         height: '110px',
         borderRadius: '10px',
-        background: 'rgba(255, 255, 255, 0.02)',
-        border: '1px solid rgba(255, 255, 255, 0.06)',
+        background: darkMap ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+        border: darkMap ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid rgba(0, 0, 0, 0.06)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -3451,7 +3460,7 @@ function MiniPopup({
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-        <div style={{ fontWeight: 700, fontSize: '13px', color: '#F3F4F6' }}>
+        <div style={{ fontWeight: 700, fontSize: '13px', color: darkMap ? '#F3F4F6' : 'var(--text-primary)' }}>
           Interno: {bus.bus_unit}
         </div>
         <div style={{ fontSize: '10px', color: '#EAB308', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '3px' }}>
@@ -3459,15 +3468,15 @@ function MiniPopup({
         </div>
       </div>
 
-      <div style={{ color: '#9CA3AF', fontSize: '11px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+      <div style={{ color: darkMap ? '#9CA3AF' : 'var(--text-secondary)', fontSize: '11px', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '4px' }}>
         <span>Chofer: <strong>{bus.driver_name}</strong></span>
         <span style={{ color: '#10B981', fontWeight: 'bold' }}>✓</span>
       </div>
 
       {/* Amenities Ticked & Unticked Grid */}
       <div style={{
-        background: 'rgba(255, 255, 255, 0.02)',
-        border: '1px solid rgba(255, 255, 255, 0.05)',
+        background: darkMap ? 'rgba(255, 255, 255, 0.02)' : 'rgba(0, 0, 0, 0.02)',
+        border: darkMap ? '1px solid rgba(255, 255, 255, 0.05)' : '1px solid rgba(0, 0, 0, 0.05)',
         borderRadius: '10px',
         padding: '10px',
         marginBottom: '12px',
@@ -3475,7 +3484,7 @@ function MiniPopup({
         flexDirection: 'column',
         gap: '6px',
         fontSize: '11px',
-        color: '#D1D5DB'
+        color: darkMap ? '#D1D5DB' : 'var(--text-primary)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span>Aire Acondicionado</span>
@@ -3498,7 +3507,7 @@ function MiniPopup({
       </div>
 
       {/* Action Buttons Row */}
-      <div style={{ display: 'flex', gap: '6px', marginTop: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '10px' }}>
+      <div style={{ display: 'flex', gap: '6px', marginTop: '12px', borderTop: darkMap ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.08)', paddingTop: '10px' }}>
         <button
           onClick={(e) => { e.stopPropagation(); onReport(); }}
           style={{
@@ -3507,7 +3516,7 @@ function MiniPopup({
             borderRadius: '10px',
             background: 'rgba(239, 68, 68, 0.1)',
             border: '1px solid rgba(239, 68, 68, 0.25)',
-            color: '#FCA5A5',
+            color: darkMap ? '#FCA5A5' : '#EF4444',
             fontSize: '11px',
             fontWeight: 600,
             cursor: 'pointer',
@@ -3531,9 +3540,9 @@ function MiniPopup({
             flex: 1,
             padding: '7px 4px',
             borderRadius: '10px',
-            background: isFavBus ? 'rgba(234, 179, 8, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-            border: `1px solid ${isFavBus ? 'rgba(234, 179, 8, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,
-            color: isFavBus ? '#FBBF24' : '#E5E7EB',
+            background: isFavBus ? 'rgba(234, 179, 8, 0.15)' : (darkMap ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.03)'),
+            border: `1px solid ${isFavBus ? 'rgba(234, 179, 8, 0.4)' : (darkMap ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)')}`,
+            color: isFavBus ? '#FBBF24' : (darkMap ? '#E5E7EB' : 'var(--text-primary)'),
             fontSize: '11px',
             fontWeight: 500,
             cursor: 'pointer',
@@ -3543,8 +3552,8 @@ function MiniPopup({
             gap: '4px',
             transition: 'all 0.2s',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = isFavBus ? 'rgba(234, 179, 8, 0.22)' : 'rgba(255, 255, 255, 0.08)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = isFavBus ? 'rgba(234, 179, 8, 0.15)' : 'rgba(255, 255, 255, 0.03)'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = isFavBus ? 'rgba(234, 179, 8, 0.22)' : (darkMap ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'); }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = isFavBus ? 'rgba(234, 179, 8, 0.15)' : (darkMap ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.03)'); }}
         >
           <Star size={11} style={{ fill: isFavBus ? '#FBBF24' : 'none' }} />
           Colectivo
@@ -3556,9 +3565,9 @@ function MiniPopup({
             flex: 1,
             padding: '7px 4px',
             borderRadius: '10px',
-            background: isFavDriver ? 'rgba(236, 72, 153, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-            border: `1px solid ${isFavDriver ? 'rgba(236, 72, 153, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,
-            color: isFavDriver ? '#F472B6' : '#E5E7EB',
+            background: isFavDriver ? 'rgba(236, 72, 153, 0.15)' : (darkMap ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.03)'),
+            border: `1px solid ${isFavDriver ? 'rgba(236, 72, 153, 0.4)' : (darkMap ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)')}`,
+            color: isFavDriver ? '#F472B6' : (darkMap ? '#E5E7EB' : 'var(--text-primary)'),
             fontSize: '11px',
             fontWeight: 500,
             cursor: 'pointer',
@@ -3568,8 +3577,8 @@ function MiniPopup({
             gap: '4px',
             transition: 'all 0.2s',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = isFavDriver ? 'rgba(236, 72, 153, 0.22)' : 'rgba(255, 255, 255, 0.08)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = isFavDriver ? 'rgba(236, 72, 153, 0.15)' : 'rgba(255, 255, 255, 0.03)'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = isFavDriver ? 'rgba(236, 72, 153, 0.22)' : (darkMap ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.08)'); }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = isFavDriver ? 'rgba(236, 72, 153, 0.15)' : (darkMap ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.03)'); }}
         >
           <Heart size={11} style={{ fill: isFavDriver ? '#F472B6' : 'none' }} />
           Chofer

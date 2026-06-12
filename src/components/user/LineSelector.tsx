@@ -10,6 +10,7 @@ interface Props {
   selectedLines: BusLine[]
   onSelect: (l: BusLine) => void
   onClose: () => void
+  darkMap: boolean
 
   // Travel planner states and handlers from page.tsx:
   originInput: string
@@ -41,6 +42,7 @@ export default function LineSelector({
   selectedLines,
   onSelect,
   onClose,
+  darkMap,
   originInput,
   setOriginInput,
   destInput,
@@ -119,7 +121,7 @@ export default function LineSelector({
           <h3 className="font-display" style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '17px', letterSpacing: '-0.01em' }}>
             {tab === 'line' ? 'Elegí una línea' : tab === 'route' ? 'Planificar Recorrido' : 'Paradas Cercanas'}
           </h3>
-          <button onClick={onClose} style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(184,200,224,0.06)', border: '1px solid rgba(184,200,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <button onClick={onClose} style={{ width: '32px', height: '32px', borderRadius: '50%', background: darkMap ? 'rgba(184,200,224,0.06)' : 'rgba(0,0,0,0.03)', border: darkMap ? '1px solid rgba(184,200,224,0.1)' : '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
             <X size={14} style={{ color: 'var(--text-secondary)' }} />
           </button>
         </div>
@@ -136,12 +138,12 @@ export default function LineSelector({
                   value={q}
                   onChange={e => setQ(e.target.value)}
                   placeholder="Número o nombre de línea..."
-                  style={{ width: '100%', padding: '10px 12px 10px 34px', borderRadius: '10px', background: 'rgba(6,8,16,0.6)', border: '1px solid rgba(184,200,224,0.1)', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'DM Sans', outline: 'none', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '10px 12px 10px 34px', borderRadius: '10px', background: darkMap ? 'rgba(6,8,16,0.6)' : 'rgba(255,255,255,0.9)', border: darkMap ? '1px solid rgba(184,200,224,0.1)' : '1px solid rgba(0,0,0,0.1)', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'DM Sans', outline: 'none', boxSizing: 'border-box' }}
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 {filtered.map(line => (
-                  <LineItem key={line.id} line={line} selected={selectedLines.some(l => l.id === line.id)} onSelect={() => onSelect(line)} />
+                  <LineItem key={line.id} line={line} selected={selectedLines.some(l => l.id === line.id)} onSelect={() => onSelect(line)} darkMap={darkMap} />
                 ))}
                 {filtered.length === 0 && (
                   <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', padding: '20px 0', fontFamily: 'DM Sans' }}>Sin resultados para "{q}"</p>
@@ -176,7 +178,7 @@ export default function LineSelector({
                         placeholder="Ingresá calle y altura de Origen..."
                         style={{
                           width: '100%', padding: '9px 12px 9px 30px', borderRadius: '8px',
-                          background: 'rgba(6,8,16,0.6)', border: '1px solid rgba(184,200,224,0.1)',
+                          background: darkMap ? 'rgba(6,8,16,0.6)' : 'rgba(255,255,255,0.9)', border: darkMap ? '1px solid rgba(184,200,224,0.1)' : '1px solid rgba(0,0,0,0.1)',
                           color: 'var(--text-primary)', fontSize: '12px', fontFamily: 'DM Sans', outline: 'none', boxSizing: 'border-box'
                         }}
                       />
@@ -205,7 +207,7 @@ export default function LineSelector({
                       title="Usar mi ubicación actual"
                       style={{
                         width: '34px', height: '34px', borderRadius: '8px',
-                        background: 'rgba(184,200,224,0.06)', border: '1px solid rgba(184,200,224,0.1)',
+                        background: darkMap ? 'rgba(184,200,224,0.06)' : 'rgba(0,0,0,0.03)', border: darkMap ? '1px solid rgba(184,200,224,0.1)' : '1px solid rgba(0,0,0,0.08)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0
                       }}
                     >
@@ -221,7 +223,7 @@ export default function LineSelector({
                       title="Seleccionar en el mapa"
                       style={{
                         width: '34px', height: '34px', borderRadius: '8px',
-                        background: 'rgba(184,200,224,0.06)', border: '1px solid rgba(184,200,224,0.1)',
+                        background: darkMap ? 'rgba(184,200,224,0.06)' : 'rgba(0,0,0,0.03)', border: darkMap ? '1px solid rgba(184,200,224,0.1)' : '1px solid rgba(0,0,0,0.08)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0
                       }}
                     >
@@ -251,7 +253,7 @@ export default function LineSelector({
                         placeholder="Ingresá calle y altura de Destino..."
                         style={{
                           width: '100%', padding: '9px 12px 9px 30px', borderRadius: '8px',
-                          background: 'rgba(6,8,16,0.6)', border: '1px solid rgba(184,200,224,0.1)',
+                          background: darkMap ? 'rgba(6,8,16,0.6)' : 'rgba(255,255,255,0.9)', border: darkMap ? '1px solid rgba(184,200,224,0.1)' : '1px solid rgba(0,0,0,0.1)',
                           color: 'var(--text-primary)', fontSize: '12px', fontFamily: 'DM Sans', outline: 'none', boxSizing: 'border-box'
                         }}
                       />
@@ -266,7 +268,7 @@ export default function LineSelector({
                       title="Seleccionar en el mapa"
                       style={{
                         width: '34px', height: '34px', borderRadius: '8px',
-                        background: 'rgba(184,200,224,0.06)', border: '1px solid rgba(184,200,224,0.1)',
+                        background: darkMap ? 'rgba(184,200,224,0.06)' : 'rgba(0,0,0,0.03)', border: darkMap ? '1px solid rgba(184,200,224,0.1)' : '1px solid rgba(0,0,0,0.08)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0
                       }}
                     >
@@ -307,8 +309,8 @@ export default function LineSelector({
                           gap: '8px',
                           padding: '12px',
                           borderRadius: '10px',
-                          background: 'rgba(6,8,16,0.3)',
-                          border: `1px solid ${travelRoute.color}40`,
+                          background: darkMap ? 'rgba(6,8,16,0.3)' : 'rgba(255,255,255,0.85)',
+                          border: `1px solid ${travelRoute.color}${darkMap ? '40' : '60'}`,
                           cursor: 'pointer',
                           transition: 'all 200ms'
                         }}
@@ -352,7 +354,7 @@ export default function LineSelector({
                   <button
                     onClick={handleLocate}
                     disabled={locating}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '12px 24px', borderRadius: '12px', border: '1px solid rgba(184,200,224,0.2)', background: 'rgba(184,200,224,0.06)', color: 'var(--text-primary)', fontSize: '13px', cursor: locating ? 'default' : 'pointer', fontFamily: 'DM Sans' }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '12px 24px', borderRadius: '12px', border: darkMap ? '1px solid rgba(184,200,224,0.2)' : '1px solid rgba(0,0,0,0.12)', background: darkMap ? 'rgba(184,200,224,0.06)' : 'rgba(0,0,0,0.03)', color: 'var(--text-primary)', fontSize: '13px', cursor: locating ? 'default' : 'pointer', fontFamily: 'DM Sans' }}
                   >
                     <Navigation size={14} style={{ color: 'var(--platinum)' }} />
                     {locating ? 'Ubicando...' : 'Usar mi ubicación'}
@@ -363,7 +365,7 @@ export default function LineSelector({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <p style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'DM Mono', marginBottom: '8px' }}>Líneas que pasan cerca tuyo</p>
                   {nearbyLines.map(line => (
-                    <LineItem key={line.id} line={line} selected={selectedLines.some(l => l.id === line.id)} onSelect={() => onSelect(line)} />
+                    <LineItem key={line.id} line={line} selected={selectedLines.some(l => l.id === line.id)} onSelect={() => onSelect(line)} darkMap={darkMap} />
                   ))}
                 </div>
               )}
@@ -375,14 +377,14 @@ export default function LineSelector({
   )
 }
 
-function LineItem({ line, selected, onSelect }: { line: BusLine; selected: boolean; onSelect: () => void }) {
+function LineItem({ line, selected, onSelect, darkMap }: { line: BusLine; selected: boolean; onSelect: () => void; darkMap: boolean }) {
   return (
     <button
       onClick={onSelect}
       style={{
         display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 14px',
-        borderRadius: '12px', border: `1px solid ${selected ? `${line.color}30` : 'rgba(184,200,224,0.07)'}`,
-        background: selected ? `${line.color}08` : 'rgba(6,8,16,0.4)',
+        borderRadius: '12px', border: `1px solid ${selected ? `${line.color}30` : (darkMap ? 'rgba(184,200,224,0.07)' : 'rgba(0,0,0,0.08)')}`,
+        background: selected ? `${line.color}08` : (darkMap ? 'rgba(6,8,16,0.4)' : 'rgba(255,255,255,0.85)'),
         cursor: 'pointer', transition: 'all 150ms', textAlign: 'left', width: '100%',
       }}
     >

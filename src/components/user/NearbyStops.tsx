@@ -11,6 +11,7 @@ interface Props {
   centerCoord?: { lat: number; lng: number } | null
   onClose: () => void
   onToggleLine: (line: BusLine) => void
+  darkMap: boolean
 }
 
 function getDistanceInMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -35,7 +36,7 @@ function getDistanceText(meters: number): string {
   return `${(meters / 1000).toFixed(1)} km`
 }
 
-export default function NearbyStops({ stops, buses, selectedLines, centerCoord, onClose, onToggleLine }: Props) {
+export default function NearbyStops({ stops, buses, selectedLines, centerCoord, onClose, onToggleLine, darkMap }: Props) {
   // Extract unique lines passing through the nearby stops
   const lineIds = Array.from(new Set(stops.map(s => s.line_id)))
   const nearbyLines = MOCK_LINES.filter(l => lineIds.includes(l.id))
@@ -75,7 +76,7 @@ export default function NearbyStops({ stops, buses, selectedLines, centerCoord, 
               </p>
             </div>
           </div>
-          <button onClick={onClose} style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(184,200,224,0.06)', border: '1px solid rgba(184,200,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 200ms' }} title="Cerrar">
+          <button onClick={onClose} style={{ width: '28px', height: '28px', borderRadius: '50%', background: darkMap ? 'rgba(184,200,224,0.06)' : 'rgba(0,0,0,0.03)', border: darkMap ? '1px solid rgba(184,200,224,0.1)' : '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 200ms' }} title="Cerrar">
             <X size={12} style={{ color: 'var(--text-secondary)' }} />
           </button>
         </div>
@@ -122,8 +123,8 @@ export default function NearbyStops({ stops, buses, selectedLines, centerCoord, 
                     gap: '12px',
                     padding: '12px 14px',
                     borderRadius: '12px',
-                    background: isSelected ? 'rgba(184,200,224,0.05)' : 'rgba(6,8,16,0.4)',
-                    border: isSelected ? `1px solid ${line.color}40` : '1px solid rgba(184,200,224,0.06)',
+                    background: isSelected ? (darkMap ? 'rgba(184,200,224,0.05)' : 'rgba(0,0,0,0.02)') : (darkMap ? 'rgba(6,8,16,0.4)' : 'rgba(255,255,255,0.85)'),
+                    border: isSelected ? `1px solid ${line.color}40` : (darkMap ? '1px solid rgba(184,200,224,0.06)' : '1px solid rgba(0,0,0,0.08)'),
                     cursor: 'pointer',
                     transition: 'all 200ms',
                   }}
@@ -188,7 +189,7 @@ export default function NearbyStops({ stops, buses, selectedLines, centerCoord, 
                     width: '38px',
                     height: '20px',
                     borderRadius: '10px',
-                    background: isSelected ? 'var(--go)' : 'rgba(184,200,224,0.15)',
+                    background: isSelected ? 'var(--go)' : (darkMap ? 'rgba(184,200,224,0.15)' : 'rgba(0,0,0,0.12)'),
                     position: 'relative',
                     cursor: 'pointer',
                     transition: 'all 200ms ease',

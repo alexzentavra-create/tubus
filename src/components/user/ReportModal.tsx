@@ -15,7 +15,7 @@ const TYPES: {value:ReportType;label:string;emoji:string}[] = [
   {value:'otro',label:'Otro',emoji:'📋'},
 ]
 
-export default function ReportModal({ bus, onClose }: { bus: BusPosition; onClose: () => void }) {
+export default function ReportModal({ bus, onClose, darkMap }: { bus: BusPosition; onClose: () => void; darkMap: boolean }) {
   const supabase = createClient()
   const [type, setType] = useState<ReportType|null>(null)
   const [desc, setDesc] = useState('')
@@ -57,7 +57,7 @@ export default function ReportModal({ bus, onClose }: { bus: BusPosition; onClos
                 <div style={{color:'var(--text-muted)',fontSize:'11px',fontFamily:'DM Mono'}}>Unidad {bus.bus_unit}</div>
               </div>
             </div>
-            <button onClick={onClose} style={{width:'32px',height:'32px',borderRadius:'50%',background:'rgba(184,200,224,0.06)',border:'1px solid rgba(184,200,224,0.1)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
+            <button onClick={onClose} style={{width:'32px',height:'32px',borderRadius:'50%',background:darkMap ? 'rgba(184,200,224,0.06)' : 'rgba(0,0,0,0.03)',border:darkMap ? '1px solid rgba(184,200,224,0.1)' : '1px solid rgba(0,0,0,0.08)',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer'}}>
               <X size={14} style={{color:'var(--text-secondary)'}} />
             </button>
           </div>
@@ -66,7 +66,7 @@ export default function ReportModal({ bus, onClose }: { bus: BusPosition; onClos
               <div style={{fontSize:'10px',fontFamily:'DM Mono',letterSpacing:'0.1em',color:'var(--text-muted)',textTransform:'uppercase',marginBottom:'10px'}}>Tipo de problema</div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'7px'}}>
                 {TYPES.map(rt => (
-                  <button key={rt.value} onClick={()=>setType(rt.value)} style={{padding:'12px',borderRadius:'var(--r-sm)',border:`1px solid ${type===rt.value ? 'rgba(184,200,224,0.25)' : 'rgba(184,200,224,0.07)'}`,background: type===rt.value ? 'rgba(184,200,224,0.08)' : 'rgba(6,8,16,0.5)',textAlign:'left',cursor:'pointer',transition:'all 200ms'}}>
+                  <button key={rt.value} onClick={()=>setType(rt.value)} style={{padding:'12px',borderRadius:'var(--r-sm)',border:`1px solid ${type===rt.value ? (darkMap ? 'rgba(184,200,224,0.25)' : 'rgba(59,130,246,0.3)') : (darkMap ? 'rgba(184,200,224,0.07)' : 'rgba(0,0,0,0.08)')}`,background: type===rt.value ? (darkMap ? 'rgba(184,200,224,0.08)' : 'rgba(59,130,246,0.05)') : (darkMap ? 'rgba(6,8,16,0.5)' : 'rgba(255,255,255,0.85)'),textAlign:'left',cursor:'pointer',transition:'all 200ms'}}>
                     <div style={{fontSize:'18px',marginBottom:'4px'}}>{rt.emoji}</div>
                     <div style={{color: type===rt.value ? 'var(--platinum)' : 'var(--text-secondary)',fontSize:'11px',fontWeight:500,lineHeight:1.3}}>{rt.label}</div>
                   </button>
