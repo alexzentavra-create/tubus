@@ -481,6 +481,7 @@ export default function UserMapPage() {
   const [mapSelectionMode, setMapSelectionMode] = useState<'origin' | 'destination' | null>(null)
   const [lineSelectorTab, setLineSelectorTab] = useState<LineSelectorTab>('line')
   const [showTraffic, setShowTraffic] = useState(false)
+  const [lineSearchQuery, setLineSearchQuery] = useState('')
 
   // Helper distance function
   const distanceKm = (a: { latitude: number; longitude: number } | BusStop, b: { lat: number; lng: number }) => {
@@ -1343,7 +1344,7 @@ export default function UserMapPage() {
           <div style={{ position: 'absolute', left: '15px', top: '22px', bottom: '22px', width: '2px', background: prefs.darkMap ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', zIndex: 1 }} />
           
           {/* Origin Input Group */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 10 }}>
             <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#3B82F6', border: '1.5px solid white', flexShrink: 0, marginLeft: '11px' }} />
             <div style={{ flex: 1, position: 'relative' }}>
               <input
@@ -1379,6 +1380,13 @@ export default function UserMapPage() {
                         if (destCoord) {
                           setSolvedRoutes(solveRoutes({ lat: res.lat, lng: res.lng }, destCoord))
                         }
+                        setViewState(v => ({
+                          ...v,
+                          latitude: res.lat,
+                          longitude: res.lng,
+                          zoom: 14.5,
+                          transitionDuration: 1000
+                        }))
                       }}
                       style={{ padding: '8px 12px', fontSize: '12px', cursor: 'pointer', borderBottom: idx < originResults.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none', color: 'var(--text-primary)' }}
                     >
@@ -1404,7 +1412,7 @@ export default function UserMapPage() {
           </div>
 
           {/* Destination Input Group */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 9 }}>
             <div style={{ width: '8px', height: '8px', borderRadius: '1.5px', background: '#EF4444', border: '1.5px solid white', flexShrink: 0, marginLeft: '11px' }} />
             <div style={{ flex: 1, position: 'relative' }}>
               <input
@@ -1440,6 +1448,13 @@ export default function UserMapPage() {
                         if (originCoord) {
                           setSolvedRoutes(solveRoutes(originCoord, { lat: res.lat, lng: res.lng }))
                         }
+                        setViewState(v => ({
+                          ...v,
+                          latitude: res.lat,
+                          longitude: res.lng,
+                          zoom: 14.5,
+                          transitionDuration: 1000
+                        }))
                       }}
                       style={{ padding: '8px 12px', fontSize: '12px', cursor: 'pointer', borderBottom: idx < destResults.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none', color: 'var(--text-primary)' }}
                     >
@@ -1465,39 +1480,116 @@ export default function UserMapPage() {
           </div>
         </div>
 
-        {/* Action pills nested below inputs */}
-        <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-          <button
-            onClick={() => {
-              setLineSelectorTab('line')
-              setShowLineSelector(true)
-            }}
-            style={{
-              flex: 1, padding: '9px', borderRadius: '10px', fontSize: '12px', fontWeight: 600,
-              background: prefs.darkMap ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-              border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
-              color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
-            }}
-          >
-            <Bus size={14} />
-            <span>Por línea</span>
-          </button>
-          
-          <button
-            onClick={() => {
-              setLineSelectorTab('nearby')
-              setShowLineSelector(true)
-            }}
-            style={{
-              flex: 1, padding: '9px', borderRadius: '10px', fontSize: '12px', fontWeight: 600,
-              background: prefs.darkMap ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-              border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
-              color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
-            }}
-          >
-            <MapPin size={14} />
-            <span>Cerca mío</span>
-          </button>
+        {/* Line Search & Horizontal Circles Carousel */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'DM Mono' }}>
+              Buscar Línea de Colectivo:
+            </span>
+            {selectedLines.length > 0 && (
+              <button
+                onClick={() => {
+                  setSelectedLines([])
+                  setTrackedBusId(null)
+                  setDirectionFilter('all')
+                  setBranchFilter('all')
+                }}
+                style={{ background: 'none', border: 'none', color: '#EF4444', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
+              >
+                Limpiar Selección
+              </button>
+            )}
+          </div>
+
+          {/* Line Search Input */}
+          <div style={{ position: 'relative', width: '100%' }}>
+            <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <input
+              type="text"
+              value={lineSearchQuery}
+              onChange={e => setLineSearchQuery(e.target.value)}
+              placeholder="Escribí el número de línea..."
+              style={{
+                width: '100%', padding: '8px 12px 8px 30px', borderRadius: '10px',
+                background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                color: 'var(--text-primary)', fontSize: '13px', outline: 'none', boxSizing: 'border-box'
+              }}
+            />
+          </div>
+
+          {/* Horizontal Scroll of Circles */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'row',
+            gap: '10px',
+            overflowX: 'auto',
+            padding: '4px 2px 8px 2px',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            WebkitOverflowScrolling: 'touch',
+            width: '100%',
+            boxSizing: 'border-box'
+          }}>
+            {allLines
+              .filter(line => !line.is_tourist)
+              .filter(line => 
+                line.line_number.includes(lineSearchQuery) || 
+                line.name.toLowerCase().includes(lineSearchQuery.toLowerCase())
+              )
+              .map(line => {
+                const isSelected = selectedLines.some(l => l.id === line.id)
+                return (
+                  <button
+                    key={line.id}
+                    onClick={() => {
+                      setSelectedLines(prev => {
+                        const exists = prev.some(l => l.id === line.id)
+                        if (exists) {
+                          return prev.filter(l => l.id !== line.id)
+                        } else {
+                          // Toggle single line focus for clarity
+                          return [line]
+                        }
+                      })
+                      // Pan to line bounds
+                      const bounds = getLineBounds(line)
+                      if (bounds) {
+                        setViewState(v => ({
+                          ...v,
+                          latitude: (bounds.minLat + bounds.maxLat) / 2,
+                          longitude: (bounds.minLng + bounds.maxLng) / 2,
+                          zoom: 12.5,
+                          transitionDuration: 1000
+                        }))
+                      }
+                    }}
+                    style={{
+                      width: '46px',
+                      height: '46px',
+                      borderRadius: '50%',
+                      background: isSelected ? line.color : (prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
+                      border: `2px solid ${line.color}`,
+                      color: isSelected ? '#ffffff' : 'var(--text-primary)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 800,
+                      fontSize: '13px',
+                      fontFamily: 'DM Sans',
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      boxShadow: isSelected ? `0 0 12px ${line.color}aa` : 'none',
+                      transition: 'all 200ms',
+                      outline: 'none'
+                    }}
+                    title={line.name}
+                  >
+                    {line.line_number}
+                  </button>
+                )
+              })}
+          </div>
         </div>
 
         {/* Solved Route Options */}
@@ -1949,11 +2041,16 @@ export default function UserMapPage() {
               setOriginInput(getNearestStreetName(lat, lng))
               fetchAddressAsync(lat, lng, setOriginInput)
               setMapSelectionMode(null)
-              setLineSelectorTab('route')
-              setShowLineSelector(true)
               if (destCoord) {
-                setTravelRoute(solveRoute({ lat, lng }, destCoord))
+                setSolvedRoutes(solveRoutes({ lat, lng }, destCoord))
               }
+              setViewState(v => ({
+                ...v,
+                latitude: lat,
+                longitude: lng,
+                zoom: 14.5,
+                transitionDuration: 1000
+              }))
             } else if (mapSelectionMode === 'destination') {
               const lat = e.lngLat.lat
               const lng = e.lngLat.lng
@@ -1961,11 +2058,16 @@ export default function UserMapPage() {
               setDestInput(getNearestStreetName(lat, lng))
               fetchAddressAsync(lat, lng, setDestInput)
               setMapSelectionMode(null)
-              setLineSelectorTab('route')
-              setShowLineSelector(true)
               if (originCoord) {
-                setTravelRoute(solveRoute(originCoord, { lat, lng }))
+                setSolvedRoutes(solveRoutes(originCoord, { lat, lng }))
               }
+              setViewState(v => ({
+                ...v,
+                latitude: lat,
+                longitude: lng,
+                zoom: 14.5,
+                transitionDuration: 1000
+              }))
             } else {
               setSelectedBus(null)
             }
@@ -2162,8 +2264,21 @@ export default function UserMapPage() {
               anchor="bottom"
             >
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ background: '#3B82F6', color: 'white', fontSize: '9px', padding: '2px 6px', borderRadius: '8px', fontWeight: 'bold', marginBottom: '3px', boxShadow: '0 2px 4px rgba(0,0,0,0.4)', whiteSpace: 'nowrap' }}>Origen</div>
-                <div style={{ width: '14px', height: '14px', borderRadius: '50%', background: '#3B82F6', border: '2.5px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.4)' }} />
+                <div style={{ background: '#3B82F6', color: 'white', fontSize: '9px', padding: '2px 6px', borderRadius: '6px', fontWeight: 'bold', marginBottom: '4px', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', whiteSpace: 'nowrap' }}>Origen</div>
+                <div style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50% 50% 50% 0',
+                  background: '#3B82F6',
+                  transform: 'rotate(-45deg)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 3px 8px rgba(0,0,0,0.35)',
+                  border: '1.5px solid white'
+                }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'white' }} />
+                </div>
               </div>
             </Marker>
           )}
@@ -2187,8 +2302,21 @@ export default function UserMapPage() {
               anchor="bottom"
             >
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ background: '#111827', color: 'white', fontSize: '9px', padding: '2px 6px', borderRadius: '8px', fontWeight: 'bold', marginBottom: '3px', boxShadow: '0 2px 4px rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.2)', whiteSpace: 'nowrap' }}>Destino</div>
-                <div style={{ width: '14px', height: '14px', borderRadius: '2px', background: '#111827', border: '2.5px solid white', boxShadow: '0 2px 4px rgba(0,0,0,0.4)' }} />
+                <div style={{ background: '#EF4444', color: 'white', fontSize: '9px', padding: '2px 6px', borderRadius: '6px', fontWeight: 'bold', marginBottom: '4px', boxShadow: '0 2px 4px rgba(0,0,0,0.2)', whiteSpace: 'nowrap' }}>Destino</div>
+                <div style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50% 50% 50% 0',
+                  background: '#EF4444',
+                  transform: 'rotate(-45deg)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 3px 8px rgba(0,0,0,0.35)',
+                  border: '1.5px solid white'
+                }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'white' }} />
+                </div>
               </div>
             </Marker>
           )}

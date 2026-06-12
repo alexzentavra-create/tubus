@@ -141,12 +141,51 @@ export default function LineSelector({
                   style={{ width: '100%', padding: '10px 12px 10px 34px', borderRadius: '10px', background: darkMap ? 'rgba(6,8,16,0.6)' : 'rgba(255,255,255,0.9)', border: darkMap ? '1px solid rgba(184,200,224,0.1)' : '1px solid rgba(0,0,0,0.1)', color: 'var(--text-primary)', fontSize: '13px', fontFamily: 'DM Sans', outline: 'none', boxSizing: 'border-box' }}
                 />
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {filtered.map(line => (
-                  <LineItem key={line.id} line={line} selected={selectedLines.some(l => l.id === line.id)} onSelect={() => onSelect(line)} darkMap={darkMap} />
-                ))}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'row',
+                gap: '12px',
+                overflowX: 'auto',
+                padding: '6px 4px 12px 4px',
+                scrollbarWidth: 'none',
+                msOverflowStyle: 'none',
+                WebkitOverflowScrolling: 'touch',
+                width: '100%',
+                boxSizing: 'border-box'
+              }}>
+                {filtered.map(line => {
+                  const isSelected = selectedLines.some(l => l.id === line.id)
+                  return (
+                    <button
+                      key={line.id}
+                      onClick={() => onSelect(line)}
+                      style={{
+                        width: '50px',
+                        height: '50px',
+                        borderRadius: '50%',
+                        background: isSelected ? line.color : (darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
+                        border: `2.5px solid ${line.color}`,
+                        color: isSelected ? '#ffffff' : 'var(--text-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 800,
+                        fontSize: '14px',
+                        fontFamily: 'DM Sans',
+                        cursor: 'pointer',
+                        flexShrink: 0,
+                        boxShadow: isSelected ? `0 0 12px ${line.color}aa` : 'none',
+                        transition: 'all 200ms',
+                        outline: 'none'
+                      }}
+                      title={line.name}
+                    >
+                      {line.line_number}
+                    </button>
+                  )
+                })}
                 {filtered.length === 0 && (
-                  <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', padding: '20px 0', fontFamily: 'DM Sans' }}>Sin resultados para "{q}"</p>
+                  <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', padding: '20px 0', fontFamily: 'DM Sans', flexShrink: 0, width: '100%' }}>Sin resultados para "{q}"</p>
                 )}
               </div>
             </>
@@ -172,6 +211,13 @@ export default function LineSelector({
                           const coord = resolveStreetToCoords(e.target.value)
                           if (coord) {
                             setOriginCoord(coord)
+                            setViewState((v: any) => ({
+                              ...v,
+                              latitude: coord.lat,
+                              longitude: coord.lng,
+                              zoom: 14.5,
+                              transitionDuration: 1000
+                            }))
                             if (destCoord) setTravelRoute(solveRoute(coord, destCoord))
                           }
                         }}
@@ -197,6 +243,13 @@ export default function LineSelector({
                             setOriginCoord(coord)
                             setOriginInput(getNearestStreetName(coord.lat, coord.lng))
                             fetchAddressAsync(coord.lat, coord.lng, setOriginInput)
+                            setViewState((v: any) => ({
+                              ...v,
+                              latitude: coord.lat,
+                              longitude: coord.lng,
+                              zoom: 14.5,
+                              transitionDuration: 1000
+                            }))
                             if (destCoord) setTravelRoute(solveRoute(coord, destCoord))
                           },
                           err => {
@@ -247,6 +300,13 @@ export default function LineSelector({
                           const coord = resolveStreetToCoords(e.target.value)
                           if (coord) {
                             setDestCoord(coord)
+                            setViewState((v: any) => ({
+                              ...v,
+                              latitude: coord.lat,
+                              longitude: coord.lng,
+                              zoom: 14.5,
+                              transitionDuration: 1000
+                            }))
                             if (originCoord) setTravelRoute(solveRoute(originCoord, coord))
                           }
                         }}
