@@ -12,6 +12,8 @@ export const MOCK_LINES: BusLine[] = [
   { id: 'line-60',  line_number: '60',  name: 'Línea 60 - Constitución / Tigre',        color: '#EAB308', company: 'MONSA S.A.',       total_stops: 81,  is_active: true },
   { id: 'line-102', line_number: '102', name: 'Línea 102 - Palermo / Barracas',         color: '#3B82F6', company: 'Transportes Sargento Cabral S.C.', total_stops: 65, is_active: true },
   { id: 'line-152', line_number: '152', name: 'Línea 152 - La Boca / Olivos',          color: '#1D4ED8', company: 'Empresa Tandilense S.A.', total_stops: 129, is_active: true },
+  { id: 'line-tourist-yellow', line_number: 'T-Amarillo', name: 'Bus Turístico Amarillo', color: '#F59E0B', company: 'Buenos Aires City Tour', total_stops: 9, is_active: true, is_tourist: true },
+  { id: 'line-tourist-red', line_number: 'T-Rojo', name: 'Bus Turístico Rojo', color: '#EF4444', company: 'Gray Line Argentina', total_stops: 9, is_active: true, is_tourist: true },
 ]
 
 // Real Buenos Aires street coordinates for each line
@@ -147,3 +149,46 @@ export function getLineBounds(line: BusLine): { minLat: number; maxLat: number; 
     maxLng: Math.max(...path.map(s => s.lng)),
   }
 }
+
+export interface MockPlace {
+  id: string
+  name: string
+  lat: number
+  lng: number
+  description: string
+  rating: number
+  city: 'buenos_aires' | 'santa_cruz'
+  type: 'tourist' | 'clubbing' | 'shopping'
+}
+
+export const MOCK_PLACES: MockPlace[] = [
+  // Clubs & Bars (Buenos Aires)
+  { id: 'c-1', name: 'Niceto Club', lat: -34.5882, lng: -58.4358, rating: 4.6, city: 'buenos_aires', type: 'clubbing', description: 'Club emblemático de Palermo, famoso por sus fiestas y recitales en vivo.' },
+  { id: 'c-2', name: 'Kika Club', lat: -34.5862, lng: -58.4300, rating: 4.2, city: 'buenos_aires', type: 'clubbing', description: 'Popular club nocturno en Palermo con música electrónica y pop.' },
+  { id: 'c-3', name: 'Crobar', lat: -34.5721, lng: -58.4230, rating: 4.4, city: 'buenos_aires', type: 'clubbing', description: 'Templo de la música electrónica ubicado en los bosques de Palermo.' },
+  { id: 'c-4', name: 'Rose in Rio', lat: -34.5501, lng: -58.4201, rating: 4.5, city: 'buenos_aires', type: 'clubbing', description: 'Club premium en la Costanera Norte con vista al río y terraza al aire libre.' },
+  { id: 'c-5', name: 'Uptown', lat: -34.5855, lng: -58.4350, rating: 4.7, city: 'buenos_aires', type: 'clubbing', description: 'Bar temático oculto ambientado como una estación de subte de Nueva York.' },
+  // Clubs & Bars (Santa Cruz)
+  { id: 'c-6', name: 'Vintage Club', lat: -17.7712, lng: -63.1812, rating: 4.5, city: 'santa_cruz', type: 'clubbing', description: 'Exclusivo bar/discoteca de música crossover en la zona de Equipetrol.' },
+  { id: 'c-7', name: 'Duda Pop Bar', lat: -17.7831, lng: -63.1824, rating: 4.6, city: 'santa_cruz', type: 'clubbing', description: 'Bar de tragos con excelente ambiente y música pop/rock.' },
+
+  // Malls & Galleries (Buenos Aires)
+  { id: 'm-1', name: 'Alto Palermo Shopping', lat: -34.5887, lng: -58.4116, rating: 4.5, city: 'buenos_aires', type: 'shopping', description: 'Uno de los centros comerciales más importantes, ubicado en Palermo.' },
+  { id: 'm-2', name: 'Galerías Pacífico', lat: -34.5996, lng: -58.3750, rating: 4.7, city: 'buenos_aires', type: 'shopping', description: 'Centro comercial histórico con arquitectura majestuosa y murales artísticos.' },
+  { id: 'm-3', name: 'Abasto Shopping', lat: -34.6030, lng: -58.4110, rating: 4.4, city: 'buenos_aires', type: 'shopping', description: 'Gran shopping ubicado en el antiguo mercado de abasto, con cines y entretenimientos.' },
+  { id: 'm-4', name: 'Recoleta Mall', lat: -34.5880, lng: -58.3930, rating: 4.3, city: 'buenos_aires', type: 'shopping', description: 'Shopping moderno en el corazón de Recoleta frente al cementerio.' },
+  // Malls & Galleries (Santa Cruz)
+  { id: 'm-5', name: 'Las Brisas Shopping', lat: -17.7511, lng: -63.1750, rating: 4.6, city: 'santa_cruz', type: 'shopping', description: 'Moderno y amplio centro comercial con marcas internacionales.' },
+  { id: 'm-6', name: 'Ventura Mall', lat: -17.7700, lng: -63.1930, rating: 4.7, city: 'santa_cruz', type: 'shopping', description: 'El centro comercial más grande de la ciudad con un gran patio de comidas y tiendas.' },
+
+  // Tourist Attractions (Buenos Aires)
+  { id: 't-1', name: 'Obelisco', lat: -34.6037, lng: -58.3816, rating: 4.8, city: 'buenos_aires', type: 'tourist', description: 'Monumento nacional icónico de Buenos Aires en la Av. 9 de Julio.' },
+  { id: 't-2', name: 'Casa Rosada', lat: -34.6081, lng: -58.3703, rating: 4.7, city: 'buenos_aires', type: 'tourist', description: 'Sede del Poder Ejecutivo frente a la histórica Plaza de Mayo.' },
+  { id: 't-3', name: 'Teatro Colón', lat: -34.6011, lng: -58.3831, rating: 4.9, city: 'buenos_aires', type: 'tourist', description: 'Reconocido mundialmente por su acústica y belleza arquitectónica.' },
+  { id: 't-4', name: 'Caminito (La Boca)', lat: -34.6398, lng: -58.3628, rating: 4.6, city: 'buenos_aires', type: 'tourist', description: 'Calle peatonal famosa por sus casas de colores de chapa y conventillos.' },
+  { id: 't-5', name: 'Cementerio de Recoleta', lat: -34.5875, lng: -58.3916, rating: 4.7, city: 'buenos_aires', type: 'tourist', description: 'Museo a cielo abierto con mausoleos históricos y esculturas de mármol.' },
+  // Tourist Attractions (Santa Cruz)
+  { id: 't-6', name: 'Plaza 24 de Septiembre', lat: -17.7834, lng: -63.1819, rating: 4.7, city: 'santa_cruz', type: 'tourist', description: 'Plaza de armas histórica rodeada de cafés y la Catedral Metropolitana.' },
+  { id: 't-7', name: 'Catedral Metropolitana', lat: -17.7840, lng: -63.1820, rating: 4.8, city: 'santa_cruz', type: 'tourist', description: 'Majestuosa catedral de ladrillo visto con vista panorámica desde el mirador.' },
+  { id: 't-8', name: 'Biocentro Güembé', lat: -17.7810, lng: -63.2450, rating: 4.8, city: 'santa_cruz', type: 'tourist', description: 'Gran parque ecológico con mariposario, piscinas naturales y lagunas.' }
+]

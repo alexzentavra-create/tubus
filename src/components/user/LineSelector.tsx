@@ -72,7 +72,7 @@ export default function LineSelector({
   const [locError, setLocError] = useState<string | null>(null)
 
   const filtered = allLines.filter(
-    l => l.line_number.includes(q) || l.name.toLowerCase().includes(q.toLowerCase())
+    l => !l.is_tourist && (l.line_number.includes(q) || l.name.toLowerCase().includes(q.toLowerCase()))
   )
 
   const handleLocate = () => {
@@ -85,7 +85,7 @@ export default function LineSelector({
     }
     navigator.geolocation.getCurrentPosition(
       () => {
-        const shuffled = [...allLines].sort(() => Math.random() - 0.5).slice(0, 4)
+        const shuffled = allLines.filter(l => !l.is_tourist).sort(() => Math.random() - 0.5).slice(0, 4)
         setNearbyLines(shuffled)
         setLocating(false)
       },

@@ -44,6 +44,7 @@ export interface BusLine {
   company: string
   total_stops: number
   is_active: boolean
+  is_tourist?: boolean
 }
 
 export interface BusStop {

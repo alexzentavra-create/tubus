@@ -13,7 +13,7 @@ import { createClient } from '@/lib/supabase'
 import { OFFICIAL_ROUTES } from '@/lib/officialRoutes'
 import type { BusPosition, BusLine, BusStop } from '@/types'
 import {
-  MOCK_LINES, getLineBounds, getMockStopsForLine, getMockRoutePathsForLine
+  MOCK_LINES, getLineBounds, getMockStopsForLine, getMockRoutePathsForLine, MOCK_PLACES
 } from '@/lib/mockData'
 import ReportModal from '@/components/user/ReportModal'
 import LineSelector, { Tab as LineSelectorTab } from '@/components/user/LineSelector'
@@ -23,6 +23,145 @@ const BA = { longitude: -58.4173, latitude: -34.6037 }
 const PART1 = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTAwMTIzM29hMW5nYnB1eXcifQ'
 const PART2 = 'TyJ2Mcgiqas2N1UOCySD2g'
 const TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || `${PART1}.${PART2}`
+
+// Inject Yellow Touristic Route
+OFFICIAL_ROUTES['T-Amarillo'] = {
+  line: 'T-Amarillo',
+  routeShortName: 'T-A',
+  routeName: 'Bus Turístico Amarillo',
+  ida: {
+    headsign: 'Recorrido Amarillo',
+    path: [
+      { lat: -34.6037, lng: -58.3816 },
+      { lat: -34.5996, lng: -58.3927 },
+      { lat: -34.6176, lng: -58.3703 },
+      { lat: -34.6356, lng: -58.3647 },
+      { lat: -34.6398, lng: -58.3628 },
+      { lat: -34.6076, lng: -58.3640 },
+      { lat: -34.6083, lng: -58.3721 },
+      { lat: -34.5875, lng: -58.3916 },
+      { lat: -34.5885, lng: -58.4305 },
+      { lat: -34.6037, lng: -58.3816 }
+    ],
+    stops: [
+      { id: 'ty-1', name: 'Obelisco', lat: -34.6037, lng: -58.3816, pathIndex: 0 },
+      { id: 'ty-2', name: 'Congreso', lat: -34.5996, lng: -58.3927, pathIndex: 1 },
+      { id: 'ty-3', name: 'San Telmo', lat: -34.6176, lng: -58.3703, pathIndex: 2 },
+      { id: 'ty-4', name: 'La Bombonera', lat: -34.6356, lng: -58.3647, pathIndex: 3 },
+      { id: 'ty-5', name: 'Caminito', lat: -34.6398, lng: -58.3628, pathIndex: 4 },
+      { id: 'ty-6', name: 'Puerto Madero', lat: -34.6076, lng: -58.3640, pathIndex: 5 },
+      { id: 'ty-7', name: 'Plaza de Mayo', lat: -34.6083, lng: -58.3721, pathIndex: 6 },
+      { id: 'ty-8', name: 'Recoleta', lat: -34.5875, lng: -58.3916, pathIndex: 7 },
+      { id: 'ty-9', name: 'Palermo Soho', lat: -34.5885, lng: -58.4305, pathIndex: 8 }
+    ]
+  },
+  vuelta: {
+    headsign: 'Recorrido Amarillo',
+    path: [
+      { lat: -34.6037, lng: -58.3816 },
+      { lat: -34.5885, lng: -58.4305 },
+      { lat: -34.5875, lng: -58.3916 },
+      { lat: -34.6083, lng: -58.3721 },
+      { lat: -34.6076, lng: -58.3640 },
+      { lat: -34.6398, lng: -58.3628 },
+      { lat: -34.6356, lng: -58.3647 },
+      { lat: -34.6176, lng: -58.3703 },
+      { lat: -34.5996, lng: -58.3927 },
+      { lat: -34.6037, lng: -58.3816 }
+    ],
+    stops: [
+      { id: 'ty-9', name: 'Palermo Soho', lat: -34.5885, lng: -58.4305, pathIndex: 1 },
+      { id: 'ty-8', name: 'Recoleta', lat: -34.5875, lng: -58.3916, pathIndex: 2 },
+      { id: 'ty-7', name: 'Plaza de Mayo', lat: -34.6083, lng: -58.3721, pathIndex: 3 },
+      { id: 'ty-6', name: 'Puerto Madero', lat: -34.6076, lng: -58.3640, pathIndex: 4 },
+      { id: 'ty-5', name: 'Caminito', lat: -34.6398, lng: -58.3628, pathIndex: 5 },
+      { id: 'ty-4', name: 'La Bombonera', lat: -34.6356, lng: -58.3647, pathIndex: 6 },
+      { id: 'ty-3', name: 'San Telmo', lat: -34.6176, lng: -58.3703, pathIndex: 7 },
+      { id: 'ty-2', name: 'Congreso', lat: -34.5996, lng: -58.3927, pathIndex: 8 },
+      { id: 'ty-1', name: 'Obelisco', lat: -34.6037, lng: -58.3816, pathIndex: 9 }
+    ]
+  }
+}
+
+// Inject Red Touristic Route
+OFFICIAL_ROUTES['T-Rojo'] = {
+  line: 'T-Rojo',
+  routeShortName: 'T-R',
+  routeName: 'Bus Turístico Rojo',
+  ida: {
+    headsign: 'Recorrido Rojo',
+    path: [
+      { lat: -34.6083, lng: -58.3721 },
+      { lat: -34.6176, lng: -58.3703 },
+      { lat: -34.6398, lng: -58.3628 },
+      { lat: -34.6076, lng: -58.3640 },
+      { lat: -34.5910, lng: -58.3750 },
+      { lat: -34.5875, lng: -58.3916 },
+      { lat: -34.5711, lng: -58.4172 },
+      { lat: -34.5696, lng: -58.4116 },
+      { lat: -34.6011, lng: -58.3831 },
+      { lat: -34.6083, lng: -58.3721 }
+    ],
+    stops: [
+      { id: 'tr-1', name: 'Plaza de Mayo', lat: -34.6083, lng: -58.3721, pathIndex: 0 },
+      { id: 'tr-2', name: 'San Telmo', lat: -34.6176, lng: -58.3703, pathIndex: 1 },
+      { id: 'tr-3', name: 'Caminito', lat: -34.6398, lng: -58.3628, pathIndex: 2 },
+      { id: 'tr-4', name: 'Puerto Madero', lat: -34.6076, lng: -58.3640, pathIndex: 3 },
+      { id: 'tr-5', name: 'Retiro', lat: -34.5910, lng: -58.3750, pathIndex: 4 },
+      { id: 'tr-6', name: 'Recoleta', lat: -34.5875, lng: -58.3916, pathIndex: 5 },
+      { id: 'tr-7', name: 'Palermo Rosedal', lat: -34.5711, lng: -58.4172, pathIndex: 6 },
+      { id: 'tr-8', name: 'Planetario', lat: -34.5696, lng: -58.4116, pathIndex: 7 },
+      { id: 'tr-9', name: 'Teatro Colón', lat: -34.6011, lng: -58.3831, pathIndex: 8 }
+    ]
+  },
+  vuelta: {
+    headsign: 'Recorrido Rojo',
+    path: [
+      { lat: -34.6083, lng: -58.3721 },
+      { lat: -34.6011, lng: -58.3831 },
+      { lat: -34.5696, lng: -58.4116 },
+      { lat: -34.5711, lng: -58.4172 },
+      { lat: -34.5875, lng: -58.3916 },
+      { lat: -34.5910, lng: -58.3750 },
+      { lat: -34.6076, lng: -58.3640 },
+      { lat: -34.6398, lng: -58.3628 },
+      { lat: -34.6176, lng: -58.3703 },
+      { lat: -34.6083, lng: -58.3721 }
+    ],
+    stops: [
+      { id: 'tr-9', name: 'Teatro Colón', lat: -34.6011, lng: -58.3831, pathIndex: 1 },
+      { id: 'tr-8', name: 'Planetario', lat: -34.5696, lng: -58.4116, pathIndex: 2 },
+      { id: 'tr-7', name: 'Palermo Rosedal', lat: -34.5711, lng: -58.4172, pathIndex: 3 },
+      { id: 'tr-6', name: 'Recoleta', lat: -34.5875, lng: -58.3916, pathIndex: 4 },
+      { id: 'tr-5', name: 'Retiro', lat: -34.5910, lng: -58.3750, pathIndex: 5 },
+      { id: 'tr-4', name: 'Puerto Madero', lat: -34.6076, lng: -58.3640, pathIndex: 6 },
+      { id: 'tr-3', name: 'Caminito', lat: -34.6398, lng: -58.3628, pathIndex: 7 },
+      { id: 'tr-2', name: 'San Telmo', lat: -34.6176, lng: -58.3703, pathIndex: 8 },
+      { id: 'tr-1', name: 'Plaza de Mayo', lat: -34.6083, lng: -58.3721, pathIndex: 9 }
+    ]
+  }
+}
+
+const TOURIST_STOP_DESCRIPTIONS: Record<string, string> = {
+  'ty-1': 'Obelisco: Punto neurálgico de Buenos Aires. El monumento más icónico de la ciudad, inaugurado en 1936 en el cruce de Av. Corrientes y 9 de Julio.',
+  'ty-2': 'Congreso: Plaza e Imponente palacio legislativo del Congreso de la Nación, inaugurado en 1906 con una magnífica cúpula de bronce.',
+  'ty-3': 'San Telmo: Barrio histórico porteño. Conocido por sus calles empedradas, anticuarios, artistas callejeros y su feria de pulgas los domingos.',
+  'ty-4': 'La Bombonera: Estadio del Club Atlético Boca Juniors, inaugurado en 1940 y famoso mundialmente por su forma de caja de bombones y acústica única.',
+  'ty-5': 'Caminito: Famosa calle museo peatonal y pasaje de conventillos de chapas pintadas de colores vibrantes, que inspiró el famoso tango "Caminito".',
+  'ty-6': 'Puerto Madero: Ex-puerto reciclado convertido en el barrio más moderno y lujoso, hogar del Puente de la Mujer de Santiago Calatrava.',
+  'ty-7': 'Plaza de Mayo: Corazón histórico y político de la Nación, rodeado de la Casa Rosada, el Cabildo Colonial y la Catedral Metropolitana.',
+  'ty-8': 'Recoleta: Exclusivo cementerio de Recoleta, donde yacen importantes figuras como Evita Perón, rodeado de arquitectura francesa y cafés.',
+  'ty-9': 'Palermo Soho: Polo de diseño, moda e increíble gastronomía nocturna en el corazón del tradicional barrio de Palermo.',
+  'tr-1': 'Plaza de Mayo: Corazón histórico y político de la Nación, rodeado de la Casa Rosada, el Cabildo Colonial y la Catedral Metropolitana.',
+  'tr-2': 'San Telmo: Barrio histórico porteño. Conocido por sus calles empedradas, anticuarios, artistas callejeros y su feria de pulgas los domingos.',
+  'tr-3': 'Caminito: Famosa calle museo peatonal y pasaje de conventillos de chapas pintadas de colores vibrantes, que inspiró el famoso tango "Caminito".',
+  'tr-4': 'Puerto Madero: Ex-puerto reciclado convertido en el barrio más moderno y lujoso, hogar del Puente de la Mujer de Santiago Calatrava.',
+  'tr-5': 'Retiro: Plaza San Martín y monumento a los Caídos de Malvinas, rodeado de palacios señoriales y la estación terminal de trenes.',
+  'tr-6': 'Recoleta: Exclusivo cementerio de Recoleta, donde yacen importantes figuras como Evita Perón, rodeado de arquitectura francesa y cafés.',
+  'tr-7': 'Palermo Rosedal: Paseo de los lagos y jardín público El Rosedal, con un pintoresco puente griego y más de 18.000 flores de rosa.',
+  'tr-8': 'Planetario: Planetario Galileo Galilei, emblemático domo de divulgación de astronomía inaugurado en 1967.',
+  'tr-9': 'Teatro Colón: Uno de los teatros líricos más aclamados del mundo por su imponente acústica y fastuosa arquitectura neorrenacentista.'
+}
 
 const CARTODB_DARK = {
   version: 8,
@@ -197,10 +336,11 @@ const initializeSimulatedBuses = (availableLines: BusLine[]): SimulatedBusState[
       const path = dirObj.path
       const N = path.length
 
-      // 8 buses in each direction
-      for (let i = 0; i < 8; i++) {
-        const busIdx = direction === 'vuelta' ? i + 8 : i
-        const offset = i / 8
+      // 8 buses in each direction for normal lines, 4 for tourist lines
+      const busCount = (line as any).is_tourist ? 4 : 8
+      for (let i = 0; i < busCount; i++) {
+        const busIdx = direction === 'vuelta' ? i + busCount : i
+        const offset = i / busCount
         const pathIndex = Math.floor(N * offset)
         const pCurr = path[pathIndex]
         const pNext = path[pathIndex + 1] || pCurr
@@ -210,7 +350,8 @@ const initializeSimulatedBuses = (availableLines: BusLine[]): SimulatedBusState[
         const headingVal = ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360
 
         const passengers = 5 + Math.floor(Math.random() * 35)
-        const maxSpeed = 32 + Math.random() * 16
+        // Slow down simulated speed (14-22 km/h for standard, 12-16 km/h for tourist)
+        const maxSpeed = (line as any).is_tourist ? (12 + Math.random() * 4) : (14 + Math.random() * 8)
 
         allBuses.push({
           id: `sim-${line.id}-${direction}-${i}`,
@@ -264,6 +405,18 @@ export default function UserMapPage() {
   const [user, setUser]                     = useState<any>(null)
   const [buses, setBuses]                   = useState<BusPosition[]>([])
   const [trafficState, setTrafficState]     = useState<Record<string, { color: string, timestamp: number }>>({})
+  
+  // Uber Travel Assistant & Map Modes State
+  const [activeMode, setActiveMode] = useState<'normal' | 'tourist' | 'clubbing' | 'shopping'>('normal')
+  const [selectedCity, setSelectedCity] = useState<'buenos_aires' | 'santa_cruz'>('buenos_aires')
+  const [touristYellowSelected, setTouristYellowSelected] = useState(true)
+  const [touristRedSelected, setTouristRedSelected] = useState(true)
+  const [drawerState, setDrawerState] = useState<'collapsed' | 'half' | 'expanded'>('half')
+  const [originResults, setOriginResults] = useState<any[]>([])
+  const [destResults, setDestResults] = useState<any[]>([])
+  const [solvedRoutes, setSolvedRoutes] = useState<any[]>([])
+  const [selectedPlace, setSelectedPlace] = useState<any | null>(null)
+  const [selectedTouristStop, setSelectedTouristStop] = useState<BusStop | null>(null)
   
   // Mobile, Onboarding and Desktop-Preview states
   const [isMobile, setIsMobile]             = useState(false)
@@ -583,6 +736,96 @@ export default function UserMapPage() {
     return bestRoute
   }
 
+  // Multi-route solver
+  const solveRoutes = (origin: { lat: number; lng: number }, dest: { lat: number; lng: number }) => {
+    const activeLines = lines.length > 0 ? lines : MOCK_LINES
+    const standardLines = activeLines.filter(l => !(l as any).is_tourist)
+    const recommendations: any[] = []
+
+    standardLines.forEach(line => {
+      const stops = getMockStopsForLine(line)
+      const nearOrigin = stops.filter(stop => distanceKm({ latitude: stop.latitude, longitude: stop.longitude }, origin) < 2.0)
+      const nearDest = stops.filter(stop => distanceKm({ latitude: stop.latitude, longitude: stop.longitude }, dest) < 2.0)
+
+      if (nearOrigin.length > 0 && nearDest.length > 0) {
+        let bestPair = null
+        let minWalkDistance = Infinity
+
+        for (const stopO of nearOrigin) {
+          for (const stopD of nearDest) {
+            const walkO = distanceKm({ latitude: stopO.latitude, longitude: stopO.longitude }, origin)
+            const walkD = distanceKm({ latitude: stopD.latitude, longitude: stopD.longitude }, dest)
+            const totalWalk = walkO + walkD
+            if (totalWalk < minWalkDistance) {
+              minWalkDistance = totalWalk
+              bestPair = { stopO, stopD }
+            }
+          }
+        }
+
+        if (bestPair) {
+          recommendations.push({
+            line_id: line.id,
+            line_number: line.line_number,
+            color: line.color,
+            name: line.name,
+            originStop: bestPair.stopO,
+            destStop: bestPair.stopD,
+            walkDistance: minWalkDistance
+          })
+        }
+      }
+    })
+
+    return recommendations.sort((a, b) => a.walkDistance - b.walkDistance).slice(0, 3)
+  }
+
+  // OpenStreetMap Nominatim Live Autocomplete API
+  const fetchAutocomplete = async (text: string, isOrigin: boolean) => {
+    if (text.length < 3) {
+      if (isOrigin) setOriginResults([])
+      else setDestResults([])
+      return
+    }
+
+    const cityKey = selectedCity
+    const localFiltered = MOCK_PLACES.filter(p =>
+      p.city === cityKey &&
+      p.name.toLowerCase().includes(text.toLowerCase())
+    ).map(p => ({
+      name: p.name,
+      lat: p.lat,
+      lng: p.lng,
+      isPreset: true
+    }))
+
+    let osmResults: any[] = []
+    try {
+      const viewbox = cityKey === 'santa_cruz'
+        ? '-63.2950,-17.8920,-63.0720,-17.7010'
+        : '-58.5315,-34.7056,-58.3351,-34.5265'
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(text)}&format=json&accept-language=es&limit=5&viewbox=${viewbox}&bounded=1`
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'TuBus Travel Planner App' }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        osmResults = data.map((item: any) => ({
+          name: item.display_name.split(',').slice(0, 3).join(','),
+          lat: parseFloat(item.lat),
+          lng: parseFloat(item.lon),
+          isPreset: false
+        }))
+      }
+    } catch (e) {
+      console.error('Error fetching Nominatim search:', e)
+    }
+
+    const combined = [...localFiltered, ...osmResults].slice(0, 6)
+    if (isOrigin) setOriginResults(combined)
+    else setDestResults(combined)
+  }
+
   // ── init ──
   useEffect(() => {
     setPrefs(loadPrefs())
@@ -592,6 +835,10 @@ export default function UserMapPage() {
     const queryCity = params.get('city')
     const storedCity = localStorage.getItem('selected_city')
     const activeCity = queryCity || storedCity || 'buenos_aires'
+    
+    if (activeCity === 'santa_cruz' || activeCity === 'buenos_aires') {
+      setSelectedCity(activeCity as any)
+    }
 
     if (activeCity === 'santa_cruz') {
       setViewState(v => ({ ...v, latitude: -17.7863, longitude: -63.1812, zoom: 13, pitch: 30, bearing: 0 }))
@@ -601,8 +848,8 @@ export default function UserMapPage() {
 
     supabase.auth.getUser().then(({ data: { user } }) => { if (user) setUser(user) })
     supabase.from('bus_lines').select('*').eq('is_active', true).then(({ data }) => {
-      const ALLOWED_LINES = ['12', '28', '37', '39', '59', '60', '102', '152']
-      const availableLines = (data && data.length > 0 ? data : MOCK_LINES).filter(l => ALLOWED_LINES.includes(l.line_number))
+      const ALLOWED_LINES = ['12', '28', '37', '39', '59', '60', '102', '152', 'T-Amarillo', 'T-Rojo']
+      const availableLines = (data && data.length > 0 ? [...data, ...MOCK_LINES.filter(l => (l as any).is_tourist)] : MOCK_LINES).filter(l => ALLOWED_LINES.includes(l.line_number))
       setLines(availableLines)
       
       simulatedBusesRef.current = initializeSimulatedBuses(availableLines)
@@ -1077,7 +1324,367 @@ export default function UserMapPage() {
     }
   }) : []
 
-  const showTravelPins = travelPlannerOpen || showLineSelector || !!mapSelectionMode
+  // Render content inside the sliding travel assistant drawer
+  const renderDrawerContent = () => {
+    return (
+      <>
+        {/* Title / Where are we going? */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', margin: 0 }}>
+            ¿A dónde vamos hoy?
+          </h3>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+            Elegí origen y destino para encontrar colectivos.
+          </span>
+        </div>
+
+        {/* Inputs stacked with vertical connector */}
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ position: 'absolute', left: '15px', top: '22px', bottom: '22px', width: '2px', background: prefs.darkMap ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', zIndex: 1 }} />
+          
+          {/* Origin Input Group */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2 }}>
+            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#3B82F6', border: '1.5px solid white', flexShrink: 0, marginLeft: '11px' }} />
+            <div style={{ flex: 1, position: 'relative' }}>
+              <input
+                type="text"
+                value={originInput}
+                onChange={e => {
+                  setOriginInput(e.target.value)
+                  fetchAutocomplete(e.target.value, true)
+                }}
+                placeholder="¿Dónde te encontrás?"
+                style={{
+                  width: '100%', padding: '8px 12px', borderRadius: '10px',
+                  background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                  border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                  color: 'var(--text-primary)', fontSize: '13px', outline: 'none', boxSizing: 'border-box'
+                }}
+              />
+              {originResults.length > 0 && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
+                  background: prefs.darkMap ? '#1e293b' : '#ffffff',
+                  border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                  borderRadius: '8px', overflow: 'hidden', marginTop: '4px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                }}>
+                  {originResults.map((res: any, idx: number) => (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        setOriginInput(res.name)
+                        setOriginCoord({ lat: res.lat, lng: res.lng })
+                        setOriginResults([])
+                        if (destCoord) {
+                          setSolvedRoutes(solveRoutes({ lat: res.lat, lng: res.lng }, destCoord))
+                        }
+                      }}
+                      style={{ padding: '8px 12px', fontSize: '12px', cursor: 'pointer', borderBottom: idx < originResults.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none', color: 'var(--text-primary)' }}
+                    >
+                      📍 {res.name}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                setMapSelectionMode('origin')
+                setOriginResults([])
+              }}
+              style={{
+                background: 'rgba(59,130,246,0.12)', color: '#3B82F6', border: '1px solid rgba(59,130,246,0.25)',
+                borderRadius: '8px', padding: '8px 10px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0
+              }}
+            >
+              <MapPin size={13} />
+              <span>Pin</span>
+            </button>
+          </div>
+
+          {/* Destination Input Group */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2 }}>
+            <div style={{ width: '8px', height: '8px', borderRadius: '1.5px', background: '#EF4444', border: '1.5px solid white', flexShrink: 0, marginLeft: '11px' }} />
+            <div style={{ flex: 1, position: 'relative' }}>
+              <input
+                type="text"
+                value={destInput}
+                onChange={e => {
+                  setDestInput(e.target.value)
+                  fetchAutocomplete(e.target.value, false)
+                }}
+                placeholder="¿A dónde vamos?"
+                style={{
+                  width: '100%', padding: '8px 12px', borderRadius: '10px',
+                  background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                  border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                  color: 'var(--text-primary)', fontSize: '13px', outline: 'none', boxSizing: 'border-box'
+                }}
+              />
+              {destResults.length > 0 && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
+                  background: prefs.darkMap ? '#1e293b' : '#ffffff',
+                  border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                  borderRadius: '8px', overflow: 'hidden', marginTop: '4px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                }}>
+                  {destResults.map((res: any, idx: number) => (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        setDestInput(res.name)
+                        setDestCoord({ lat: res.lat, lng: res.lng })
+                        setDestResults([])
+                        if (originCoord) {
+                          setSolvedRoutes(solveRoutes(originCoord, { lat: res.lat, lng: res.lng }))
+                        }
+                      }}
+                      style={{ padding: '8px 12px', fontSize: '12px', cursor: 'pointer', borderBottom: idx < destResults.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none', color: 'var(--text-primary)' }}
+                    >
+                      📍 {res.name}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                setMapSelectionMode('destination')
+                setDestResults([])
+              }}
+              style={{
+                background: 'rgba(239,68,68,0.12)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.25)',
+                borderRadius: '8px', padding: '8px 10px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0
+              }}
+            >
+              <MapPin size={13} />
+              <span>Pin</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Action pills nested below inputs */}
+        <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+          <button
+            onClick={() => {
+              setLineSelectorTab('line')
+              setShowLineSelector(true)
+            }}
+            style={{
+              flex: 1, padding: '9px', borderRadius: '10px', fontSize: '12px', fontWeight: 600,
+              background: prefs.darkMap ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+              border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+              color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+            }}
+          >
+            <Bus size={14} />
+            <span>Por línea</span>
+          </button>
+          
+          <button
+            onClick={() => {
+              setLineSelectorTab('nearby')
+              setShowLineSelector(true)
+            }}
+            style={{
+              flex: 1, padding: '9px', borderRadius: '10px', fontSize: '12px', fontWeight: 600,
+              background: prefs.darkMap ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+              border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+              color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
+            }}
+          >
+            <MapPin size={14} />
+            <span>Cerca mío</span>
+          </button>
+        </div>
+
+        {/* Solved Route Options */}
+        {originCoord && destCoord && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid rgba(184,200,224,0.08)', paddingTop: '12px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'DM Mono' }}>Colectivos recomendados:</span>
+            {solvedRoutes.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {solvedRoutes.map((route: any) => {
+                  const isChecked = selectedLines.some(l => l.id === route.line_id)
+                  return (
+                    <div
+                      key={route.line_id}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px',
+                        borderRadius: '10px', background: prefs.darkMap ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                        border: `1px solid ${isChecked ? route.color : (prefs.darkMap ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)')}`,
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => {
+                        const line = allLines.find(l => l.id === route.line_id)
+                        if (!line) return
+                        setSelectedLines(prev => {
+                          const exists = prev.some(l => l.id === line.id)
+                          if (exists) {
+                            return prev.filter(l => l.id !== line.id)
+                          } else {
+                            return [...prev, line]
+                          }
+                        })
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {}}
+                        style={{ accentColor: route.color, width: '16px', height: '16px', cursor: 'pointer' }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: route.color }} />
+                          <span style={{ fontWeight: 'bold', fontSize: '13px', color: 'var(--text-primary)' }}>Línea {route.line_number}</span>
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          🚶‍♂️ Parada: {route.originStop.name} (caminando {(route.walkDistance * 1000).toFixed(0)}m)
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', fontSize: '11px', color: '#FCA5A5', textAlign: 'center' }}>
+                No se encontró conexión directa. Intentá escribir o arrastrar los pines más cerca de las avenidas principales.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Map Mode Selector (visible when drawer is expanded or on desktop) */}
+        {(drawerState === 'expanded' || !isMobile) && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid rgba(184,200,224,0.08)', paddingTop: '12px' }}>
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'DM Mono' }}>Modo de Exploración:</span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+              {([
+                { id: 'normal', label: 'Normal', emoji: '🚇' },
+                { id: 'tourist', label: 'Turismo', emoji: '🚌' },
+                { id: 'clubbing', label: 'Bares', emoji: '🍻' },
+                { id: 'shopping', label: 'Compras', emoji: '🛍️' }
+              ] as const).map(m => {
+                const active = activeMode === m.id
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => {
+                      setActiveMode(m.id)
+                      if (m.id === 'tourist') {
+                        setTouristYellowSelected(true)
+                        setTouristRedSelected(true)
+                        const yellowLine = allLines.find(l => l.line_number === 'T-Amarillo')
+                        const redLine = allLines.find(l => l.line_number === 'T-Rojo')
+                        setSelectedLines(prev => {
+                          const next = [...prev]
+                          if (yellowLine && !next.some(l => l.id === yellowLine.id)) next.push(yellowLine)
+                          if (redLine && !next.some(l => l.id === redLine.id)) next.push(redLine)
+                          return next
+                        })
+                      } else {
+                        setSelectedLines(prev => prev.filter(l => !(l as any).is_tourist))
+                      }
+                    }}
+                    style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+                      padding: '8px 4px', borderRadius: '12px', fontSize: '10px', fontWeight: 600,
+                      background: active ? 'rgba(59,130,246,0.15)' : (prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'),
+                      border: `1px solid ${active ? '#3B82F6' : (prefs.darkMap ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)')}`,
+                      color: active ? '#3B82F6' : 'var(--text-secondary)', cursor: 'pointer', transition: 'all 0.15s'
+                    }}
+                  >
+                    <span style={{ fontSize: '18px' }}>{m.emoji}</span>
+                    <span>{m.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {activeMode === 'tourist' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: prefs.darkMap ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', padding: '10px', borderRadius: '12px', border: '1px solid rgba(184,200,224,0.08)', marginTop: '4px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'DM Mono' }}>Circuitos Turísticos:</span>
+                <div style={{ display: 'flex', gap: '16px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={touristYellowSelected}
+                      onChange={e => {
+                        const checked = e.target.checked
+                        setTouristYellowSelected(checked)
+                        const line = allLines.find(l => l.line_number === 'T-Amarillo')
+                        if (line) {
+                          setSelectedLines(prev => checked ? [...prev, line] : prev.filter(l => l.id !== line.id))
+                        }
+                      }}
+                      style={{ accentColor: '#F59E0B' }}
+                    />
+                    <span>Circuito Amarillo</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer', color: 'var(--text-primary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={touristRedSelected}
+                      onChange={e => {
+                        const checked = e.target.checked
+                        setTouristRedSelected(checked)
+                        const line = allLines.find(l => l.line_number === 'T-Rojo')
+                        if (line) {
+                          setSelectedLines(prev => checked ? [...prev, line] : prev.filter(l => l.id !== line.id))
+                        }
+                      }}
+                      style={{ accentColor: '#EF4444' }}
+                    />
+                    <span>Circuito Rojo</span>
+                  </label>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Premium Advertisement Card (at the bottom when scrolling down) */}
+        {(drawerState === 'expanded' || !isMobile) && (
+          <div style={{
+            marginTop: 'auto',
+            padding: '14px',
+            borderRadius: '14px',
+            background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.1) 0%, rgba(249, 115, 22, 0.05) 100%)',
+            border: '1px solid rgba(234, 179, 8, 0.25)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            boxShadow: '0 4px 12px rgba(234, 179, 8, 0.05)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', color: '#F59E0B', fontFamily: 'DM Mono', letterSpacing: '0.06em' }}>Anuncio Premium</span>
+              <span style={{ fontSize: '8px', color: 'var(--text-muted)' }}>Patrocinado</span>
+            </div>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>
+                🍔
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>McDonald's Cuarto de Libra</div>
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>¡20% de descuento pidiendo con la app! Parada Obelisco.</div>
+              </div>
+            </div>
+            <button style={{
+              width: '100%', padding: '6px', background: '#F59E0B', color: 'black', border: 'none', borderRadius: '8px',
+              fontSize: '11px', fontWeight: 700, cursor: 'pointer', textAlign: 'center', boxShadow: '0 2px 6px rgba(245, 158, 11, 0.2)'
+            }}>
+              Pedir ahora
+            </button>
+          </div>
+        )}
+      </>
+    )
+  }
+
+  const showTravelPins = (drawerState !== 'collapsed') || showLineSelector || !!mapSelectionMode
 
   return (
     <div style={{
@@ -1428,9 +2035,39 @@ export default function UserMapPage() {
             })}
 
           {lineStops.map((stop: BusStop) => {
-            const isFav = prefs.favStops.includes(stop.id)
             const line = lines.find(l => l.id === stop.line_id)
+            const isTourist = (line as any)?.is_tourist
+            const isFav = prefs.favStops.includes(stop.id)
             const stopColor = line?.color || '#B8C8E0'
+
+            if (isTourist) {
+              return (
+                <Marker key={stop.id} longitude={stop.longitude} latitude={stop.latitude} anchor="bottom">
+                  <div
+                    onClick={() => setSelectedTouristStop(stop)}
+                    style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer',
+                      transform: 'scale(1)', transition: 'transform 0.15s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.15)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                  >
+                    <div style={{
+                      background: stopColor, color: 'white', fontSize: '9px', padding: '2px 5px',
+                      borderRadius: '6px', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.25)',
+                      border: '1px solid white', whiteSpace: 'nowrap'
+                    }}>
+                      {stop.name}
+                    </div>
+                    <div style={{
+                      width: '8px', height: '8px', borderRadius: '50%', background: stopColor,
+                      border: '1.5px solid white', marginTop: '-2px', boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                    }} />
+                  </div>
+                </Marker>
+              )
+            }
+
             return (
               <Marker key={stop.id} longitude={stop.longitude} latitude={stop.latitude} anchor="center">
                 <div
@@ -1441,6 +2078,38 @@ export default function UserMapPage() {
               </Marker>
             )
           })}
+
+          {/* Render Clubbing & Shopping Custom Markers */}
+          {(activeMode === 'clubbing' || activeMode === 'shopping') && MOCK_PLACES
+            .filter(place => place.city === selectedCity && place.type === activeMode)
+            .map(place => (
+              <Marker key={place.id} longitude={place.lng} latitude={place.lat} anchor="bottom">
+                <div
+                  onClick={() => setSelectedPlace(place)}
+                  style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer',
+                    transform: 'scale(1)', transition: 'transform 0.15s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.15)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                  <div style={{
+                    background: activeMode === 'clubbing' ? '#EC4899' : '#10B981',
+                    color: 'white', fontSize: '9px', padding: '2px 6px', borderRadius: '8px',
+                    fontWeight: 'bold', boxShadow: '0 2px 6px rgba(0,0,0,0.3)', whiteSpace: 'nowrap',
+                    border: '1.5px solid white'
+                  }}>
+                    {place.name}
+                  </div>
+                  <div style={{
+                    width: '12px', height: '12px', borderRadius: '50%',
+                    background: activeMode === 'clubbing' ? '#EC4899' : '#10B981',
+                    border: '2px solid white', marginTop: '-3px', boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                  }} />
+                </div>
+              </Marker>
+            ))
+          }
 
           {nearbyStops.map((stop: BusStop) => (
             <Marker key={stop.id} longitude={stop.longitude} latitude={stop.latitude} anchor="center">
@@ -1485,7 +2154,10 @@ export default function UserMapPage() {
                 setOriginInput(getNearestStreetName(coord.lat, coord.lng))
                 fetchAddressAsync(coord.lat, coord.lng, setOriginInput)
                 setSelectedBoardingBusId(null)
-                if (destCoord) setTravelRoute(solveRoute(coord, destCoord))
+                if (destCoord) {
+                  setTravelRoute(solveRoute(coord, destCoord))
+                  setSolvedRoutes(solveRoutes(coord, destCoord))
+                }
               }}
               anchor="bottom"
             >
@@ -1507,7 +2179,10 @@ export default function UserMapPage() {
                 setDestInput(getNearestStreetName(coord.lat, coord.lng))
                 fetchAddressAsync(coord.lat, coord.lng, setDestInput)
                 setSelectedBoardingBusId(null)
-                if (originCoord) setTravelRoute(solveRoute(originCoord, coord))
+                if (originCoord) {
+                  setTravelRoute(solveRoute(originCoord, coord))
+                  setSolvedRoutes(solveRoutes(originCoord, coord))
+                }
               }}
               anchor="bottom"
             >
@@ -1584,6 +2259,50 @@ export default function UserMapPage() {
               />
             </Popup>
           )}
+
+          {selectedPlace && (
+            <Popup
+              longitude={selectedPlace.lng}
+              latitude={selectedPlace.lat}
+              anchor="bottom"
+              offset={28}
+              closeButton={true}
+              onClose={() => setSelectedPlace(null)}
+            >
+              <div style={{
+                padding: '4px', maxWidth: '220px', fontFamily: 'DM Sans, sans-serif',
+                color: prefs.darkMap ? 'white' : 'var(--text-primary)'
+              }}>
+                <h4 style={{ fontWeight: 'bold', fontSize: '13px', margin: '0 0 4px 0' }}>{selectedPlace.name}</h4>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '0 0 6px 0', lineHeight: '1.4' }}>{selectedPlace.description}</p>
+                <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#F59E0B' }}>⭐ {selectedPlace.rating} / 5.0</div>
+              </div>
+            </Popup>
+          )}
+
+          {selectedTouristStop && (
+            <Popup
+              longitude={selectedTouristStop.longitude}
+              latitude={selectedTouristStop.latitude}
+              anchor="bottom"
+              offset={24}
+              closeButton={true}
+              onClose={() => setSelectedTouristStop(null)}
+            >
+              <div style={{
+                padding: '4px', maxWidth: '240px', fontFamily: 'DM Sans, sans-serif',
+                color: prefs.darkMap ? 'white' : 'var(--text-primary)'
+              }}>
+                <h4 style={{ fontWeight: 'bold', fontSize: '13px', margin: '0 0 4px 0' }}>{selectedTouristStop.name}</h4>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '0 0 6px 0', lineHeight: '1.4' }}>
+                  {TOURIST_STOP_DESCRIPTIONS[selectedTouristStop.id] || 'Parada turística de la ciudad.'}
+                </p>
+                <span style={{ fontSize: '9px', textTransform: 'uppercase', fontFamily: 'DM Mono', color: '#F59E0B', fontWeight: 'bold' }}>
+                  📍 Parada de Bus Turístico
+                </span>
+              </div>
+            </Popup>
+          )}
         </Map>
 
         {/* Map Selection Banner */}
@@ -1648,557 +2367,295 @@ export default function UserMapPage() {
           )}
         </AnimatePresence>
 
-        {/* ── TOP BAR (Multi-selection & Close) ── */}
-        <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
-          padding: isMobile ? '12px 12px 0' : '14px 14px 0',
-          pointerEvents: 'none', display: 'flex', justifyContent: 'center'
-        }}>
-          <motion.div
-            initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-            transition={{ type: 'spring', damping: 26, stiffness: 200 }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '10px',
-              background: (isMobile && selectedLines.length === 0)
-                ? 'transparent'
-                : (prefs.darkMap
-                    ? 'linear-gradient(145deg,rgba(19,25,33,0.97),rgba(10,14,20,0.99))'
-                    : 'linear-gradient(145deg,rgba(255,255,255,0.97),rgba(243,244,246,0.99))'),
-              backdropFilter: (isMobile && selectedLines.length === 0) ? 'none' : 'blur(24px)',
-              WebkitBackdropFilter: (isMobile && selectedLines.length === 0) ? 'none' : 'blur(24px)',
-              border: (isMobile && selectedLines.length === 0)
-                ? 'none'
-                : (prefs.darkMap ? '1px solid rgba(184,200,224,0.12)' : '1px solid rgba(0,0,0,0.08)'),
-              borderRadius: '14px',
-              padding: (isMobile && selectedLines.length === 0) ? '0' : '9px 12px',
-              boxShadow: (isMobile && selectedLines.length === 0)
-                ? 'none'
-                : (prefs.darkMap ? '0 8px 40px rgba(0,0,0,0.7)' : '0 8px 30px rgba(0,0,0,0.06)'),
-              pointerEvents: 'auto',
-              width: isMobile ? '100%' : 'auto',
-              maxWidth: isMobile ? '480px' : 'none',
-              justifyContent: (isMobile && selectedLines.length === 0) ? 'space-between' : 'flex-start'
-            }}
-          >
-            {isMobile && selectedLines.length === 0 ? (
-              <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
-                {/* Recorrido */}
-                <motion.button
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => {
-                    setLineSelectorTab('route')
-                    setShowLineSelector(true)
-                  }}
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    padding: '11px 10px',
-                    borderRadius: '12px',
-                    fontFamily: 'DM Sans, sans-serif',
-                    fontSize: '13px',
-                    fontWeight: lineSelectorTab === 'route' ? 700 : 500,
-                    cursor: 'pointer',
-                    transition: 'all 200ms',
-                    background: lineSelectorTab === 'route'
-                      ? (prefs.darkMap ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.95)')
-                      : (prefs.darkMap ? 'rgba(15, 23, 42, 0.55)' : 'rgba(255, 255, 255, 0.6)'),
-                    color: lineSelectorTab === 'route'
-                      ? 'var(--text-primary)'
-                      : 'var(--text-muted)',
-                    border: lineSelectorTab === 'route'
-                      ? (prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.22)' : '1px solid rgba(0, 0, 0, 0.15)')
-                      : (prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.06)'),
-                    boxShadow: prefs.darkMap 
-                      ? '0 4px 20px rgba(0,0,0,0.4)' 
-                      : '0 4px 12px rgba(0,0,0,0.05)',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)'
-                  }}
-                >
-                  <Route size={14} style={{ color: lineSelectorTab === 'route' ? 'var(--text-primary)' : 'var(--text-muted)' }} />
-                  <span>Recorrido</span>
-                </motion.button>
-
-                {/* Cerca mío */}
-                <motion.button
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => {
-                    setLineSelectorTab('nearby')
-                    setShowLineSelector(true)
-                  }}
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    padding: '11px 10px',
-                    borderRadius: '12px',
-                    fontFamily: 'DM Sans, sans-serif',
-                    fontSize: '13px',
-                    fontWeight: lineSelectorTab === 'nearby' ? 700 : 500,
-                    cursor: 'pointer',
-                    transition: 'all 200ms',
-                    background: lineSelectorTab === 'nearby'
-                      ? (prefs.darkMap ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.95)')
-                      : (prefs.darkMap ? 'rgba(15, 23, 42, 0.55)' : 'rgba(255, 255, 255, 0.6)'),
-                    color: lineSelectorTab === 'nearby'
-                      ? 'var(--text-primary)'
-                      : 'var(--text-muted)',
-                    border: lineSelectorTab === 'nearby'
-                      ? (prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.22)' : '1px solid rgba(0, 0, 0, 0.15)')
-                      : (prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.06)'),
-                    boxShadow: prefs.darkMap 
-                      ? '0 4px 20px rgba(0,0,0,0.4)' 
-                      : '0 4px 12px rgba(0,0,0,0.05)',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)'
-                  }}
-                >
-                  <MapPin size={14} style={{ color: lineSelectorTab === 'nearby' ? 'var(--text-primary)' : 'var(--text-muted)' }} />
-                  <span>Cerca mío</span>
-                </motion.button>
-
-                {/* Por línea */}
-                <motion.button
-                  whileTap={{ scale: 0.96 }}
-                  onClick={() => {
-                    setLineSelectorTab('line')
-                    setShowLineSelector(true)
-                  }}
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    padding: '11px 10px',
-                    borderRadius: '12px',
-                    fontFamily: 'DM Sans, sans-serif',
-                    fontSize: '13px',
-                    fontWeight: lineSelectorTab === 'line' ? 700 : 500,
-                    cursor: 'pointer',
-                    transition: 'all 200ms',
-                    background: lineSelectorTab === 'line'
-                      ? (prefs.darkMap ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.95)')
-                      : (prefs.darkMap ? 'rgba(15, 23, 42, 0.55)' : 'rgba(255, 255, 255, 0.6)'),
-                    color: lineSelectorTab === 'line'
-                      ? 'var(--text-primary)'
-                      : 'var(--text-muted)',
-                    border: lineSelectorTab === 'line'
-                      ? (prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.22)' : '1px solid rgba(0, 0, 0, 0.15)')
-                      : (prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.06)'),
-                    boxShadow: prefs.darkMap 
-                      ? '0 4px 20px rgba(0,0,0,0.4)' 
-                      : '0 4px 12px rgba(0,0,0,0.05)',
-                    backdropFilter: 'blur(20px)',
-                    WebkitBackdropFilter: 'blur(20px)'
-                  }}
-                >
-                  <Bus size={14} style={{ color: lineSelectorTab === 'line' ? 'var(--text-primary)' : 'var(--text-muted)' }} />
-                  <span>Por línea</span>
-                </motion.button>
-              </div>
-            ) : (
-              <>
-                {selectedLines.length > 0 ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', flex: 1, paddingRight: '8px', justifyContent: isMobile ? 'center' : 'flex-start' }}>
-                    {selectedLines.map(line => (
-                      <div key={line.id} style={{
-                        display: 'flex', alignItems: 'center', gap: '6px',
-                        background: prefs.darkMap ? 'rgba(184,200,224,0.06)' : 'rgba(0,0,0,0.04)',
-                        border: prefs.darkMap ? '1px solid rgba(184,200,224,0.1)' : '1px solid rgba(0,0,0,0.08)',
-                        padding: '4px 8px', borderRadius: '8px', flexShrink: 0
-                      }}>
-                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: line.color }} />
-                        <span style={{ color: 'var(--text-primary)', fontSize: '12px', fontWeight: 600 }}>Línea {line.line_number}</span>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setSelectedLines(prev => prev.filter(l => l.id !== line.id))
-                          }}
-                          style={{ background: 'none', border: 'none', color: 'rgba(184,200,224,0.6)', cursor: 'pointer', padding: '0 2px', display: 'flex', alignItems: 'center' }}
-                        >
-                          <X size={10} />
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setLineSelectorTab('line'); setShowLineSelector(true) }}
-                      style={{
-                        background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
-                        border: prefs.darkMap ? '1px dashed rgba(255,255,255,0.15)' : '1px dashed rgba(0,0,0,0.15)',
-                        color: '#9CA3AF', fontSize: '11px', padding: '4px 8px', borderRadius: '8px', cursor: 'pointer', fontWeight: 500
-                      }}
-                    >
-                      + Agregar línea
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => { setLineSelectorTab('line'); setShowLineSelector(true); }}
-                    style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: isMobile ? 'center' : 'left', justifyContent: isMobile ? 'center' : 'flex-start' }}
-                  >
-                    <Search size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-                    <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Elegí una línea...</span>
-                  </button>
-                )}
-
-                {selectedLines.length === 1 && (
-                  <button onClick={() => updatePrefs({ favBusLines: prefs.favBusLines.includes(selectedLines[0].id) ? prefs.favBusLines.filter(id => id !== selectedLines[0].id) : [...prefs.favBusLines, selectedLines[0].id] })}
-                    style={{
-                      width: '28px', height: '28px', borderRadius: '50%',
-                      background: prefs.darkMap ? 'rgba(184,200,224,0.06)' : 'rgba(0,0,0,0.04)',
-                      border: prefs.darkMap ? '1px solid rgba(184,200,224,0.1)' : '1px solid rgba(0,0,0,0.08)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0
-                    }}>
-                    <Star size={12} style={{ color: prefs.favBusLines.includes(selectedLines[0].id) ? '#F59E0B' : 'var(--text-muted)', fill: prefs.favBusLines.includes(selectedLines[0].id) ? '#F59E0B' : 'none' }} />
-                  </button>
-                )}
-
-                {buses.length > 0 && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 9px', borderRadius: '999px', background: 'rgba(34,211,160,0.08)', border: '1px solid rgba(34,211,160,0.2)', flexShrink: 0 }}>
-                    <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--go)' }} />
-                    <span style={{ color: 'var(--go)', fontSize: '11px', fontFamily: 'DM Mono', fontWeight: 600 }}>{buses.length} en ruta</span>
-                  </div>
-                )}
-              </>
-            )}
-          </motion.div>
-        </div>
-
-        {/* ── FILTER TOOLBAR (Branch & Interno selection) ── */}
+        {/* ── STACKED HEADER CONTROLS (Safe Area & Notch Compliant) ── */}
         {selectedLines.length > 0 && activePanel === 'map' && (
-          <div style={{ position: 'absolute', top: '64px', left: 0, right: 0, zIndex: 9, padding: '0 14px', pointerEvents: 'none' }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '8px', pointerEvents: 'auto',
-              background: prefs.darkMap ? 'rgba(10,14,20,0.95)' : 'rgba(255,255,255,0.95)',
-              border: prefs.darkMap ? '1px solid rgba(184,200,224,0.08)' : '1px solid rgba(0,0,0,0.08)',
-              padding: '6px 12px', borderRadius: '10px',
-              boxShadow: prefs.darkMap ? '0 4px 20px rgba(0,0,0,0.5)' : '0 4px 15px rgba(0,0,0,0.05)',
-              width: 'fit-content'
-            }}>
-              {selectedLines.some(l => l.line_number === '60') && (
-                <>
-                  <span style={{ fontSize: '11px', color: '#9CA3AF', fontFamily: 'DM Mono' }}>RAMAL:</span>
-                  <select
-                    value={branchFilter}
-                    onChange={e => { setBranchFilter(e.target.value); setTrackedBusId(null) }}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 12,
+            paddingTop: 'calc(env(safe-area-inset-top) + 12px)',
+            paddingLeft: '14px',
+            paddingRight: '14px',
+            paddingBottom: '12px',
+            pointerEvents: 'none',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '8px',
+          }}>
+            <motion.div
+              initial={{ y: -50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              style={{
+                pointerEvents: 'auto',
+                width: '100%',
+                maxWidth: isMobile ? '480px' : '640px',
+                background: prefs.darkMap ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.96)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.08)',
+                borderRadius: '16px',
+                padding: '12px 16px',
+                boxShadow: prefs.darkMap ? '0 10px 30px rgba(0,0,0,0.5)' : '0 10px 25px rgba(0,0,0,0.08)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px'
+              }}
+            >
+              {/* Line info header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    width: '12px', height: '12px', borderRadius: '50%',
+                    background: selectedLines[0].color, flexShrink: 0
+                  }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    <span style={{ fontWeight: 800, fontSize: '15px', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {selectedLines[0].name}
+                    </span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      {selectedLines[0].company}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  {/* Star/Fav */}
+                  <button
+                    onClick={() => updatePrefs({
+                      favBusLines: prefs.favBusLines.includes(selectedLines[0].id)
+                        ? prefs.favBusLines.filter(id => id !== selectedLines[0].id)
+                        : [...prefs.favBusLines, selectedLines[0].id]
+                    })}
                     style={{
-                      background: prefs.darkMap ? 'rgba(184,200,224,0.05)' : 'rgba(0,0,0,0.04)',
-                      color: 'var(--text-primary)',
-                      border: prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)',
-                      borderRadius: '6px', fontSize: '11px', padding: '3px 6px', outline: 'none'
+                      width: '32px', height: '32px', borderRadius: '50%',
+                      background: prefs.darkMap ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                      border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
                     }}
                   >
-                    <option value="all" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Todos</option>
-                    <option value="A" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Ramal A (Tigre)</option>
-                    <option value="B" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Ramal B (Escobar)</option>
+                    <Star size={14} style={{
+                      color: prefs.favBusLines.includes(selectedLines[0].id) ? '#F59E0B' : 'var(--text-muted)',
+                      fill: prefs.favBusLines.includes(selectedLines[0].id) ? '#F59E0B' : 'none'
+                    }} />
+                  </button>
+
+                  {/* Close/Cancel */}
+                  <button
+                    onClick={() => {
+                      setSelectedLines([])
+                      setTrackedBusId(null)
+                      setDirectionFilter('all')
+                      setBranchFilter('all')
+                    }}
+                    style={{
+                      width: '32px', height: '32px', borderRadius: '50%',
+                      background: '#EF444415', border: 'none', color: '#EF4444',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontWeight: 'bold'
+                    }}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Filters row (stacked on mobile) */}
+              <div style={{
+                display: 'flex',
+                flexDirection: isMobile ? 'column' : 'row',
+                gap: '8px',
+                width: '100%',
+                borderTop: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)',
+                paddingTop: '10px',
+                alignItems: isMobile ? 'stretch' : 'center'
+              }}>
+                {/* Ramal filter */}
+                {selectedLines.some(l => l.line_number === '60') && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'DM Mono', fontWeight: 600, width: '50px' }}>RAMAL:</span>
+                    <select
+                      value={branchFilter}
+                      onChange={e => { setBranchFilter(e.target.value); setTrackedBusId(null) }}
+                      style={{
+                        flex: 1,
+                        background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                        color: 'var(--text-primary)',
+                        border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                        borderRadius: '8px', fontSize: '12px', padding: '6px 8px', outline: 'none'
+                      }}
+                    >
+                      <option value="all" style={{ background: prefs.darkMap ? '#0f172a' : '#ffffff', color: 'var(--text-primary)' }}>Todos</option>
+                      <option value="A" style={{ background: prefs.darkMap ? '#0f172a' : '#ffffff', color: 'var(--text-primary)' }}>Ramal A (Tigre)</option>
+                      <option value="B" style={{ background: prefs.darkMap ? '#0f172a' : '#ffffff', color: 'var(--text-primary)' }}>Ramal B (Escobar)</option>
+                    </select>
+                  </div>
+                )}
+
+                {/* Direction filter */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'DM Mono', fontWeight: 600, width: '50px' }}>SENTIDO:</span>
+                  <select
+                    value={directionFilter}
+                    onChange={e => { setDirectionFilter(e.target.value as any); setTrackedBusId(null) }}
+                    style={{
+                      flex: 1,
+                      background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                      color: 'var(--text-primary)',
+                      border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                      borderRadius: '8px', fontSize: '12px', padding: '6px 8px', outline: 'none'
+                    }}
+                  >
+                    <option value="all" style={{ background: prefs.darkMap ? '#0f172a' : '#ffffff', color: 'var(--text-primary)' }}>Ambos sentidos</option>
+                    <option value="ida" style={{ background: prefs.darkMap ? '#0f172a' : '#ffffff', color: 'var(--text-primary)' }}>{dirLabels.ida}</option>
+                    <option value="vuelta" style={{ background: prefs.darkMap ? '#0f172a' : '#ffffff', color: 'var(--text-primary)' }}>{dirLabels.vuelta}</option>
                   </select>
-                  <div style={{ width: '1px', height: '14px', background: 'rgba(184,200,224,0.15)', margin: '0 4px' }} />
-                </>
-              )}
+                </div>
 
-              {/* Direction Outbound/Inbound Filter */}
-              <span style={{ fontSize: '11px', color: '#9CA3AF', fontFamily: 'DM Mono' }}>SENTIDO:</span>
-              <select
-                value={directionFilter}
-                onChange={e => { setDirectionFilter(e.target.value as any); setTrackedBusId(null) }}
-                style={{
-                  background: prefs.darkMap ? 'rgba(184,200,224,0.05)' : 'rgba(0,0,0,0.04)',
-                  color: 'var(--text-primary)',
-                  border: prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)',
-                  borderRadius: '6px', fontSize: '11px', padding: '3px 6px', outline: 'none', marginRight: '4px'
-                }}
-              >
-                <option value="all" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Ambos sentidos</option>
-                <option value="ida" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>{dirLabels.ida}</option>
-                <option value="vuelta" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>{dirLabels.vuelta}</option>
-              </select>
-              <div style={{ width: '1px', height: '14px', background: 'rgba(184,200,224,0.15)', margin: '0 4px' }} />
+                {/* Follow specific bus filter */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'DM Mono', fontWeight: 600, width: '50px' }}>SEGUIR:</span>
+                  <select
+                    value={trackedBusId || 'all'}
+                    onChange={e => setTrackedBusId(e.target.value === 'all' ? null : e.target.value)}
+                    style={{
+                      flex: 1,
+                      background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                      color: 'var(--text-primary)',
+                      border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                      borderRadius: '8px', fontSize: '12px', padding: '6px 8px', outline: 'none'
+                    }}
+                  >
+                    <option value="all" style={{ background: prefs.darkMap ? '#0f172a' : '#ffffff', color: 'var(--text-primary)' }}>Todos</option>
+                    {buses
+                      .filter(b => {
+                        if (b.line_number === '60' && branchFilter !== 'all' && b.ramal !== branchFilter) return false
+                        if (directionFilter !== 'all' && b.direction !== directionFilter) return false
+                        return true
+                      })
+                      .map(b => (
+                        <option key={b.id} value={b.id} style={{ background: prefs.darkMap ? '#0f172a' : '#ffffff', color: 'var(--text-primary)' }}>
+                          Interno {b.bus_unit} {b.ramal ? `(Ramal ${b.ramal})` : ''}
+                        </option>
+                      ))}
+                  </select>
+                </div>
 
-              <span style={{ fontSize: '11px', color: '#9CA3AF', fontFamily: 'DM Mono' }}>SEGUIR:</span>
-              <select
-                value={trackedBusId || 'all'}
-                onChange={e => setTrackedBusId(e.target.value === 'all' ? null : e.target.value)}
-                style={{
-                  background: prefs.darkMap ? 'rgba(184,200,224,0.05)' : 'rgba(0,0,0,0.04)',
-                  color: 'var(--text-primary)',
-                  border: prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)',
-                  borderRadius: '6px', fontSize: '11px', padding: '3px 6px', outline: 'none'
-                }}
-              >
-                <option value="all" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Todos los colectivos</option>
-                {buses
-                  .filter(b => {
-                    if (b.line_number === '60' && branchFilter !== 'all' && b.ramal !== branchFilter) return false
-                    if (directionFilter !== 'all' && b.direction !== directionFilter) return false
-                    return true
-                  })
-                  .map(b => (
-                    <option key={b.id} value={b.id} style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>
-                      Interno {b.bus_unit} {b.ramal ? `(Ramal ${b.ramal})` : ''}
-                    </option>
-                  ))}
-              </select>
-            </div>
+                {/* Active Buses Badge */}
+                {buses.length > 0 && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '5px',
+                    padding: '6px 12px', borderRadius: '8px',
+                    background: 'rgba(34,211,160,0.08)', border: '1px solid rgba(34,211,160,0.2)',
+                    alignSelf: isMobile ? 'flex-end' : 'center', flexShrink: 0
+                  }}>
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--go)' }} />
+                    <span style={{ color: 'var(--go)', fontSize: '11px', fontFamily: 'DM Mono', fontWeight: 700 }}>
+                      {buses.length} en ruta
+                    </span>
+                  </div>
+                )}
+              </div>
+            </motion.div>
           </div>
         )}
 
-        {/* ── TRAVEL PLANNER PANEL ── */}
-        <AnimatePresence>
-          {travelPlannerOpen && activePanel === 'map' && (
-            <motion.div
-              initial={{ x: -100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -100, opacity: 0 }}
+        {/* ── MOBILE UBER-STYLE DRAWER ── */}
+        {isMobile && selectedLines.length === 0 && activePanel === 'map' && (
+          <motion.div
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            onDragEnd={(event, info) => {
+              if (info.offset.y > 50) {
+                if (drawerState === 'expanded') setDrawerState('half')
+                else if (drawerState === 'half') setDrawerState('collapsed')
+              } else if (info.offset.y < -50) {
+                if (drawerState === 'collapsed') setDrawerState('half')
+                else if (drawerState === 'half') setDrawerState('expanded')
+              }
+            }}
+            animate={{
+              y: drawerState === 'collapsed' ? 'calc(100% - 70px)' : drawerState === 'half' ? 'calc(100% - 320px)' : 'calc(100% - 82%)'
+            }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: '82%',
+              background: prefs.darkMap ? '#0f172a' : '#ffffff',
+              borderTopLeftRadius: '24px',
+              borderTopRightRadius: '24px',
+              boxShadow: '0 -8px 32px rgba(0,0,0,0.15)',
+              zIndex: 11,
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              borderTop: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+              touchAction: 'none'
+            }}
+          >
+            {/* Handle bar */}
+            <div 
+              onClick={() => {
+                setDrawerState(prev => prev === 'collapsed' ? 'half' : prev === 'half' ? 'expanded' : 'collapsed')
+              }}
               style={{
-                position: 'absolute',
-                top: isMobile ? '64px' : '74px',
-                left: isMobile ? '10px' : '14px',
-                right: isMobile ? '10px' : 'auto',
-                zIndex: 11,
-                width: isMobile ? 'auto' : '320px',
-                background: prefs.darkMap
-                  ? 'linear-gradient(135deg, rgba(17, 24, 39, 0.95) 0%, rgba(10, 15, 26, 0.98) 100%)'
-                  : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(243, 244, 246, 0.98) 100%)',
-                border: prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.08)',
-                borderRadius: '16px', padding: '14px',
-                boxShadow: prefs.darkMap ? '0 10px 30px rgba(0,0,0,0.6)' : '0 10px 30px rgba(0,0,0,0.06)',
-                color: 'var(--text-primary)', display: 'flex', flexDirection: 'column', gap: '10px',
-                backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)'
+                width: '100%',
+                padding: '12px 0 10px 0',
+                display: 'flex',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                flexShrink: 0
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Asistente de Viaje</span>
-                <button onClick={() => { setTravelPlannerOpen(false); setSelectedBoardingBusId(null); }} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer' }}><X size={14} /></button>
-              </div>
-              
-              {/* Inputs stacked with connecting vertical line */}
-              <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {/* Vertical connecting line */}
-                <div style={{ position: 'absolute', left: '16px', top: '20px', bottom: '20px', width: '2px', background: prefs.darkMap ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', zIndex: 1 }} />
-                
-                {/* Origin Input */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2 }}>
-                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#3B82F6', border: '2px solid white', flexShrink: 0, marginLeft: '12px' }} />
-                  <input
-                    type="text"
-                    value={originInput}
-                    onChange={e => {
-                      setOriginInput(e.target.value)
-                      const coord = resolveStreetToCoords(e.target.value)
-                      if (coord) {
-                        setOriginCoord(coord)
-                        setSelectedBoardingBusId(null)
-                        setViewState(v => ({ ...v, latitude: coord.lat, longitude: coord.lng, zoom: 14 }))
-                        if (destCoord) setTravelRoute(solveRoute(coord, destCoord))
-                      }
-                    }}
-                    placeholder="Escribí calle de Origen (ej. Cabildo)..."
-                    style={{
-                      flex: 1, padding: '6px 10px', borderRadius: '8px',
-                      background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
-                      border: prefs.darkMap ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
-                      color: 'var(--text-primary)', fontSize: '11px', outline: 'none'
-                    }}
-                  />
-                  <button
-                    onClick={() => {
-                      const center = { lat: viewState.latitude, lng: viewState.longitude }
-                      setOriginCoord(center)
-                      setOriginInput(getNearestStreetName(center.lat, center.lng))
-                      setSelectedBoardingBusId(null)
-                      if (destCoord) setTravelRoute(solveRoute(center, destCoord))
-                    }}
-                    title="Marcar centro de mapa como origen"
-                    style={{ background: 'rgba(59,130,246,0.15)', color: '#3B82F6', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '6px', padding: '4px 6px', fontSize: '10px', cursor: 'pointer', fontWeight: 600 }}
-                  >
-                    📍 Pin
-                  </button>
-                </div>
+              <div style={{ width: '40px', height: '5px', borderRadius: '3px', background: prefs.darkMap ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)' }} />
+            </div>
 
-                {/* Destination Input */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2 }}>
-                  <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#111827', border: '2px solid white', flexShrink: 0, marginLeft: '12px' }} />
-                  <input
-                    type="text"
-                    value={destInput}
-                    onChange={e => {
-                      setDestInput(e.target.value)
-                      const coord = resolveStreetToCoords(e.target.value)
-                      if (coord) {
-                        setDestCoord(coord)
-                        setSelectedBoardingBusId(null)
-                        setViewState(v => ({ ...v, latitude: coord.lat, longitude: coord.lng, zoom: 14 }))
-                        if (originCoord) setTravelRoute(solveRoute(originCoord, coord))
-                      }
-                    }}
-                    placeholder="Escribí calle de Destino (ej. Plaza Italia)..."
-                    style={{
-                      flex: 1, padding: '6px 10px', borderRadius: '8px',
-                      background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
-                      border: prefs.darkMap ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
-                      color: 'var(--text-primary)', fontSize: '11px', outline: 'none'
-                    }}
-                  />
-                  <button
-                    onClick={() => {
-                      const center = { lat: viewState.latitude, lng: viewState.longitude }
-                      setDestCoord(center)
-                      setDestInput(getNearestStreetName(center.lat, center.lng))
-                      setSelectedBoardingBusId(null)
-                      if (originCoord) setTravelRoute(solveRoute(originCoord, center))
-                    }}
-                    title="Marcar centro de mapa como destino"
-                    style={{ background: 'rgba(17,24,39,0.15)', color: 'var(--text-primary)', border: '1px solid rgba(184,200,224,0.3)', borderRadius: '6px', padding: '4px 6px', fontSize: '10px', cursor: 'pointer', fontWeight: 600 }}
-                  >
-                    📍 Pin
-                  </button>
-                </div>
-              </div>
+            {/* Content wrapper */}
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '0 16px 20px 16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              touchAction: 'pan-y'
+            }}>
+              {renderDrawerContent()}
+            </div>
+          </motion.div>
+        )}
 
-              <div style={{ fontSize: '10px', color: '#9CA3AF', textAlign: 'center', marginTop: '2px' }}>
-                💡 Podés buscar por calle o arrastrar los pines en el mapa
-              </div>
-
-              {/* Route Result Card */}
-              {travelRoute ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
-                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '10px', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: travelRoute.color }} />
-                      <span style={{ fontWeight: 'bold' }}>Línea {travelRoute.line_number} conectada</span>
-                    </div>
-                    <div>
-                      🚶‍♂️ Caminá hasta parada: <strong>{travelRoute.originStop.name}</strong>
-                    </div>
-                    <div>
-                      🚌 Tomá el colectivo y viajá hasta: <strong>{travelRoute.destStop.name}</strong>
-                    </div>
-                  </div>
-
-                  {/* Incoming Colectivos list */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', fontFamily: 'DM Mono', letterSpacing: '0.04em' }}>Colectivos que se acercan:</span>
-                    {(() => {
-                      const isBusApproaching = (bus: BusPosition, stop: { latitude: number; longitude: number }) => {
-                        const dy = stop.latitude - bus.latitude
-                        const dx = stop.longitude - bus.longitude
-                        const angleToStop = ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360
-                        const diff = Math.abs(bus.heading - angleToStop)
-                        const circularDiff = Math.abs(((diff + 180) % 360) - 180)
-                        return circularDiff <= 90
-                      }
-
-                      const approaching = buses
-                        .filter(b => b.line_id === travelRoute.line_id)
-                        .map(b => {
-                          const dist = distanceKm(b, { lat: travelRoute.originStop.latitude, lng: travelRoute.originStop.longitude })
-                          const isComing = isBusApproaching(b, travelRoute.originStop)
-                          return { bus: b, dist, isComing }
-                        })
-                        .filter(item => {
-                          if (item.isComing) {
-                            return item.dist <= 1.0 // approaching within 1KM
-                          } else {
-                            return item.dist <= 0.4 // passed but closer than 400m
-                          }
-                        })
-                        .sort((a, b) => a.dist - b.dist)
-                        .slice(0, 3)
-
-                      if (approaching.length === 0) {
-                        return <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>El próximo colectivo está a más de 1 km de distancia</span>
-                      }
-
-                      return approaching.map(({ bus, dist, isComing }) => {
-                        const isSelected = selectedBoardingBusId === bus.id
-                        return (
-                          <div
-                            key={bus.id}
-                            onClick={() => setSelectedBoardingBusId(isSelected ? null : bus.id)}
-                            style={{
-                              padding: '8px 10px', borderRadius: '8px',
-                              background: isSelected 
-                                ? 'rgba(34,211,160,0.12)' 
-                                : 'rgba(255,255,255,0.03)',
-                              border: isSelected 
-                                ? '1px solid rgba(34,211,160,0.4)' 
-                                : '1px solid rgba(255,255,255,0.06)',
-                              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                              transition: 'all 150ms'
-                            }}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: isSelected ? 'var(--go)' : '#9CA3AF' }} />
-                              <span style={{ fontSize: '11px', fontWeight: 600 }}>
-                                Interno {bus.bus_unit} {!isComing && <span style={{ fontSize: '9px', fontWeight: 400, color: '#EF4444', marginLeft: '4px' }}>(ya pasó)</span>}
-                              </span>
-                            </div>
-                            <span style={{ fontSize: '10px', fontFamily: 'DM Mono', color: 'var(--text-secondary)' }}>
-                              {(dist * 1000).toFixed(0)}m
-                            </span>
-                          </div>
-                        )
-                      })
-                    })()}
-                  </div>
-
-                  {/* Countdown Timer Boarding Box */}
-                  {(() => {
-                    if (!selectedBoardingBusId) return null
-                    const matchingBus = buses.find(b => b.id === selectedBoardingBusId)
-                    if (!matchingBus) return null
-                    const etaStr = getETAString(matchingBus, travelRoute.originStop)
-                    const distMeters = distanceKm(matchingBus, { lat: travelRoute.originStop.latitude, lng: travelRoute.originStop.longitude }) * 1000
-                    const isArrived = distMeters < 40
-                    return (
-                      <div
-                        style={{
-                          background: isArrived ? 'rgba(34,211,160,0.15)' : 'rgba(59,130,246,0.12)',
-                          border: isArrived ? '1px solid rgba(34,211,160,0.3)' : '1px solid rgba(59,130,246,0.3)',
-                          borderRadius: '10px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '4px',
-                          alignItems: 'center', justifyContent: 'center', marginTop: '4px',
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                        }}
-                      >
-                        <span style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', color: isArrived ? 'var(--go)' : '#60A5FA', fontFamily: 'DM Mono' }}>
-                          ⏰ Cuenta regresiva (Live)
-                        </span>
-                        <span style={{ fontSize: '14px', fontWeight: 800, fontFamily: 'DM Mono', color: isArrived ? 'var(--go)' : 'white', textAlign: 'center' }}>
-                          {isArrived ? "¡Colectivo en parada!" : etaStr}
-                        </span>
-                        <span style={{ fontSize: '10px', color: 'var(--text-secondary)', textAlign: 'center' }}>
-                          Interno {matchingBus.bus_unit} - Vel: {matchingBus.speed_kmh} km/h
-                        </span>
-                      </div>
-                    )
-                  })()}
-
-                  <button
-                    onClick={() => {
-                      const line = lines.find(l => l.id === travelRoute.line_id)
-                      if (line && !selectedLines.some(l => l.id === line.id)) {
-                        setSelectedLines(prev => [...prev, line])
-                      }
-                      setViewState(v => ({ ...v, latitude: travelRoute.originStop.latitude, longitude: travelRoute.originStop.longitude, zoom: 14 }))
-                    }}
-                    style={{ width: '100%', background: `${travelRoute.color}20`, border: `1px solid ${travelRoute.color}40`, color: travelRoute.color, borderRadius: '6px', padding: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '11px', marginTop: '4px' }}
-                  >
-                    Seguir esta línea en el mapa →
-                  </button>
-                </div>
-              ) : originCoord && destCoord ? (
-                <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '10px', padding: '10px', marginTop: '6px', fontSize: '11px', color: '#FCA5A5', textAlign: 'center' }}>
-                  No se encontró conexión directa. Intentá escribir o arrastrar los pines más cerca de las avenidas principales.
-                </div>
-              ) : null}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
+        {/* ── DESKTOP UBER-STYLE PANEL ── */}
+        {!isMobile && selectedLines.length === 0 && activePanel === 'map' && (
+          <motion.div
+            initial={{ x: -100, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            style={{
+              position: 'absolute',
+              top: '74px',
+              left: '14px',
+              bottom: '14px',
+              width: '380px',
+              zIndex: 11,
+              background: prefs.darkMap ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.96)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.08)',
+              borderRadius: '16px',
+              boxShadow: prefs.darkMap ? '0 10px 30px rgba(0,0,0,0.5)' : '0 10px 25px rgba(0,0,0,0.08)',
+              display: 'flex',
+              flexDirection: 'column',
+              padding: '16px',
+              gap: '16px',
+              overflowY: 'auto'
+            }}
+          >
+            {renderDrawerContent()}
+          </motion.div>
+        )}
         {/* Unified Floating Controls right side of map */}
         {activePanel === 'map' && (
           <div style={{
@@ -2275,7 +2732,8 @@ export default function UserMapPage() {
             {/* Travel Planner Button */}
             <button
               onClick={() => {
-                setTravelPlannerOpen(prev => !prev)
+                const newDrawerState = drawerState === 'collapsed' ? 'half' : 'collapsed'
+                setDrawerState(newDrawerState)
                 setPinNearbyStopsMode(false)
                 if (!originCoord) {
                   const o = { lat: -34.6037, lng: -58.3816 }
@@ -2286,17 +2744,16 @@ export default function UserMapPage() {
                   setDestInput(getNearestStreetName(d.lat, d.lng))
                   fetchAddressAsync(o.lat, o.lng, setOriginInput)
                   fetchAddressAsync(d.lat, d.lng, setDestInput)
-                  const route = solveRoute(o, d)
-                  setTravelRoute(route)
+                  setSolvedRoutes(solveRoutes(o, d))
                 }
               }}
               style={{
                 width: '40px', height: '40px', borderRadius: '50%',
-                background: travelPlannerOpen ? '#3B82F6' : (prefs.darkMap ? 'rgba(10,14,20,0.9)' : 'rgba(255,255,255,0.9)'),
-                border: travelPlannerOpen ? '1px solid #3B82F6' : (prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)'),
+                background: drawerState !== 'collapsed' ? '#3B82F6' : (prefs.darkMap ? 'rgba(10,14,20,0.9)' : 'rgba(255,255,255,0.9)'),
+                border: drawerState !== 'collapsed' ? '1px solid #3B82F6' : (prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)'),
                 boxShadow: prefs.darkMap ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', color: travelPlannerOpen ? 'white' : 'var(--text-primary)', transition: 'all 200ms'
+                cursor: 'pointer', color: drawerState !== 'collapsed' ? 'white' : 'var(--text-primary)', transition: 'all 200ms'
               }}
               title="Planificar Viaje (Origen/Destino)"
             >
