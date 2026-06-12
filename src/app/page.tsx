@@ -99,7 +99,7 @@ interface UserPrefs {
 const DEFAULT_PREFS: UserPrefs = {
   favBusLines: [], favStops: [],
   notifyNearbyBus: true, notifyNearbyRadius: 0.5, notifyFavLines: true,
-  darkMap: true, language: 'es', fontSize: 'normal',
+  darkMap: false, language: 'es', fontSize: 'normal',
   showPassengerCount: true, autoZoomOnBus: true,
   favBuses: [], favDrivers: [],
   filterByPassengers: false,
@@ -2226,37 +2226,6 @@ export default function UserMapPage() {
               <Locate size={16} />
             </button>
 
-            {/* Traffic Layer Toggle Button */}
-            <button
-              onClick={() => {
-                if (selectedLines.length === 0) {
-                  toast('⚠️ Debés seleccionar una línea antes de poder ver el tránsito', {
-                    id: 'traffic-select-line-warning',
-                    duration: 3000,
-                    style: {
-                      background: 'rgba(255, 77, 106, 0.95)',
-                      color: '#ffffff',
-                      border: '1px solid rgba(255, 77, 106, 0.3)',
-                      fontWeight: 600,
-                    }
-                  })
-                } else {
-                  setShowTraffic(prev => !prev)
-                }
-              }}
-              style={{
-                width: '40px', height: '40px', borderRadius: '50%',
-                background: showTraffic ? '#22D3A0' : (prefs.darkMap ? 'rgba(10,14,20,0.9)' : 'rgba(255,255,255,0.9)'),
-                border: showTraffic ? '1px solid #22D3A0' : (prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)'),
-                boxShadow: prefs.darkMap ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', color: showTraffic ? '#060810' : 'var(--text-primary)', transition: 'all 200ms'
-              }}
-              title="Tránsito en tiempo real"
-            >
-              <Activity size={16} />
-            </button>
-
             {/* Pin Nearby Stops Button */}
             <button
               onClick={() => {
@@ -2387,6 +2356,23 @@ export default function UserMapPage() {
                   <SettingsPanel
                     prefs={prefs}
                     onUpdatePrefs={updatePrefs}
+                    showTraffic={showTraffic}
+                    onToggleTraffic={(val) => {
+                      if (val && selectedLines.length === 0) {
+                        toast('⚠️ Debés seleccionar una línea antes de poder ver el tránsito', {
+                          id: 'traffic-select-line-warning',
+                          duration: 3000,
+                          style: {
+                            background: 'rgba(255, 77, 106, 0.95)',
+                            color: '#ffffff',
+                            border: '1px solid rgba(255, 77, 106, 0.3)',
+                            fontWeight: 600,
+                          }
+                        })
+                      } else {
+                        setShowTraffic(val)
+                      }
+                    }}
                     onRestartOnboarding={() => {
                       localStorage.removeItem('tubus_onboarding_completed')
                       setOnboardingStep(0)
@@ -2929,11 +2915,15 @@ function FavouritesPanel({ prefs, lines, buses, onSelectLine, onUpdatePrefs, onS
 function SettingsPanel({
   prefs,
   onUpdatePrefs,
-  onRestartOnboarding
+  onRestartOnboarding,
+  showTraffic,
+  onToggleTraffic
 }: {
   prefs: UserPrefs
   onUpdatePrefs: (p: Partial<UserPrefs>) => void
   onRestartOnboarding?: () => void
+  showTraffic: boolean
+  onToggleTraffic: (val: boolean) => void
 }) {
   return (
     <div>
@@ -2981,6 +2971,8 @@ function SettingsPanel({
 
       <SectionHeader icon={<NavIcon size={13} />} title="Mapa y viaje" style={{ marginTop: '20px' }} />
       <GlassCard>
+        <ToggleRow label="Tránsito en tiempo real" value={showTraffic} onChange={onToggleTraffic} />
+        <Divider />
         <ToggleRow label="Zoom automático al tocar bus" value={prefs.autoZoomOnBus} onChange={v => onUpdatePrefs({ autoZoomOnBus: v })} />
         <Divider />
         <ToggleRow label="Mostrar cantidad de pasajeros" value={prefs.showPassengerCount} onChange={v => onUpdatePrefs({ showPassengerCount: v })} />
