@@ -3187,14 +3187,12 @@ export default function UserMapPage() {
             onDragEnd={(event, info) => {
               if (info.offset.y > 50) {
                 if (drawerState === 'expanded') setDrawerState('half')
-                else if (drawerState === 'half') setDrawerState('collapsed')
               } else if (info.offset.y < -50) {
-                if (drawerState === 'collapsed') setDrawerState('half')
-                else if (drawerState === 'half') setDrawerState('expanded')
+                if (drawerState === 'half') setDrawerState('expanded')
               }
             }}
             animate={{
-              y: drawerState === 'collapsed' ? 'calc(100% - 70px)' : drawerState === 'half' ? 'calc(100% - 320px)' : 'calc(100% - 82%)'
+              y: drawerState === 'expanded' ? 'calc(100% - 82%)' : 'calc(100% - 320px)'
             }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             style={{
@@ -3218,7 +3216,7 @@ export default function UserMapPage() {
             {/* Handle bar */}
             <div 
               onClick={() => {
-                setDrawerState(prev => prev === 'collapsed' ? 'half' : prev === 'half' ? 'expanded' : 'collapsed')
+                setDrawerState(prev => prev === 'expanded' ? 'half' : 'expanded')
               }}
               style={{
                 width: '100%',
