@@ -521,6 +521,15 @@ export default function UserMapPage() {
   const [showTraffic, setShowTraffic] = useState(false)
   const [lineSearchQuery, setLineSearchQuery] = useState('')
   const [activeTravelRoute, setActiveTravelRoute] = useState<any>(null)
+  const [userBoardedBus, setUserBoardedBus] = useState<boolean>(false)
+  const [showGotOffPrompt, setShowGotOffPrompt] = useState<boolean>(false)
+
+  useEffect(() => {
+    if (!activeTravelRoute) {
+      setUserBoardedBus(false)
+      setShowGotOffPrompt(false)
+    }
+  }, [activeTravelRoute])
   const [alarmPinMode, setAlarmPinMode] = useState(false)
   const [alarmPinCoord, setAlarmPinCoord] = useState<{ lat: number; lng: number } | null>(null)
   const [alarmSelectedLineId, setAlarmSelectedLineId] = useState<string | null>(null)
@@ -1320,12 +1329,43 @@ export default function UserMapPage() {
         : filtered
       setBuses(busesToSet)
 
+      if (userBoardedBus && trackedBusId && activeTravelRoute) {
+        const trackedBus = simulatedBusesRef.current.find(b => b.id === trackedBusId)
+        if (trackedBus) {
+          const distKm = globalDistanceKm(
+            { latitude: trackedBus.latitude, longitude: trackedBus.longitude },
+            { lat: activeTravelRoute.destStop.latitude, lng: activeTravelRoute.destStop.longitude }
+          )
+          
+          let idxD = activeTravelRoute.destStop.pathIndex
+          if (idxD === undefined) {
+            const routeKey = activeTravelRoute.line_number.replace(/^0+/, '')
+            const officialRoute = OFFICIAL_ROUTES[routeKey]
+            const pathRef = officialRoute
+              ? (activeTravelRoute.direction === 'vuelta' ? officialRoute.vuelta?.path : officialRoute.ida?.path) || []
+              : []
+            if (pathRef.length > 0) {
+              let minD = Infinity
+              pathRef.forEach((pt: any, idx: number) => {
+                const dist = Math.hypot(pt.lat - activeTravelRoute.destStop.latitude, pt.lng - activeTravelRoute.destStop.longitude)
+                if (dist < minD) { minD = dist; idxD = idx }
+              })
+            }
+          }
+
+          const passedDest = idxD !== undefined && trackedBus.pathIndex >= idxD
+          if (distKm < 0.08 || passedDest) {
+            setShowGotOffPrompt(true)
+          }
+        }
+      }
+
     }, 50)
 
     return () => {
       if (mockTickRef.current) { clearInterval(mockTickRef.current); mockTickRef.current = null }
     }
-  }, [selectedLines])
+  }, [selectedLines, activeTravelRoute, userBoardedBus, trackedBusId])
 
   // Prune expired traffic segments older than 30 minutes on a recurring schedule
   useEffect(() => {
@@ -1474,14 +1514,18 @@ export default function UserMapPage() {
       return s.route_onestop_id?.includes(line.line_number) || s.onestop_id?.includes(line.line_number)
     })
 
+    const activeDir = (activeTravelRoute && activeTravelRoute.line_id === line.id)
+      ? activeTravelRoute.direction
+      : directionFilter
+
     const paths = lineShapes.length > 0
       ? lineShapes.map(s => s.geometry.coordinates.map(([lng, lat]: any) => ({ lat, lng })))
-      : getMockRoutePathsForLine(line, directionFilter)
+      : getMockRoutePathsForLine(line, activeDir)
 
     // Slice coordinates to show ONLY the trip portion if activeTravelRoute is set for this line
     let pathsToDraw = paths
     if (activeTravelRoute && activeTravelRoute.line_id === line.id) {
-      const stops = getMockStopsForLine(line, directionFilter)
+      const stops = getMockStopsForLine(line, activeDir)
       const stopO = stops.find(s => s.id === activeTravelRoute.originStop.id)
       const stopD = stops.find(s => s.id === activeTravelRoute.destStop.id)
       
@@ -1583,7 +1627,7 @@ export default function UserMapPage() {
   // Render content inside the sliding travel assistant drawer
   const renderDrawerContent = () => {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '10px' : '14px', width: '100%' }}>
         {/* Title: TU VIAJE / YOUR TRIP */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
           <span style={{ fontSize: '14px', fontWeight: 900, color: 'var(--text-primary)', fontFamily: 'DM Sans', letterSpacing: '-0.02em', textTransform: 'uppercase' }}>
@@ -2990,6 +3034,69 @@ export default function UserMapPage() {
                           <span>{trackedBusId === upcoming.id ? 'Siguiendo...' : 'Ver en tiempo real'}</span>
                         </button>
                       </div>
+
+                      {/* Boarding/Leaving controls */}
+                      <div style={{
+                        display: 'flex',
+                        gap: '8px',
+                        marginTop: '8px',
+                        borderTop: prefs.darkMap ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.04)',
+                        paddingTop: '8px'
+                      }}>
+                        {!userBoardedBus ? (
+                          <button
+                            onClick={() => {
+                              setUserBoardedBus(true)
+                              setTrackedBusId(upcoming.id)
+                              setViewState(v => ({
+                                ...v,
+                                latitude: upcoming.latitude,
+                                longitude: upcoming.longitude,
+                                zoom: 16,
+                                transitionDuration: 1000
+                              }))
+                              toast.success(`🚶‍♂️ ¡Viaje iniciado! Siguiendo tu recorrido a bordo del Interno ${upcoming.bus_unit}`)
+                            }}
+                            style={{
+                              flex: 1, padding: '8px', borderRadius: '8px', background: '#3B82F6', color: 'white',
+                              border: 'none', fontSize: '11px', fontWeight: 800, cursor: 'pointer', display: 'flex',
+                              alignItems: 'center', justifyContent: 'center', gap: '4px'
+                            }}
+                          >
+                            🚌 Ya subí al colectivo
+                          </button>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#10B981', fontWeight: 700 }}>
+                              🟢 Viajando a bordo del Interno {upcoming.bus_unit}
+                            </div>
+                            {showGotOffPrompt && (
+                              <div style={{
+                                padding: '6px 8px', borderRadius: '6px', background: 'rgba(245,158,11,0.1)',
+                                border: '1px solid rgba(245,158,11,0.2)', fontSize: '10px', color: '#D97706', fontWeight: 500
+                              }}>
+                                🏁 ¿Llegaste a tu parada de destino?
+                              </div>
+                            )}
+                            <button
+                              onClick={() => {
+                                setUserBoardedBus(false)
+                                setShowGotOffPrompt(false)
+                                setTrackedBusId(null)
+                                setActiveTravelRoute(null)
+                                toast.success("✨ ¡Viaje terminado! Gracias por viajar con TuBus.")
+                              }}
+                              style={{
+                                width: '100%', padding: '8px', borderRadius: '8px',
+                                background: showGotOffPrompt ? '#EF4444' : '#F59E0B', color: 'white',
+                                border: 'none', fontSize: '11px', fontWeight: 800, cursor: 'pointer'
+                              }}
+                            >
+                              🛑 Ya me bajé del colectivo
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <div style={{ padding: '10px', textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)' }}>
@@ -3192,7 +3299,7 @@ export default function UserMapPage() {
               }
             }}
             animate={{
-              y: drawerState === 'expanded' ? 'calc(100% - 82%)' : 'calc(100% - 320px)'
+              y: drawerState === 'expanded' ? 'calc(100% - 90%)' : 'calc(100% - 320px)'
             }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
             style={{
@@ -3200,7 +3307,7 @@ export default function UserMapPage() {
               left: 0,
               right: 0,
               bottom: 0,
-              height: '82%',
+              height: '90%',
               background: prefs.darkMap ? '#0f172a' : '#ffffff',
               borderTopLeftRadius: '24px',
               borderTopRightRadius: '24px',
