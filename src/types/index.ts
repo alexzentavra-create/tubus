@@ -59,6 +59,7 @@ export interface BusStop {
   direction: 'ida' | 'vuelta'
   avg_wait_minutes: number
   total_daily_users: number
+  pathIndex?: number      // path coordinate alignment index
 }
 
 // ─── Live Bus Position ────────────────────────────────────────────────────────

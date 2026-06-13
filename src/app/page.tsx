@@ -1407,10 +1407,44 @@ export default function UserMapPage() {
       ? lineShapes.map(s => s.geometry.coordinates.map(([lng, lat]: any) => ({ lat, lng })))
       : getMockRoutePathsForLine(line, directionFilter)
 
+    // Slice coordinates to show ONLY the trip portion if activeTravelRoute is set for this line
+    let pathsToDraw = paths
+    if (activeTravelRoute && activeTravelRoute.line_id === line.id) {
+      const stops = getMockStopsForLine(line, directionFilter)
+      const stopO = stops.find(s => s.id === activeTravelRoute.originStop.id)
+      const stopD = stops.find(s => s.id === activeTravelRoute.destStop.id)
+      
+      // Look up pathIndex, fallback to closest segment search if undefined
+      let idxO = stopO?.pathIndex
+      let idxD = stopD?.pathIndex
+      
+      if (idxO === undefined || idxD === undefined) {
+        const pathRef = paths[0] || []
+        if (idxO === undefined && stopO) {
+          let minD = Infinity
+          pathRef.forEach((pt: any, idx: number) => {
+            const dist = Math.hypot(pt.lat - stopO.latitude, pt.lng - stopO.longitude)
+            if (dist < minD) { minD = dist; idxO = idx }
+          })
+        }
+        if (idxD === undefined && stopD) {
+          let minD = Infinity
+          pathRef.forEach((pt: any, idx: number) => {
+            const dist = Math.hypot(pt.lat - stopD.latitude, pt.lng - stopD.longitude)
+            if (dist < minD) { minD = dist; idxD = idx }
+          })
+        }
+      }
+
+      const startIdx = Math.min(idxO ?? 0, idxD ?? (paths[0]?.length ? paths[0].length - 1 : 0))
+      const endIdx = Math.max(idxO ?? 0, idxD ?? (paths[0]?.length ? paths[0].length - 1 : 0))
+      pathsToDraw = paths.map(path => path.slice(startIdx, endIdx + 1))
+    }
+
     return {
       id: `route-${line.id}`,
       color: line.color,
-      features: paths.map((path, pIdx) => ({
+      features: pathsToDraw.map((path, pIdx) => ({
         type: 'Feature' as const,
         properties: { color: line.color },
         geometry: {
@@ -1478,57 +1512,59 @@ export default function UserMapPage() {
   // Render content inside the sliding travel assistant drawer
   const renderDrawerContent = () => {
     return (
-      <>
-        {/* Title / Where are we going? */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '8px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            <h3 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', margin: 0 }}>
-              ¿A dónde vamos hoy?
-            </h3>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-              Elegí origen y destino para encontrar colectivos.
-            </span>
-          </div>
-          <button
-            onClick={() => {
-              if (originCoord && destCoord) {
-                const routes = solveRoutes(originCoord, destCoord)
-                setSolvedRoutes(routes)
-                if (routes.length > 0) {
-                  // Select the first one by default as active
-                  setActiveTravelRoute(routes[0])
-                  // Include its line in selectedLines
-                  const line = allLines.find(l => l.id === routes[0].line_id)
-                  if (line) {
-                    setSelectedLines([line])
-                  }
-                }
-                setDrawerState('half')
-                toast.success("¡Colectivos recomendados actualizados!")
-              } else {
-                toast.error("Por favor ingresá origen y destino primero.")
-              }
-            }}
-            style={{
-              background: '#22C55E', color: 'white', border: 'none', borderRadius: '18px',
-              padding: '6px 14px', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: '4px', boxShadow: '0 2px 8px rgba(34,197,94,0.3)',
-              transition: 'all 200ms', flexShrink: 0
-            }}
-            className="search-green-btn-hover"
-          >
-            <Search size={13} />
-            <span>Buscar</span>
-          </button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
+        {/* Title: TU VIAJE / YOUR TRIP */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          <span style={{ fontSize: '14px', fontWeight: 900, color: 'var(--text-primary)', fontFamily: 'DM Sans', letterSpacing: '-0.02em', textTransform: 'uppercase' }}>
+            TU VIAJE (YOUR TRIP)
+          </span>
+          {selectedLines.length > 0 && (
+            <button
+              onClick={() => {
+                setSelectedLines([])
+                setActiveTravelRoute(null)
+                setTrackedBusId(null)
+                setSolvedRoutes([])
+              }}
+              style={{ background: 'none', border: 'none', color: '#EF4444', fontSize: '11px', cursor: 'pointer', fontWeight: 700 }}
+            >
+              Limpiar
+            </button>
+          )}
         </div>
 
-        {/* Inputs stacked with vertical connector */}
-        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          <div style={{ position: 'absolute', left: '15px', top: '22px', bottom: '22px', width: '2px', background: prefs.darkMap ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', zIndex: 1 }} />
+        {/* Inputs stacked with vertical connector in a clean card */}
+        <div style={{
+          background: prefs.darkMap ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+          border: prefs.darkMap ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)',
+          borderRadius: '16px',
+          padding: '12px',
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px'
+        }}>
+          {/* Vertical connector line */}
+          <div style={{
+            position: 'absolute',
+            left: '23px',
+            top: '28px',
+            bottom: '28px',
+            width: '2px',
+            background: prefs.darkMap ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
+            zIndex: 1
+          }} />
           
-          {/* Origin Input Group */}
+          {/* Origin Input Row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 10 }}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#3B82F6', border: '1.5px solid white', flexShrink: 0, marginLeft: '11px' }} />
+            {/* Pickup human icon */}
+            <div style={{
+              width: '24px', height: '24px', borderRadius: '50%',
+              background: 'rgba(59,130,246,0.15)', color: '#3B82F6',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+            }}>
+              <User size={13} />
+            </div>
             <div style={{ flex: 1, position: 'relative' }}>
               <input
                 type="text"
@@ -1537,11 +1573,11 @@ export default function UserMapPage() {
                   setOriginInput(e.target.value)
                   fetchAutocomplete(e.target.value, true)
                 }}
-                placeholder="¿Dónde te encontrás?"
+                placeholder="Origen (¿Dónde te encontrás?)"
                 style={{
                   width: '100%', padding: '8px 12px', borderRadius: '10px',
-                  background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
-                  border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                  background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                  border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
                   color: 'var(--text-primary)', fontSize: '13px', outline: 'none', boxSizing: 'border-box'
                 }}
               />
@@ -1561,15 +1597,15 @@ export default function UserMapPage() {
                         setOriginCoord({ lat: res.lat, lng: res.lng })
                         setOriginResults([])
                         if (destCoord) {
-                          setSolvedRoutes(solveRoutes({ lat: res.lat, lng: res.lng }, destCoord))
+                          const routes = solveRoutes({ lat: res.lat, lng: res.lng }, destCoord)
+                          setSolvedRoutes(routes)
+                          if (routes.length > 0) {
+                            setActiveTravelRoute(routes[0])
+                            const line = allLines.find(l => l.id === routes[0].line_id)
+                            if (line) setSelectedLines([line])
+                          }
                         }
-                        setViewState(v => ({
-                          ...v,
-                          latitude: res.lat,
-                          longitude: res.lng,
-                          zoom: 14.5,
-                          transitionDuration: 1000
-                        }))
+                        setViewState(v => ({ ...v, latitude: res.lat, longitude: res.lng, zoom: 14.5, transitionDuration: 1000 }))
                       }}
                       style={{ padding: '8px 12px', fontSize: '12px', cursor: 'pointer', borderBottom: idx < originResults.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none', color: 'var(--text-primary)' }}
                     >
@@ -1580,23 +1616,26 @@ export default function UserMapPage() {
               )}
             </div>
             <button
-              onClick={() => {
-                setMapSelectionMode('origin')
-                setOriginResults([])
-              }}
+              onClick={() => { setMapSelectionMode('origin'); setOriginResults([]) }}
               style={{
                 background: 'rgba(59,130,246,0.12)', color: '#3B82F6', border: '1px solid rgba(59,130,246,0.25)',
-                borderRadius: '8px', padding: '8px 10px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0
+                borderRadius: '8px', padding: '8px 10px', fontSize: '12px', cursor: 'pointer', flexShrink: 0
               }}
             >
-              <MapPin size={13} />
-              <span>Pin</span>
+              Pin
             </button>
           </div>
 
-          {/* Destination Input Group */}
+          {/* Destination Input Row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 9 }}>
-            <div style={{ width: '8px', height: '8px', borderRadius: '1.5px', background: '#EF4444', border: '1.5px solid white', flexShrink: 0, marginLeft: '11px' }} />
+            {/* Checkered flag icon */}
+            <div style={{
+              width: '24px', height: '24px', borderRadius: '50%',
+              background: 'rgba(239,68,68,0.15)', color: '#EF4444',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+            }}>
+              <NavIcon size={12} style={{ transform: 'rotate(45deg)' }} />
+            </div>
             <div style={{ flex: 1, position: 'relative' }}>
               <input
                 type="text"
@@ -1605,11 +1644,11 @@ export default function UserMapPage() {
                   setDestInput(e.target.value)
                   fetchAutocomplete(e.target.value, false)
                 }}
-                placeholder="¿A dónde vamos?"
+                placeholder="Destino (¿A dónde vamos?)"
                 style={{
                   width: '100%', padding: '8px 12px', borderRadius: '10px',
-                  background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
-                  border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                  background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                  border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
                   color: 'var(--text-primary)', fontSize: '13px', outline: 'none', boxSizing: 'border-box'
                 }}
               />
@@ -1629,15 +1668,15 @@ export default function UserMapPage() {
                         setDestCoord({ lat: res.lat, lng: res.lng })
                         setDestResults([])
                         if (originCoord) {
-                          setSolvedRoutes(solveRoutes(originCoord, { lat: res.lat, lng: res.lng }))
+                          const routes = solveRoutes(originCoord, { lat: res.lat, lng: res.lng })
+                          setSolvedRoutes(routes)
+                          if (routes.length > 0) {
+                            setActiveTravelRoute(routes[0])
+                            const line = allLines.find(l => l.id === routes[0].line_id)
+                            if (line) setSelectedLines([line])
+                          }
                         }
-                        setViewState(v => ({
-                          ...v,
-                          latitude: res.lat,
-                          longitude: res.lng,
-                          zoom: 14.5,
-                          transitionDuration: 1000
-                        }))
+                        setViewState(v => ({ ...v, latitude: res.lat, longitude: res.lng, zoom: 14.5, transitionDuration: 1000 }))
                       }}
                       style={{ padding: '8px 12px', fontSize: '12px', cursor: 'pointer', borderBottom: idx < destResults.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none', color: 'var(--text-primary)' }}
                     >
@@ -1648,119 +1687,93 @@ export default function UserMapPage() {
               )}
             </div>
             <button
-              onClick={() => {
-                setMapSelectionMode('destination')
-                setDestResults([])
-              }}
+              onClick={() => { setMapSelectionMode('destination'); setDestResults([]) }}
               style={{
                 background: 'rgba(239,68,68,0.12)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.25)',
-                borderRadius: '8px', padding: '8px 10px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0
+                borderRadius: '8px', padding: '8px 10px', fontSize: '12px', cursor: 'pointer', flexShrink: 0
               }}
             >
-              <MapPin size={13} />
-              <span>Pin</span>
+              Pin
             </button>
           </div>
         </div>
 
-        {/* Action pills restored below inputs */}
-        <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-          <button
-            onClick={() => {
-              setLineSelectorTab('line')
-              setShowLineSelector(true)
-            }}
-            style={{
-              flex: 1, padding: '9px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: 600,
-              background: prefs.darkMap ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-              border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
-              color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-              transition: 'all 200ms'
-            }}
-          >
-            <Bus size={14} />
-            <span>Por línea</span>
-          </button>
-          
-          <button
-            onClick={() => {
-              setLineSelectorTab('nearby')
-              setShowLineSelector(true)
-            }}
-            style={{
-              flex: 1, padding: '9px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: 600,
-              background: prefs.darkMap ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-              border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
-              color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-              transition: 'all 200ms'
-            }}
-          >
-            <MapPin size={14} />
-            <span>Cerca mío</span>
-          </button>
+        {/* Mode Selector Row (Normal, Turismo, Bares, Compras) - Yango Pill Tabs style */}
+        <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px', scrollbarWidth: 'none' }}>
+          {([
+            { id: 'normal', label: 'Normal' },
+            { id: 'tourist', label: 'Turismo' },
+            { id: 'clubbing', label: 'Bares' },
+            { id: 'shopping', label: 'Compras' }
+          ] as const).map(m => {
+            const active = activeMode === m.id
+            return (
+              <button
+                key={m.id}
+                onClick={() => {
+                  setActiveMode(m.id)
+                  if (m.id === 'tourist') {
+                    setTouristYellowSelected(true)
+                    setTouristRedSelected(true)
+                    const yellowLine = allLines.find(l => l.line_number === 'T-Amarillo')
+                    const redLine = allLines.find(l => l.line_number === 'T-Rojo')
+                    setSelectedLines(prev => {
+                      const next = [...prev]
+                      if (yellowLine && !next.some(l => l.id === yellowLine.id)) next.push(yellowLine)
+                      if (redLine && !next.some(l => l.id === redLine.id)) next.push(redLine)
+                      return next
+                    })
+                  } else {
+                    setSelectedLines(prev => prev.filter(l => !(l as any).is_tourist))
+                    setActiveTravelRoute(null)
+                  }
+                }}
+                style={{
+                  padding: '6px 14px', borderRadius: '20px', fontSize: '11px', fontWeight: 700,
+                  background: active 
+                    ? 'var(--text-primary)' 
+                    : (prefs.darkMap ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+                  border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                  color: active 
+                    ? (prefs.darkMap ? '#000000' : '#ffffff') 
+                    : 'var(--text-secondary)',
+                  cursor: 'pointer', transition: 'all 150ms', flexShrink: 0
+                }}
+              >
+                {m.label}
+              </button>
+            )
+          })}
         </div>
 
-                {/* Line Search & Horizontal Circles Carousel */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'DM Mono' }}>
-              Buscar Línea de Colectivo:
-            </span>
-            {selectedLines.length > 0 && (
-              <button
-                onClick={() => {
-                  setSelectedLines([])
-                  setTrackedBusId(null)
-                  setDirectionFilter('all')
-                  setBranchFilter('all')
-                }}
-                style={{ background: 'none', border: 'none', color: '#EF4444', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
-              >
-                Limpiar Selección
-              </button>
-            )}
-          </div>
-
-          {/* Line Search Input */}
-          <div style={{ position: 'relative', width: '100%' }}>
-            <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-            <input
-              type="text"
-              value={lineSearchQuery}
-              onChange={e => setLineSearchQuery(e.target.value)}
-              placeholder="Escribí el número de línea..."
-              style={{
-                width: '100%', padding: '8px 12px 8px 30px', borderRadius: '10px',
-                background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
-                border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
-                color: 'var(--text-primary)', fontSize: '13px', outline: 'none', boxSizing: 'border-box'
-              }}
-            />
-          </div>
-
-          {/* Horizontal Scroll of Circles */}
+        {/* Bus Line selector - replaced car types scroll */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', fontFamily: 'DM Mono', textTransform: 'uppercase' }}>
+            {solvedRoutes.length > 0 ? 'Líneas recomendadas' : 'Líneas disponibles'}
+          </span>
           <div style={{
-            display: 'flex',
-            flexDirection: 'row',
-            gap: '10px',
-            overflowX: 'auto',
-            padding: '4px 2px 8px 2px',
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-            WebkitOverflowScrolling: 'touch',
-            width: '100%',
-            boxSizing: 'border-box'
+            display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '8px',
+            scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch'
           }}>
-            {allLines
-              .filter(line => !line.is_tourist)
-              .filter(line => 
-                line.line_number.includes(lineSearchQuery) || 
-                line.name.toLowerCase().includes(lineSearchQuery.toLowerCase())
-              )
-              .map(line => {
+            {(() => {
+              const activeLines = lines.length > 0 ? lines : MOCK_LINES
+              const linesToDisplay = solvedRoutes.length > 0
+                ? solvedRoutes.map(r => ({
+                    ...r,
+                    line: activeLines.find(l => l.id === r.line_id)
+                  })).filter(r => r.line !== undefined)
+                : activeLines.filter(line => {
+                    if (activeMode === 'tourist') return line.is_tourist
+                    return !line.is_tourist
+                  })
+
+              return linesToDisplay.map((item: any) => {
+                const line = item.line || item
                 const isSelected = selectedLines.some(l => l.id === line.id)
+                const eta = item.originStop ? calculateRouteTimeMinutes(item, allLines) : null
+                
                 return (
-                  <button
+                  <div
                     key={line.id}
                     onClick={() => {
                       setSelectedLines(prev => {
@@ -1768,200 +1781,111 @@ export default function UserMapPage() {
                         if (exists) {
                           return prev.filter(l => l.id !== line.id)
                         } else {
-                          // Toggle single line focus for clarity
-                          return [line]
+                          return [...prev, line]
                         }
                       })
-                      // Pan to line bounds
-                      const bounds = getLineBounds(line)
-                      if (bounds) {
-                        setViewState(v => ({
-                          ...v,
-                          latitude: (bounds.minLat + bounds.maxLat) / 2,
-                          longitude: (bounds.minLng + bounds.maxLng) / 2,
-                          zoom: 12.5,
-                          transitionDuration: 1000
-                        }))
+                      if (item.originStop) {
+                        setActiveTravelRoute((prev: any) => prev?.line_id === item.line_id ? null : item)
                       }
                     }}
                     style={{
-                      width: '46px',
-                      height: '46px',
-                      borderRadius: '50%',
-                      background: isSelected ? line.color : (prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)'),
-                      border: `2px solid ${line.color}`,
-                      color: isSelected ? '#ffffff' : 'var(--text-primary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 800,
-                      fontSize: '13px',
-                      fontFamily: 'DM Sans',
-                      cursor: 'pointer',
                       flexShrink: 0,
-                      boxShadow: isSelected ? `0 0 12px ${line.color}aa` : 'none',
+                      width: '105px',
+                      padding: '10px 8px',
+                      borderRadius: '12px',
+                      background: isSelected 
+                        ? (prefs.darkMap ? 'rgba(34,211,160,0.1)' : 'rgba(34,211,160,0.06)') 
+                        : (prefs.darkMap ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'),
+                      border: `2.5px solid ${isSelected ? line.color : (prefs.darkMap ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)')}`,
+                      boxShadow: isSelected ? `0 4px 12px ${line.color}33` : 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '6px',
                       transition: 'all 200ms',
-                      outline: 'none'
+                      boxSizing: 'border-box'
                     }}
-                    title={line.name}
                   >
-                    {line.line_number}
-                  </button>
+                    <div style={{
+                      width: '32px', height: '32px', borderRadius: '50%',
+                      background: line.color, display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', color: 'white', boxShadow: `0 2px 6px ${line.color}66`
+                    }}>
+                      <Bus size={16} />
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                        Línea {line.line_number}
+                      </div>
+                      <div style={{ fontSize: '9px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '85px' }}>
+                        {eta ? `~${eta} min` : `${line.total_stops} paradas`}
+                      </div>
+                    </div>
+                  </div>
                 )
-              })}
+              })
+            })()}
           </div>
         </div>
 
-        {/* Solved Route Options */}
-        {originCoord && destCoord && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid rgba(184,200,224,0.08)', paddingTop: '12px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'DM Mono' }}>Colectivos recomendados:</span>
-            {solvedRoutes.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {solvedRoutes.map((route: any) => {
-                  const isChecked = selectedLines.some(l => l.id === route.line_id)
-                  return (
-                    <div
-                      key={route.line_id}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px',
-                        borderRadius: '10px', background: prefs.darkMap ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-                        border: `1px solid ${isChecked ? route.color : (prefs.darkMap ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)')}`,
-                        cursor: 'pointer'
-                      }}
-                      onClick={() => {
-                        const line = allLines.find(l => l.id === route.line_id)
-                        if (!line) return
-                        setSelectedLines(prev => {
-                          const exists = prev.some(l => l.id === line.id)
-                          if (exists) {
-                            return prev.filter(l => l.id !== line.id)
-                          } else {
-                            return [...prev, line]
-                          }
-                        })
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => {}}
-                        style={{ accentColor: route.color, width: '16px', height: '16px', cursor: 'pointer' }}
-                      />
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: route.color }} />
-                          <span style={{ fontWeight: 'bold', fontSize: '13px', color: 'var(--text-primary)' }}>Línea {route.line_number}</span>
-                        </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                          🚶‍♂️ Parada: {route.originStop.name} (caminando {(route.walkDistance * 1000).toFixed(0)}m)
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <div style={{ padding: '12px', borderRadius: '10px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', fontSize: '11px', color: '#FCA5A5', textAlign: 'center' }}>
-                No se encontró conexión directa. Intentá escribir o arrastrar los pines más cerca de las avenidas principales.
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Map Mode Selector (visible when drawer is expanded or on desktop) */}
-        {(drawerState === 'expanded' || !isMobile) && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid rgba(184,200,224,0.08)', paddingTop: '12px' }}>
-            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'DM Mono' }}>Modo de Exploración:</span>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
-              {([
-                { id: 'normal', label: 'Normal', emoji: '🚇' },
-                { id: 'tourist', label: 'Turismo', emoji: '🚌' },
-                { id: 'clubbing', label: 'Bares', emoji: '🍻' },
-                { id: 'shopping', label: 'Compras', emoji: '🛍️' }
-              ] as const).map(m => {
-                const active = activeMode === m.id
-                return (
-                  <button
-                    key={m.id}
-                    onClick={() => {
-                      setActiveMode(m.id)
-                      if (m.id === 'tourist') {
-                        setTouristYellowSelected(true)
-                        setTouristRedSelected(true)
-                        const yellowLine = allLines.find(l => l.line_number === 'T-Amarillo')
-                        const redLine = allLines.find(l => l.line_number === 'T-Rojo')
-                        setSelectedLines(prev => {
-                          const next = [...prev]
-                          if (yellowLine && !next.some(l => l.id === yellowLine.id)) next.push(yellowLine)
-                          if (redLine && !next.some(l => l.id === redLine.id)) next.push(redLine)
-                          return next
-                        })
-                      } else {
-                        setSelectedLines(prev => prev.filter(l => !(l as any).is_tourist))
-                      }
-                    }}
-                    style={{
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
-                      padding: '8px 4px', borderRadius: '12px', fontSize: '10px', fontWeight: 600,
-                      background: active ? 'rgba(59,130,246,0.15)' : (prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'),
-                      border: `1px solid ${active ? '#3B82F6' : (prefs.darkMap ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)')}`,
-                      color: active ? '#3B82F6' : 'var(--text-secondary)', cursor: 'pointer', transition: 'all 0.15s'
-                    }}
-                  >
-                    <span style={{ fontSize: '18px' }}>{m.emoji}</span>
-                    <span>{m.label}</span>
-                  </button>
-                )
-              })}
-            </div>
-
-            {activeMode === 'tourist' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: prefs.darkMap ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', padding: '10px', borderRadius: '12px', border: '1px solid rgba(184,200,224,0.08)', marginTop: '4px' }}>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', fontFamily: 'DM Mono' }}>Circuitos Turísticos:</span>
-                <div style={{ display: 'flex', gap: '16px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer', color: 'var(--text-primary)' }}>
-                    <input
-                      type="checkbox"
-                      checked={touristYellowSelected}
-                      onChange={e => {
-                        const checked = e.target.checked
-                        setTouristYellowSelected(checked)
-                        const line = allLines.find(l => l.line_number === 'T-Amarillo')
-                        if (line) {
-                          setSelectedLines(prev => checked ? [...prev, line] : prev.filter(l => l.id !== line.id))
-                        }
-                      }}
-                      style={{ accentColor: '#F59E0B' }}
-                    />
-                    <span>Circuito Amarillo</span>
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer', color: 'var(--text-primary)' }}>
-                    <input
-                      type="checkbox"
-                      checked={touristRedSelected}
-                      onChange={e => {
-                        const checked = e.target.checked
-                        setTouristRedSelected(checked)
-                        const line = allLines.find(l => l.line_number === 'T-Rojo')
-                        if (line) {
-                          setSelectedLines(prev => checked ? [...prev, line] : prev.filter(l => l.id !== line.id))
-                        }
-                      }}
-                      style={{ accentColor: '#EF4444' }}
-                    />
-                    <span>Circuito Rojo</span>
-                  </label>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Premium Advertisement Card (at the bottom when scrolling down) */}
-        {(drawerState === 'expanded' || !isMobile) && (
+        {/* Bottom Bar: Payment Icon + Main Button + Filters (Matches Yango bottom bar style) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid rgba(184,200,224,0.08)', paddingTop: '10px', marginTop: 'auto' }}>
+          {/* Visa/SUBE card badge */}
           <div style={{
-            marginTop: 'auto',
+            width: '42px', height: '34px', borderRadius: '8px',
+            background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+            border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+          }} title="SUBE Card">
+            <span style={{ fontSize: '9px', fontWeight: 900, color: '#0057B7', fontFamily: 'system-ui' }}>SUBE</span>
+          </div>
+
+          {/* Main button: Comenzar Viaje / Request */}
+          <button
+            onClick={() => {
+              if (originCoord && destCoord) {
+                const routes = solveRoutes(originCoord, destCoord)
+                setSolvedRoutes(routes)
+                if (routes.length > 0) {
+                  setActiveTravelRoute(routes[0])
+                  const line = allLines.find(l => l.id === routes[0].line_id)
+                  if (line) setSelectedLines([line])
+                }
+                setDrawerState('half')
+                toast.success("¡Colectivos recomendados actualizados!")
+              } else {
+                toast.error("Por favor ingresá origen y destino primero.")
+              }
+            }}
+            style={{
+              flex: 1, height: '42px', background: prefs.darkMap ? '#ffffff' : '#111827',
+              color: prefs.darkMap ? '#000000' : '#ffffff', border: 'none', borderRadius: '10px',
+              fontSize: '13px', fontWeight: 800, cursor: 'pointer', transition: 'all 200ms'
+            }}
+          >
+            Buscar Colectivos
+          </button>
+
+          {/* Filters/Settings icon button */}
+          <button
+            onClick={() => updatePrefs({ darkMap: !prefs.darkMap })}
+            style={{
+              width: '42px', height: '34px', borderRadius: '8px',
+              background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+              border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0,
+              color: 'var(--text-primary)'
+            }}
+            title="Ajustar Mapa"
+          >
+            <Sliders size={14} />
+          </button>
+        </div>
+
+        {/* Premium Advertisement Card */}
+        {((drawerState === 'expanded' || !isMobile)) && (
+          <div style={{
             padding: '12px',
             borderRadius: '14px',
             background: prefs.darkMap ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
@@ -1997,9 +1921,10 @@ export default function UserMapPage() {
             </div>
           </div>
         )}
-      </>
+      </div>
     )
   }
+
 
   const showTravelPins = (drawerState !== 'collapsed') || showLineSelector || !!mapSelectionMode
 
@@ -2585,7 +2510,7 @@ export default function UserMapPage() {
           )}
 
           {/* Travel Walking Dotted lines */}
-          {showTravelPins && travelRoute && originCoord && destCoord && (
+          {showTravelPins && (activeTravelRoute || travelRoute) && originCoord && destCoord && (
             <Source id="travel-route-geojson" type="geojson" data={{
               type: 'FeatureCollection',
               features: [
@@ -2596,7 +2521,7 @@ export default function UserMapPage() {
                     type: 'LineString',
                     coordinates: [
                       [originCoord.lng, originCoord.lat],
-                      [travelRoute.originStop.longitude, travelRoute.originStop.latitude]
+                      [(activeTravelRoute || travelRoute).originStop.longitude, (activeTravelRoute || travelRoute).originStop.latitude]
                     ]
                   }
                 },
@@ -2606,7 +2531,7 @@ export default function UserMapPage() {
                   geometry: {
                     type: 'LineString',
                     coordinates: [
-                      [travelRoute.destStop.longitude, travelRoute.destStop.latitude],
+                      [(activeTravelRoute || travelRoute).destStop.longitude, (activeTravelRoute || travelRoute).destStop.latitude],
                       [destCoord.lng, destCoord.lat]
                     ]
                   }

@@ -79,6 +79,7 @@ function routeTemplateForLine(line: BusLine, direction: 'ida' | 'vuelta' = 'ida'
         direction: direction,
         avg_wait_minutes: 6,
         total_daily_users: 120,
+        pathIndex: (stop as any).pathIndex,
       }))
     }
   }
