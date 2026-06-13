@@ -233,6 +233,7 @@ interface UserPrefs {
   favDrivers?: string[]
   filterByPassengers?: boolean
   maxPassengers?: number
+  savedTrips?: any[]
 }
 
 const DEFAULT_PREFS: UserPrefs = {
@@ -243,6 +244,7 @@ const DEFAULT_PREFS: UserPrefs = {
   favBuses: [], favDrivers: [],
   filterByPassengers: false,
   maxPassengers: 10,
+  savedTrips: []
 }
 
 function loadPrefs(): UserPrefs {
@@ -530,6 +532,24 @@ export default function UserMapPage() {
       setShowGotOffPrompt(false)
     }
   }, [activeTravelRoute])
+
+  const fitCoordinates = (p1: { lat: number; lng: number }, p2: { lat: number; lng: number }) => {
+    const minLat = Math.min(p1.lat, p2.lat)
+    const maxLat = Math.max(p1.lat, p2.lat)
+    const minLng = Math.min(p1.lng, p2.lng)
+    const maxLng = Math.max(p1.lng, p2.lng)
+    const centerLat = (minLat + maxLat) / 2
+    const centerLng = (minLng + maxLng) / 2
+    const maxDiff = Math.max(maxLat - minLat, maxLng - minLng)
+    const zoom = Math.max(11, Math.min(15.0, 12.2 - Math.log2(maxDiff / 0.15)))
+    setViewState(v => ({
+      ...v,
+      latitude: centerLat,
+      longitude: centerLng,
+      zoom: zoom,
+      transitionDuration: 1000
+    }))
+  }
   const [alarmPinMode, setAlarmPinMode] = useState(false)
   const [alarmPinCoord, setAlarmPinCoord] = useState<{ lat: number; lng: number } | null>(null)
   const [alarmSelectedLineId, setAlarmSelectedLineId] = useState<string | null>(null)
@@ -1719,8 +1739,10 @@ export default function UserMapPage() {
                             const line = allLines.find(l => l.id === routes[0].line_id)
                             if (line) setSelectedLines([line])
                           }
+                          fitCoordinates({ lat: res.lat, lng: res.lng }, destCoord)
+                        } else {
+                          setViewState(v => ({ ...v, latitude: res.lat, longitude: res.lng, zoom: 14.5, transitionDuration: 1000 }))
                         }
-                        setViewState(v => ({ ...v, latitude: res.lat, longitude: res.lng, zoom: 14.5, transitionDuration: 1000 }))
                       }}
                       style={{ padding: '8px 12px', fontSize: '12px', cursor: 'pointer', borderBottom: idx < originResults.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none', color: 'var(--text-primary)' }}
                     >
@@ -1790,8 +1812,10 @@ export default function UserMapPage() {
                             const line = allLines.find(l => l.id === routes[0].line_id)
                             if (line) setSelectedLines([line])
                           }
+                          fitCoordinates(originCoord, { lat: res.lat, lng: res.lng })
+                        } else {
+                          setViewState(v => ({ ...v, latitude: res.lat, longitude: res.lng, zoom: 14.5, transitionDuration: 1000 }))
                         }
-                        setViewState(v => ({ ...v, latitude: res.lat, longitude: res.lng, zoom: 14.5, transitionDuration: 1000 }))
                       }}
                       style={{ padding: '8px 12px', fontSize: '12px', cursor: 'pointer', borderBottom: idx < destResults.length - 1 ? '1px solid rgba(0,0,0,0.05)' : 'none', color: 'var(--text-primary)' }}
                     >
@@ -1967,6 +1991,7 @@ export default function UserMapPage() {
                   const line = allLines.find(l => l.id === routes[0].line_id)
                   if (line) setSelectedLines([line])
                 }
+                fitCoordinates(originCoord, destCoord)
                 setDrawerState('half')
                 toast.success("¡Colectivos recomendados actualizados!")
               } else {
@@ -2326,15 +2351,23 @@ export default function UserMapPage() {
               fetchAddressAsync(lat, lng, setOriginInput)
               setMapSelectionMode(null)
               if (destCoord) {
-                setSolvedRoutes(solveRoutes({ lat, lng }, destCoord))
+                const routes = solveRoutes({ lat, lng }, destCoord)
+                setSolvedRoutes(routes)
+                if (routes.length > 0) {
+                  setActiveTravelRoute(routes[0])
+                  const line = allLines.find(l => l.id === routes[0].line_id)
+                  if (line) setSelectedLines([line])
+                }
+                fitCoordinates({ lat, lng }, destCoord)
+              } else {
+                setViewState(v => ({
+                  ...v,
+                  latitude: lat,
+                  longitude: lng,
+                  zoom: 14.5,
+                  transitionDuration: 1000
+                }))
               }
-              setViewState(v => ({
-                ...v,
-                latitude: lat,
-                longitude: lng,
-                zoom: 14.5,
-                transitionDuration: 1000
-              }))
             } else if (mapSelectionMode === 'destination') {
               const lat = e.lngLat.lat
               const lng = e.lngLat.lng
@@ -2343,15 +2376,23 @@ export default function UserMapPage() {
               fetchAddressAsync(lat, lng, setDestInput)
               setMapSelectionMode(null)
               if (originCoord) {
-                setSolvedRoutes(solveRoutes(originCoord, { lat, lng }))
+                const routes = solveRoutes(originCoord, { lat, lng })
+                setSolvedRoutes(routes)
+                if (routes.length > 0) {
+                  setActiveTravelRoute(routes[0])
+                  const line = allLines.find(l => l.id === routes[0].line_id)
+                  if (line) setSelectedLines([line])
+                }
+                fitCoordinates(originCoord, { lat, lng })
+              } else {
+                setViewState(v => ({
+                  ...v,
+                  latitude: lat,
+                  longitude: lng,
+                  zoom: 14.5,
+                  transitionDuration: 1000
+                }))
               }
-              setViewState(v => ({
-                ...v,
-                latitude: lat,
-                longitude: lng,
-                zoom: 14.5,
-                transitionDuration: 1000
-              }))
             } else {
               setSelectedBus(null)
             }
@@ -3121,6 +3162,110 @@ export default function UserMapPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Save Trip Button */}
+                  <div style={{ display: 'flex', gap: '8px', width: '100%', borderTop: prefs.darkMap ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.04)', paddingTop: '8px' }}>
+                    <button
+                      onClick={() => {
+                        const isSaved = (prefs.savedTrips || []).some((t: any) => 
+                          t.line_id === activeTravelRoute.line_id && 
+                          t.originStop.id === activeTravelRoute.originStop.id && 
+                          t.destStop.id === activeTravelRoute.destStop.id
+                        )
+                        if (isSaved) {
+                          const nextTrips = (prefs.savedTrips || []).filter((t: any) => 
+                            !(t.line_id === activeTravelRoute.line_id && 
+                              t.originStop.id === activeTravelRoute.originStop.id && 
+                              t.destStop.id === activeTravelRoute.destStop.id)
+                          )
+                          updatePrefs({ savedTrips: nextTrips })
+                          toast.success("Recorrido eliminado de favoritos")
+                        } else {
+                          const newTrip = {
+                            id: `trip-${Date.now()}`,
+                            line_id: activeTravelRoute.line_id,
+                            line_number: activeTravelRoute.line_number,
+                            color: activeTravelRoute.color,
+                            direction: activeTravelRoute.direction,
+                            originStop: activeTravelRoute.originStop,
+                            destStop: activeTravelRoute.destStop,
+                            originName: originInput || activeTravelRoute.originStop.name,
+                            destName: destInput || activeTravelRoute.destStop.name
+                          }
+                          updatePrefs({ savedTrips: [...(prefs.savedTrips || []), newTrip] })
+                          toast.success("¡Recorrido guardado en favoritos!")
+                        }
+                      }}
+                      style={{
+                        flex: 1, padding: '8px 12px', borderRadius: '8px',
+                        background: (prefs.savedTrips || []).some((t: any) => 
+                          t.line_id === activeTravelRoute.line_id && 
+                          t.originStop.id === activeTravelRoute.originStop.id && 
+                          t.destStop.id === activeTravelRoute.destStop.id
+                        ) ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)',
+                        color: (prefs.savedTrips || []).some((t: any) => 
+                          t.line_id === activeTravelRoute.line_id && 
+                          t.originStop.id === activeTravelRoute.originStop.id && 
+                          t.destStop.id === activeTravelRoute.destStop.id
+                        ) ? '#10B981' : '#D97706',
+                        border: 'none', fontSize: '11px', fontWeight: 800, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px'
+                      }}
+                    >
+                      <Star size={12} style={{ fill: (prefs.savedTrips || []).some((t: any) => 
+                        t.line_id === activeTravelRoute.line_id && 
+                        t.originStop.id === activeTravelRoute.originStop.id && 
+                        t.destStop.id === activeTravelRoute.destStop.id
+                      ) ? 'currentColor' : 'none' }} />
+                      <span>
+                        {(prefs.savedTrips || []).some((t: any) => 
+                          t.line_id === activeTravelRoute.line_id && 
+                          t.originStop.id === activeTravelRoute.originStop.id && 
+                          t.destStop.id === activeTravelRoute.destStop.id
+                        ) ? 'Recorrido guardado' : 'Guardar recorrido'}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Alternative lines selector */}
+                  {solvedRoutes.length > 1 && (
+                    <div style={{
+                      display: 'flex', flexDirection: 'column', gap: '4px',
+                      borderTop: prefs.darkMap ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.04)',
+                      paddingTop: '8px'
+                    }}>
+                      <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'DM Mono', fontWeight: 700 }}>LÍNEAS ALTERNATIVAS PARA ESTE RECORRIDO:</span>
+                      <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: '2px' }}>
+                        {solvedRoutes.map((r: any) => {
+                          const isCurrent = r.line_id === activeTravelRoute.line_id
+                          if (isCurrent) return null // Only show alternative paths
+                          return (
+                            <button
+                              key={r.line_id}
+                              onClick={() => {
+                                setActiveTravelRoute(r)
+                                const line = allLines.find(l => l.id === r.line_id)
+                                if (line) setSelectedLines([line])
+                                setTrackedBusId(null)
+                                setUserBoardedBus(false)
+                                setShowGotOffPrompt(false)
+                                toast.success(`Cambiando a Línea ${r.line_number}`)
+                              }}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', borderRadius: '12px',
+                                background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                                border: `1.5px solid ${r.color}`, color: 'var(--text-primary)',
+                                fontSize: '10px', fontWeight: 700, cursor: 'pointer', flexShrink: 0
+                              }}
+                            >
+                              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: r.color }} />
+                              Línea {r.line_number}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )
             })()}
@@ -3523,6 +3668,29 @@ export default function UserMapPage() {
                     onSelectBus={bus => {
                       handleBusClick(bus)
                       setActivePanel('map')
+                    }}
+                    onSelectTrip={trip => {
+                      setOriginCoord({ lat: trip.originStop.latitude, lng: trip.originStop.longitude })
+                      setDestCoord({ lat: trip.destStop.latitude, lng: trip.destStop.longitude })
+                      setOriginInput(trip.originName)
+                      setDestInput(trip.destName)
+                      
+                      const routes = solveRoutes(
+                        { lat: trip.originStop.latitude, lng: trip.originStop.longitude },
+                        { lat: trip.destStop.latitude, lng: trip.destStop.longitude }
+                      )
+                      setSolvedRoutes(routes)
+                      setActiveTravelRoute(routes.find((r: any) => r.line_id === trip.line_id) || routes[0] || trip)
+                      
+                      const line = allLines.find(l => l.id === trip.line_id)
+                      if (line) setSelectedLines([line])
+                      
+                      fitCoordinates(
+                        { lat: trip.originStop.latitude, lng: trip.originStop.longitude },
+                        { lat: trip.destStop.latitude, lng: trip.destStop.longitude }
+                      )
+                      setActivePanel('map')
+                      setDrawerState('half')
                     }}
                   />
                 )}
@@ -3986,11 +4154,12 @@ export default function UserMapPage() {
 }
 
 // ─── Favourites Panel ─────────────────────────────────────────────────────────
-function FavouritesPanel({ prefs, lines, buses, onSelectLine, onUpdatePrefs, onSelectBus }: {
+function FavouritesPanel({ prefs, lines, buses, onSelectLine, onUpdatePrefs, onSelectBus, onSelectTrip }: {
   prefs: UserPrefs; lines: BusLine[]; buses: BusPosition[]
   onSelectLine: (l: BusLine) => void
   onUpdatePrefs: (p: Partial<UserPrefs>) => void
   onSelectBus: (b: BusPosition) => void
+  onSelectTrip: (t: any) => void
 }) {
   const favLines = lines.filter(l => prefs.favBusLines.includes(l.id))
   const allStops = lines.flatMap(line => getMockStopsForLine(line))
@@ -4007,6 +4176,20 @@ function FavouritesPanel({ prefs, lines, buses, onSelectLine, onUpdatePrefs, onS
       {favLines.length === 0 ? <EmptyHint text="Tocá ★ en el mapa para guardar una línea" /> : favLines.map(line => (
         <FavLineCard key={line.id} line={line} onSelect={() => onSelectLine(line)} onRemove={() => onUpdatePrefs({ favBusLines: prefs.favBusLines.filter(id => id !== line.id) })} />
       ))}
+
+      <SectionHeader icon={<Route size={13} />} title="Recorridos guardados" style={{ marginTop: '20px' }} />
+      {!(prefs.savedTrips) || prefs.savedTrips.length === 0 ? (
+        <EmptyHint text="Tocá 'Guardar recorrido' en la tarjeta de ruta para guardarlo" />
+      ) : (
+        prefs.savedTrips.map(trip => (
+          <FavTripCard
+            key={trip.id}
+            trip={trip}
+            onSelect={() => onSelectTrip(trip)}
+            onRemove={() => onUpdatePrefs({ savedTrips: (prefs.savedTrips || []).filter(t => t.id !== trip.id) })}
+          />
+        ))
+      )}
 
       <SectionHeader icon={<MapPin size={13} />} title="Paradas guardadas" style={{ marginTop: '20px' }} />
       {favStops.length === 0 ? <EmptyHint text="Tocá una parada en el mapa para guardarla" /> : favStops.map(stop => (
@@ -4285,6 +4468,23 @@ function FavStopCard({ stop, onRemove }: { stop: BusStop; onRemove: () => void }
         <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'DM Mono' }}>{stop.street_name}</div>
       </div>
       <button onClick={onRemove} style={{ padding: '4px', background: 'none', border: 'none', cursor: 'pointer' }}>
+        <X size={13} style={{ color: 'var(--text-muted)' }} />
+      </button>
+    </div>
+  )
+}
+
+function FavTripCard({ trip, onSelect, onRemove }: { trip: any; onSelect: () => void; onRemove: () => void }) {
+  return (
+    <div onClick={onSelect} style={{ display: 'flex', alignItems: 'center', gap: '11px', padding: '11px 13px', borderRadius: '13px', background: 'var(--base)', border: '1px solid var(--border)', marginBottom: '5px', cursor: 'pointer' }}>
+      <Route size={13} style={{ color: trip.color, flexShrink: 0 }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600 }}>Línea {trip.line_number}</div>
+        <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'DM Mono', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {trip.originName.split(',')[0]} → {trip.destName.split(',')[0]}
+        </div>
+      </div>
+      <button onClick={e => { e.stopPropagation(); onRemove() }} style={{ padding: '4px', background: 'none', border: 'none', cursor: 'pointer' }}>
         <X size={13} style={{ color: 'var(--text-muted)' }} />
       </button>
     </div>
