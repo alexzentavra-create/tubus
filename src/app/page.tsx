@@ -789,38 +789,45 @@ export default function UserMapPage() {
     const recommendations: any[] = []
 
     standardLines.forEach(line => {
-      const stops = getMockStopsForLine(line)
-      const nearOrigin = stops.filter(stop => distanceKm({ latitude: stop.latitude, longitude: stop.longitude }, origin) < 2.0)
-      const nearDest = stops.filter(stop => distanceKm({ latitude: stop.latitude, longitude: stop.longitude }, dest) < 2.0)
+      const directions: ('ida' | 'vuelta')[] = ['ida', 'vuelta']
+      directions.forEach(direction => {
+        const stops = getMockStopsForLine(line, direction)
+        const nearOrigin = stops.filter(stop => distanceKm({ latitude: stop.latitude, longitude: stop.longitude }, origin) < 2.0)
+        const nearDest = stops.filter(stop => distanceKm({ latitude: stop.latitude, longitude: stop.longitude }, dest) < 2.0)
 
-      if (nearOrigin.length > 0 && nearDest.length > 0) {
-        let bestPair = null
-        let minWalkDistance = Infinity
+        if (nearOrigin.length > 0 && nearDest.length > 0) {
+          let bestPair = null
+          let minWalkDistance = Infinity
 
-        for (const stopO of nearOrigin) {
-          for (const stopD of nearDest) {
-            const walkO = distanceKm({ latitude: stopO.latitude, longitude: stopO.longitude }, origin)
-            const walkD = distanceKm({ latitude: stopD.latitude, longitude: stopD.longitude }, dest)
-            const totalWalk = walkO + walkD
-            if (totalWalk < minWalkDistance) {
-              minWalkDistance = totalWalk
-              bestPair = { stopO, stopD }
+          for (const stopO of nearOrigin) {
+            for (const stopD of nearDest) {
+              // Ensure origin stop is before destination stop along the route
+              if (stopO.stop_number < stopD.stop_number) {
+                const walkO = distanceKm({ latitude: stopO.latitude, longitude: stopO.longitude }, origin)
+                const walkD = distanceKm({ latitude: stopD.latitude, longitude: stopD.longitude }, dest)
+                const totalWalk = walkO + walkD
+                if (totalWalk < minWalkDistance) {
+                  minWalkDistance = totalWalk
+                  bestPair = { stopO, stopD }
+                }
+              }
             }
           }
-        }
 
-        if (bestPair) {
-          recommendations.push({
-            line_id: line.id,
-            line_number: line.line_number,
-            color: line.color,
-            name: line.name,
-            originStop: bestPair.stopO,
-            destStop: bestPair.stopD,
-            walkDistance: minWalkDistance
-          })
+          if (bestPair) {
+            recommendations.push({
+              line_id: line.id,
+              line_number: line.line_number,
+              color: line.color,
+              name: line.name,
+              originStop: bestPair.stopO,
+              destStop: bestPair.stopD,
+              walkDistance: minWalkDistance,
+              direction: direction
+            })
+          }
         }
-      }
+      })
     })
 
     return recommendations.sort((a, b) => a.walkDistance - b.walkDistance).slice(0, 3)
@@ -1261,7 +1268,55 @@ export default function UserMapPage() {
       // Filter and set buses state for rendering
       const filtered = simulatedBusesRef.current.filter(bus => selectedIds.has(bus.line_id))
       const busesToSet = activeTravelRoute
-        ? filtered.filter(b => b.line_id === activeTravelRoute.line_id)
+        ? filtered.filter(b => {
+            if (b.line_id !== activeTravelRoute.line_id) return false
+            if (b.direction !== activeTravelRoute.direction) return false
+
+            // Resolve boarding (origin) and alighting (destination) stop path index values
+            let idxO = activeTravelRoute.originStop.pathIndex
+            let idxD = activeTravelRoute.destStop.pathIndex
+            
+            const routeKey = activeTravelRoute.line_number.replace(/^0+/, '')
+            const officialRoute = OFFICIAL_ROUTES[routeKey]
+            const pathRef = officialRoute
+              ? (activeTravelRoute.direction === 'vuelta' ? officialRoute.vuelta?.path : officialRoute.ida?.path) || []
+              : []
+            
+            if (pathRef.length > 0) {
+              if (idxO === undefined) {
+                let minD = Infinity
+                pathRef.forEach((pt: any, idx: number) => {
+                  const dist = Math.hypot(pt.lat - activeTravelRoute.originStop.latitude, pt.lng - activeTravelRoute.originStop.longitude)
+                  if (dist < minD) { minD = dist; idxO = idx }
+                })
+              }
+              if (idxD === undefined) {
+                let minD = Infinity
+                pathRef.forEach((pt: any, idx: number) => {
+                  const dist = Math.hypot(pt.lat - activeTravelRoute.destStop.latitude, pt.lng - activeTravelRoute.destStop.longitude)
+                  if (dist < minD) { minD = dist; idxD = idx }
+                })
+              }
+            }
+
+            // 1. Hide the bus if it is past the destination stop
+            if (idxD !== undefined && b.pathIndex > idxD) {
+              return false
+            }
+
+            // 2. Hide the bus if it has passed the boarding stop and is more than 300m away
+            if (idxO !== undefined && b.pathIndex > idxO) {
+              const distKm = globalDistanceKm(
+                { latitude: b.latitude, longitude: b.longitude },
+                { lat: activeTravelRoute.originStop.latitude, lng: activeTravelRoute.originStop.longitude }
+              )
+              if (distKm > 0.3) {
+                return false
+              }
+            }
+
+            return true
+          })
         : filtered
       setBuses(busesToSet)
 
@@ -1291,13 +1346,29 @@ export default function UserMapPage() {
     return () => clearInterval(interval)
   }, [])
 
-  // Update lineStops dynamically when selectedLines or directionFilter changes
+  // Update lineStops dynamically when selectedLines, directionFilter, or activeTravelRoute changes
   useEffect(() => {
     if (selectedLines.length === 0) {
       setLineStops([])
       return
     }
-    const combinedStops = selectedLines.flatMap(line => getMockStopsForLine(line, directionFilter))
+    let combinedStops = selectedLines.flatMap(line => getMockStopsForLine(line, directionFilter))
+    if (activeTravelRoute) {
+      combinedStops = combinedStops.filter(s => {
+        if (s.line_id !== activeTravelRoute.line_id) return false
+        if (s.direction !== activeTravelRoute.direction) return false
+
+        const sNum = s.stop_number
+        const oNum = activeTravelRoute.originStop.stop_number
+        const dNum = activeTravelRoute.destStop.stop_number
+
+        const minNum = Math.min(oNum, dNum)
+        const maxNum = Math.max(oNum, dNum)
+
+        return sNum >= minNum && sNum <= maxNum
+      })
+    }
+
     const uniqueStops: BusStop[] = []
     const coordsSet = new Set()
     combinedStops.forEach(s => {
@@ -1308,7 +1379,7 @@ export default function UserMapPage() {
       }
     })
     setLineStops(uniqueStops)
-  }, [selectedLines, directionFilter])
+  }, [selectedLines, directionFilter, activeTravelRoute])
 
   // Center on tracked bus
   useEffect(() => {
