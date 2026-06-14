@@ -256,6 +256,33 @@ function loadPrefs(): UserPrefs {
 }
 function savePrefs(p: UserPrefs) { localStorage.setItem('tubus_user_prefs', JSON.stringify(p)) }
 
+const TUFIX_ADS = [
+  {
+    image: '/images/tufix-ad-1.png',
+    title: 'TUFIX - ¡Basta de dar vueltas!',
+    desc: 'Stop asking around. Get it done.',
+    url: 'https://tufix.com'
+  },
+  {
+    image: '/images/tufix-ad-2.png',
+    title: 'TUFIX - Reparaciones del hogar',
+    desc: 'Your problem. Tap. Done.',
+    url: 'https://tufix.com'
+  },
+  {
+    image: '/images/tufix-ad-3.png',
+    title: 'TUFIX - Profesionales calificados',
+    desc: 'El trabajador ideal para vos.',
+    url: 'https://tufix.com'
+  },
+  {
+    image: '/images/tufix-ad-4.png',
+    title: 'TUFIX - Rapidez y confianza',
+    desc: 'Serving fixes. Fast.',
+    url: 'https://tufix.com'
+  }
+]
+
 // ─── Nav items ────────────────────────────────────────────────────────────────
 const NAV_ITEMS: { id: Panel; label: string; icon: any }[] = [
   { id: 'map',        label: 'Mapa',        icon: LayoutDashboard },
@@ -525,6 +552,7 @@ export default function UserMapPage() {
   const [activeTravelRoute, setActiveTravelRoute] = useState<any>(null)
   const [userBoardedBus, setUserBoardedBus] = useState<boolean>(false)
   const [showGotOffPrompt, setShowGotOffPrompt] = useState<boolean>(false)
+  const [currentAdIndex, setCurrentAdIndex] = useState<number>(0)
 
   useEffect(() => {
     if (!activeTravelRoute) {
@@ -1644,8 +1672,19 @@ export default function UserMapPage() {
     }
   }) : []
 
-  // Render content inside the sliding travel assistant drawer
   const renderDrawerContent = () => {
+    const handleAdScroll = (e: React.UIEvent<HTMLDivElement>) => {
+      const container = e.currentTarget
+      const scrollLeft = container.scrollLeft
+      const width = container.clientWidth
+      if (width > 0) {
+        const newIndex = Math.round(scrollLeft / width)
+        if (newIndex !== currentAdIndex) {
+          setCurrentAdIndex(newIndex)
+        }
+      }
+    }
+
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '10px' : '14px', width: '100%' }}>
         {/* Title: TU VIAJE / YOUR TRIP */}
@@ -2041,19 +2080,87 @@ export default function UserMapPage() {
               <span style={{ fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', color: '#10B981', fontFamily: 'DM Mono', letterSpacing: '0.06em' }}>Anuncio</span>
               <span style={{ fontSize: '8px', color: 'var(--text-muted)' }}>Patrocinado</span>
             </div>
-            <div style={{ borderRadius: '8px', overflow: 'hidden', width: '100%', border: '1px solid rgba(184, 200, 224, 0.15)' }}>
-              <img src="/images/tufix-ad.png" alt="TUFIX Ad" style={{ width: '100%', height: 'auto', display: 'block' }} />
+            <div style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', width: '100%', border: '1px solid rgba(184, 200, 224, 0.15)' }}>
+              <style>{`
+                .hide-scrollbar::-webkit-scrollbar {
+                  display: none;
+                }
+              `}</style>
+              
+              <div
+                onScroll={handleAdScroll}
+                style={{
+                  display: 'flex',
+                  overflowX: 'auto',
+                  scrollSnapType: 'x mandatory',
+                  scrollbarWidth: 'none',
+                  msOverflowStyle: 'none',
+                  width: '100%'
+                }}
+                className="hide-scrollbar"
+              >
+                {TUFIX_ADS.map((ad, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      flexShrink: 0,
+                      width: '100%',
+                      scrollSnapAlign: 'start',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => window.open(ad.url, '_blank')}
+                  >
+                    <img
+                      src={ad.image}
+                      alt={ad.title}
+                      style={{ width: '100%', height: 'auto', display: 'block' }}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Navigation dots overlay */}
+              <div style={{
+                position: 'absolute',
+                bottom: '8px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                display: 'flex',
+                gap: '4px',
+                background: 'rgba(0,0,0,0.5)',
+                padding: '3px 8px',
+                borderRadius: '10px',
+                zIndex: 10
+              }}>
+                {TUFIX_ADS.map((_, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: currentAdIndex === idx ? '#10B981' : 'rgba(255,255,255,0.4)',
+                      transition: 'background 200ms'
+                    }}
+                  />
+                ))}
+              </div>
             </div>
+            
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)' }}>TUFIX - Contratá Profesionales</span>
-                <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>El trabajador ideal para vos.</span>
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                  {TUFIX_ADS[currentAdIndex]?.title || 'TUFIX - Contratá Profesionales'}
+                </span>
+                <span style={{ fontSize: '9px', color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                  {TUFIX_ADS[currentAdIndex]?.desc || 'El trabajador ideal para vos.'}
+                </span>
               </div>
               <button
-                onClick={() => window.open('https://tufix.com', '_blank')}
+                onClick={() => window.open(TUFIX_ADS[currentAdIndex]?.url || 'https://tufix.com', '_blank')}
                 style={{
                   padding: '5px 12px', background: '#10B981', color: 'white', border: 'none', borderRadius: '6px',
-                  fontSize: '10px', fontWeight: 700, cursor: 'pointer', transition: 'all 200ms'
+                  fontSize: '10px', fontWeight: 700, cursor: 'pointer', transition: 'all 200ms', flexShrink: 0, marginLeft: '8px'
                 }}
               >
                 Ver más
