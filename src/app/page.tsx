@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Map, { Marker, Popup, NavigationControl, GeolocateControl, Source, Layer } from 'react-map-gl/maplibre'
 import { toast } from 'react-hot-toast'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useDragControls } from 'framer-motion'
 import {
   Bus, Search, ChevronDown, X, Star, MapPin, Bell, AlertTriangle,
   LogOut, Heart, ChevronRight, User, Sliders, Moon, Globe,
@@ -484,6 +484,7 @@ export default function UserMapPage() {
   const [solvedRoutes, setSolvedRoutes] = useState<any[]>([])
   const [selectedPlace, setSelectedPlace] = useState<any | null>(null)
   const [selectedTouristStop, setSelectedTouristStop] = useState<BusStop | null>(null)
+  const dragControls = useDragControls()
   
   // Mobile, Onboarding and Desktop-Preview states
   const [isMobile, setIsMobile]             = useState(false)
@@ -1986,11 +1987,31 @@ export default function UserMapPage() {
                     }}
                   >
                     <div style={{
-                      width: '32px', height: '32px', borderRadius: '50%',
-                      background: line.color, display: 'flex', alignItems: 'center',
-                      justifyContent: 'center', color: 'white', boxShadow: `0 2px 6px ${line.color}66`
+                      width: '46px', height: '46px', borderRadius: '12px',
+                      border: `2px solid ${line.color}`,
+                      boxShadow: `0 0 10px ${line.color}cc`,
+                      background: prefs.darkMap ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
+                      display: 'flex', alignItems: 'center',
+                      justifyContent: 'center', overflow: 'hidden', flexShrink: 0
                     }}>
-                      <Bus size={16} />
+                      <img 
+                        src={`/images/bus-${line.line_number}-front.png`} 
+                        alt={`Bus ${line.line_number}`}
+                        onError={(e) => {
+                          // Fallback to simple icon if custom image is missing
+                          e.currentTarget.style.display = 'none'
+                          const parent = e.currentTarget.parentElement
+                          if (parent) {
+                            const icon = document.createElement('div')
+                            icon.style.color = line.color
+                            icon.style.fontSize = '14px'
+                            icon.style.fontWeight = '900'
+                            icon.innerText = line.line_number
+                            parent.appendChild(icon)
+                          }
+                        }}
+                        style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '2px' }}
+                      />
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-primary)' }}>
@@ -3542,11 +3563,14 @@ export default function UserMapPage() {
         {isMobile && selectedLines.length === 0 && activePanel === 'map' && (
           <motion.div
             drag="y"
-            dragConstraints={{ top: 0, bottom: 0 }}
+            dragControls={dragControls}
+            dragListener={false}
+            dragConstraints={drawerState === 'expanded' ? { top: 0, bottom: 400 } : { top: -400, bottom: 0 }}
+            dragElastic={0.2}
             onDragEnd={(event, info) => {
-              if (info.offset.y > 50) {
+              if (info.offset.y > 60) {
                 if (drawerState === 'expanded') setDrawerState('half')
-              } else if (info.offset.y < -50) {
+              } else if (info.offset.y < -60) {
                 if (drawerState === 'half') setDrawerState('expanded')
               }
             }}
@@ -3574,6 +3598,7 @@ export default function UserMapPage() {
           >
             {/* Handle bar */}
             <div 
+              onPointerDown={(e) => dragControls.start(e)}
               onClick={() => {
                 setDrawerState(prev => prev === 'expanded' ? 'half' : 'expanded')
               }}
@@ -3582,7 +3607,7 @@ export default function UserMapPage() {
                 padding: '12px 0 10px 0',
                 display: 'flex',
                 justifyContent: 'center',
-                cursor: 'pointer',
+                cursor: 'ns-resize',
                 flexShrink: 0
               }}
             >
