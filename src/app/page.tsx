@@ -562,6 +562,27 @@ export default function UserMapPage() {
     }
   }, [activeTravelRoute])
 
+  const [ticketPrices, setTicketPrices] = useState<{ min: number; max: number; loading: boolean }>({
+    min: 728.28,
+    max: 1227.76,
+    loading: true
+  })
+
+  useEffect(() => {
+    const fetchPrices = async () => {
+      try {
+        const res = await fetch('/api/ticket-price')
+        if (res.ok) {
+          const data = await res.json()
+          setTicketPrices({ min: data.min, max: data.max, loading: false })
+        }
+      } catch (err) {
+        setTicketPrices(prev => ({ ...prev, loading: false }))
+      }
+    }
+    fetchPrices()
+  }, [])
+
   const fitCoordinates = (p1: { lat: number; lng: number }, p2: { lat: number; lng: number }) => {
     const minLat = Math.min(p1.lat, p2.lat)
     const maxLat = Math.max(p1.lat, p2.lat)
@@ -2010,7 +2031,7 @@ export default function UserMapPage() {
                             parent.appendChild(icon)
                           }
                         }}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transform: 'scale(1.05)' }}
                       />
                     </div>
                     <div style={{ textAlign: 'center' }}>
@@ -2018,7 +2039,7 @@ export default function UserMapPage() {
                         Línea {line.line_number}
                       </div>
                       <div style={{ fontSize: '9px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '85px' }}>
-                        {eta ? `~${eta} min` : `${line.total_stops} paradas`}
+                        {eta ? `~${eta} min` : `$${ticketPrices.min.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                       </div>
                     </div>
                   </div>
