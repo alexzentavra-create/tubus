@@ -2010,7 +2010,7 @@ export default function UserMapPage() {
                             parent.appendChild(icon)
                           }
                         }}
-                        style={{ width: '100%', height: '100%', objectFit: 'contain', padding: '2px' }}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       />
                     </div>
                     <div style={{ textAlign: 'center' }}>
