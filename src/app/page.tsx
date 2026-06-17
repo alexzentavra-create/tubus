@@ -1952,8 +1952,8 @@ export default function UserMapPage() {
             {solvedRoutes.length > 0 ? 'Líneas recomendadas' : 'Líneas disponibles'}
           </span>
           <div style={{
-            display: 'flex', gap: '10px', overflowX: 'auto', paddingBottom: '8px',
-            scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch'
+            display: 'flex', flexDirection: 'column', gap: '8px', width: '100%',
+            overflowY: 'auto', maxHeight: isMobile ? '220px' : 'none', paddingRight: '2px'
           }}>
             {(() => {
               const activeLines = lines.length > 0 ? lines : MOCK_LINES
@@ -1989,58 +1989,76 @@ export default function UserMapPage() {
                       }
                     }}
                     style={{
-                      flexShrink: 0,
-                      width: '105px',
-                      padding: '10px 8px',
+                      width: '100%',
+                      padding: '10px 14px',
                       borderRadius: '12px',
                       background: isSelected 
                         ? (prefs.darkMap ? 'rgba(34,211,160,0.1)' : 'rgba(34,211,160,0.06)') 
                         : (prefs.darkMap ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'),
-                      border: `2.5px solid ${isSelected ? line.color : (prefs.darkMap ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)')}`,
-                      boxShadow: isSelected ? `0 4px 12px ${line.color}33` : 'none',
+                      border: `2px solid ${isSelected ? line.color : (prefs.darkMap ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)')}`,
+                      boxShadow: isSelected ? `0 4px 12px ${line.color}22` : 'none',
                       cursor: 'pointer',
                       display: 'flex',
-                      flexDirection: 'column',
                       alignItems: 'center',
-                      gap: '6px',
+                      gap: '12px',
                       transition: 'all 200ms',
                       boxSizing: 'border-box'
                     }}
                   >
+                    {/* Left: Rectangular Bus side-profile Container */}
                     <div style={{
-                      width: '46px', height: '46px', borderRadius: '12px',
-                      border: `2px solid ${line.color}`,
-                      boxShadow: `0 0 10px ${line.color}cc`,
-                      background: prefs.darkMap ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.03)',
-                      display: 'flex', alignItems: 'center',
-                      justifyContent: 'center', overflow: 'hidden', flexShrink: 0
+                      width: '80px',
+                      height: '46px',
+                      borderRadius: '8px',
+                      border: `1px solid ${line.color}40`,
+                      background: prefs.darkMap ? 'rgba(15, 23, 42, 0.6)' : 'rgba(255, 255, 255, 0.9)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                      position: 'relative',
+                      boxShadow: isSelected ? `0 0 8px ${line.color}30` : 'none'
                     }}>
                       <img 
-                        src={`/images/bus-${line.line_number}-front.png`} 
+                        src={line.line_number === '12' ? '/images/bus-12-side.png' : `/images/bus-${line.line_number}.png`} 
                         alt={`Bus ${line.line_number}`}
                         onError={(e) => {
-                          // Fallback to simple icon if custom image is missing
-                          e.currentTarget.style.display = 'none'
-                          const parent = e.currentTarget.parentElement
-                          if (parent) {
-                            const icon = document.createElement('div')
-                            icon.style.color = line.color
-                            icon.style.fontSize = '14px'
-                            icon.style.fontWeight = '900'
-                            icon.innerText = line.line_number
-                            parent.appendChild(icon)
-                          }
+                          // Fallback to front image if side is missing
+                          e.currentTarget.src = `/images/bus-${line.line_number}-front.png`
                         }}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transform: 'scale(1.05)' }}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'contain',
+                          transform: 'scale(1.15)',
+                          display: 'block'
+                        }}
                       />
                     </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                        Línea {line.line_number}
+
+                    {/* Center: Title & Subtitle */}
+                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                          Línea {line.line_number}
+                        </span>
+                        {/* Circle dot of the line color */}
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: line.color }} />
                       </div>
-                      <div style={{ fontSize: '9px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '85px' }}>
-                        {eta ? `~${eta} min` : `$${ticketPrices.min.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                      </div>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {eta ? `Llega en ~${eta} min • ${line.total_stops} paradas` : `${line.name || 'Servicio Regular'}`}
+                      </span>
+                    </div>
+
+                    {/* Right: Ticket Price */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', flexShrink: 0 }}>
+                      <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                        ${ticketPrices.min.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                      <span style={{ fontSize: '9px', color: '#10B981', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                        SUBE
+                      </span>
                     </div>
                   </div>
                 )
