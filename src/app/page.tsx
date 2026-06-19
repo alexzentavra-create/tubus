@@ -4997,10 +4997,11 @@ function MiniPopup({
           src={
             bus.line_number === '12' ? '/images/bus-12-real.jpg' :
             bus.line_number === '37' ? '/images/bus-37-real.jpg' :
+            bus.line_number === '28' ? '/images/bus-28-real.png' :
             `/images/bus-${bus.line_number}.png`
           }
           alt={`Bus ${bus.line_number}`}
-          style={{ width: '100%', height: '100%', objectFit: (bus.line_number === '12' || bus.line_number === '37') ? 'cover' : 'contain' }}
+          style={{ width: '100%', height: '100%', objectFit: (bus.line_number === '12' || bus.line_number === '37' || bus.line_number === '28') ? 'cover' : 'contain' }}
         />
         <div style={{
           position: 'absolute',
