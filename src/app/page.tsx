@@ -3531,18 +3531,16 @@ export default function UserMapPage() {
           )}
         </AnimatePresence>
 
-        {/* ── STACKED HEADER CONTROLS (Safe Area & Notch Compliant) ── */}
+        {/* ── STACKED HEADER CONTROLS (Safe Area & Notch Compliant - Anchored at the bottom) ── */}
         {selectedLines.length > 0 && activePanel === 'map' && (
           <div style={{
             position: 'absolute',
-            top: 0,
+            bottom: isMobile ? 'calc(env(safe-area-inset-bottom) + 76px)' : '24px',
             left: 0,
             right: 0,
             zIndex: 12,
-            paddingTop: 'calc(env(safe-area-inset-top) + 12px)',
             paddingLeft: '14px',
             paddingRight: '14px',
-            paddingBottom: '12px',
             pointerEvents: 'none',
             display: 'flex',
             flexDirection: 'column',
@@ -3550,7 +3548,7 @@ export default function UserMapPage() {
             gap: '8px',
           }}>
             <motion.div
-              initial={{ y: -50, opacity: 0 }}
+              initial={isMobile ? { y: 50, opacity: 0 } : { y: -50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               style={{
                 pointerEvents: 'auto',
@@ -3565,47 +3563,17 @@ export default function UserMapPage() {
                 boxShadow: prefs.darkMap ? '0 10px 30px rgba(0,0,0,0.5)' : '0 10px 25px rgba(0,0,0,0.08)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '10px'
+                gap: '8px',
+                maxHeight: '260px',
+                overflowY: 'auto'
               }}
             >
-              {/* Line info header */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
-                  <div style={{
-                    width: '12px', height: '12px', borderRadius: '50%',
-                    background: selectedLines[0].color, flexShrink: 0
-                  }} />
-                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                    <span style={{ fontWeight: 800, fontSize: '15px', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {selectedLines[0].name}
-                    </span>
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                      {selectedLines[0].company}
-                    </span>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                  {/* Star/Fav */}
-                  <button
-                    onClick={() => updatePrefs({
-                      favBusLines: prefs.favBusLines.includes(selectedLines[0].id)
-                        ? prefs.favBusLines.filter(id => id !== selectedLines[0].id)
-                        : [...prefs.favBusLines, selectedLines[0].id]
-                    })}
-                    style={{
-                      width: '32px', height: '32px', borderRadius: '50%',
-                      background: prefs.darkMap ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                      border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
-                    }}
-                  >
-                    <Star size={14} style={{
-                      color: prefs.favBusLines.includes(selectedLines[0].id) ? '#F59E0B' : 'var(--text-muted)',
-                      fill: prefs.favBusLines.includes(selectedLines[0].id) ? '#F59E0B' : 'none'
-                    }} />
-                  </button>
-
-                  {/* Close/Cancel */}
+              {/* Header for multi-select, if more than 1 line */}
+              {selectedLines.length > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', borderBottom: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)', paddingBottom: '6px', marginBottom: '2px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Líneas Seleccionadas ({selectedLines.length})
+                  </span>
                   <button
                     onClick={() => {
                       setSelectedLines([])
@@ -3614,16 +3582,91 @@ export default function UserMapPage() {
                       setBranchFilter('all')
                     }}
                     style={{
-                      width: '32px', height: '32px', borderRadius: '50%',
-                      background: '#EF444415', border: 'none', color: '#EF4444',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontWeight: 'bold'
+                      background: 'none', border: 'none', color: '#EF4444',
+                      fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                      padding: 0
                     }}
                   >
-                    <X size={16} />
+                    Limpiar todas
                   </button>
                 </div>
-              </div>
+              )}
 
+              {/* List of lines */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {selectedLines.map((line, idx) => (
+                  <div 
+                    key={line.id} 
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'space-between', 
+                      width: '100%',
+                      padding: '4px 0',
+                      borderBottom: (idx < selectedLines.length - 1) && selectedLines.length > 1 ? (prefs.darkMap ? '1px solid rgba(255,255,255,0.04)' : '1px solid rgba(0,0,0,0.04)') : 'none'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        width: '12px', height: '12px', borderRadius: '50%',
+                        background: line.color, flexShrink: 0
+                      }} />
+                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                        <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {line.name}
+                        </span>
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                          {line.company}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                      {/* Star/Fav */}
+                      <button
+                        onClick={() => updatePrefs({
+                          favBusLines: prefs.favBusLines.includes(line.id)
+                            ? prefs.favBusLines.filter(id => id !== line.id)
+                            : [...prefs.favBusLines, line.id]
+                        })}
+                        style={{
+                          width: '28px', height: '28px', borderRadius: '50%',
+                          background: prefs.darkMap ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                          border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
+                        }}
+                      >
+                        <Star size={12} style={{
+                          color: prefs.favBusLines.includes(line.id) ? '#F59E0B' : 'var(--text-muted)',
+                          fill: prefs.favBusLines.includes(line.id) ? '#F59E0B' : 'none'
+                        }} />
+                      </button>
+
+                      {/* Close/Cancel */}
+                      <button
+                        onClick={() => {
+                          setSelectedLines(prev => prev.filter(l => l.id !== line.id))
+                          if (activeTravelRoute?.line_id === line.id) {
+                            setActiveTravelRoute(null)
+                          }
+                          if (trackedBusId) {
+                            const bus = buses.find(b => b.id === trackedBusId)
+                            if (bus?.line_id === line.id) {
+                              setTrackedBusId(null)
+                            }
+                          }
+                        }}
+                        style={{
+                          width: '28px', height: '28px', borderRadius: '50%',
+                          background: '#EF444415', border: 'none', color: '#EF4444',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontWeight: 'bold'
+                        }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </motion.div>
           </div>
         )}
