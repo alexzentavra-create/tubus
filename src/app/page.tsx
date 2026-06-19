@@ -514,6 +514,12 @@ export default function UserMapPage() {
 
   const [lines, setLines]                   = useState<BusLine[]>([])
   const [selectedLines, setSelectedLines]   = useState<BusLine[]>([])
+  const [tempLinesSelection, setTempLinesSelection] = useState<BusLine[]>([])
+
+  useEffect(() => {
+    setTempLinesSelection(selectedLines)
+  }, [selectedLines])
+
   const [transitlandRoutes, setTransitlandRoutes] = useState<any[]>([])
   const [transitlandShapes, setTransitlandShapes] = useState<any[]>([])
   const transitlandShapesRef = useRef<any[]>([])
@@ -1977,23 +1983,30 @@ export default function UserMapPage() {
 
               return linesToDisplay.map((item: any) => {
                 const line = item.line || item
-                const isSelected = selectedLines.some(l => l.id === line.id)
+                const isSelected = item.originStop
+                  ? selectedLines.some(l => l.id === line.id)
+                  : tempLinesSelection.some(l => l.id === line.id)
                 const eta = item.originStop ? calculateRouteTimeMinutes(item, allLines) : null
                 
                 return (
                   <div
                     key={line.id}
                     onClick={() => {
-                      setSelectedLines(prev => {
-                        const exists = prev.some(l => l.id === line.id)
-                        if (exists) {
-                          return prev.filter(l => l.id !== line.id)
-                        } else {
-                          return [...prev, line]
-                        }
-                      })
                       if (item.originStop) {
+                        setSelectedLines(prev => {
+                          const exists = prev.some(l => l.id === line.id)
+                          if (exists) {
+                            return prev.filter(l => l.id !== line.id)
+                          } else {
+                            return [...prev, line]
+                          }
+                        })
                         setActiveTravelRoute((prev: any) => prev?.line_id === item.line_id ? null : item)
+                      } else {
+                        setTempLinesSelection(prev => {
+                          const exists = prev.some(l => l.id === line.id)
+                          return exists ? prev.filter(l => l.id !== line.id) : [...prev, line]
+                        })
                       }
                     }}
                     style={{
@@ -2101,8 +2114,17 @@ export default function UserMapPage() {
                 fitCoordinates(originCoord, destCoord)
                 setDrawerState('half')
                 toast.success("¡Colectivos recomendados actualizados!")
+              } else if (tempLinesSelection.length > 0) {
+                setSelectedLines(tempLinesSelection)
+                const stops = getMockStopsForLine(tempLinesSelection[0])
+                if (stops.length > 0) {
+                  setViewState(v => ({ ...v, latitude: stops[0].latitude, longitude: stops[0].longitude, zoom: 12.5 }))
+                }
+                setDrawerState('half')
+                toast.success("¡Colectivos cargados en el mapa!")
               } else {
-                toast.error("Por favor ingresá origen y destino primero.")
+                setSelectedLines([])
+                toast.error("Por favor ingresá origen/destino o seleccioná alguna línea primero.")
               }
             }}
             style={{
