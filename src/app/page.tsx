@@ -3604,8 +3604,8 @@ export default function UserMapPage() {
             drag="y"
             dragControls={dragControls}
             dragListener={false}
-            dragConstraints={drawerState === 'expanded' ? { top: 0, bottom: 400 } : { top: -400, bottom: 0 }}
-            dragElastic={0.2}
+            dragConstraints={drawerState === 'expanded' ? { top: 0, bottom: 600 } : { top: -600, bottom: 0 }}
+            dragElastic={0.15}
             onDragEnd={(event, info) => {
               if (info.offset.y > 60) {
                 if (drawerState === 'expanded') setDrawerState('half')
@@ -3613,10 +3613,11 @@ export default function UserMapPage() {
                 if (drawerState === 'half') setDrawerState('expanded')
               }
             }}
+            initial={{ y: '100%' }}
             animate={{
               y: drawerState === 'expanded' ? 'calc(100% - 90%)' : 'calc(100% - 320px)'
             }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            transition={{ type: 'spring', damping: 32, stiffness: 160 }}
             style={{
               position: 'absolute',
               left: 0,
