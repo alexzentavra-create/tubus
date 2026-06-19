@@ -979,16 +979,14 @@ export default function UserMapPage() {
     }
 
     supabase.auth.getUser().then(({ data: { user } }) => { if (user) setUser(user) })
-    supabase.from('bus_lines').select('*').eq('is_active', true).then(({ data }) => {
-      const ALLOWED_LINES = ['12', '28', '37', '39', '59', '60', '102', '152', 'T-Amarillo', 'T-Rojo']
-      const availableLines = (data && data.length > 0 ? [...data, ...MOCK_LINES.filter(l => (l as any).is_tourist)] : MOCK_LINES).filter(l => ALLOWED_LINES.includes(l.line_number))
-      setLines(availableLines)
-      
-      simulatedBusesRef.current = initializeSimulatedBuses(availableLines)
-      setUseMockBuses(true)
-      
-      setSelectedLines([])
-    })
+    const ALLOWED_LINES = ['12', '28', '37', '39', '59', '60', '102', '152', 'T-Amarillo', 'T-Rojo']
+    const availableLines = MOCK_LINES.filter(l => ALLOWED_LINES.includes(l.line_number))
+    setLines(availableLines)
+    
+    simulatedBusesRef.current = initializeSimulatedBuses(availableLines)
+    setUseMockBuses(true)
+    
+    setSelectedLines([])
   }, [])
 
   const updatePrefs = useCallback((patch: Partial<UserPrefs>) => {
