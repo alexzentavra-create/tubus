@@ -515,6 +515,18 @@ export default function UserMapPage() {
   const [lines, setLines]                   = useState<BusLine[]>([])
   const [selectedLines, setSelectedLines]   = useState<BusLine[]>([])
   const [tempLinesSelection, setTempLinesSelection] = useState<BusLine[]>([])
+  const [focusedLineId, setFocusedLineId] = useState<string | null>(null)
+  const [showOnlyFocusedLine, setShowOnlyFocusedLine] = useState<boolean>(false)
+
+  useEffect(() => {
+    if (selectedLines.length > 0) {
+      if (!focusedLineId || !selectedLines.some(l => l.id === focusedLineId)) {
+        setFocusedLineId(selectedLines[0].id)
+      }
+    } else {
+      setFocusedLineId(null)
+    }
+  }, [selectedLines, focusedLineId])
 
   useEffect(() => {
     setTempLinesSelection(selectedLines)
@@ -1460,13 +1472,16 @@ export default function UserMapPage() {
     return () => clearInterval(interval)
   }, [])
 
-  // Update lineStops dynamically when selectedLines, directionFilter, or activeTravelRoute changes
+  // Update lineStops dynamically when selectedLines, directionFilter, activeTravelRoute, showOnlyFocusedLine, or focusedLineId changes
   useEffect(() => {
     if (selectedLines.length === 0) {
       setLineStops([])
       return
     }
-    let combinedStops = selectedLines.flatMap(line => getMockStopsForLine(line, directionFilter))
+    const linesToUse = (showOnlyFocusedLine && focusedLineId)
+      ? selectedLines.filter(l => l.id === focusedLineId)
+      : selectedLines
+    let combinedStops = linesToUse.flatMap(line => getMockStopsForLine(line, directionFilter))
     if (activeTravelRoute) {
       combinedStops = combinedStops.filter(s => {
         if (s.line_id !== activeTravelRoute.line_id) return false
@@ -1493,7 +1508,7 @@ export default function UserMapPage() {
       }
     })
     setLineStops(uniqueStops)
-  }, [selectedLines, directionFilter, activeTravelRoute])
+  }, [selectedLines, directionFilter, activeTravelRoute, showOnlyFocusedLine, focusedLineId])
 
   // Center on tracked bus
   useEffect(() => {
@@ -1590,9 +1605,11 @@ export default function UserMapPage() {
     return { ida: 'Ida (Salida)', vuelta: 'Vuelta (Regreso)' }
   }
   const dirLabels = getDirectionLabels()
-  const linesToDraw = activeTravelRoute
-    ? selectedLines.filter(l => l.id === activeTravelRoute.line_id)
-    : selectedLines
+  const linesToDraw = (showOnlyFocusedLine && focusedLineId)
+    ? selectedLines.filter(l => l.id === focusedLineId)
+    : (activeTravelRoute
+      ? selectedLines.filter(l => l.id === activeTravelRoute.line_id)
+      : selectedLines)
   const routeGeoJsons = linesToDraw.map(line => {
     const lineShapes = transitlandShapes.filter(s => {
       return s.route_onestop_id?.includes(line.line_number) || s.onestop_id?.includes(line.line_number)
@@ -2643,6 +2660,7 @@ export default function UserMapPage() {
 
           {buses
             .filter(bus => {
+              if (showOnlyFocusedLine && focusedLineId && bus.line_id !== focusedLineId) return false
               if (bus.line_number === '60' && branchFilter !== 'all' && bus.ramal !== branchFilter) return false
               if (trackedBusId && bus.id !== trackedBusId) return false
               if (directionFilter !== 'all' && bus.direction !== directionFilter) return false
@@ -3563,109 +3581,196 @@ export default function UserMapPage() {
                 boxShadow: prefs.darkMap ? '0 10px 30px rgba(0,0,0,0.5)' : '0 10px 25px rgba(0,0,0,0.08)',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '8px',
-                maxHeight: '260px',
-                overflowY: 'auto'
+                gap: '10px',
               }}
             >
-              {/* Header for multi-select, if more than 1 line */}
-              {selectedLines.length > 1 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', borderBottom: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)', paddingBottom: '6px', marginBottom: '2px' }}>
-                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Líneas Seleccionadas ({selectedLines.length})
-                  </span>
-                  <button
-                    onClick={() => {
-                      setSelectedLines([])
-                      setTrackedBusId(null)
-                      setDirectionFilter('all')
-                      setBranchFilter('all')
-                    }}
-                    style={{
-                      background: 'none', border: 'none', color: '#EF4444',
-                      fontSize: '11px', fontWeight: 700, cursor: 'pointer',
-                      padding: 0
-                    }}
-                  >
-                    Limpiar todas
-                  </button>
-                </div>
-              )}
+              {/* Header section with toggle */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                {selectedLines.length > 1 ? (
+                  <>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Líneas ({selectedLines.length})
+                    </span>
 
-              {/* List of lines */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {selectedLines.map((line, idx) => (
-                  <div 
-                    key={line.id} 
-                    style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'space-between', 
-                      width: '100%',
-                      padding: '4px 0',
-                      borderBottom: (idx < selectedLines.length - 1) && selectedLines.length > 1 ? (prefs.darkMap ? '1px solid rgba(255,255,255,0.04)' : '1px solid rgba(0,0,0,0.04)') : 'none'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
-                      <div style={{
-                        width: '12px', height: '12px', borderRadius: '50%',
-                        background: line.color, flexShrink: 0
-                      }} />
-                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                        <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {line.name}
-                        </span>
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                          {line.company}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                      {/* Star/Fav */}
+                    {/* View mode toggle switch */}
+                    <div style={{
+                      display: 'flex',
+                      background: prefs.darkMap ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)',
+                      padding: '2px',
+                      borderRadius: '8px',
+                      gap: '2px'
+                    }}>
                       <button
-                        onClick={() => updatePrefs({
-                          favBusLines: prefs.favBusLines.includes(line.id)
-                            ? prefs.favBusLines.filter(id => id !== line.id)
-                            : [...prefs.favBusLines, line.id]
-                        })}
+                        onClick={() => setShowOnlyFocusedLine(false)}
                         style={{
-                          width: '28px', height: '28px', borderRadius: '50%',
-                          background: prefs.darkMap ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                          border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
+                          background: !showOnlyFocusedLine ? (prefs.darkMap ? 'rgba(255, 255, 255, 0.12)' : '#ffffff') : 'transparent',
+                          color: !showOnlyFocusedLine ? 'var(--text-primary)' : 'var(--text-muted)',
+                          border: 'none',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          boxShadow: !showOnlyFocusedLine && !prefs.darkMap ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                          transition: 'all 150ms'
                         }}
                       >
-                        <Star size={12} style={{
-                          color: prefs.favBusLines.includes(line.id) ? '#F59E0B' : 'var(--text-muted)',
-                          fill: prefs.favBusLines.includes(line.id) ? '#F59E0B' : 'none'
-                        }} />
+                        Todas
                       </button>
-
-                      {/* Close/Cancel */}
                       <button
                         onClick={() => {
-                          setSelectedLines(prev => prev.filter(l => l.id !== line.id))
-                          if (activeTravelRoute?.line_id === line.id) {
-                            setActiveTravelRoute(null)
-                          }
-                          if (trackedBusId) {
-                            const bus = buses.find(b => b.id === trackedBusId)
-                            if (bus?.line_id === line.id) {
-                              setTrackedBusId(null)
-                            }
+                          setShowOnlyFocusedLine(true)
+                          // Ensure we focus the first selected line if none is focused
+                          if (selectedLines.length > 0 && (!focusedLineId || !selectedLines.some(l => l.id === focusedLineId))) {
+                            setFocusedLineId(selectedLines[0].id)
                           }
                         }}
                         style={{
-                          width: '28px', height: '28px', borderRadius: '50%',
-                          background: '#EF444415', border: 'none', color: '#EF4444',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontWeight: 'bold'
+                          background: showOnlyFocusedLine ? (prefs.darkMap ? 'rgba(255, 255, 255, 0.12)' : '#ffffff') : 'transparent',
+                          color: showOnlyFocusedLine ? 'var(--text-primary)' : 'var(--text-muted)',
+                          border: 'none',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          boxShadow: showOnlyFocusedLine && !prefs.darkMap ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                          transition: 'all 150ms'
                         }}
                       >
-                        <X size={14} />
+                        Solo actual
                       </button>
                     </div>
-                  </div>
-                ))}
+                  </>
+                ) : (
+                  <>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Línea seleccionada
+                    </span>
+                    <button
+                      onClick={() => {
+                        setSelectedLines([])
+                        setTrackedBusId(null)
+                        setDirectionFilter('all')
+                        setBranchFilter('all')
+                      }}
+                      style={{
+                        background: 'none', border: 'none', color: '#EF4444',
+                        fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                        padding: 0
+                      }}
+                    >
+                      Limpiar
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Horizontal scroll list of line cards */}
+              <div 
+                style={{ 
+                  display: 'flex', 
+                  flexDirection: 'row', 
+                  overflowX: 'auto', 
+                  gap: '10px', 
+                  width: '100%',
+                  paddingBottom: '4px',
+                  scrollbarWidth: 'none', // Hide standard Firefox scrollbar
+                  msOverflowStyle: 'none' // Hide standard IE scrollbar
+                }}
+                className="hide-scrollbar"
+              >
+                <style>{`
+                  .hide-scrollbar::-webkit-scrollbar {
+                    display: none;
+                  }
+                `}</style>
+                {selectedLines.map((line) => {
+                  const isFocused = focusedLineId === line.id
+                  const isFav = prefs.favBusLines.includes(line.id)
+                  
+                  return (
+                    <div 
+                      key={line.id}
+                      onClick={() => setFocusedLineId(line.id)}
+                      style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column',
+                        gap: '6px',
+                        flexShrink: 0,
+                        width: '200px',
+                        padding: '10px',
+                        background: isFocused 
+                          ? (prefs.darkMap ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)') 
+                          : 'transparent',
+                        border: isFocused 
+                          ? `1.5px solid ${line.color}` 
+                          : (prefs.darkMap ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)'),
+                        borderRadius: '12px',
+                        cursor: 'pointer',
+                        transition: 'all 150ms',
+                        boxShadow: isFocused ? `0 0 12px ${line.color}25` : 'none'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                          <div style={{
+                            width: '10px', height: '10px', borderRadius: '50%',
+                            background: line.color, flexShrink: 0
+                          }} />
+                          <span style={{ fontWeight: 800, fontSize: '13px', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {line.name}
+                          </span>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                          {/* Star/Fav */}
+                          <button
+                            onClick={() => updatePrefs({
+                              favBusLines: isFav ? prefs.favBusLines.filter(id => id !== line.id) : [...prefs.favBusLines, line.id]
+                            })}
+                            style={{
+                              width: '24px', height: '24px', borderRadius: '50%',
+                              background: prefs.darkMap ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                              border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
+                            }}
+                          >
+                            <Star size={11} style={{
+                              color: isFav ? '#F59E0B' : 'var(--text-muted)',
+                              fill: isFav ? '#F59E0B' : 'none'
+                            }} />
+                          </button>
+
+                          {/* Close/Cancel */}
+                          <button
+                            onClick={() => {
+                              setSelectedLines(prev => prev.filter(l => l.id !== line.id))
+                              if (activeTravelRoute?.line_id === line.id) {
+                                setActiveTravelRoute(null)
+                              }
+                              if (trackedBusId) {
+                                const bus = buses.find(b => b.id === trackedBusId)
+                                if (bus?.line_id === line.id) {
+                                  setTrackedBusId(null)
+                                }
+                              }
+                            }}
+                            style={{
+                              width: '24px', height: '24px', borderRadius: '50%',
+                              background: '#EF444415', border: 'none', color: '#EF4444',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontWeight: 'bold'
+                            }}
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {line.company}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </motion.div>
           </div>
