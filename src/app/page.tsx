@@ -5026,10 +5026,11 @@ function MiniPopup({
             bus.line_number === '37' ? '/images/bus-37-real.jpg' :
             bus.line_number === '28' ? '/images/bus-28-real.png' :
             bus.line_number === '39' ? '/images/bus-39-real.jpg' :
+            bus.line_number === '59' ? '/images/bus-59-real.png' :
             `/images/bus-${bus.line_number}.png`
           }
           alt={`Bus ${bus.line_number}`}
-          style={{ width: '100%', height: '100%', objectFit: (bus.line_number === '12' || bus.line_number === '37' || bus.line_number === '28' || bus.line_number === '39') ? 'cover' : 'contain' }}
+          style={{ width: '100%', height: '100%', objectFit: (bus.line_number === '12' || bus.line_number === '37' || bus.line_number === '28' || bus.line_number === '39' || bus.line_number === '59') ? 'cover' : 'contain' }}
         />
         <div style={{
           position: 'absolute',
