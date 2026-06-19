@@ -8,7 +8,7 @@ import { MOCK_LINES } from '@/lib/mockData'
 interface Props {
   lines: BusLine[]
   selectedLines: BusLine[]
-  onSelect: (l: BusLine) => void
+  onSelect: (lines: BusLine[]) => void
   onClose: () => void
   darkMap: boolean
 
@@ -65,6 +65,7 @@ export default function LineSelector({
   setTab
 }: Props) {
   const allLines = lines.length > 0 ? lines : MOCK_LINES
+  const [localSelectedLines, setLocalSelectedLines] = useState<BusLine[]>(selectedLines)
 
   const [q, setQ] = useState('')
   const [locating, setLocating] = useState(false)
@@ -154,11 +155,16 @@ export default function LineSelector({
                 boxSizing: 'border-box'
               }}>
                 {filtered.map(line => {
-                  const isSelected = selectedLines.some(l => l.id === line.id)
+                  const isSelected = localSelectedLines.some(l => l.id === line.id)
                   return (
                     <button
                       key={line.id}
-                      onClick={() => onSelect(line)}
+                      onClick={() => {
+                        setLocalSelectedLines(prev => {
+                          const exists = prev.some(l => l.id === line.id)
+                          return exists ? prev.filter(l => l.id !== line.id) : [...prev, line]
+                        })
+                      }}
                       style={{
                         width: '50px',
                         height: '50px',
@@ -187,6 +193,36 @@ export default function LineSelector({
                 {filtered.length === 0 && (
                   <p style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', padding: '20px 0', fontFamily: 'DM Sans', flexShrink: 0, width: '100%' }}>Sin resultados para "{q}"</p>
                 )}
+              </div>
+
+              {/* Buscar colectivos button */}
+              <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'center' }}>
+                <button
+                  onClick={() => {
+                    onSelect(localSelectedLines)
+                    onClose()
+                  }}
+                  style={{
+                    width: '100%',
+                    height: '42px',
+                    background: '#111827', // premium black
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontSize: '13px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    transition: 'all 200ms',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                  }}
+                >
+                  <Navigation size={14} />
+                  Buscar colectivos
+                </button>
               </div>
             </>
           )}
@@ -352,7 +388,7 @@ export default function LineSelector({
                         onClick={() => {
                           const line = allLines.find(l => l.id === travelRoute.line_id)
                           if (line) {
-                            onSelect(line)
+                            onSelect([line])
                             setViewState((v: any) => ({
                               ...v,
                               latitude: travelRoute.originStop.latitude,
@@ -425,7 +461,17 @@ export default function LineSelector({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <p style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'DM Mono', marginBottom: '8px' }}>Líneas que pasan cerca tuyo</p>
                   {nearbyLines.map(line => (
-                    <LineItem key={line.id} line={line} selected={selectedLines.some(l => l.id === line.id)} onSelect={() => onSelect(line)} darkMap={darkMap} />
+                    <LineItem
+                      key={line.id}
+                      line={line}
+                      selected={selectedLines.some(l => l.id === line.id)}
+                      onSelect={() => {
+                        const exists = selectedLines.some(l => l.id === line.id)
+                        const next = exists ? selectedLines.filter(l => l.id !== line.id) : [...selectedLines, line]
+                        onSelect(next)
+                      }}
+                      darkMap={darkMap}
+                    />
                   ))}
                 </div>
               )}

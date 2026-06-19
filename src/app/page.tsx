@@ -1505,6 +1505,16 @@ export default function UserMapPage() {
     }
   }, [activePanel])
 
+  // Close selected bus popup if the corresponding line is no longer selected
+  useEffect(() => {
+    if (selectedBus) {
+      const isSelected = selectedLines.some(l => l.line_number === selectedBus.line_number)
+      if (!isSelected) {
+        setSelectedBus(null)
+      }
+    }
+  }, [selectedLines, selectedBus])
+
   const handleLocated = useCallback((e: any) => {
     const { latitude, longitude } = e.coords
     supabase.rpc('get_nearby_stops', { user_lat: latitude, user_lng: longitude })
@@ -3930,11 +3940,8 @@ export default function UserMapPage() {
               lines={allLines}
               selectedLines={selectedLines}
               darkMap={prefs.darkMap}
-              onSelect={line => {
-                setSelectedLines(prev => {
-                  const exists = prev.some(l => l.id === line.id)
-                  return exists ? prev.filter(l => l.id !== line.id) : [...prev, line]
-                })
+              onSelect={lines => {
+                setSelectedLines(lines)
               }}
               onClose={() => setShowLineSelector(false)}
               originInput={originInput}
