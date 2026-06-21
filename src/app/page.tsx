@@ -22874,17 +22874,7 @@ export default function UserMapPage() {
                   <div
                     key={line.id}
                     onClick={() => {
-                      if (activeMode === 'tourist') {
-                        // Toggle tourist lines immediately for instant map rendering
-                        setSelectedLines(prev => {
-                          const exists = prev.some(l => l.id === line.id)
-                          return exists ? prev.filter(l => l.id !== line.id) : [...prev, line]
-                        })
-                        setTempLinesSelection(prev => {
-                          const exists = prev.some(l => l.id === line.id)
-                          return exists ? prev.filter(l => l.id !== line.id) : [...prev, line]
-                        })
-                      } else if (item.originStop) {
+                      if (item.originStop) {
                         setSelectedLines(prev => {
                           const exists = prev.some(l => l.id === line.id)
                           if (exists) {
