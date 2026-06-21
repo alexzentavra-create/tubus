@@ -23660,6 +23660,52 @@ export default function UserMapPage() {
             ))
           }
 
+          {/* Render Smaller Tourist Landmarks along the route */}
+          {activeMode === 'tourist' && MOCK_PLACES
+            .filter(place => place.city === selectedCity && place.type === 'tourist')
+            .map(place => {
+              const isParkOrGarden = place.name.toLowerCase().includes('jardín') || place.name.toLowerCase().includes('rosedal') || place.name.toLowerCase().includes('plaza');
+              const icon = isParkOrGarden ? '🌳' : '📷';
+              return (
+                <Marker key={`landmark-${place.id}`} longitude={place.lng} latitude={place.lat} anchor="center">
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedPlace(place);
+                    }}
+                    title={place.name}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '22px',
+                      height: '22px',
+                      borderRadius: '50%',
+                      background: prefs.darkMap ? 'rgba(30, 41, 59, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                      border: '2px solid #F59E0B',
+                      boxShadow: '0 0 8px rgba(245, 158, 11, 0.45)',
+                      cursor: 'pointer',
+                      fontSize: '11px',
+                      zIndex: 8,
+                      transform: 'scale(1)',
+                      transition: 'transform 0.15s, box-shadow 0.15s'
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.transform = 'scale(1.25)';
+                      e.currentTarget.style.boxShadow = '0 0 12px rgba(245, 158, 11, 0.75)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = '0 0 8px rgba(245, 158, 11, 0.45)';
+                    }}
+                  >
+                    {icon}
+                  </div>
+                </Marker>
+              );
+            })
+          }
+
           {nearbyStops.map((stop: BusStop) => (
             <Marker key={stop.id} longitude={stop.longitude} latitude={stop.latitude} anchor="center">
               <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'rgba(184,200,224,0.6)', border: '2px solid rgba(184,200,224,0.3)' }} />
