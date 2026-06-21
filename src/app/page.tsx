@@ -22933,8 +22933,8 @@ export default function UserMapPage() {
                         style={{
                           width: '100%',
                           height: '100%',
-                          objectFit: 'contain',
-                          transform: 'scale(1.15)',
+                          objectFit: line.line_number === 'T-Amarillo' ? 'cover' : 'contain',
+                          transform: line.line_number === 'T-Amarillo' ? 'none' : 'scale(1.15)',
                           display: 'block'
                         }}
                       />
@@ -26332,10 +26332,11 @@ function MiniPopup({
             bus.line_number === '60' ? '/images/bus-60-real.jpg' :
             bus.line_number === '102' ? '/images/bus-102-real.jpg' :
             bus.line_number === '152' ? '/images/bus-152-real.jpg' :
+            bus.line_number === 'T-Amarillo' ? '/images/bus-T-Amarillo.jpg' :
             `/images/bus-${bus.line_number}.png`
           }
           alt={`Bus ${bus.line_number}`}
-          style={{ width: '100%', height: '100%', objectFit: (bus.line_number === '12' || bus.line_number === '37' || bus.line_number === '28' || bus.line_number === '39' || bus.line_number === '59' || bus.line_number === '60' || bus.line_number === '102' || bus.line_number === '152') ? 'cover' : 'contain' }}
+          style={{ width: '100%', height: '100%', objectFit: (bus.line_number === '12' || bus.line_number === '37' || bus.line_number === '28' || bus.line_number === '39' || bus.line_number === '59' || bus.line_number === '60' || bus.line_number === '102' || bus.line_number === '152' || bus.line_number === 'T-Amarillo') ? 'cover' : 'contain' }}
         />
         <div style={{
           position: 'absolute',
