@@ -7,7 +7,8 @@ import {
   Bus, Search, ChevronDown, X, Star, MapPin, Bell, AlertTriangle,
   LogOut, Heart, ChevronRight, User, Sliders, Moon, Globe,
   Navigation as NavIcon, LayoutDashboard, Menu,
-  Locate, Plus, Minus, Sun, Route, Activity, Clock
+  Locate, Plus, Minus, Sun, Route, Activity, Clock,
+  Megaphone, MessageSquare, PlusCircle, CheckCircle2, MessageCircle, Edit2
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { OFFICIAL_ROUTES } from '@/lib/officialRoutes'
@@ -21393,6 +21394,15 @@ export default function UserMapPage() {
   const [showGotOffPrompt, setShowGotOffPrompt] = useState<boolean>(false)
   const [currentAdIndex, setCurrentAdIndex] = useState<number>(0)
 
+  // User Profile, Search History, Ads, and Support Chat states
+  const [profileName, setProfileName] = useState('Alejandro')
+  const [profilePhone, setProfilePhone] = useState('+54 11 5555-5555')
+  const [profileEmail, setProfileEmail] = useState('usuario@bienparada.com.ar')
+  const [profileAvatar, setProfileAvatar] = useState('avatar1')
+  const [searchHistory, setSearchHistory] = useState<any[]>([])
+  const [adSubmissions, setAdSubmissions] = useState<any[]>([])
+  const [chatMessages, setChatMessages] = useState<any[]>([])
+
   useEffect(() => {
     if (!activeTravelRoute) {
       setUserBoardedBus(false)
@@ -21825,7 +21835,120 @@ export default function UserMapPage() {
     setUseMockBuses(true)
     
     setSelectedLines([])
+
+    // Load User Profile
+    setProfileName(localStorage.getItem('profile_name') || 'Alejandro')
+    setProfilePhone(localStorage.getItem('profile_phone') || '+54 11 5555-5555')
+    setProfileEmail(localStorage.getItem('profile_email') || 'usuario@bienparada.com.ar')
+    setProfileAvatar(localStorage.getItem('profile_avatar') || 'avatar1')
+
+    // Seed Search History if empty
+    const existingHistory = localStorage.getItem('bu_search_history')
+    if (!existingHistory) {
+      const mockHistory = [
+        {
+          id: 'sh-1',
+          timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+          originName: 'Obelisco, Buenos Aires',
+          destName: 'Teatro Colón, Buenos Aires',
+          originCoord: { lat: -34.6037, lng: -58.3816 },
+          destCoord: { lat: -34.5992, lng: -58.3831 }
+        },
+        {
+          id: 'sh-2',
+          timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+          originName: 'Caminito, La Boca',
+          destName: 'La Bombonera, La Boca',
+          originCoord: { lat: -34.6393, lng: -58.3627 },
+          destCoord: { lat: -34.6353, lng: -58.3647 }
+        }
+      ]
+      localStorage.setItem('bu_search_history', JSON.stringify(mockHistory))
+      setSearchHistory(mockHistory)
+    } else {
+      setSearchHistory(JSON.parse(existingHistory))
+    }
+
+    // Seed Ads if empty
+    const existingAds = localStorage.getItem('bu_submitted_ads')
+    if (!existingAds) {
+      const mockAds = [
+        {
+          id: 'ad-1',
+          title: 'Cervecería Patagonia - Cupones',
+          link: 'https://www.cervezapatagonia.com.ar',
+          imageUrl: 'https://images.unsplash.com/photo-1571613316887-6f8d5cbf7ef7?auto=format&fit=crop&w=300&q=80',
+          budget: '$20.000 / 30 días',
+          description: 'Cupón de descuento para pasajeros del colectivo 152.',
+          status: 'approved',
+          adminComment: 'Excelente anuncio. Aprobado y configurado.',
+          timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
+          userEmail: 'usuario@bienparada.com.ar',
+          userName: 'Alejandro'
+        }
+      ]
+      localStorage.setItem('bu_submitted_ads', JSON.stringify(mockAds))
+      setAdSubmissions(mockAds)
+    } else {
+      setAdSubmissions(JSON.parse(existingAds))
+    }
+
+    // Seed Chat if empty
+    const existingChat = localStorage.getItem('bu_support_chat')
+    if (!existingChat) {
+      const mockChat = [
+        { id: 'm1', sender: 'admin', text: '¡Hola! Bienvenido al chat de soporte de BienParada. ¿En qué podemos ayudarte hoy?', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString() }
+      ]
+      localStorage.setItem('bu_support_chat', JSON.stringify(mockChat))
+      setChatMessages(mockChat)
+    } else {
+      setChatMessages(JSON.parse(existingChat))
+    }
   }, [])
+
+  // Sync state with localStorage updates from other tabs
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'bu_support_chat') {
+        setChatMessages(JSON.parse(localStorage.getItem('bu_support_chat') || '[]'))
+      } else if (e.key === 'bu_submitted_ads') {
+        setAdSubmissions(JSON.parse(localStorage.getItem('bu_submitted_ads') || '[]'))
+      } else if (e.key === 'profile_name') {
+        setProfileName(localStorage.getItem('profile_name') || 'Alejandro')
+      } else if (e.key === 'profile_phone') {
+        setProfilePhone(localStorage.getItem('profile_phone') || '+54 11 5555-5555')
+      } else if (e.key === 'profile_email') {
+        setProfileEmail(localStorage.getItem('profile_email') || 'usuario@bienparada.com.ar')
+      } else if (e.key === 'profile_avatar') {
+        setProfileAvatar(localStorage.getItem('profile_avatar') || 'avatar1')
+      } else if (e.key === 'bu_search_history') {
+        setSearchHistory(JSON.parse(localStorage.getItem('bu_search_history') || '[]'))
+      }
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
+
+  // Log successful route searches to history
+  useEffect(() => {
+    if (activeTravelRoute && originInput && destInput && originCoord && destCoord) {
+      const history = JSON.parse(localStorage.getItem('bu_search_history') || '[]')
+      const exists = history.slice(0, 5).some((h: any) => h.originName === originInput && h.destName === destInput)
+      if (!exists) {
+        const newItem = {
+          id: `sh-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          originName: originInput,
+          destName: destInput,
+          originCoord,
+          destCoord
+        }
+        const updated = [newItem, ...history]
+        localStorage.setItem('bu_search_history', JSON.stringify(updated))
+        setSearchHistory(updated)
+      }
+    }
+  }, [activeTravelRoute, originInput, destInput, originCoord, destCoord])
 
   const updatePrefs = useCallback((patch: Partial<UserPrefs>) => {
     setPrefs(prev => { const next = { ...prev, ...patch }; savePrefs(next); return next })
@@ -25233,7 +25356,36 @@ export default function UserMapPage() {
                   />
                 )}
                 {activePanel === 'profile' && (
-                  <ProfilePanel user={user} onLogout={handleLogout} />
+                  <ProfilePanel
+                    user={user}
+                    onLogout={handleLogout}
+                    profileName={profileName}
+                    setProfileName={setProfileName}
+                    profilePhone={profilePhone}
+                    setProfilePhone={setProfilePhone}
+                    profileEmail={profileEmail}
+                    setProfileEmail={setProfileEmail}
+                    profileAvatar={profileAvatar}
+                    setProfileAvatar={setProfileAvatar}
+                    searchHistory={searchHistory}
+                    setSearchHistory={setSearchHistory}
+                    adSubmissions={adSubmissions}
+                    setAdSubmissions={setAdSubmissions}
+                    chatMessages={chatMessages}
+                    setChatMessages={setChatMessages}
+                    setOriginInput={setOriginInput}
+                    setDestInput={setDestInput}
+                    setOriginCoord={setOriginCoord}
+                    setDestCoord={setDestCoord}
+                    setSolvedRoutes={setSolvedRoutes}
+                    setTravelRoute={setTravelRoute}
+                    setActiveTravelRoute={setActiveTravelRoute}
+                    setSelectedLines={setSelectedLines}
+                    fitCoordinates={fitCoordinates}
+                    setActivePanel={setActivePanel}
+                    allLines={lines}
+                    solveRoutes={solveRoutes}
+                  />
                 )}
               </div>
             </motion.div>
@@ -25880,35 +26032,633 @@ function SettingsPanel({
 }
 
 // ─── Profile Panel ────────────────────────────────────────────────────────────
-function ProfilePanel({ user, onLogout }: { user: any; onLogout: () => void }) {
+function ProfilePanel({
+  user,
+  onLogout,
+  profileName,
+  setProfileName,
+  profilePhone,
+  setProfilePhone,
+  profileEmail,
+  setProfileEmail,
+  profileAvatar,
+  setProfileAvatar,
+  searchHistory,
+  setSearchHistory,
+  adSubmissions,
+  setAdSubmissions,
+  chatMessages,
+  setChatMessages,
+  setOriginInput,
+  setDestInput,
+  setOriginCoord,
+  setDestCoord,
+  setSolvedRoutes,
+  setTravelRoute,
+  setActiveTravelRoute,
+  setSelectedLines,
+  fitCoordinates,
+  setActivePanel,
+  allLines,
+  solveRoutes
+}: {
+  user: any
+  onLogout: () => void
+  profileName: string
+  setProfileName: (val: string) => void
+  profilePhone: string
+  setProfilePhone: (val: string) => void
+  profileEmail: string
+  setProfileEmail: (val: string) => void
+  profileAvatar: string
+  setProfileAvatar: (val: string) => void
+  searchHistory: any[]
+  setSearchHistory: (val: any[]) => void
+  adSubmissions: any[]
+  setAdSubmissions: (val: any[]) => void
+  chatMessages: any[]
+  setChatMessages: any
+  setOriginInput: (val: string) => void
+  setDestInput: (val: string) => void
+  setOriginCoord: (val: { lat: number; lng: number } | null) => void
+  setDestCoord: (val: { lat: number; lng: number } | null) => void
+  setSolvedRoutes: (val: any[]) => void
+  setTravelRoute: (val: any | null) => void
+  setActiveTravelRoute: (val: any | null) => void
+  setSelectedLines: (val: any[]) => void
+  fitCoordinates: (coord1: { lat: number; lng: number }, coord2: { lat: number; lng: number }) => void
+  setActivePanel: (val: any) => void
+  allLines: any[]
+  solveRoutes: (origin: { lat: number; lng: number }, dest: { lat: number; lng: number }) => any[]
+}) {
+  const [activeTab, setActiveTab] = useState<'profile' | 'history' | 'ads' | 'support'>('profile')
+  const [localName, setLocalName] = useState(profileName)
+  const [localPhone, setLocalPhone] = useState(profilePhone)
+  const [localEmail, setLocalEmail] = useState(profileEmail)
+  const [localAvatar, setLocalAvatar] = useState(profileAvatar)
+  
+  // Ad Submission Form States
+  const [adTitle, setAdTitle] = useState('')
+  const [adDesc, setAdDesc] = useState('')
+  const [adUrl, setAdUrl] = useState('')
+  const [adImg, setAdImg] = useState('')
+  const [adBudget, setAdBudget] = useState('50')
+  const [adSubmitting, setAdSubmitting] = useState(false)
+
+  // Support Chat Form States
+  const [chatInput, setChatInput] = useState('')
+  const chatEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setLocalName(profileName)
+    setLocalPhone(profilePhone)
+    setLocalEmail(profileEmail)
+    setLocalAvatar(profileAvatar)
+  }, [profileName, profilePhone, profileEmail, profileAvatar])
+
+  useEffect(() => {
+    if (activeTab === 'support' && chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [chatMessages, activeTab])
+
+  const handleSaveProfile = () => {
+    setProfileName(localName)
+    setProfilePhone(localPhone)
+    setProfileEmail(localEmail)
+    setProfileAvatar(localAvatar)
+
+    localStorage.setItem('tu_bus_profile_name', localName)
+    localStorage.setItem('tu_bus_profile_phone', localPhone)
+    localStorage.setItem('tu_bus_profile_email', localEmail)
+    localStorage.setItem('tu_bus_profile_avatar', localAvatar)
+
+    alert('¡Perfil guardado con éxito!')
+  }
+
+  const handleClearHistory = () => {
+    if (confirm('¿Estás seguro de que querés borrar todo tu historial de búsqueda?')) {
+      setSearchHistory([])
+      localStorage.removeItem('tu_bus_search_history')
+    }
+  }
+
+  const handleRemoveHistoryItem = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    const updated = searchHistory.filter(h => h.id !== id)
+    setSearchHistory(updated)
+    localStorage.setItem('tu_bus_search_history', JSON.stringify(updated))
+  }
+
+  const handleSelectHistoryItem = (item: any) => {
+    setOriginInput(item.originName)
+    setDestInput(item.destName)
+    setOriginCoord(item.originCoord)
+    setDestCoord(item.destCoord)
+    
+    const solved = solveRoutes(item.originCoord, item.destCoord)
+    setSolvedRoutes(solved)
+    setTravelRoute(null)
+    setActiveTravelRoute(null)
+
+    if (solved && solved.length > 0) {
+      const matchedLine = allLines.find(l => l.line_number === solved[0].line_number)
+      if (matchedLine) {
+        setSelectedLines([matchedLine])
+      }
+    }
+
+    fitCoordinates(item.originCoord, item.destCoord)
+    setActivePanel('map')
+  }
+
+  const handleAdSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!adTitle.trim() || !adDesc.trim()) {
+      alert('Por favor completá los campos requeridos (Título y Descripción).')
+      return
+    }
+
+    setAdSubmitting(true)
+
+    // Simulate submission flow
+    setTimeout(() => {
+      const newAd = {
+        id: Date.now().toString(),
+        title: adTitle,
+        description: adDesc,
+        targetUrl: adUrl || 'https://tubus.com.ar',
+        imageUrl: adImg || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80',
+        budget: Number(adBudget) || 50,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+        adminComment: 'Aguardando revisión del equipo de moderación.'
+      }
+
+      const updated = [newAd, ...adSubmissions]
+      setAdSubmissions(updated)
+      localStorage.setItem('tu_bus_submitted_ads', JSON.stringify(updated))
+
+      setAdTitle('')
+      setAdDesc('')
+      setAdUrl('')
+      setAdImg('')
+      setAdBudget('50')
+      setAdSubmitting(false)
+
+      // Schedule simulated review/approval in 5 seconds
+      setTimeout(() => {
+        const approvedAds = updated.map(ad => {
+          if (ad.id === newAd.id) {
+            return {
+              ...ad,
+              status: 'approved',
+              adminComment: '¡Tu anuncio ha sido verificado y ya está circulando en la red TuBus!'
+            }
+          }
+          return ad
+        })
+        setAdSubmissions(approvedAds)
+        localStorage.setItem('tu_bus_submitted_ads', JSON.stringify(approvedAds))
+      }, 5000)
+
+    }, 800)
+  }
+
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!chatInput.trim()) return
+
+    const userMsg = {
+      id: Date.now().toString(),
+      sender: 'user',
+      text: chatInput,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }
+
+    const updated = [...chatMessages, userMsg]
+    setChatMessages(updated)
+    localStorage.setItem('tu_bus_chat_messages', JSON.stringify(updated))
+    setChatInput('')
+
+    // Simulated Admin support reply
+    setTimeout(() => {
+      let replyText = '¡Hola! Recibimos tu consulta en el soporte de TuBus. Un representante técnico se comunicará en breve.'
+      
+      const lower = chatInput.toLowerCase()
+      if (lower.includes('anuncio') || lower.includes('publicidad') || lower.includes('campaña')) {
+        replyText = '¡Hola! Respecto a tu consulta sobre publicidad: una vez cargado el anuncio en la pestaña "Anuncios", se aprobará automáticamente en unos segundos. Podés revisar el estado en tiempo real.'
+      } else if (lower.includes('ruta') || lower.includes('recorrido') || lower.includes('colectivo') || lower.includes('línea')) {
+        replyText = '¡Hola! Si notás algún desvío o error en el recorrido de los colectivos, recordá que los datos son simulados en tiempo real. Podés reportar la línea desde el panel correspondiente.'
+      } else if (lower.includes('turism') || lower.includes('turist') || lower.includes('amarillo') || lower.includes('rojo')) {
+        replyText = '¡Hola! Los colectivos turísticos Amarillo y Rojo recorren los principales hitos de la ciudad de Buenos Aires. Recordá activar el botón de "Puntos de interés" para ver todas las paradas en el mapa con fotos exclusivas.'
+      }
+
+      const adminMsg = {
+        id: (Date.now() + 1).toString(),
+        sender: 'support',
+        text: replyText,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }
+
+      setChatMessages((prev: any[]) => {
+        const next = [...prev, adminMsg]
+        localStorage.setItem('tu_bus_chat_messages', JSON.stringify(next))
+        return next
+      })
+    }, 1500)
+  }
+
+  const AVATARS = ['🚌', '🚇', '🚏', '📍', '🗺️', '⭐', '❤️', '💼']
+
   return (
-    <div>
-      <PanelTitle>Mi Perfil</PanelTitle>
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '16px 0 20px' }}>
-        <div style={{ width: '68px', height: '68px', borderRadius: '50%', background: 'linear-gradient(145deg,#1E2638,#0A0E14)', border: '2px solid rgba(184,200,224,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <User size={28} style={{ color: 'var(--platinum-dim)' }} />
-        </div>
-      </div>
-      <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-        <div style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '17px', marginBottom: '3px' }}>{user?.user_metadata?.name || 'Usuario'}</div>
-        <div style={{ color: 'var(--text-muted)', fontSize: '12px', fontFamily: 'DM Mono' }}>{user?.email || '—'}</div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* ── Tabs Navigation ── */}
+      <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.03)', padding: '4px', borderRadius: '12px', marginBottom: '16px', border: '1px solid rgba(255,255,255,0.06)' }}>
+        <button
+          onClick={() => setActiveTab('profile')}
+          style={{ flex: 1, padding: '8px 4px', borderRadius: '8px', border: 'none', background: activeTab === 'profile' ? 'rgba(255,255,255,0.08)' : 'transparent', color: activeTab === 'profile' ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', cursor: 'pointer', transition: 'all 200ms' }}
+        >
+          <User size={15} style={{ color: activeTab === 'profile' ? '#10B981' : 'inherit' }} />
+          <span>Perfil</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          style={{ flex: 1, padding: '8px 4px', borderRadius: '8px', border: 'none', background: activeTab === 'history' ? 'rgba(255,255,255,0.08)' : 'transparent', color: activeTab === 'history' ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', cursor: 'pointer', transition: 'all 200ms' }}
+        >
+          <Clock size={15} style={{ color: activeTab === 'history' ? '#3B82F6' : 'inherit' }} />
+          <span>Historial</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('ads')}
+          style={{ flex: 1, padding: '8px 4px', borderRadius: '8px', border: 'none', background: activeTab === 'ads' ? 'rgba(255,255,255,0.08)' : 'transparent', color: activeTab === 'ads' ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', cursor: 'pointer', transition: 'all 200ms' }}
+        >
+          <Megaphone size={15} style={{ color: activeTab === 'ads' ? '#F59E0B' : 'inherit' }} />
+          <span>Anuncios</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('support')}
+          style={{ flex: 1, padding: '8px 4px', borderRadius: '8px', border: 'none', background: activeTab === 'support' ? 'rgba(255,255,255,0.08)' : 'transparent', color: activeTab === 'support' ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', cursor: 'pointer', transition: 'all 200ms' }}
+        >
+          <MessageSquare size={15} style={{ color: activeTab === 'support' ? '#EC4899' : 'inherit' }} />
+          <span>Soporte</span>
+        </button>
       </div>
 
-      <GlassCard>
-        <ProfileRow label="Correo" value={user?.email || '—'} />
-        <Divider />
-        <ProfileRow label="Rol" value="Pasajero" />
-        <Divider />
-        <ProfileRow label="Miembro desde" value={user?.created_at ? new Date(user.created_at).toLocaleDateString('es-AR') : '—'} />
-      </GlassCard>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '4px' }}>
+        {/* ── PROFILE TAB ── */}
+        {activeTab === 'profile' && (
+          <div>
+            <PanelTitle>Configuración de Perfil</PanelTitle>
+            
+            {/* Avatar Select */}
+            <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'inline-flex', width: '76px', height: '76px', borderRadius: '50%', background: 'linear-gradient(135deg, #1E293B, #0F172A)', border: '2px solid rgba(16,185,129,0.4)', alignItems: 'center', justifyContent: 'center', fontSize: '32px', marginBottom: '12px', boxShadow: '0 4px 16px rgba(0,0,0,0.3)' }}>
+                {localAvatar}
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>Elegí tu avatar del pasajero</div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                {AVATARS.map(av => (
+                  <button
+                    key={av}
+                    onClick={() => setLocalAvatar(av)}
+                    style={{ width: '28px', height: '28px', borderRadius: '50%', border: localAvatar === av ? '2px solid #10B981' : '1px solid rgba(255,255,255,0.1)', background: localAvatar === av ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.03)', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 150ms' }}
+                  >
+                    {av}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-      <button
-        onClick={onLogout}
-        style={{ marginTop: '20px', width: '100%', padding: '13px', borderRadius: '13px', border: '1px solid rgba(255,77,106,0.3)', background: 'rgba(255,77,106,0.06)', color: '#FF4D6A', fontSize: '14px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}
-      >
-        <LogOut size={15} />
-        Cerrar sesión
-      </button>
+            <GlassCard>
+              <div style={{ padding: '16px' }}>
+                {/* Name */}
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'DM Mono' }}>Nombre y Apellido</label>
+                  <input
+                    type="text"
+                    value={localName}
+                    onChange={e => setLocalName(e.target.value)}
+                    placeholder="Ej. Alejandro Pérez"
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }}
+                  />
+                </div>
+                {/* Phone */}
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'DM Mono' }}>Teléfono de contacto</label>
+                  <input
+                    type="tel"
+                    value={localPhone}
+                    onChange={e => setLocalPhone(e.target.value)}
+                    placeholder="Ej. +54 9 11 1234-5678"
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }}
+                  />
+                </div>
+                {/* Email */}
+                <div>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'DM Mono' }}>Dirección de Email</label>
+                  <input
+                    type="email"
+                    value={localEmail}
+                    onChange={e => setLocalEmail(e.target.value)}
+                    placeholder="ejemplo@email.com"
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }}
+                  />
+                </div>
+              </div>
+            </GlassCard>
+
+            <button
+              onClick={handleSaveProfile}
+              style={{ marginTop: '14px', width: '100%', padding: '13px', borderRadius: '12px', border: 'none', background: 'linear-gradient(90deg, #10B981, #059669)', color: 'white', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', boxShadow: '0 4px 12px rgba(16,185,129,0.2)' }}
+            >
+              <CheckCircle2 size={16} />
+              Guardar Cambios
+            </button>
+
+            <div style={{ marginTop: '30px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '20px' }}>
+              <button
+                onClick={onLogout}
+                style={{ width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.05)', color: '#EF4444', fontSize: '13px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 200ms' }}
+              >
+                <LogOut size={14} />
+                Cerrar Sesión Activa
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── HISTORY TAB ── */}
+        {activeTab === 'history' && (
+          <div>
+            <PanelTitle>Historial de Viajes</PanelTitle>
+            <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '14px', lineHeight: '1.4' }}>
+              Hacé clic en cualquier búsqueda del historial para cargar los colectivos recomendados y el trayecto directamente sobre el mapa.
+            </div>
+
+            {searchHistory.length === 0 ? (
+              <EmptyHint text="No realizaste búsquedas de viaje todavía." />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {searchHistory.map(item => (
+                  <div
+                    key={item.id}
+                    onClick={() => handleSelectHistoryItem(item)}
+                    style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '12px', cursor: 'pointer', position: 'relative', display: 'flex', flexDirection: 'column', gap: '6px', transition: 'background 200ms' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingRight: '24px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-primary)', fontWeight: 600 }}>
+                          <MapPin size={11} style={{ color: '#10B981', flexShrink: 0 }} />
+                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '210px' }}>{item.originName}</span>
+                        </div>
+                        <div style={{ height: '8px', borderLeft: '1px dashed rgba(255,255,255,0.2)', marginLeft: '5px' }} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-primary)', fontWeight: 600 }}>
+                          <MapPin size={11} style={{ color: '#EF4444', flexShrink: 0 }} />
+                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '210px' }}>{item.destName}</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => handleRemoveHistoryItem(item.id, e)}
+                        style={{ border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px', position: 'absolute', top: '10px', right: '10px' }}
+                      >
+                        <X size={14} style={{ color: '#FF4D6A' }} />
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px', marginTop: '2px' }}>
+                      <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'DM Mono' }}>
+                        {new Date(item.timestamp).toLocaleDateString('es-AR')} {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      <span style={{ fontSize: '10px', background: 'rgba(59,130,246,0.15)', color: '#93C5FD', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                        Recargar
+                      </span>
+                    </div>
+                  </div>
+                ))}
+
+                <button
+                  onClick={handleClearHistory}
+                  style={{ marginTop: '10px', padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'var(--text-muted)', fontSize: '12px', cursor: 'pointer', width: '100%', transition: 'all 200ms' }}
+                  onMouseEnter={e => { e.currentTarget.style.color = '#FF4D6A'; e.currentTarget.style.borderColor = 'rgba(255,77,106,0.3)' }}
+                  onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' }}
+                >
+                  Borrar historial completo
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── ADVERTISING TAB ── */}
+        {activeTab === 'ads' && (
+          <div>
+            <PanelTitle>Portal de Anuncios</PanelTitle>
+            <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '16px', lineHeight: '1.4' }}>
+              Publicitá tu negocio dentro del mapa de TuBus. Tus campañas se mostrarán como banners informativos o promociones directas para los pasajeros.
+            </div>
+
+            {/* Ad Creation Form */}
+            <GlassCard>
+              <form onSubmit={handleAdSubmit} style={{ padding: '14px' }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <PlusCircle size={14} style={{ color: '#F59E0B' }} />
+                  Crear Nueva Campaña
+                </div>
+
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, marginBottom: '4px' }}>Título del Anuncio *</label>
+                  <input
+                    type="text"
+                    required
+                    value={adTitle}
+                    onChange={e => setAdTitle(e.target.value)}
+                    placeholder="Ej. 20% off en Café Central"
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-primary)', fontSize: '12px', outline: 'none' }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, marginBottom: '4px' }}>Descripción / Copia de Venta *</label>
+                  <textarea
+                    required
+                    rows={2}
+                    value={adDesc}
+                    onChange={e => setAdDesc(e.target.value)}
+                    placeholder="Ej. Presentando la app obtené descuento en desayunos..."
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-primary)', fontSize: '12px', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, marginBottom: '4px' }}>Link de Destino</label>
+                    <input
+                      type="url"
+                      value={adUrl}
+                      onChange={e => setAdUrl(e.target.value)}
+                      placeholder="https://tupagina.com"
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-primary)', fontSize: '12px', outline: 'none' }}
+                    />
+                  </div>
+                  <div style={{ width: '90px' }}>
+                    <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, marginBottom: '4px' }}>Presupuesto (USD)</label>
+                    <input
+                      type="number"
+                      value={adBudget}
+                      onChange={e => setAdBudget(e.target.value)}
+                      placeholder="50"
+                      min="10"
+                      style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-primary)', fontSize: '12px', outline: 'none', fontFamily: 'DM Mono' }}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, marginBottom: '4px' }}>URL de Imagen Promo</label>
+                  <input
+                    type="url"
+                    value={adImg}
+                    onChange={e => setAdImg(e.target.value)}
+                    placeholder="https://images.unsplash.com/... (opcional)"
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-primary)', fontSize: '12px', outline: 'none' }}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={adSubmitting}
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: 'none', background: 'linear-gradient(90deg, #F59E0B, #D97706)', color: 'white', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                >
+                  {adSubmitting ? 'Cargando campaña...' : 'Enviar Anuncio a Revisión'}
+                </button>
+              </form>
+            </GlassCard>
+
+            {/* List of Ads */}
+            <div style={{ marginTop: '16px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>Mis Anuncios Registrados ({adSubmissions.length})</div>
+              {adSubmissions.length === 0 ? (
+                <EmptyHint text="No tenés campañas registradas aún." />
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {adSubmissions.map(ad => (
+                    <div key={ad.id} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', overflow: 'hidden' }}>
+                      {/* Image header if exists */}
+                      {ad.imageUrl && (
+                        <div style={{ height: '70px', overflow: 'hidden', borderBottom: '1px solid rgba(255,255,255,0.04)', position: 'relative' }}>
+                          <img
+                            src={ad.imageUrl}
+                            alt={ad.title}
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80'
+                            }}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        </div>
+                      )}
+
+                      <div style={{ padding: '12px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px', gap: '8px' }}>
+                          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>{ad.title}</div>
+                          <span style={{
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: '999px',
+                            textTransform: 'uppercase',
+                            background: ad.status === 'approved' ? 'rgba(16,185,129,0.15)' : ad.status === 'rejected' ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)',
+                            color: ad.status === 'approved' ? '#34D399' : ad.status === 'rejected' ? '#F87171' : '#FBBF24',
+                            border: `1px solid ${ad.status === 'approved' ? 'rgba(16,185,129,0.3)' : ad.status === 'rejected' ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.3)'}`
+                          }}>
+                            {ad.status === 'approved' ? 'Aprobado' : ad.status === 'rejected' ? 'Rechazado' : 'Pendiente'}
+                          </span>
+                        </div>
+
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', lineHeight: '1.3' }}>{ad.description}</div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.03)', paddingTop: '8px', marginTop: '4px' }}>
+                          <span>Presupuesto: <strong style={{ color: 'var(--text-secondary)', fontFamily: 'DM Mono' }}>${ad.budget}/mes</strong></span>
+                          <a href={ad.targetUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#3B82F6', textDecoration: 'none', fontWeight: 600 }}>Ver link ↗</a>
+                        </div>
+
+                        {ad.adminComment && (
+                          <div style={{ marginTop: '8px', padding: '8px', borderRadius: '6px', background: 'rgba(255,255,255,0.03)', borderLeft: '3px solid #64748B', fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                            <strong style={{ color: 'var(--text-secondary)', display: 'block', marginBottom: '2px', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Moderador:</strong>
+                            {ad.adminComment}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── SUPPORT TAB ── */}
+        {activeTab === 'support' && (
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <PanelTitle>Soporte Técnico</PanelTitle>
+            <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '12px', lineHeight: '1.4' }}>
+              Chat interactivo de soporte al pasajero. Consultanos tus dudas técnicas sobre TuBus y te responderemos inmediatamente.
+            </div>
+
+            {/* Messages Window */}
+            <div style={{ flex: 1, minHeight: '190px', maxHeight: '280px', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', background: 'rgba(0,0,0,0.25)', padding: '10px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
+              {chatMessages.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '11px' }}>Comenzá a chatear con soporte de TuBus...</div>
+              ) : (
+                chatMessages.map(msg => {
+                  const isUser = msg.sender === 'user'
+                  return (
+                    <div
+                      key={msg.id}
+                      style={{
+                        alignSelf: isUser ? 'flex-end' : 'flex-start',
+                        maxWidth: '85%',
+                        background: isUser ? 'linear-gradient(135deg, #059669, #047857)' : 'rgba(255,255,255,0.04)',
+                        border: isUser ? 'none' : '1px solid rgba(255,255,255,0.06)',
+                        borderRadius: isUser ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                        padding: '8px 11px',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
+                      }}
+                    >
+                      <div style={{ fontSize: '12px', color: '#FFF', lineHeight: '1.4', wordBreak: 'break-word' }}>
+                        {msg.text}
+                      </div>
+                      <div style={{ textAlign: 'right', fontSize: '9px', color: 'rgba(255,255,255,0.5)', marginTop: '3px', fontFamily: 'DM Mono' }}>
+                        {msg.timestamp}
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Message input */}
+            <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: '6px' }}>
+              <input
+                type="text"
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                placeholder="Escribí tu mensaje acá..."
+                style={{ flex: 1, padding: '10px 12px', borderRadius: '10px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }}
+              />
+              <button
+                type="submit"
+                style={{ padding: '0 16px', borderRadius: '10px', border: 'none', background: '#EC4899', color: 'white', fontWeight: 600, fontSize: '12px', cursor: 'pointer', boxShadow: '0 4px 10px rgba(236,72,153,0.2)' }}
+              >
+                Enviar
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

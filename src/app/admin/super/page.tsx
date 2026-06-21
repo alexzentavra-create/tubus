@@ -1,12 +1,12 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import {
   Bus, Users, Building2, Activity, TrendingUp, AlertTriangle,
   Clock, MapPin, BarChart2, Download, LogOut, RefreshCw,
   ChevronRight, Star, Wifi, Search, Bell, Mail, Calendar,
   Share2, Printer, Plus, Trash2, ChevronDown, CheckCircle2,
-  Circle, Flag, Info
+  Circle, Flag, Info, Megaphone, MessageSquare
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import {
@@ -227,7 +227,7 @@ const COMPLAINT_TYPES=[{n:'No paró',v:38,c:'#FF4D6A'},{n:'Mal trato',v:22,c:'#F
 
 const TTP={contentStyle:{background:'rgba(10,14,20,0.97)',border:'1px solid rgba(184,200,224,0.12)',borderRadius:'10px',fontSize:'12px',fontFamily:'DM Mono'},labelStyle:{color:'#C2C8D4'},itemStyle:{color:'#8A95A8'}}
 
-type Tab = 'overview'|'companies'|'drivers'|'users'|'reports'|'analytics'
+type Tab = 'overview'|'companies'|'drivers'|'users'|'reports'|'analytics'|'ads'|'chat'
 
 interface Todo {
   id: string
@@ -247,6 +247,25 @@ export default function SuperAdminDashboard() {
     totalUsers: 0, totalDrivers: 0, totalCompanies: 0,
     activeBuses: 0, pendingReports: 0, todayLogins: 0,
   })
+
+  const [ads, setAds] = useState<any[]>([])
+  const [chats, setChats] = useState<any[]>([])
+
+  useEffect(() => {
+    // Load from localStorage on client side mount
+    setAds(JSON.parse(localStorage.getItem('bu_submitted_ads') || '[]'))
+    setChats(JSON.parse(localStorage.getItem('bu_support_chat') || '[]'))
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'bu_submitted_ads') {
+        setAds(JSON.parse(localStorage.getItem('bu_submitted_ads') || '[]'))
+      } else if (e.key === 'bu_support_chat') {
+        setChats(JSON.parse(localStorage.getItem('bu_support_chat') || '[]'))
+      }
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
 
   // Todo List State
   const [todos, setTodos] = useState<Todo[]>([
@@ -342,6 +361,8 @@ export default function SuperAdminDashboard() {
   const NAV_ITEMS = [
     { id: 'overview', label: 'Panel Control', icon: BarChart2, hasChevron: false },
     { id: 'reports', label: 'Denuncias', icon: AlertTriangle, hasChevron: false },
+    { id: 'ads', label: 'Publicidad', icon: Megaphone, hasChevron: false },
+    { id: 'chat', label: 'Soporte Chat', icon: MessageSquare, hasChevron: false },
     { id: 'companies', label: 'Empresas', icon: Building2, hasChevron: true },
     { id: 'analytics', label: 'Estadísticas', icon: TrendingUp, hasChevron: true },
     { id: 'users', label: 'Usuarios', icon: Users, hasChevron: true },
@@ -664,6 +685,8 @@ export default function SuperAdminDashboard() {
         {tab === 'users' && <UsersTab stats={stats} />}
         {tab === 'reports' && <ReportsTab />}
         {tab === 'analytics' && <AnalyticsTab />}
+        {tab === 'ads' && <AdsTab ads={ads} setAds={setAds} />}
+        {tab === 'chat' && <ChatTab chats={chats} setChats={setChats} />}
       </main>
     </div>
   )
@@ -1725,6 +1748,433 @@ function AnalyticsTab() {
           <div style={{ color: '#fff', fontWeight: 700, fontSize: '32px', fontFamily: 'DM Sans, sans-serif' }}>Línea 60</div>
           <div style={{ color: '#8f94a5', fontSize: '13px', marginTop: '4px' }}>2,100 usuarios activos</div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── AdsTab Component ─────────────────────────────────────────────────────────
+function AdsTab({ ads, setAds }: { ads: any[]; setAds: (val: any[]) => void }) {
+  const [commentInputs, setCommentInputs] = useState<Record<string, string>>({})
+
+  const updateAdStatus = (id: string, status: 'approved' | 'rejected') => {
+    const updated = ads.map(ad => ad.id === id ? { ...ad, status } : ad)
+    setAds(updated)
+    localStorage.setItem('bu_submitted_ads', JSON.stringify(updated))
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'bu_submitted_ads',
+      newValue: JSON.stringify(updated)
+    }))
+    toast.success(status === 'approved' ? 'Anuncio aprobado con éxito' : 'Anuncio rechazado')
+  }
+
+  const saveComment = (id: string) => {
+    const comment = commentInputs[id] || ''
+    const updated = ads.map(ad => ad.id === id ? { ...ad, adminComment: comment } : ad)
+    setAds(updated)
+    localStorage.setItem('bu_submitted_ads', JSON.stringify(updated))
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'bu_submitted_ads',
+      newValue: JSON.stringify(updated)
+    }))
+    toast.success('Comentario guardado')
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
+        <KPI icon={Megaphone} label="Anuncios Totales" value={ads.length} color="#3b82f6" />
+        <KPI icon={CheckCircle2} label="Aprobados" value={ads.filter(a => a.status === 'approved').length} color="#00c689" />
+        <KPI icon={Clock} label="Pendientes" value={ads.filter(a => a.status === 'pending').length} color="#f59e0b" />
+      </div>
+
+      <div style={{
+        background: '#121527',
+        borderRadius: '12px',
+        border: '1px solid rgba(255, 255, 255, 0.06)',
+        padding: '24px',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Moderación de Publicidades</h2>
+        </div>
+
+        {ads.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px', color: '#8f94a5' }}>
+            No hay anuncios registrados en el sistema.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {ads.map(ad => (
+              <div key={ad.id} style={{
+                background: '#0b0f19',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,255,255,0.06)',
+                padding: '18px',
+                display: 'flex',
+                gap: '20px',
+                flexWrap: 'wrap'
+              }}>
+                {ad.imageUrl && (
+                  <div style={{ width: '120px', height: '80px', borderRadius: '6px', overflow: 'hidden', flexShrink: 0, border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <img src={ad.imageUrl} alt={ad.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                )}
+                
+                <div style={{ flex: 1, minWidth: '250px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#fff' }}>{ad.title}</h3>
+                      <span style={{ fontSize: '11px', color: '#8f94a5' }}>Enviado por: {ad.userName || 'Alejandro'} ({ad.userEmail || 'usuario@bienparada.com.ar'})</span>
+                    </div>
+                    <span style={{
+                      fontSize: '10px',
+                      fontWeight: 700,
+                      padding: '3px 8px',
+                      borderRadius: '999px',
+                      textTransform: 'uppercase',
+                      background: ad.status === 'approved' ? 'rgba(16,185,129,0.15)' : ad.status === 'rejected' ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)',
+                      color: ad.status === 'approved' ? '#34D399' : ad.status === 'rejected' ? '#F87171' : '#FBBF24',
+                      border: `1px solid ${ad.status === 'approved' ? 'rgba(16,185,129,0.3)' : ad.status === 'rejected' ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.3)'}`
+                    }}>
+                      {ad.status === 'approved' ? 'Aprobado' : ad.status === 'rejected' ? 'Rechazado' : 'Pendiente'}
+                    </span>
+                  </div>
+
+                  <p style={{ fontSize: '13px', color: '#b8c0d0', margin: '4px 0 8px 0', lineHeight: '1.4' }}>{ad.description}</p>
+                  
+                  <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#8f94a5' }}>
+                    <span>Presupuesto: <strong style={{ color: '#fff' }}>{ad.budget}</strong></span>
+                    <span>Link: <a href={ad.targetUrl || ad.link} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'none' }}>{ad.targetUrl || ad.link} ↗</a></span>
+                  </div>
+
+                  <div style={{ marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
+                    <div style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 600, marginBottom: '6px', textTransform: 'uppercase' }}>Comentario de Moderación</div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        type="text"
+                        placeholder="Escribe comentarios, motivos de rechazo, etc..."
+                        value={commentInputs[ad.id] ?? ad.adminComment ?? ''}
+                        onChange={e => setCommentInputs(prev => ({ ...prev, [ad.id]: e.target.value }))}
+                        style={{
+                          flex: 1,
+                          padding: '6px 12px',
+                          background: 'rgba(0,0,0,0.2)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '6px',
+                          color: '#fff',
+                          fontSize: '12px',
+                          outline: 'none'
+                        }}
+                      />
+                      <button
+                        onClick={() => saveComment(ad.id)}
+                        style={{
+                          padding: '6px 12px',
+                          background: '#4b49ac',
+                          border: 'none',
+                          borderRadius: '6px',
+                          color: '#fff',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Guardar
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '14px' }}>
+                    <button
+                      onClick={() => updateAdStatus(ad.id, 'approved')}
+                      disabled={ad.status === 'approved'}
+                      style={{
+                        padding: '8px 16px',
+                        background: ad.status === 'approved' ? 'rgba(16,185,129,0.2)' : '#00c689',
+                        color: ad.status === 'approved' ? '#8f94a5' : '#fff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        cursor: ad.status === 'approved' ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      Aprobar
+                    </button>
+                    <button
+                      onClick={() => updateAdStatus(ad.id, 'rejected')}
+                      disabled={ad.status === 'rejected'}
+                      style={{
+                        padding: '8px 16px',
+                        background: ad.status === 'rejected' ? 'rgba(239,68,68,0.2)' : '#ff4d6a',
+                        color: ad.status === 'rejected' ? '#8f94a5' : '#fff',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        cursor: ad.status === 'rejected' ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      Rechazar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── ChatTab Component ────────────────────────────────────────────────────────
+function ChatTab({ chats, setChats }: { chats: any[]; setChats: (val: any[]) => void }) {
+  const [activeUser, setActiveUser] = useState<'alejandro' | 'sofia' | 'mateo'>('alejandro')
+  const [inputText, setInputText] = useState('')
+  const chatEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chats])
+
+  const handleSendMessage = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!inputText.trim()) return
+
+    const newMsg = {
+      id: `m-${Date.now()}`,
+      sender: 'admin',
+      text: inputText.trim(),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }
+
+    const updated = [...chats, newMsg]
+    setChats(updated)
+    localStorage.setItem('bu_support_chat', JSON.stringify(updated))
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'bu_support_chat',
+      newValue: JSON.stringify(updated)
+    }))
+    setInputText('')
+  }
+
+  const mockSofiaChat = [
+    { id: 'ms1', sender: 'user', text: 'Hola, ¿dónde puedo ver las paradas de la Línea 37?', timestamp: 'Ayer' },
+    { id: 'ms2', sender: 'admin', text: 'Hola Sofía, puedes ver las paradas seleccionando la Línea 37 en la pestaña de Colectivos.', timestamp: 'Ayer' }
+  ]
+
+  const mockMateoChat = [
+    { id: 'mm1', sender: 'user', text: 'El colectivo 12 no está reportando su ubicación real.', timestamp: 'Hace 2 días' },
+    { id: 'mm2', sender: 'admin', text: 'Gracias por reportarlo Mateo, ya notificamos a la empresa prestataria.', timestamp: 'Hace 2 días' }
+  ]
+
+  const currentChats = activeUser === 'alejandro' ? chats : activeUser === 'sofia' ? mockSofiaChat : mockMateoChat
+
+  return (
+    <div style={{
+      background: '#121527',
+      borderRadius: '12px',
+      border: '1px solid rgba(255, 255, 255, 0.06)',
+      display: 'flex',
+      height: '550px',
+      overflow: 'hidden'
+    }}>
+      {/* Sidebar: Users list */}
+      <div style={{
+        width: '240px',
+        borderRight: '1px solid rgba(255,255,255,0.06)',
+        display: 'flex',
+        flexDirection: 'column',
+        background: 'rgba(0,0,0,0.1)'
+      }}>
+        <div style={{ padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.06)', fontSize: '13px', fontWeight: 700, color: '#fff' }}>
+          Chats de Soporte
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          {/* Alejandro */}
+          <div
+            onClick={() => setActiveUser('alejandro')}
+            style={{
+              padding: '14px 16px',
+              borderBottom: '1px solid rgba(255,255,255,0.03)',
+              cursor: 'pointer',
+              background: activeUser === 'alejandro' ? 'rgba(255,255,255,0.04)' : 'transparent',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              transition: 'background 200ms'
+            }}
+          >
+            <div style={{ position: 'relative' }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '13px' }}>A</div>
+              <div style={{ position: 'absolute', bottom: 0, right: 0, width: '10px', height: '10px', borderRadius: '50%', background: '#10B981', border: '2px solid #121527' }} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Alejandro</div>
+              <div style={{ fontSize: '11px', color: '#8f94a5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {chats.length > 0 ? chats[chats.length - 1].text : 'Sin mensajes'}
+              </div>
+            </div>
+          </div>
+
+          {/* Sofia */}
+          <div
+            onClick={() => setActiveUser('sofia')}
+            style={{
+              padding: '14px 16px',
+              borderBottom: '1px solid rgba(255,255,255,0.03)',
+              cursor: 'pointer',
+              background: activeUser === 'sofia' ? 'rgba(255,255,255,0.04)' : 'transparent',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              transition: 'background 200ms'
+            }}
+          >
+            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '13px' }}>S</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Sofía G.</div>
+              <div style={{ fontSize: '11px', color: '#8f94a5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Puedes ver las paradas...</div>
+            </div>
+          </div>
+
+          {/* Mateo */}
+          <div
+            onClick={() => setActiveUser('mateo')}
+            style={{
+              padding: '14px 16px',
+              borderBottom: '1px solid rgba(255,255,255,0.03)',
+              cursor: 'pointer',
+              background: activeUser === 'mateo' ? 'rgba(255,255,255,0.04)' : 'transparent',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              transition: 'background 200ms'
+            }}
+          >
+            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#ec4899', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '13px' }}>M</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Mateo L.</div>
+              <div style={{ fontSize: '11px', color: '#8f94a5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Gracias por reportarlo...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Conversation panel */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.15)' }}>
+        {/* Header */}
+        <div style={{
+          padding: '16px 20px',
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          background: 'rgba(0,0,0,0.05)'
+        }}>
+          <div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>
+              {activeUser === 'alejandro' ? 'Alejandro' : activeUser === 'sofia' ? 'Sofía G.' : 'Mateo L.'}
+            </div>
+            <div style={{ fontSize: '11px', color: activeUser === 'alejandro' ? '#10B981' : '#8f94a5', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: activeUser === 'alejandro' ? '#10B981' : '#8f94a5' }} />
+              {activeUser === 'alejandro' ? 'En línea' : 'Desconectado'}
+            </div>
+          </div>
+          <div style={{ fontSize: '11px', color: '#8f94a5' }}>
+            {activeUser === 'alejandro' ? 'usuario@bienparada.com.ar' : activeUser === 'sofia' ? 'sofia@gmail.com' : 'mateo@gmail.com'}
+          </div>
+        </div>
+
+        {/* Message area */}
+        <div style={{
+          flex: 1,
+          padding: '20px',
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px'
+        }}>
+          {currentChats.map(msg => {
+            const isUser = msg.sender === 'user'
+            return (
+              <div
+                key={msg.id}
+                style={{
+                  alignSelf: isUser ? 'flex-start' : 'flex-end',
+                  maxWidth: '70%',
+                  background: isUser ? 'rgba(255,255,255,0.04)' : '#4b49ac',
+                  border: isUser ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                  borderRadius: isUser ? '12px 12px 12px 2px' : '12px 12px 2px 12px',
+                  padding: '10px 14px',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+                }}
+              >
+                <div style={{ fontSize: '12px', color: '#fff', lineHeight: '1.4' }}>{msg.text}</div>
+                <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.5)', marginTop: '4px', textAlign: 'right' }}>
+                  {msg.timestamp}
+                </div>
+              </div>
+            )
+          })}
+          <div ref={chatEndRef} />
+        </div>
+
+        {/* Input area */}
+        {activeUser === 'alejandro' ? (
+          <form onSubmit={handleSendMessage} style={{
+            padding: '16px 20px',
+            borderTop: '1px solid rgba(255,255,255,0.06)',
+            display: 'flex',
+            gap: '10px',
+            background: 'rgba(0,0,0,0.1)'
+          }}>
+            <input
+              type="text"
+              placeholder="Escribe una respuesta para el pasajero..."
+              value={inputText}
+              onChange={e => setInputText(e.target.value)}
+              style={{
+                flex: 1,
+                padding: '10px 14px',
+                background: 'rgba(0,0,0,0.3)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '13px',
+                outline: 'none'
+              }}
+            />
+            <button
+              type="submit"
+              style={{
+                padding: '0 20px',
+                background: '#00c689',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: '12px',
+                cursor: 'pointer',
+                boxShadow: '0 4px 10px rgba(0,198,137,0.2)'
+              }}
+            >
+              Enviar
+            </button>
+          </form>
+        ) : (
+          <div style={{
+            padding: '16px 20px',
+            borderTop: '1px solid rgba(255,255,255,0.06)',
+            textAlign: 'center',
+            fontSize: '12px',
+            color: '#8f94a5',
+            background: 'rgba(0,0,0,0.1)'
+          }}>
+            Esta conversación es histórica y se encuentra cerrada.
+          </div>
+        )}
       </div>
     </div>
   )
