@@ -5215,6 +5215,18 @@ const TOURIST_STOP_DESCRIPTIONS: Record<string, string> = {
   'tr-9': 'Teatro Colón: Uno de los teatros líricos más aclamados del mundo por su imponente acústica y fastuosa arquitectura neorrenacentista.'
 }
 
+const getTouristShortId = (id: string) => {
+  if (id.includes('-official-')) {
+    const parts = id.split('-official-')
+    if (parts.length > 1) {
+      const rest = parts[1]
+      const subparts = rest.split('-')
+      return subparts[0]
+    }
+  }
+  return id
+}
+
 const getTouristStopImage = (stopId: string) => {
   const mapping: Record<string, string> = {
     'ty-1': 'obelisco.png',
@@ -8155,45 +8167,46 @@ export default function UserMapPage() {
             </Popup>
           )}
 
-          {selectedTouristStop && (
-            <Popup
-              longitude={selectedTouristStop.longitude}
-              latitude={selectedTouristStop.latitude}
-              anchor="bottom"
-              offset={24}
-              closeButton={false}
-              onClose={() => setSelectedTouristStop(null)}
-              style={{ zIndex: 100 }}
-            >
-              <div style={{
-                position: 'relative',
-                width: '260px',
-                borderRadius: '16px',
-                background: prefs.darkMap
-                  ? 'linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(10, 15, 26, 0.99) 100%)'
-                  : 'linear-gradient(135deg, rgba(255, 255, 255, 0.99) 0%, rgba(249, 250, 251, 0.99) 100%)',
-                color: prefs.darkMap ? 'white' : 'var(--text-primary)',
-                fontFamily: 'DM Sans, sans-serif',
-                boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
-                border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)'
-              }}>
-                {/* Speech bubble downward pointer */}
+          {selectedTouristStop && (() => {
+            const shortId = getTouristShortId(selectedTouristStop.id);
+            const imgPath = getTouristStopImage(shortId);
+            return (
+              <Popup
+                longitude={selectedTouristStop.longitude}
+                latitude={selectedTouristStop.latitude}
+                anchor="bottom"
+                offset={24}
+                closeButton={false}
+                onClose={() => setSelectedTouristStop(null)}
+                style={{ zIndex: 100 }}
+              >
                 <div style={{
-                  position: 'absolute',
-                  bottom: '-8px',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  width: 0,
-                  height: 0,
-                  borderLeft: '8px solid transparent',
-                  borderRight: '8px solid transparent',
-                  borderTop: `8px solid ${prefs.darkMap ? 'rgba(10, 15, 26, 0.99)' : 'rgba(249, 250, 251, 0.99)'}`,
-                  zIndex: 10
-                }} />
+                  position: 'relative',
+                  width: '260px',
+                  borderRadius: '16px',
+                  background: prefs.darkMap
+                    ? 'linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(10, 15, 26, 0.99) 100%)'
+                    : 'linear-gradient(135deg, rgba(255, 255, 255, 0.99) 0%, rgba(249, 250, 251, 0.99) 100%)',
+                  color: prefs.darkMap ? 'white' : 'var(--text-primary)',
+                  fontFamily: 'DM Sans, sans-serif',
+                  boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+                  border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)'
+                }}>
+                  {/* Speech bubble downward pointer */}
+                  <div style={{
+                    position: 'absolute',
+                    bottom: '-8px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: 0,
+                    height: 0,
+                    borderLeft: '8px solid transparent',
+                    borderRight: '8px solid transparent',
+                    borderTop: `8px solid ${prefs.darkMap ? 'rgba(10, 15, 26, 0.99)' : 'rgba(249, 250, 251, 0.99)'}`,
+                    zIndex: 10
+                  }} />
 
-                {(() => {
-                  const imgPath = getTouristStopImage(selectedTouristStop.id)
-                  return imgPath ? (
+                  {imgPath ? (
                     <div style={{ width: '100%', height: '130px', overflow: 'hidden', position: 'relative', borderTopLeftRadius: '16px', borderTopRightRadius: '16px' }}>
                       <img
                         src={imgPath}
@@ -8246,137 +8259,137 @@ export default function UserMapPage() {
                         </span>
                       </div>
                     </div>
-                  ) : null
-                })()}
+                  ) : null}
 
-                <div style={{ padding: '12px 14px', position: 'relative' }}>
-                  {/* Close button fallback if there was no image */}
-                  {!getTouristStopImage(selectedTouristStop.id) && (
-                    <button
-                      onClick={() => setSelectedTouristStop(null)}
-                      style={{
-                        position: 'absolute',
-                        top: '12px',
-                        right: '12px',
-                        width: '24px',
-                        height: '24px',
-                        borderRadius: '50%',
-                        background: prefs.darkMap ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-                        color: prefs.darkMap ? 'white' : 'black',
-                        border: 'none',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        zIndex: 12
-                      }}
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
+                  <div style={{ padding: '12px 14px', position: 'relative' }}>
+                    {/* Close button fallback if there was no image */}
+                    {!imgPath && (
+                      <button
+                        onClick={() => setSelectedTouristStop(null)}
+                        style={{
+                          position: 'absolute',
+                          top: '12px',
+                          right: '12px',
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '50%',
+                          background: prefs.darkMap ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                          color: prefs.darkMap ? 'white' : 'black',
+                          border: 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          zIndex: 12
+                        }}
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
 
-                  <h4 style={{ fontWeight: 800, fontSize: '15px', margin: '0 0 4px 0', lineHeight: '1.2' }}>
-                    {selectedTouristStop.name}
-                  </h4>
-                  
-                  {/* Location Context */}
-                  <div style={{ fontSize: '10px', color: '#F59E0B', fontWeight: 600, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                    <MapPin size={10} />
-                    <span>Buenos Aires, Argentina</span>
-                  </div>
+                    <h4 style={{ fontWeight: 800, fontSize: '15px', margin: '0 0 4px 0', lineHeight: '1.2' }}>
+                      {selectedTouristStop.name}
+                    </h4>
+                    
+                    {/* Location Context */}
+                    <div style={{ fontSize: '10px', color: '#F59E0B', fontWeight: 600, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <MapPin size={10} />
+                      <span>Buenos Aires, Argentina</span>
+                    </div>
 
-                  <p style={{
-                    fontSize: '11.5px',
-                    color: prefs.darkMap ? 'rgba(255,255,255,0.85)' : 'rgba(15, 23, 42, 0.85)',
-                    margin: '0 0 12px 0',
-                    lineHeight: '1.5',
-                    textAlign: 'left'
-                  }}>
-                    {TOURIST_STOP_DESCRIPTIONS[selectedTouristStop.id] || 'Parada turística de la ciudad de Buenos Aires.'}
-                  </p>
+                    <p style={{
+                      fontSize: '11.5px',
+                      color: prefs.darkMap ? 'rgba(255,255,255,0.85)' : 'rgba(15, 23, 42, 0.85)',
+                      margin: '0 0 12px 0',
+                      lineHeight: '1.5',
+                      textAlign: 'left'
+                    }}>
+                      {TOURIST_STOP_DESCRIPTIONS[shortId] || 'Parada turística de la ciudad de Buenos Aires.'}
+                    </p>
 
-                  {/* Nearby Connections Section */}
-                  {(() => {
-                    const connectionsMap: Record<string, string[]> = {
-                      'ty-1': ['12', '39', '59', '152'],
-                      'ty-2': ['12', '37', '60'],
-                      'ty-3': ['28', '152'],
-                      'ty-4': ['28'],
-                      'ty-5': ['28', '152'],
-                      'ty-6': ['152'],
-                      'ty-7': ['152'],
-                      'ty-8': ['59', '60', '102'],
-                      'ty-9': ['39'],
-                      'tr-1': ['152'],
-                      'tr-2': ['28', '152'],
-                      'tr-3': ['28', '152'],
-                      'tr-4': ['152'],
-                      'tr-5': ['152'],
-                      'tr-6': ['59', '60', '102'],
-                      'tr-7': ['12', '37'],
-                      'tr-8': ['37', '102'],
-                      'tr-9': ['12', '39', '59', '152']
-                    }
-                    const linesList = connectionsMap[selectedTouristStop.id] || []
-                    if (linesList.length === 0) return null
-                    return (
-                      <div style={{ marginBottom: '12px' }}>
-                        <div style={{ fontSize: '9px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '5px' }}>
-                          Líneas de conexión
+                    {/* Nearby Connections Section */}
+                    {(() => {
+                      const connectionsMap: Record<string, string[]> = {
+                        'ty-1': ['12', '39', '59', '152'],
+                        'ty-2': ['12', '37', '60'],
+                        'ty-3': ['28', '152'],
+                        'ty-4': ['28'],
+                        'ty-5': ['28', '152'],
+                        'ty-6': ['152'],
+                        'ty-7': ['152'],
+                        'ty-8': ['59', '60', '102'],
+                        'ty-9': ['39'],
+                        'tr-1': ['152'],
+                        'tr-2': ['28', '152'],
+                        'tr-3': ['28', '152'],
+                        'tr-4': ['152'],
+                        'tr-5': ['152'],
+                        'tr-6': ['59', '60', '102'],
+                        'tr-7': ['12', '37'],
+                        'tr-8': ['37', '102'],
+                        'tr-9': ['12', '39', '59', '152']
+                      }
+                      const linesList = connectionsMap[shortId] || []
+                      if (linesList.length === 0) return null
+                      return (
+                        <div style={{ marginBottom: '12px' }}>
+                          <div style={{ fontSize: '9px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '5px' }}>
+                            Líneas de conexión
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                            {linesList.map(num => {
+                              const regularLine = allLines.find(l => l.line_number === num)
+                              const lineBg = regularLine?.color || '#3B82F6'
+                              return (
+                                <span key={num} style={{
+                                  background: lineBg,
+                                  color: 'white',
+                                  fontSize: '9px',
+                                  fontWeight: 800,
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  textShadow: '0 1px 1px rgba(0,0,0,0.15)'
+                                }}>
+                                  Colectivo {num}
+                                </span>
+                              )
+                            })}
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                          {linesList.map(num => {
-                            const regularLine = allLines.find(l => l.line_number === num)
-                            const lineBg = regularLine?.color || '#3B82F6'
-                            return (
-                              <span key={num} style={{
-                                background: lineBg,
-                                color: 'white',
-                                fontSize: '9px',
-                                fontWeight: 800,
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                textShadow: '0 1px 1px rgba(0,0,0,0.15)'
-                              }}>
-                                Colectivo {num}
-                              </span>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )
-                  })()}
+                      )
+                    })()}
 
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)', paddingTop: '10px' }}>
-                    <span style={{ fontSize: '9.5px', fontFamily: 'DM Mono', color: 'var(--text-muted)' }}>
-                      ID: {selectedTouristStop.id.toUpperCase()}
-                    </span>
-                    <button
-                      onClick={() => {
-                        setOriginCoord({ lat: selectedTouristStop.latitude, lng: selectedTouristStop.longitude })
-                        toast.success(`Origen establecido: ${selectedTouristStop.name}`)
-                        setSelectedTouristStop(null)
-                      }}
-                      style={{
-                        background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        padding: '5px 12px',
-                        fontSize: '10.5px',
-                        fontWeight: 800,
-                        cursor: 'pointer',
-                        boxShadow: '0 2px 6px rgba(245, 158, 11, 0.3)',
-                        transition: 'transform 0.15s, box-shadow 0.15s'
-                      }}
-                    >
-                      Viajar desde acá
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)', paddingTop: '10px' }}>
+                      <span style={{ fontSize: '9.5px', fontFamily: 'DM Mono', color: 'var(--text-muted)' }}>
+                        ID: {selectedTouristStop.id.toUpperCase()}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setOriginCoord({ lat: selectedTouristStop.latitude, lng: selectedTouristStop.longitude })
+                          toast.success(`Origen establecido: ${selectedTouristStop.name}`)
+                          setSelectedTouristStop(null)
+                        }}
+                        style={{
+                          background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '5px 12px',
+                          fontSize: '10.5px',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 6px rgba(245, 158, 11, 0.3)',
+                          transition: 'transform 0.15s, box-shadow 0.15s'
+                        }}
+                      >
+                        Viajar desde acá
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Popup>
-          )}
+              </Popup>
+            );
+          })()}
         </Map>
 
         {/* Route Duration Overlay */}
