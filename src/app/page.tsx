@@ -21281,8 +21281,8 @@ export default function UserMapPage() {
   // Uber Travel Assistant & Map Modes State
   const [activeMode, setActiveMode] = useState<'normal' | 'tourist' | 'clubbing' | 'shopping'>('normal')
   const [selectedCity, setSelectedCity] = useState<'buenos_aires' | 'santa_cruz'>('buenos_aires')
-  const [touristYellowSelected, setTouristYellowSelected] = useState(true)
-  const [touristRedSelected, setTouristRedSelected] = useState(true)
+  const [touristYellowSelected, setTouristYellowSelected] = useState(false)
+  const [touristRedSelected, setTouristRedSelected] = useState(false)
   const [drawerState, setDrawerState] = useState<'collapsed' | 'half' | 'expanded'>('half')
   const [originResults, setOriginResults] = useState<any[]>([])
   const [destResults, setDestResults] = useState<any[]>([])
@@ -22760,19 +22760,14 @@ export default function UserMapPage() {
                 onClick={() => {
                   setActiveMode(m.id)
                   if (m.id === 'tourist') {
-                    setTouristYellowSelected(true)
-                    setTouristRedSelected(true)
+                    setTouristYellowSelected(false)
+                    setTouristRedSelected(false)
                     setShowAllTouristStops(true)
-                    const yellowLine = allLines.find(l => l.line_number === 'T-Amarillo')
-                    const redLine = allLines.find(l => l.line_number === 'T-Rojo')
-                    setSelectedLines(prev => {
-                      const next = [...prev]
-                      if (yellowLine && !next.some(l => l.id === yellowLine.id)) next.push(yellowLine)
-                      if (redLine && !next.some(l => l.id === redLine.id)) next.push(redLine)
-                      return next
-                    })
+                    setSelectedLines(prev => prev.filter(l => !(l as any).is_tourist))
+                    setTempLinesSelection(prev => prev.filter(l => !(l as any).is_tourist))
                   } else {
                     setSelectedLines(prev => prev.filter(l => !(l as any).is_tourist))
+                    setTempLinesSelection(prev => prev.filter(l => !(l as any).is_tourist))
                     setActiveTravelRoute(null)
                   }
                 }}
@@ -22875,7 +22870,17 @@ export default function UserMapPage() {
                   <div
                     key={line.id}
                     onClick={() => {
-                      if (item.originStop) {
+                      if (activeMode === 'tourist') {
+                        // Toggle tourist lines immediately for instant map rendering
+                        setSelectedLines(prev => {
+                          const exists = prev.some(l => l.id === line.id)
+                          return exists ? prev.filter(l => l.id !== line.id) : [...prev, line]
+                        })
+                        setTempLinesSelection(prev => {
+                          const exists = prev.some(l => l.id === line.id)
+                          return exists ? prev.filter(l => l.id !== line.id) : [...prev, line]
+                        })
+                      } else if (item.originStop) {
                         setSelectedLines(prev => {
                           const exists = prev.some(l => l.id === line.id)
                           if (exists) {
