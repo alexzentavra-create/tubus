@@ -21129,17 +21129,21 @@ function getDistanceToPathIndex(
   progress: number,
   targetIdx: number
 ): number {
-  if (targetIdx <= currentIdx) return 0
+  const safeCurrentIdx = Math.max(0, Math.min(path.length - 1, currentIdx))
+  const safeTargetIdx = Math.max(0, Math.min(path.length - 1, targetIdx))
 
-  const pA = path[currentIdx]
-  const pB = path[currentIdx + 1] || pA
+  if (safeTargetIdx <= safeCurrentIdx) return 0
+
+  const pA = path[safeCurrentIdx]
+  const pB = path[safeCurrentIdx + 1] || pA
   const currentLat = pA.lat + (pB.lat - pA.lat) * progress
   const currentLng = pA.lng + (pB.lng - pA.lng) * progress
 
   let totalDist = globalDistanceKm({ lat: currentLat, lng: currentLng }, { lat: pB.lat, lng: pB.lng })
 
-  for (let i = currentIdx + 1; i < targetIdx; i++) {
+  for (let i = safeCurrentIdx + 1; i < safeTargetIdx; i++) {
     const pt1 = path[i]
+    if (!pt1) continue
     const pt2 = path[i + 1] || pt1
     totalDist += globalDistanceKm({ lat: pt1.lat, lng: pt1.lng }, { lat: pt2.lat, lng: pt2.lng })
   }
