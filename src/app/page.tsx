@@ -26097,6 +26097,24 @@ function ProfilePanel({
   const [localEmail, setLocalEmail] = useState(profileEmail)
   const [localAvatar, setLocalAvatar] = useState(profileAvatar)
   
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 1.5 * 1024 * 1024) {
+        alert('La imagen es demasiado grande. Por favor, seleccioná una imagen de menos de 1.5 MB.')
+        return
+      }
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string
+        setLocalAvatar(base64)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+  
   // Ad Submission Form States
   const [adTitle, setAdTitle] = useState('')
   const [adDesc, setAdDesc] = useState('')
@@ -26269,7 +26287,7 @@ function ProfilePanel({
     }, 1500)
   }
 
-  const AVATARS = ['🚌', '🚇', '🚏', '📍', '🗺️', '⭐', '❤️', '💼']
+
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -26311,23 +26329,74 @@ function ProfilePanel({
           <div>
             <PanelTitle>Configuración de Perfil</PanelTitle>
             
-            {/* Avatar Select */}
+            {/* Custom Profile Picture Upload */}
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-              <div style={{ display: 'inline-flex', width: '76px', height: '76px', borderRadius: '50%', background: 'linear-gradient(135deg, #1E293B, #0F172A)', border: '2px solid rgba(16,185,129,0.4)', alignItems: 'center', justifyContent: 'center', fontSize: '32px', marginBottom: '12px', boxShadow: '0 4px 16px rgba(0,0,0,0.3)' }}>
-                {localAvatar}
+              <div style={{
+                display: 'inline-flex',
+                width: '76px',
+                height: '76px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #1E293B, #0F172A)',
+                border: '2px solid rgba(16,185,129,0.4)',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                marginBottom: '12px',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                position: 'relative'
+              }}>
+                {localAvatar && (localAvatar.startsWith('data:image/') || localAvatar.startsWith('http') || localAvatar.startsWith('/')) ? (
+                  <img src={localAvatar} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Foto de perfil" />
+                ) : (
+                  <User size={36} style={{ color: '#10B981' }} />
+                )}
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>Elegí tu avatar del pasajero</div>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                {AVATARS.map(av => (
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>Foto de perfil del pasajero</div>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '20px',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    background: 'rgba(255,255,255,0.05)',
+                    color: 'var(--text-primary)',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 150ms'
+                  }}
+                >
+                  Subir Foto
+                </button>
+                {localAvatar && (localAvatar.startsWith('data:image/') || localAvatar.startsWith('http') || localAvatar.startsWith('/')) && (
                   <button
-                    key={av}
-                    onClick={() => setLocalAvatar(av)}
-                    style={{ width: '28px', height: '28px', borderRadius: '50%', border: localAvatar === av ? '2px solid #10B981' : '1px solid rgba(255,255,255,0.1)', background: localAvatar === av ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.03)', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 150ms' }}
+                    type="button"
+                    onClick={() => setLocalAvatar('avatar1')}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '20px',
+                      border: '1px solid rgba(239,68,68,0.2)',
+                      background: 'rgba(239,68,68,0.05)',
+                      color: '#F87171',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 150ms'
+                    }}
                   >
-                    {av}
+                    Eliminar
                   </button>
-                ))}
+                )}
               </div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                accept="image/*"
+                onChange={handleImageUpload}
+                style={{ display: 'none' }}
+              />
             </div>
 
             <GlassCard>
