@@ -5221,8 +5221,7 @@ const getTouristShortId = (id: string) => {
     const parts = lowerId.split('-official-')
     if (parts.length > 1) {
       const rest = parts[1]
-      const subparts = rest.split('-')
-      return subparts[0]
+      return rest.replace(/-ida$/, '').replace(/-vuelta$/, '')
     }
   }
   return lowerId
