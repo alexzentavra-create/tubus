@@ -2,7 +2,7 @@
 // Handles background GPS broadcasting even when the app is minimized.
 // This file is served from /public/sw.js
 
-const CACHE_NAME = 'bustrack-v1'
+const CACHE_NAME = 'bustrack-v2'
 const STATIC_ASSETS = ['/', '/login', '/driver', '/manifest.json']
 
 // ─── Install & cache static assets ─────────────────────────────────────────
@@ -23,7 +23,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim()
 })
 
-// ─── Fetch: network-first for API, cache-first for static ──────────────────
+// ─── Fetch: network-first for pages & API, cache-first for static ───────────
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url)
 
@@ -36,6 +36,22 @@ self.addEventListener('fetch', (event) => {
       fetch(event.request).catch(() => new Response('{"error":"offline"}', {
         headers: { 'Content-Type': 'application/json' }
       }))
+    )
+    return
+  }
+
+  // Network-first (with cache fallback) for page navigation / documents
+  if (event.request.mode === 'navigate' || event.request.destination === 'document') {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response.status === 200) {
+            const copy = response.clone()
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy))
+          }
+          return response
+        })
+        .catch(() => caches.match(event.request))
     )
     return
   }
