@@ -5216,15 +5216,16 @@ const TOURIST_STOP_DESCRIPTIONS: Record<string, string> = {
 }
 
 const getTouristShortId = (id: string) => {
-  if (id.includes('-official-')) {
-    const parts = id.split('-official-')
+  const lowerId = id.toLowerCase()
+  if (lowerId.includes('-official-')) {
+    const parts = lowerId.split('-official-')
     if (parts.length > 1) {
       const rest = parts[1]
       const subparts = rest.split('-')
       return subparts[0]
     }
   }
-  return id
+  return lowerId
 }
 
 const getTouristStopImage = (stopId: string) => {
