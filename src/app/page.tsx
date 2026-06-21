@@ -22957,10 +22957,18 @@ export default function UserMapPage() {
                     {/* Right: Ticket Price */}
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px', flexShrink: 0 }}>
                       <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                        ${ticketPrices.min.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        {(line.line_number === 'T-Amarillo' || line.line_number === 'T-Rojo')
+                          ? '$25.000,00'
+                          : `$${ticketPrices.min.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                       </span>
-                      <span style={{ fontSize: '9px', color: '#10B981', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                        SUBE
+                      <span style={{
+                        fontSize: '9px',
+                        color: (line.line_number === 'T-Amarillo' || line.line_number === 'T-Rojo') ? '#F59E0B' : '#10B981',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.02em'
+                      }}>
+                        {(line.line_number === 'T-Amarillo' || line.line_number === 'T-Rojo') ? 'PASE 24H' : 'SUBE'}
                       </span>
                     </div>
                   </div>
