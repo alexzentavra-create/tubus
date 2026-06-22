@@ -23366,6 +23366,11 @@ export default function UserMapPage() {
             </div>
           </div>
         )}
+
+        {/* Space underneath ad section for mobile drawer elevation above navigation bar */}
+        {isMobile && (
+          <div style={{ height: '90px', width: '100%', flexShrink: 0 }} />
+        )}
         </>)}
       </div>
     )
