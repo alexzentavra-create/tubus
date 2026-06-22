@@ -21290,6 +21290,8 @@ export default function UserMapPage() {
   const [touristRedSelected, setTouristRedSelected] = useState(false)
   const [drawerState, setDrawerState] = useState<'collapsed' | 'half' | 'expanded'>('half')
   const [halfY, setHalfY] = useState(450)
+  const mapSelectionY = typeof window !== 'undefined' ? (window.innerHeight * 0.9 - 190) : 620
+
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -22799,15 +22801,54 @@ export default function UserMapPage() {
                 </div>
               )}
             </div>
-            <button
-              onClick={() => { setMapSelectionMode('origin'); setOriginResults([]) }}
-              style={{
-                background: 'rgba(59,130,246,0.12)', color: '#3B82F6', border: '1px solid rgba(59,130,246,0.25)',
-                borderRadius: '8px', padding: '8px 10px', fontSize: '12px', cursor: 'pointer', flexShrink: 0
-              }}
-            >
-              Pin
-            </button>
+            {mapSelectionMode === 'origin' ? (
+              <button
+                onClick={() => {
+                  const lat = viewState.latitude
+                  const lng = viewState.longitude
+                  setOriginCoord({ lat, lng })
+                  setOriginInput(getNearestStreetName(lat, lng))
+                  fetchAddressAsync(lat, lng, setOriginInput)
+                  setMapSelectionMode(null)
+                  if (destCoord) {
+                    const routes = solveRoutes({ lat, lng }, destCoord)
+                    setSolvedRoutes(routes)
+                    if (routes.length > 0) {
+                      setActiveTravelRoute(routes[0])
+                      const line = allLines.find(l => l.id === routes[0].line_id)
+                      if (line) setSelectedLines([line])
+                    }
+                    fitCoordinates({ lat, lng }, destCoord)
+                  } else {
+                    setViewState(v => ({
+                      ...v,
+                      latitude: lat,
+                      longitude: lng,
+                      zoom: 14.5,
+                      transitionDuration: 1000
+                    }))
+                  }
+                }}
+                style={{
+                  background: '#10B981', color: '#ffffff', border: 'none',
+                  borderRadius: '8px', padding: '8px 10px', fontSize: '12px', cursor: 'pointer', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', width: '38px', height: '33px'
+                }}
+                title="Confirmar origen"
+              >
+                <CheckCircle2 size={16} />
+              </button>
+            ) : (
+              <button
+                onClick={() => { setMapSelectionMode('origin'); setOriginResults([]) }}
+                style={{
+                  background: 'rgba(59,130,246,0.12)', color: '#3B82F6', border: '1px solid rgba(59,130,246,0.25)',
+                  borderRadius: '8px', padding: '8px 10px', fontSize: '12px', cursor: 'pointer', flexShrink: 0
+                }}
+              >
+                Pin
+              </button>
+            )}
           </div>
 
           {/* Destination Input Row */}
@@ -22872,18 +22913,58 @@ export default function UserMapPage() {
                 </div>
               )}
             </div>
-            <button
-              onClick={() => { setMapSelectionMode('destination'); setDestResults([]) }}
-              style={{
-                background: 'rgba(239,68,68,0.12)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.25)',
-                borderRadius: '8px', padding: '8px 10px', fontSize: '12px', cursor: 'pointer', flexShrink: 0
-              }}
-            >
-              Pin
-            </button>
+            {mapSelectionMode === 'destination' ? (
+              <button
+                onClick={() => {
+                  const lat = viewState.latitude
+                  const lng = viewState.longitude
+                  setDestCoord({ lat, lng })
+                  setDestInput(getNearestStreetName(lat, lng))
+                  fetchAddressAsync(lat, lng, setDestInput)
+                  setMapSelectionMode(null)
+                  if (originCoord) {
+                    const routes = solveRoutes(originCoord, { lat, lng })
+                    setSolvedRoutes(routes)
+                    if (routes.length > 0) {
+                      setActiveTravelRoute(routes[0])
+                      const line = allLines.find(l => l.id === routes[0].line_id)
+                      if (line) setSelectedLines([line])
+                    }
+                    fitCoordinates(originCoord, { lat, lng })
+                  } else {
+                    setViewState(v => ({
+                      ...v,
+                      latitude: lat,
+                      longitude: lng,
+                      zoom: 14.5,
+                      transitionDuration: 1000
+                    }))
+                  }
+                }}
+                style={{
+                  background: '#10B981', color: '#ffffff', border: 'none',
+                  borderRadius: '8px', padding: '8px 10px', fontSize: '12px', cursor: 'pointer', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', width: '38px', height: '33px'
+                }}
+                title="Confirmar destino"
+              >
+                <CheckCircle2 size={16} />
+              </button>
+            ) : (
+              <button
+                onClick={() => { setMapSelectionMode('destination'); setDestResults([]) }}
+                style={{
+                  background: 'rgba(239,68,68,0.12)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.25)',
+                  borderRadius: '8px', padding: '8px 10px', fontSize: '12px', cursor: 'pointer', flexShrink: 0
+                }}
+              >
+                Pin
+              </button>
+            )}
           </div>
         </div>
 
+        {!mapSelectionMode && (<>
         {/* Mode Selector Row (Normal, Turismo, Bares, Compras) - Yango Pill Tabs style */}
         <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '2px', scrollbarWidth: 'none' }}>
           {([
@@ -23285,6 +23366,7 @@ export default function UserMapPage() {
             </div>
           </div>
         )}
+        </>)}
       </div>
     )
   }
@@ -23568,55 +23650,11 @@ export default function UserMapPage() {
               return
             }
             if (mapSelectionMode === 'origin') {
-              const lat = e.lngLat.lat
-              const lng = e.lngLat.lng
-              setOriginCoord({ lat, lng })
-              setOriginInput(getNearestStreetName(lat, lng))
-              fetchAddressAsync(lat, lng, setOriginInput)
-              setMapSelectionMode(null)
-              if (destCoord) {
-                const routes = solveRoutes({ lat, lng }, destCoord)
-                setSolvedRoutes(routes)
-                if (routes.length > 0) {
-                  setActiveTravelRoute(routes[0])
-                  const line = allLines.find(l => l.id === routes[0].line_id)
-                  if (line) setSelectedLines([line])
-                }
-                fitCoordinates({ lat, lng }, destCoord)
-              } else {
-                setViewState(v => ({
-                  ...v,
-                  latitude: lat,
-                  longitude: lng,
-                  zoom: 14.5,
-                  transitionDuration: 1000
-                }))
-              }
+              // Selection is done via center screen static pin and confirmed with the green checkmark
+              return
             } else if (mapSelectionMode === 'destination') {
-              const lat = e.lngLat.lat
-              const lng = e.lngLat.lng
-              setDestCoord({ lat, lng })
-              setDestInput(getNearestStreetName(lat, lng))
-              fetchAddressAsync(lat, lng, setDestInput)
-              setMapSelectionMode(null)
-              if (originCoord) {
-                const routes = solveRoutes(originCoord, { lat, lng })
-                setSolvedRoutes(routes)
-                if (routes.length > 0) {
-                  setActiveTravelRoute(routes[0])
-                  const line = allLines.find(l => l.id === routes[0].line_id)
-                  if (line) setSelectedLines([line])
-                }
-                fitCoordinates(originCoord, { lat, lng })
-              } else {
-                setViewState(v => ({
-                  ...v,
-                  latitude: lat,
-                  longitude: lng,
-                  zoom: 14.5,
-                  transitionDuration: 1000
-                }))
-              }
+              // Selection is done via center screen static pin and confirmed with the green checkmark
+              return
             } else {
               setSelectedBus(null)
             }
@@ -24292,6 +24330,35 @@ export default function UserMapPage() {
             );
           })()}
         </Map>
+
+        {/* Center-screen static map pin selection overlay */}
+        {mapSelectionMode && (
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -100%)',
+            zIndex: 10,
+            pointerEvents: 'none',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+          }}>
+            <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <MapPin size={42} style={{ color: mapSelectionMode === 'origin' ? '#3B82F6' : '#EF4444', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.35))' }} />
+              {/* Pulsing visual point target */}
+              <div style={{
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                background: mapSelectionMode === 'origin' ? '#3B82F6' : '#EF4444',
+                marginTop: '-4px',
+                opacity: 0.8,
+                boxShadow: `0 0 10px ${mapSelectionMode === 'origin' ? '#3B82F6' : '#EF4444'}`
+              }} />
+            </div>
+          </div>
+        )}
 
         {/* Route Duration Overlay */}
         {solvedRoutes.length > 0 && originCoord && destCoord && !activeTravelRoute && (
@@ -25076,10 +25143,10 @@ export default function UserMapPage() {
         {/* ── MOBILE UBER-STYLE DRAWER ── */}
         {isMobile && selectedLines.length === 0 && activePanel === 'map' && (
           <motion.div
-            drag="y"
+            drag={mapSelectionMode ? false : "y"}
             dragControls={dragControls}
             dragListener={false}
-            dragConstraints={{ top: 0, bottom: halfY }}
+            dragConstraints={mapSelectionMode ? undefined : { top: 0, bottom: halfY }}
             dragElastic={0.15}
             onDragEnd={(event, info) => {
               if (info.offset.y > 50 || info.velocity.y > 150) {
@@ -25090,7 +25157,7 @@ export default function UserMapPage() {
             }}
             initial={{ y: typeof window !== 'undefined' ? window.innerHeight : 800 }}
             animate={{
-              y: drawerState === 'expanded' ? 0 : halfY
+              y: mapSelectionMode ? mapSelectionY : (drawerState === 'expanded' ? 0 : halfY)
             }}
             transition={{ type: 'spring', damping: 25, stiffness: 180 }}
             style={{
@@ -25113,16 +25180,18 @@ export default function UserMapPage() {
           >
             {/* Handle bar */}
             <div 
-              onPointerDown={(e) => dragControls.start(e)}
+              onPointerDown={(e) => !mapSelectionMode && dragControls.start(e)}
               onClick={() => {
-                setDrawerState(prev => prev === 'expanded' ? 'half' : 'expanded')
+                if (!mapSelectionMode) {
+                  setDrawerState(prev => prev === 'expanded' ? 'half' : 'expanded')
+                }
               }}
               style={{
                 width: '100%',
                 padding: '12px 0 10px 0',
                 display: 'flex',
                 justifyContent: 'center',
-                cursor: 'ns-resize',
+                cursor: mapSelectionMode ? 'default' : 'ns-resize',
                 flexShrink: 0
               }}
             >
@@ -25153,7 +25222,7 @@ export default function UserMapPage() {
               position: 'absolute',
               top: '74px',
               left: '14px',
-              bottom: '14px',
+              bottom: mapSelectionMode ? 'auto' : '14px',
               width: '380px',
               zIndex: 11,
               background: prefs.darkMap ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.96)',
