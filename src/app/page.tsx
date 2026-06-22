@@ -21289,6 +21289,18 @@ export default function UserMapPage() {
   const [touristYellowSelected, setTouristYellowSelected] = useState(false)
   const [touristRedSelected, setTouristRedSelected] = useState(false)
   const [drawerState, setDrawerState] = useState<'collapsed' | 'half' | 'expanded'>('half')
+  const [halfY, setHalfY] = useState(450)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const updateHeight = () => {
+      setHalfY(window.innerHeight * 0.9 - 320)
+    }
+    updateHeight()
+    window.addEventListener('resize', updateHeight)
+    return () => window.removeEventListener('resize', updateHeight)
+  }, [])
+
   const [originResults, setOriginResults] = useState<any[]>([])
   const [destResults, setDestResults] = useState<any[]>([])
   const [solvedRoutes, setSolvedRoutes] = useState<any[]>([])
@@ -23082,7 +23094,9 @@ export default function UserMapPage() {
                       <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
                         {(line.line_number === 'T-Amarillo' || line.line_number === 'T-Rojo')
                           ? '$25.000,00'
-                          : `$${ticketPrices.min.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                          : line.line_number === '12'
+                            ? '$788,28'
+                            : `$${ticketPrices.min.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                       </span>
                       <span style={{
                         fontSize: '9px',
@@ -25065,20 +25079,20 @@ export default function UserMapPage() {
             drag="y"
             dragControls={dragControls}
             dragListener={false}
-            dragConstraints={drawerState === 'expanded' ? { top: 0, bottom: 600 } : { top: -600, bottom: 0 }}
+            dragConstraints={{ top: 0, bottom: halfY }}
             dragElastic={0.15}
             onDragEnd={(event, info) => {
-              if (info.offset.y > 60) {
-                if (drawerState === 'expanded') setDrawerState('half')
-              } else if (info.offset.y < -60) {
-                if (drawerState === 'half') setDrawerState('expanded')
+              if (info.offset.y > 50 || info.velocity.y > 150) {
+                setDrawerState('half')
+              } else if (info.offset.y < -50 || info.velocity.y < -150) {
+                setDrawerState('expanded')
               }
             }}
-            initial={{ y: '100%' }}
+            initial={{ y: typeof window !== 'undefined' ? window.innerHeight : 800 }}
             animate={{
-              y: drawerState === 'expanded' ? 'calc(100% - 90%)' : 'calc(100% - 320px)'
+              y: drawerState === 'expanded' ? 0 : halfY
             }}
-            transition={{ type: 'spring', damping: 32, stiffness: 160 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 180 }}
             style={{
               position: 'absolute',
               left: 0,
@@ -26323,7 +26337,7 @@ function ProfilePanel({
         </button>
       </div>
 
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '4px' }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '4px', paddingBottom: '100px' }}>
         {/* ── PROFILE TAB ── */}
         {activeTab === 'profile' && (
           <div>
