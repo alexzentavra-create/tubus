@@ -21278,11 +21278,14 @@ export default function UserMapPage() {
   const [buses, setBuses]                   = useState<BusPosition[]>([])
   const [lines, setLines]                   = useState<BusLine[]>([])
   const [selectedLines, setSelectedLines]   = useState<BusLine[]>([])
-  const [tempLinesSelection, setTempLinesSelection] = useState<BusLine[]>([])
-  const [focusedLineId, setFocusedLineId] = useState<string | null>(null)
-  const [showOnlyFocusedLine, setShowOnlyFocusedLine] = useState<boolean>(false)
-  const [trafficState, setTrafficState]     = useState<Record<string, { color: string, timestamp: number }>>({})
   
+  // Mobile, Onboarding and Desktop-Preview states
+  const [isMobile, setIsMobile]             = useState(false)
+  const [forceMobilePreview, setForceMobilePreview] = useState(false)
+  const [physicalMobile, setPhysicalMobile] = useState(false)
+  const [onboardingStep, setOnboardingStep] = useState<number>(-1)
+  const [showWelcome, setShowWelcome]       = useState(false)
+
   // Uber Travel Assistant & Map Modes State
   const [activeMode, setActiveMode] = useState<'normal' | 'tourist' | 'clubbing' | 'shopping'>('normal')
   const [selectedCity, setSelectedCity] = useState<'buenos_aires' | 'santa_cruz'>('buenos_aires')
@@ -21296,13 +21299,14 @@ export default function UserMapPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return
     const updateHeight = () => {
-      setHalfY(window.innerHeight * 0.9 - 320)
-      setMapSelectionY(window.innerHeight * 0.9 - 270)
+      const baseHeight = (!physicalMobile && forceMobilePreview) ? 812 : window.innerHeight
+      setHalfY(baseHeight * 0.9 - 320)
+      setMapSelectionY(baseHeight * 0.9 - 270)
     }
     updateHeight()
     window.addEventListener('resize', updateHeight)
     return () => window.removeEventListener('resize', updateHeight)
-  }, [])
+  }, [physicalMobile, forceMobilePreview])
 
   const [originResults, setOriginResults] = useState<any[]>([])
   const [destResults, setDestResults] = useState<any[]>([])
@@ -21313,11 +21317,9 @@ export default function UserMapPage() {
   
   const getUniqueTouristStops = useCallback(() => {
     const activeLines = lines.length > 0 ? lines : MOCK_LINES
-    const touristLines = activeLines.filter(l => (l as any).is_tourist)
-    const stops = touristLines.flatMap(line => getMockStopsForLine(line, 'ida'))
     const unique: BusStop[] = []
-    const ids = new Set()
-    stops.forEach(s => {
+    const ids = new Set<string>()
+    activeLines.flatMap(line => getMockStopsForLine(line)).forEach(s => {
       if (!ids.has(s.id)) {
         ids.add(s.id)
         unique.push(s)
@@ -21328,12 +21330,10 @@ export default function UserMapPage() {
 
   const dragControls = useDragControls()
   
-  // Mobile, Onboarding and Desktop-Preview states
-  const [isMobile, setIsMobile]             = useState(false)
-  const [forceMobilePreview, setForceMobilePreview] = useState(false)
-  const [physicalMobile, setPhysicalMobile] = useState(false)
-  const [onboardingStep, setOnboardingStep] = useState<number>(-1)
-  const [showWelcome, setShowWelcome]       = useState(false)
+  const [tempLinesSelection, setTempLinesSelection] = useState<BusLine[]>([])
+  const [focusedLineId, setFocusedLineId] = useState<string | null>(null)
+  const [showOnlyFocusedLine, setShowOnlyFocusedLine] = useState<boolean>(false)
+  const [trafficState, setTrafficState]     = useState<Record<string, { color: string, timestamp: number }>>({})
 
   useEffect(() => {
     const checkViewport = () => {
