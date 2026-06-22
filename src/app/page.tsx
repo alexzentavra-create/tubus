@@ -21479,6 +21479,88 @@ export default function UserMapPage() {
     }
   }, [activeTravelRoute])
 
+  // Fetch street-aligned walking path using OSRM Foot Routing API
+  useEffect(() => {
+    if (!originCoord || !destCoord) {
+      setWalkingPath1([])
+      setWalkingPath2([])
+      return
+    }
+
+    const currentRoute = activeTravelRoute || travelRoute
+    if (!currentRoute) {
+      setWalkingPath1([])
+      setWalkingPath2([])
+      return
+    }
+
+    // Walking path 1: originCoord -> originStop
+    const oStop = currentRoute.originStop
+    const url1 = `https://router.project-osrm.org/route/v1/foot/${originCoord.lng},${originCoord.lat};${oStop.longitude},${oStop.latitude}?overview=full&geometries=geojson`
+    fetch(url1)
+      .then(res => res.json())
+      .then(data => {
+        if (data.routes && data.routes[0] && data.routes[0].geometry) {
+          const coords = data.routes[0].geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] }))
+          setWalkingPath1(coords)
+        } else {
+          setWalkingPath1([{ lat: originCoord.lat, lng: originCoord.lng }, { lat: oStop.latitude, lng: oStop.longitude }])
+        }
+      })
+      .catch(() => {
+        setWalkingPath1([{ lat: originCoord.lat, lng: originCoord.lng }, { lat: oStop.latitude, lng: oStop.longitude }])
+      })
+
+    // Walking path 2: destStop -> destCoord
+    const dStop = currentRoute.destStop
+    const url2 = `https://router.project-osrm.org/route/v1/foot/${dStop.longitude},${dStop.latitude};${destCoord.lng},${destCoord.lat}?overview=full&geometries=geojson`
+    fetch(url2)
+      .then(res => res.json())
+      .then(data => {
+        if (data.routes && data.routes[0] && data.routes[0].geometry) {
+          const coords = data.routes[0].geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] }))
+          setWalkingPath2(coords)
+        } else {
+          setWalkingPath2([{ lat: dStop.latitude, lng: dStop.longitude }, { lat: destCoord.lat, lng: destCoord.lng }])
+        }
+      })
+      .catch(() => {
+        setWalkingPath2([{ lat: dStop.latitude, lng: dStop.longitude }, { lat: destCoord.lat, lng: destCoord.lng }])
+      })
+  }, [originCoord, destCoord, activeTravelRoute, travelRoute])
+
+  // Synchronize userCoords to follow the tracked bus in real-time when userBoardedBus is active
+  useEffect(() => {
+    if (!userBoardedBus || !trackedBusId) return
+    const trackedBus = buses.find(b => b.id === trackedBusId)
+    if (trackedBus) {
+      setUserCoords({ lat: trackedBus.latitude, lng: trackedBus.longitude })
+      if (trackedBus.heading !== undefined) {
+        setUserHeading(trackedBus.heading)
+      }
+    }
+  }, [userBoardedBus, trackedBusId, buses])
+
+  // 1-minute auto-exit simulation timer when userBoardedBus is true
+  useEffect(() => {
+    if (!userBoardedBus) return
+    const timer = setTimeout(() => {
+      setUserBoardedBus(false)
+      setShowGotOffPrompt(false)
+      setTrackedBusId(null)
+      setActiveTravelRoute(null)
+      setViewState(v => ({
+        ...v,
+        zoom: 14.5,
+        pitch: 0,
+        bearing: 0,
+        transitionDuration: 1000
+      }))
+      toast.success("✨ El viaje ha terminado automáticamente (Llegada simulada).")
+    }, 60000)
+    return () => clearTimeout(timer)
+  }, [userBoardedBus])
+
   const [ticketPrices, setTicketPrices] = useState<{ min: number; max: number; loading: boolean }>({
     min: 728.28,
     max: 1227.76,
@@ -24139,10 +24221,12 @@ export default function UserMapPage() {
                   properties: {},
                   geometry: {
                     type: 'LineString',
-                    coordinates: [
-                      [originCoord.lng, originCoord.lat],
-                      [(activeTravelRoute || travelRoute).originStop.longitude, (activeTravelRoute || travelRoute).originStop.latitude]
-                    ]
+                    coordinates: walkingPath1.length > 0
+                      ? walkingPath1.map(p => [p.lng, p.lat])
+                      : [
+                          [originCoord.lng, originCoord.lat],
+                          [(activeTravelRoute || travelRoute).originStop.longitude, (activeTravelRoute || travelRoute).originStop.latitude]
+                        ]
                   }
                 },
                 {
@@ -24150,10 +24234,12 @@ export default function UserMapPage() {
                   properties: {},
                   geometry: {
                     type: 'LineString',
-                    coordinates: [
-                      [(activeTravelRoute || travelRoute).destStop.longitude, (activeTravelRoute || travelRoute).destStop.latitude],
-                      [destCoord.lng, destCoord.lat]
-                    ]
+                    coordinates: walkingPath2.length > 0
+                      ? walkingPath2.map(p => [p.lng, p.lat])
+                      : [
+                          [(activeTravelRoute || travelRoute).destStop.longitude, (activeTravelRoute || travelRoute).destStop.latitude],
+                          [destCoord.lng, destCoord.lat]
+                        ]
                   }
                 }
               ]
@@ -27370,7 +27456,7 @@ function MiniPopup({
             bus.line_number === '59' ? '/images/bus-59-real.png' :
             bus.line_number === '60' ? '/images/bus-60-real.png' :
             bus.line_number === '102' ? '/images/bus-102-real.jpg' :
-            bus.line_number === '152' ? '/images/bus-152-real.png' :
+            bus.line_number === '152' ? '/images/bus-152-real.jpg' :
             bus.line_number === 'T-Amarillo' ? '/images/bus-T-Amarillo.png' :
             bus.line_number === 'T-Rojo' ? '/images/bus-T-Rojo.png' :
             `/images/bus-${bus.line_number}.png`
