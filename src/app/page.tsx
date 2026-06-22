@@ -25384,6 +25384,7 @@ export default function UserMapPage() {
                     prefs={prefs}
                     lines={allLines}
                     buses={buses}
+                    isMobile={isMobile}
                     onSelectLine={l => { setSelectedLines([l]); setActivePanel('map') }}
                     onUpdatePrefs={updatePrefs}
                     onSelectBus={bus => {
@@ -25419,6 +25420,7 @@ export default function UserMapPage() {
                   <SettingsPanel
                     prefs={prefs}
                     onUpdatePrefs={updatePrefs}
+                    isMobile={isMobile}
                     showTraffic={showTraffic}
                     onToggleTraffic={(val) => {
                       if (val && selectedLines.length === 0) {
@@ -25901,12 +25903,13 @@ export default function UserMapPage() {
 }
 
 // ─── Favourites Panel ─────────────────────────────────────────────────────────
-function FavouritesPanel({ prefs, lines, buses, onSelectLine, onUpdatePrefs, onSelectBus, onSelectTrip }: {
+function FavouritesPanel({ prefs, lines, buses, onSelectLine, onUpdatePrefs, onSelectBus, onSelectTrip, isMobile }: {
   prefs: UserPrefs; lines: BusLine[]; buses: BusPosition[]
   onSelectLine: (l: BusLine) => void
   onUpdatePrefs: (p: Partial<UserPrefs>) => void
   onSelectBus: (b: BusPosition) => void
   onSelectTrip: (t: any) => void
+  isMobile: boolean
 }) {
   const favLines = lines.filter(l => prefs.favBusLines.includes(l.id))
   const allStops = lines.flatMap(line => getMockStopsForLine(line))
@@ -26013,6 +26016,11 @@ function FavouritesPanel({ prefs, lines, buses, onSelectLine, onUpdatePrefs, onS
           </div>
         )}
       </GlassCard>
+
+      {/* Space underneath for mobile viewports to elevate above navigation bar */}
+      {isMobile && (
+        <div style={{ height: '90px', width: '100%', flexShrink: 0 }} />
+      )}
     </div>
   )
 }
@@ -26023,13 +26031,15 @@ function SettingsPanel({
   onUpdatePrefs,
   onRestartOnboarding,
   showTraffic,
-  onToggleTraffic
+  onToggleTraffic,
+  isMobile
 }: {
   prefs: UserPrefs
   onUpdatePrefs: (p: Partial<UserPrefs>) => void
   onRestartOnboarding?: () => void
   showTraffic: boolean
   onToggleTraffic: (val: boolean) => void
+  isMobile: boolean
 }) {
   return (
     <div>
@@ -26115,6 +26125,11 @@ function SettingsPanel({
           </div>
         ))}
       </GlassCard>
+
+      {/* Space underneath for mobile viewports to elevate above navigation bar */}
+      {isMobile && (
+        <div style={{ height: '90px', width: '100%', flexShrink: 0 }} />
+      )}
     </div>
   )
 }
