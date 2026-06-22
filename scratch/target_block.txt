@@ -1,0 +1,551 @@
+        {/* ── TOP BAR (Multi-selection & Close) ── */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10,
+          padding: isMobile ? '12px 12px 0' : '14px 14px 0',
+          pointerEvents: 'none', display: 'flex', justifyContent: 'center'
+        }}>
+          <motion.div
+            initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+            transition={{ type: 'spring', damping: 26, stiffness: 200 }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '10px',
+              background: (isMobile && selectedLines.length === 0)
+                ? 'transparent'
+                : (prefs.darkMap
+                    ? 'linear-gradient(145deg,rgba(19,25,33,0.97),rgba(10,14,20,0.99))'
+                    : 'linear-gradient(145deg,rgba(255,255,255,0.97),rgba(243,244,246,0.99))'),
+              backdropFilter: (isMobile && selectedLines.length === 0) ? 'none' : 'blur(24px)',
+              WebkitBackdropFilter: (isMobile && selectedLines.length === 0) ? 'none' : 'blur(24px)',
+              border: (isMobile && selectedLines.length === 0)
+                ? 'none'
+                : (prefs.darkMap ? '1px solid rgba(184,200,224,0.12)' : '1px solid rgba(0,0,0,0.08)'),
+              borderRadius: '14px',
+              padding: (isMobile && selectedLines.length === 0) ? '0' : '9px 12px',
+              boxShadow: (isMobile && selectedLines.length === 0)
+                ? 'none'
+                : (prefs.darkMap ? '0 8px 40px rgba(0,0,0,0.7)' : '0 8px 30px rgba(0,0,0,0.06)'),
+              pointerEvents: 'auto',
+              width: isMobile ? '100%' : 'auto',
+              maxWidth: isMobile ? '480px' : 'none',
+              justifyContent: (isMobile && selectedLines.length === 0) ? 'space-between' : 'flex-start'
+            }}
+          >
+            {isMobile && selectedLines.length === 0 ? (
+              <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
+                {/* Recorrido */}
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => {
+                    setLineSelectorTab('route')
+                    setShowLineSelector(true)
+                  }}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    padding: '11px 10px',
+                    borderRadius: '12px',
+                    fontFamily: 'DM Sans, sans-serif',
+                    fontSize: '13px',
+                    fontWeight: lineSelectorTab === 'route' ? 700 : 500,
+                    cursor: 'pointer',
+                    transition: 'all 200ms',
+                    background: lineSelectorTab === 'route'
+                      ? (prefs.darkMap ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.95)')
+                      : (prefs.darkMap ? 'rgba(15, 23, 42, 0.55)' : 'rgba(255, 255, 255, 0.6)'),
+                    color: lineSelectorTab === 'route'
+                      ? 'var(--text-primary)'
+                      : 'var(--text-muted)',
+                    border: lineSelectorTab === 'route'
+                      ? (prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.22)' : '1px solid rgba(0, 0, 0, 0.15)')
+                      : (prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.06)'),
+                    boxShadow: prefs.darkMap 
+                      ? '0 4px 20px rgba(0,0,0,0.4)' 
+                      : '0 4px 12px rgba(0,0,0,0.05)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)'
+                  }}
+                >
+                  <Route size={14} style={{ color: lineSelectorTab === 'route' ? 'var(--text-primary)' : 'var(--text-muted)' }} />
+                  <span>Recorrido</span>
+                </motion.button>
+
+                {/* Cerca mío */}
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => {
+                    setLineSelectorTab('nearby')
+                    setShowLineSelector(true)
+                  }}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    padding: '11px 10px',
+                    borderRadius: '12px',
+                    fontFamily: 'DM Sans, sans-serif',
+                    fontSize: '13px',
+                    fontWeight: lineSelectorTab === 'nearby' ? 700 : 500,
+                    cursor: 'pointer',
+                    transition: 'all 200ms',
+                    background: lineSelectorTab === 'nearby'
+                      ? (prefs.darkMap ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.95)')
+                      : (prefs.darkMap ? 'rgba(15, 23, 42, 0.55)' : 'rgba(255, 255, 255, 0.6)'),
+                    color: lineSelectorTab === 'nearby'
+                      ? 'var(--text-primary)'
+                      : 'var(--text-muted)',
+                    border: lineSelectorTab === 'nearby'
+                      ? (prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.22)' : '1px solid rgba(0, 0, 0, 0.15)')
+                      : (prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.06)'),
+                    boxShadow: prefs.darkMap 
+                      ? '0 4px 20px rgba(0,0,0,0.4)' 
+                      : '0 4px 12px rgba(0,0,0,0.05)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)'
+                  }}
+                >
+                  <MapPin size={14} style={{ color: lineSelectorTab === 'nearby' ? 'var(--text-primary)' : 'var(--text-muted)' }} />
+                  <span>Cerca mío</span>
+                </motion.button>
+
+                {/* Por línea */}
+                <motion.button
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => {
+                    setLineSelectorTab('line')
+                    setShowLineSelector(true)
+                  }}
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    padding: '11px 10px',
+                    borderRadius: '12px',
+                    fontFamily: 'DM Sans, sans-serif',
+                    fontSize: '13px',
+                    fontWeight: lineSelectorTab === 'line' ? 700 : 500,
+                    cursor: 'pointer',
+                    transition: 'all 200ms',
+                    background: lineSelectorTab === 'line'
+                      ? (prefs.darkMap ? 'rgba(30, 41, 59, 0.85)' : 'rgba(255, 255, 255, 0.95)')
+                      : (prefs.darkMap ? 'rgba(15, 23, 42, 0.55)' : 'rgba(255, 255, 255, 0.6)'),
+                    color: lineSelectorTab === 'line'
+                      ? 'var(--text-primary)'
+                      : 'var(--text-muted)',
+                    border: lineSelectorTab === 'line'
+                      ? (prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.22)' : '1px solid rgba(0, 0, 0, 0.15)')
+                      : (prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.06)'),
+                    boxShadow: prefs.darkMap 
+                      ? '0 4px 20px rgba(0,0,0,0.4)' 
+                      : '0 4px 12px rgba(0,0,0,0.05)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)'
+                  }}
+                >
+                  <Bus size={14} style={{ color: lineSelectorTab === 'line' ? 'var(--text-primary)' : 'var(--text-muted)' }} />
+                  <span>Por línea</span>
+                </motion.button>
+              </div>
+            ) : (
+              <>
+                {selectedLines.length > 0 ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', flex: 1, paddingRight: '8px', justifyContent: isMobile ? 'center' : 'flex-start' }}>
+                    {selectedLines.map(line => (
+                      <div key={line.id} style={{
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                        background: prefs.darkMap ? 'rgba(184,200,224,0.06)' : 'rgba(0,0,0,0.04)',
+                        border: prefs.darkMap ? '1px solid rgba(184,200,224,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                        padding: '4px 8px', borderRadius: '8px', flexShrink: 0
+                      }}>
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: line.color }} />
+                        <span style={{ color: 'var(--text-primary)', fontSize: '12px', fontWeight: 600 }}>Línea {line.line_number}</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedLines(prev => prev.filter(l => l.id !== line.id))
+                          }}
+                          style={{ background: 'none', border: 'none', color: 'rgba(184,200,224,0.6)', cursor: 'pointer', padding: '0 2px', display: 'flex', alignItems: 'center' }}
+                        >
+                          <X size={10} />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setLineSelectorTab('line'); setShowLineSelector(true) }}
+                      style={{
+                        background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                        border: prefs.darkMap ? '1px dashed rgba(255,255,255,0.15)' : '1px dashed rgba(0,0,0,0.15)',
+                        color: '#9CA3AF', fontSize: '11px', padding: '4px 8px', borderRadius: '8px', cursor: 'pointer', fontWeight: 500
+                      }}
+                    >
+                      + Agregar línea
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setLineSelectorTab('line'); setShowLineSelector(true); }}
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '10px', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: isMobile ? 'center' : 'left', justifyContent: isMobile ? 'center' : 'flex-start' }}
+                  >
+                    <Search size={13} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                    <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Elegí una línea...</span>
+                  </button>
+                )}
+
+                {selectedLines.length === 1 && (
+                  <button onClick={() => updatePrefs({ favBusLines: prefs.favBusLines.includes(selectedLines[0].id) ? prefs.favBusLines.filter(id => id !== selectedLines[0].id) : [...prefs.favBusLines, selectedLines[0].id] })}
+                    style={{
+                      width: '28px', height: '28px', borderRadius: '50%',
+                      background: prefs.darkMap ? 'rgba(184,200,224,0.06)' : 'rgba(0,0,0,0.04)',
+                      border: prefs.darkMap ? '1px solid rgba(184,200,224,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0
+                    }}>
+                    <Star size={12} style={{ color: prefs.favBusLines.includes(selectedLines[0].id) ? '#F59E0B' : 'var(--text-muted)', fill: prefs.favBusLines.includes(selectedLines[0].id) ? '#F59E0B' : 'none' }} />
+                  </button>
+                )}
+
+                {buses.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 9px', borderRadius: '999px', background: 'rgba(34,211,160,0.08)', border: '1px solid rgba(34,211,160,0.2)', flexShrink: 0 }}>
+                    <div style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--go)' }} />
+                    <span style={{ color: 'var(--go)', fontSize: '11px', fontFamily: 'DM Mono', fontWeight: 600 }}>{buses.length} en ruta</span>
+                  </div>
+                )}
+              </>
+            )}
+          </motion.div>
+        </div>
+
+        {/* ── FILTER TOOLBAR (Branch & Interno selection) ── */}
+        {selectedLines.length > 0 && activePanel === 'map' && (
+          <div style={{ position: 'absolute', top: '64px', left: 0, right: 0, zIndex: 9, padding: '0 14px', pointerEvents: 'none' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '8px', pointerEvents: 'auto',
+              background: prefs.darkMap ? 'rgba(10,14,20,0.95)' : 'rgba(255,255,255,0.95)',
+              border: prefs.darkMap ? '1px solid rgba(184,200,224,0.08)' : '1px solid rgba(0,0,0,0.08)',
+              padding: '6px 12px', borderRadius: '10px',
+              boxShadow: prefs.darkMap ? '0 4px 20px rgba(0,0,0,0.5)' : '0 4px 15px rgba(0,0,0,0.05)',
+              width: 'fit-content'
+            }}>
+              {selectedLines.some(l => l.line_number === '60') && (
+                <>
+                  <span style={{ fontSize: '11px', color: '#9CA3AF', fontFamily: 'DM Mono' }}>RAMAL:</span>
+                  <select
+                    value={branchFilter}
+                    onChange={e => { setBranchFilter(e.target.value); setTrackedBusId(null) }}
+                    style={{
+                      background: prefs.darkMap ? 'rgba(184,200,224,0.05)' : 'rgba(0,0,0,0.04)',
+                      color: 'var(--text-primary)',
+                      border: prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)',
+                      borderRadius: '6px', fontSize: '11px', padding: '3px 6px', outline: 'none'
+                    }}
+                  >
+                    <option value="all" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Todos</option>
+                    <option value="A" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Ramal A (Tigre)</option>
+                    <option value="B" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Ramal B (Escobar)</option>
+                  </select>
+                  <div style={{ width: '1px', height: '14px', background: 'rgba(184,200,224,0.15)', margin: '0 4px' }} />
+                </>
+              )}
+
+              {/* Direction Outbound/Inbound Filter */}
+              <span style={{ fontSize: '11px', color: '#9CA3AF', fontFamily: 'DM Mono' }}>SENTIDO:</span>
+              <select
+                value={directionFilter}
+                onChange={e => { setDirectionFilter(e.target.value as any); setTrackedBusId(null) }}
+                style={{
+                  background: prefs.darkMap ? 'rgba(184,200,224,0.05)' : 'rgba(0,0,0,0.04)',
+                  color: 'var(--text-primary)',
+                  border: prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)',
+                  borderRadius: '6px', fontSize: '11px', padding: '3px 6px', outline: 'none', marginRight: '4px'
+                }}
+              >
+                <option value="all" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Ambos sentidos</option>
+                <option value="ida" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>{dirLabels.ida}</option>
+                <option value="vuelta" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>{dirLabels.vuelta}</option>
+              </select>
+              <div style={{ width: '1px', height: '14px', background: 'rgba(184,200,224,0.15)', margin: '0 4px' }} />
+
+              <span style={{ fontSize: '11px', color: '#9CA3AF', fontFamily: 'DM Mono' }}>SEGUIR:</span>
+              <select
+                value={trackedBusId || 'all'}
+                onChange={e => setTrackedBusId(e.target.value === 'all' ? null : e.target.value)}
+                style={{
+                  background: prefs.darkMap ? 'rgba(184,200,224,0.05)' : 'rgba(0,0,0,0.04)',
+                  color: 'var(--text-primary)',
+                  border: prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)',
+                  borderRadius: '6px', fontSize: '11px', padding: '3px 6px', outline: 'none'
+                }}
+              >
+                <option value="all" style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>Todos los colectivos</option>
+                {buses
+                  .filter(b => {
+                    if (b.line_number === '60' && branchFilter !== 'all' && b.ramal !== branchFilter) return false
+                    if (directionFilter !== 'all' && b.direction !== directionFilter) return false
+                    return true
+                  })
+                  .map(b => (
+                    <option key={b.id} value={b.id} style={{ background: prefs.darkMap ? '#111827' : '#ffffff', color: 'var(--text-primary)' }}>
+                      Interno {b.bus_unit} {b.ramal ? `(Ramal ${b.ramal})` : ''}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* ── TRAVEL PLANNER PANEL ── */}
+        <AnimatePresence>
+          {travelPlannerOpen && activePanel === 'map' && (
+            <motion.div
+              initial={{ x: -100, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -100, opacity: 0 }}
+              style={{
+                position: 'absolute',
+                top: isMobile ? '64px' : '74px',
+                left: isMobile ? '10px' : '14px',
+                right: isMobile ? '10px' : 'auto',
+                zIndex: 11,
+                width: isMobile ? 'auto' : '320px',
+                background: prefs.darkMap
+                  ? 'linear-gradient(135deg, rgba(17, 24, 39, 0.95) 0%, rgba(10, 15, 26, 0.98) 100%)'
+                  : 'linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(243, 244, 246, 0.98) 100%)',
+                border: prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.08)',
+                borderRadius: '16px', padding: '14px',
+                boxShadow: prefs.darkMap ? '0 10px 30px rgba(0,0,0,0.6)' : '0 10px 30px rgba(0,0,0,0.06)',
+                color: 'var(--text-primary)', display: 'flex', flexDirection: 'column', gap: '10px',
+                backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Asistente de Viaje</span>
+                <button onClick={() => { setTravelPlannerOpen(false); setSelectedBoardingBusId(null); }} style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer' }}><X size={14} /></button>
+              </div>
+              
+              {/* Inputs stacked with connecting vertical line */}
+              <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {/* Vertical connecting line */}
+                <div style={{ position: 'absolute', left: '16px', top: '20px', bottom: '20px', width: '2px', background: prefs.darkMap ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)', zIndex: 1 }} />
+                
+                {/* Origin Input */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2 }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#3B82F6', border: '2px solid white', flexShrink: 0, marginLeft: '12px' }} />
+                  <input
+                    type="text"
+                    value={originInput}
+                    onChange={e => {
+                      setOriginInput(e.target.value)
+                      const coord = resolveStreetToCoords(e.target.value)
+                      if (coord) {
+                        setOriginCoord(coord)
+                        setSelectedBoardingBusId(null)
+                        setViewState(v => ({ ...v, latitude: coord.lat, longitude: coord.lng, zoom: 14 }))
+                        if (destCoord) setTravelRoute(solveRoute(coord, destCoord))
+                      }
+                    }}
+                    placeholder="Escribí calle de Origen (ej. Cabildo)..."
+                    style={{
+                      flex: 1, padding: '6px 10px', borderRadius: '8px',
+                      background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                      border: prefs.darkMap ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
+                      color: 'var(--text-primary)', fontSize: '11px', outline: 'none'
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      const center = { lat: viewState.latitude, lng: viewState.longitude }
+                      setOriginCoord(center)
+                      setOriginInput(getNearestStreetName(center.lat, center.lng))
+                      setSelectedBoardingBusId(null)
+                      if (destCoord) setTravelRoute(solveRoute(center, destCoord))
+                    }}
+                    title="Marcar centro de mapa como origen"
+                    style={{ background: 'rgba(59,130,246,0.15)', color: '#3B82F6', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '6px', padding: '4px 6px', fontSize: '10px', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    📍 Pin
+                  </button>
+                </div>
+
+                {/* Destination Input */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', zIndex: 2 }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#111827', border: '2px solid white', flexShrink: 0, marginLeft: '12px' }} />
+                  <input
+                    type="text"
+                    value={destInput}
+                    onChange={e => {
+                      setDestInput(e.target.value)
+                      const coord = resolveStreetToCoords(e.target.value)
+                      if (coord) {
+                        setDestCoord(coord)
+                        setSelectedBoardingBusId(null)
+                        setViewState(v => ({ ...v, latitude: coord.lat, longitude: coord.lng, zoom: 14 }))
+                        if (originCoord) setTravelRoute(solveRoute(originCoord, coord))
+                      }
+                    }}
+                    placeholder="Escribí calle de Destino (ej. Plaza Italia)..."
+                    style={{
+                      flex: 1, padding: '6px 10px', borderRadius: '8px',
+                      background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                      border: prefs.darkMap ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.08)',
+                      color: 'var(--text-primary)', fontSize: '11px', outline: 'none'
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      const center = { lat: viewState.latitude, lng: viewState.longitude }
+                      setDestCoord(center)
+                      setDestInput(getNearestStreetName(center.lat, center.lng))
+                      setSelectedBoardingBusId(null)
+                      if (originCoord) setTravelRoute(solveRoute(originCoord, center))
+                    }}
+                    title="Marcar centro de mapa como destino"
+                    style={{ background: 'rgba(17,24,39,0.15)', color: 'var(--text-primary)', border: '1px solid rgba(184,200,224,0.3)', borderRadius: '6px', padding: '4px 6px', fontSize: '10px', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    📍 Pin
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ fontSize: '10px', color: '#9CA3AF', textAlign: 'center', marginTop: '2px' }}>
+                💡 Podés buscar por calle o arrastrar los pines en el mapa
+              </div>
+
+              {/* Route Result Card */}
+              {travelRoute ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '10px', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: travelRoute.color }} />
+                      <span style={{ fontWeight: 'bold' }}>Línea {travelRoute.line_number} conectada</span>
+                    </div>
+                    <div>
+                      🚶‍♂️ Caminá hasta parada: <strong>{travelRoute.originStop.name}</strong>
+                    </div>
+                    <div>
+                      🚌 Tomá el colectivo y viajá hasta: <strong>{travelRoute.destStop.name}</strong>
+                    </div>
+                  </div>
+
+                  {/* Incoming Colectivos list */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', fontFamily: 'DM Mono', letterSpacing: '0.04em' }}>Colectivos que se acercan:</span>
+                    {(() => {
+                      const isBusApproaching = (bus: BusPosition, stop: { latitude: number; longitude: number }) => {
+                        const dy = stop.latitude - bus.latitude
+                        const dx = stop.longitude - bus.longitude
+                        const angleToStop = ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360
+                        const diff = Math.abs(bus.heading - angleToStop)
+                        const circularDiff = Math.abs(((diff + 180) % 360) - 180)
+                        return circularDiff <= 90
+                      }
+
+                      const approaching = buses
+                        .filter(b => b.line_id === travelRoute.line_id)
+                        .map(b => {
+                          const dist = distanceKm(b, { lat: travelRoute.originStop.latitude, lng: travelRoute.originStop.longitude })
+                          const isComing = isBusApproaching(b, travelRoute.originStop)
+                          return { bus: b, dist, isComing }
+                        })
+                        .filter(item => {
+                          if (item.isComing) {
+                            return item.dist <= 1.0 // approaching within 1KM
+                          } else {
+                            return item.dist <= 0.4 // passed but closer than 400m
+                          }
+                        })
+                        .sort((a, b) => a.dist - b.dist)
+                        .slice(0, 3)
+
+                      if (approaching.length === 0) {
+                        return <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>El próximo colectivo está a más de 1 km de distancia</span>
+                      }
+
+                      return approaching.map(({ bus, dist, isComing }) => {
+                        const isSelected = selectedBoardingBusId === bus.id
+                        return (
+                          <div
+                            key={bus.id}
+                            onClick={() => setSelectedBoardingBusId(isSelected ? null : bus.id)}
+                            style={{
+                              padding: '8px 10px', borderRadius: '8px',
+                              background: isSelected 
+                                ? 'rgba(34,211,160,0.12)' 
+                                : 'rgba(255,255,255,0.03)',
+                              border: isSelected 
+                                ? '1px solid rgba(34,211,160,0.4)' 
+                                : '1px solid rgba(255,255,255,0.06)',
+                              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                              transition: 'all 150ms'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: isSelected ? 'var(--go)' : '#9CA3AF' }} />
+                              <span style={{ fontSize: '11px', fontWeight: 600 }}>
+                                Interno {bus.bus_unit} {!isComing && <span style={{ fontSize: '9px', fontWeight: 400, color: '#EF4444', marginLeft: '4px' }}>(ya pasó)</span>}
+                              </span>
+                            </div>
+                            <span style={{ fontSize: '10px', fontFamily: 'DM Mono', color: 'var(--text-secondary)' }}>
+                              {(dist * 1000).toFixed(0)}m
+                            </span>
+                          </div>
+                        )
+                      })
+                    })()}
+                  </div>
+
+                  {/* Countdown Timer Boarding Box */}
+                  {(() => {
+                    if (!selectedBoardingBusId) return null
+                    const matchingBus = buses.find(b => b.id === selectedBoardingBusId)
+                    if (!matchingBus) return null
+                    const etaStr = getETAString(matchingBus, travelRoute.originStop)
+                    const distMeters = distanceKm(matchingBus, { lat: travelRoute.originStop.latitude, lng: travelRoute.originStop.longitude }) * 1000
+                    const isArrived = distMeters < 40
+                    return (
+                      <div
+                        style={{
+                          background: isArrived ? 'rgba(34,211,160,0.15)' : 'rgba(59,130,246,0.12)',
+                          border: isArrived ? '1px solid rgba(34,211,160,0.3)' : '1px solid rgba(59,130,246,0.3)',
+                          borderRadius: '10px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '4px',
+                          alignItems: 'center', justifyContent: 'center', marginTop: '4px',
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                        }}
+                      >
+                        <span style={{ fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', color: isArrived ? 'var(--go)' : '#60A5FA', fontFamily: 'DM Mono' }}>
+                          ⏰ Cuenta regresiva (Live)
+                        </span>
+                        <span style={{ fontSize: '14px', fontWeight: 800, fontFamily: 'DM Mono', color: isArrived ? 'var(--go)' : 'white', textAlign: 'center' }}>
+                          {isArrived ? "¡Colectivo en parada!" : etaStr}
+                        </span>
+                        <span style={{ fontSize: '10px', color: 'var(--text-secondary)', textAlign: 'center' }}>
+                          Interno {matchingBus.bus_unit} - Vel: {matchingBus.speed_kmh} km/h
+                        </span>
+                      </div>
+                    )
+                  })()}
+
+                  <button
+                    onClick={() => {
+                      const line = lines.find(l => l.id === travelRoute.line_id)
+                      if (line && !selectedLines.some(l => l.id === line.id)) {
+                        setSelectedLines(prev => [...prev, line])
+                      }
+                      setViewState(v => ({ ...v, latitude: travelRoute.originStop.latitude, longitude: travelRoute.originStop.longitude, zoom: 14 }))
+                    }}
+                    style={{ width: '100%', background: `${travelRoute.color}20`, border: `1px solid ${travelRoute.color}40`, color: travelRoute.color, borderRadius: '6px', padding: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '11px', marginTop: '4px' }}
+                  >
+                    Seguir esta línea en el mapa →
+                  </button>
+                </div>
+              ) : originCoord && destCoord ? (
+                <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '10px', padding: '10px', marginTop: '6px', fontSize: '11px', color: '#FCA5A5', textAlign: 'center' }}>
+                  No se encontró conexión directa. Intentá escribir o arrastrar los pines más cerca de las avenidas principales.
+                </div>
+              ) : null}
+            </motion.div>
+          )}
+        </AnimatePresence>
+

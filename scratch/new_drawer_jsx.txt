@@ -1,0 +1,289 @@
+        {/* ── STACKED HEADER CONTROLS (Safe Area & Notch Compliant) ── */}
+        {selectedLines.length > 0 && activePanel === 'map' && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 12,
+            paddingTop: 'calc(env(safe-area-inset-top) + 12px)',
+            paddingLeft: '14px',
+            paddingRight: '14px',
+            paddingBottom: '12px',
+            pointerEvents: 'none',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '8px',
+          }}>
+            <motion.div
+              initial={{ y: -50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              style={{
+                pointerEvents: 'auto',
+                width: '100%',
+                maxWidth: isMobile ? '480px' : '640px',
+                background: prefs.darkMap ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.96)',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.08)',
+                borderRadius: '16px',
+                padding: '12px 16px',
+                boxShadow: prefs.darkMap ? '0 10px 30px rgba(0,0,0,0.5)' : '0 10px 25px rgba(0,0,0,0.08)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px'
+              }}
+            >
+              {/* Line info header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    width: '12px', height: '12px', borderRadius: '50%',
+                    background: selectedLines[0].color, flexShrink: 0
+                  }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    <span style={{ fontWeight: 800, fontSize: '15px', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {selectedLines[0].name}
+                    </span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      {selectedLines[0].company}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  {/* Star/Fav */}
+                  <button
+                    onClick={() => updatePrefs({
+                      favBusLines: prefs.favBusLines.includes(selectedLines[0].id)
+                        ? prefs.favBusLines.filter(id => id !== selectedLines[0].id)
+                        : [...prefs.favBusLines, selectedLines[0].id]
+                    })}
+                    style={{
+                      width: '32px', height: '32px', borderRadius: '50%',
+                      background: prefs.darkMap ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                      border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
+                    }}
+                  >
+                    <Star size={14} style={{
+                      color: prefs.favBusLines.includes(selectedLines[0].id) ? '#F59E0B' : 'var(--text-muted)',
+                      fill: prefs.favBusLines.includes(selectedLines[0].id) ? '#F59E0B' : 'none'
+                    }} />
+                  </button>
+
+                  {/* Close/Cancel */}
+                  <button
+                    onClick={() => {
+                      setSelectedLines([])
+                      setTrackedBusId(null)
+                      setDirectionFilter('all')
+                      setBranchFilter('all')
+                    }}
+                    style={{
+                      width: '32px', height: '32px', borderRadius: '50%',
+                      background: '#EF444415', border: 'none', color: '#EF4444',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontWeight: 'bold'
+                    }}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Filters row (stacked on mobile) */}
+              <div style={{
+                display: 'flex',
+                flexDirection: isMobile ? 'column' : 'row',
+                gap: '8px',
+                width: '100%',
+                borderTop: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)',
+                paddingTop: '10px',
+                alignItems: isMobile ? 'stretch' : 'center'
+              }}>
+                {/* Ramal filter */}
+                {selectedLines.some(l => l.line_number === '60') && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'DM Mono', fontWeight: 600, width: '50px' }}>RAMAL:</span>
+                    <select
+                      value={branchFilter}
+                      onChange={e => { setBranchFilter(e.target.value); setTrackedBusId(null) }}
+                      style={{
+                        flex: 1,
+                        background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                        color: 'var(--text-primary)',
+                        border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                        borderRadius: '8px', fontSize: '12px', padding: '6px 8px', outline: 'none'
+                      }}
+                    >
+                      <option value="all" style={{ background: prefs.darkMap ? '#0f172a' : '#ffffff', color: 'var(--text-primary)' }}>Todos</option>
+                      <option value="A" style={{ background: prefs.darkMap ? '#0f172a' : '#ffffff', color: 'var(--text-primary)' }}>Ramal A (Tigre)</option>
+                      <option value="B" style={{ background: prefs.darkMap ? '#0f172a' : '#ffffff', color: 'var(--text-primary)' }}>Ramal B (Escobar)</option>
+                    </select>
+                  </div>
+                )}
+
+                {/* Direction filter */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'DM Mono', fontWeight: 600, width: '50px' }}>SENTIDO:</span>
+                  <select
+                    value={directionFilter}
+                    onChange={e => { setDirectionFilter(e.target.value as any); setTrackedBusId(null) }}
+                    style={{
+                      flex: 1,
+                      background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                      color: 'var(--text-primary)',
+                      border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                      borderRadius: '8px', fontSize: '12px', padding: '6px 8px', outline: 'none'
+                    }}
+                  >
+                    <option value="all" style={{ background: prefs.darkMap ? '#0f172a' : '#ffffff', color: 'var(--text-primary)' }}>Ambos sentidos</option>
+                    <option value="ida" style={{ background: prefs.darkMap ? '#0f172a' : '#ffffff', color: 'var(--text-primary)' }}>{dirLabels.ida}</option>
+                    <option value="vuelta" style={{ background: prefs.darkMap ? '#0f172a' : '#ffffff', color: 'var(--text-primary)' }}>{dirLabels.vuelta}</option>
+                  </select>
+                </div>
+
+                {/* Follow specific bus filter */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'DM Mono', fontWeight: 600, width: '50px' }}>SEGUIR:</span>
+                  <select
+                    value={trackedBusId || 'all'}
+                    onChange={e => setTrackedBusId(e.target.value === 'all' ? null : e.target.value)}
+                    style={{
+                      flex: 1,
+                      background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)',
+                      color: 'var(--text-primary)',
+                      border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                      borderRadius: '8px', fontSize: '12px', padding: '6px 8px', outline: 'none'
+                    }}
+                  >
+                    <option value="all" style={{ background: prefs.darkMap ? '#0f172a' : '#ffffff', color: 'var(--text-primary)' }}>Todos</option>
+                    {buses
+                      .filter(b => {
+                        if (b.line_number === '60' && branchFilter !== 'all' && b.ramal !== branchFilter) return false
+                        if (directionFilter !== 'all' && b.direction !== directionFilter) return false
+                        return true
+                      })
+                      .map(b => (
+                        <option key={b.id} value={b.id} style={{ background: prefs.darkMap ? '#0f172a' : '#ffffff', color: 'var(--text-primary)' }}>
+                          Interno {b.bus_unit} {b.ramal ? `(Ramal ${b.ramal})` : ''}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                {/* Active Buses Badge */}
+                {buses.length > 0 && (
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: '5px',
+                    padding: '6px 12px', borderRadius: '8px',
+                    background: 'rgba(34,211,160,0.08)', border: '1px solid rgba(34,211,160,0.2)',
+                    alignSelf: isMobile ? 'flex-end' : 'center', flexShrink: 0
+                  }}>
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--go)' }} />
+                    <span style={{ color: 'var(--go)', fontSize: '11px', fontFamily: 'DM Mono', fontWeight: 700 }}>
+                      {buses.length} en ruta
+                    </span>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* ── MOBILE UBER-STYLE DRAWER ── */}
+        {isMobile && selectedLines.length === 0 && activePanel === 'map' && (
+          <motion.div
+            drag="y"
+            dragConstraints={{ top: 0, bottom: 0 }}
+            onDragEnd={(event, info) => {
+              if (info.offsetY > 50) {
+                if (drawerState === 'expanded') setDrawerState('half')
+                else if (drawerState === 'half') setDrawerState('collapsed')
+              } else if (info.offsetY < -50) {
+                if (drawerState === 'collapsed') setDrawerState('half')
+                else if (drawerState === 'half') setDrawerState('expanded')
+              }
+            }}
+            animate={{
+              y: drawerState === 'collapsed' ? 'calc(100% - 70px)' : drawerState === 'half' ? 'calc(100% - 320px)' : 'calc(100% - 82%)'
+            }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: '82%',
+              background: prefs.darkMap ? '#0f172a' : '#ffffff',
+              borderTopLeftRadius: '24px',
+              borderTopRightRadius: '24px',
+              boxShadow: '0 -8px 32px rgba(0,0,0,0.15)',
+              zIndex: 11,
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              borderTop: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+              touchAction: 'none'
+            }}
+          >
+            {/* Handle bar */}
+            <div 
+              onClick={() => {
+                setDrawerState(prev => prev === 'collapsed' ? 'half' : prev === 'half' ? 'expanded' : 'collapsed')
+              }}
+              style={{
+                width: '100%',
+                padding: '12px 0 10px 0',
+                display: 'flex',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                flexShrink: 0
+              }}
+            >
+              <div style={{ width: '40px', height: '5px', borderRadius: '3px', background: prefs.darkMap ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)' }} />
+            </div>
+
+            {/* Content wrapper */}
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '0 16px 20px 16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+              touchAction: 'pan-y'
+            }}>
+              {renderDrawerContent()}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── DESKTOP UBER-STYLE PANEL ── */}
+        {!isMobile && selectedLines.length === 0 && activePanel === 'map' && (
+          <motion.div
+            initial={{ x: -100, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            style={{
+              position: 'absolute',
+              top: '74px',
+              left: '14px',
+              bottom: '14px',
+              width: '380px',
+              zIndex: 11,
+              background: prefs.darkMap ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.96)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: prefs.darkMap ? '1px solid rgba(255, 255, 255, 0.08)' : '1px solid rgba(0, 0, 0, 0.08)',
+              borderRadius: '16px',
+              boxShadow: prefs.darkMap ? '0 10px 30px rgba(0,0,0,0.5)' : '0 10px 25px rgba(0,0,0,0.08)',
+              display: 'flex',
+              flexDirection: 'column',
+              padding: '16px',
+              gap: '16px',
+              overflowY: 'auto'
+            }}
+          >
+            {renderDrawerContent()}
+          </motion.div>
+        )}

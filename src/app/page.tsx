@@ -21016,6 +21016,33 @@ const CARTODB_LIGHT = {
   ]
 }
 
+const CARTODB_POSITRON = {
+  version: 8,
+  sources: {
+    "cartodb-positron-tiles": {
+      type: "raster",
+      tiles: [
+        "https://a.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}@2x.png",
+        "https://b.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}@2x.png",
+        "https://c.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}@2x.png",
+        "https://d.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}@2x.png"
+      ],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors, © CartoDB"
+    }
+  },
+  layers: [
+    {
+      id: "cartodb-positron-layer",
+      type: "raster",
+      source: "cartodb-positron-tiles",
+      minzoom: 0,
+      maxzoom: 20
+    }
+  ]
+}
+
+
 
 type Panel = 'map' | 'favourites' | 'settings' | 'profile'
 
@@ -21274,6 +21301,10 @@ export default function UserMapPage() {
     pathIndex: number;
   }>>({})
 
+  const isPanningToBusRef = useRef<boolean>(false)
+  const [walkingPath1, setWalkingPath1] = useState<{ lat: number; lng: number }[]>([])
+  const [walkingPath2, setWalkingPath2] = useState<{ lat: number; lng: number }[]>([])
+
   const [user, setUser]                     = useState<any>(null)
   const [buses, setBuses]                   = useState<BusPosition[]>([])
   const [lines, setLines]                   = useState<BusLine[]>([])
@@ -21294,6 +21325,8 @@ export default function UserMapPage() {
   const [drawerState, setDrawerState] = useState<'collapsed' | 'half' | 'expanded'>('half')
   const [halfY, setHalfY] = useState(450)
   const [mapSelectionY, setMapSelectionY] = useState(540)
+  const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [userHeading, setUserHeading] = useState<number | null>(null)
 
 
   useEffect(() => {
@@ -21307,6 +21340,27 @@ export default function UserMapPage() {
     window.addEventListener('resize', updateHeight)
     return () => window.removeEventListener('resize', updateHeight)
   }, [physicalMobile, forceMobilePreview])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      const heading = (e as any).webkitCompassHeading !== undefined 
+        ? (e as any).webkitCompassHeading 
+        : (e.alpha !== null ? 360 - e.alpha : null)
+      if (heading !== null) {
+        setUserHeading(heading)
+      }
+    }
+    if ('ondeviceorientationabsolute' in window) {
+      (window as any).addEventListener('deviceorientationabsolute', handleOrientation)
+    } else {
+      (window as any).addEventListener('deviceorientation', handleOrientation)
+    }
+    return () => {
+      (window as any).removeEventListener('deviceorientationabsolute', handleOrientation)
+      (window as any).removeEventListener('deviceorientation', handleOrientation)
+    }
+  }, [])
 
   const [originResults, setOriginResults] = useState<any[]>([])
   const [destResults, setDestResults] = useState<any[]>([])
@@ -22501,11 +22555,23 @@ export default function UserMapPage() {
   }, [])
 
   const handleGeolocate = () => {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+      (DeviceOrientationEvent as any).requestPermission()
+        .then((response: string) => {
+          console.log('Orientation permission:', response)
+        })
+        .catch(console.error)
+    }
+
     if (typeof navigator !== 'undefined' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const { latitude, longitude } = position.coords
-          setViewState(v => ({ ...v, latitude, longitude, zoom: 14 }))
+          const { latitude, longitude, heading } = position.coords
+          setUserCoords({ lat: latitude, lng: longitude })
+          if (heading !== null && !isNaN(heading)) {
+            setUserHeading(heading)
+          }
+          setViewState(v => ({ ...v, latitude, longitude, zoom: 15 }))
           supabase.rpc('get_nearby_stops', { user_lat: latitude, user_lng: longitude })
             .then(({ data }) => { if (data) setNearbyStops(data) })
         },
@@ -23925,6 +23991,48 @@ export default function UserMapPage() {
             </Marker>
           )}
 
+          {/* User Location Marker with Direction Heading Indicator */}
+          {userCoords && (
+            <Marker longitude={userCoords.lng} latitude={userCoords.lat} anchor="center">
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '48px', height: '48px', pointerEvents: 'none' }}>
+                {userHeading !== null && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '-6px',
+                    width: 0,
+                    height: 0,
+                    borderLeft: '7px solid transparent',
+                    borderRight: '7px solid transparent',
+                    borderBottom: '14px solid #FF3B30',
+                    transform: `rotate(${userHeading}deg)`,
+                    transformOrigin: '50% 30px',
+                    filter: 'drop-shadow(0 2px 4px rgba(255, 59, 48, 0.4))',
+                    zIndex: 1
+                  }} />
+                )}
+                <div style={{
+                  width: '18px',
+                  height: '18px',
+                  borderRadius: '50%',
+                  background: '#FF3B30',
+                  border: '2.5px solid #ffffff',
+                  boxShadow: '0 0 12px rgba(255, 59, 48, 0.75), 0 2px 5px rgba(0,0,0,0.3)',
+                  zIndex: 2,
+                  position: 'relative'
+                }}>
+                  <div style={{
+                    position: 'absolute',
+                    inset: '-8px',
+                    borderRadius: '50%',
+                    border: '1.5px solid rgba(255, 59, 48, 0.4)',
+                    animation: 'pulse 2s infinite',
+                    pointerEvents: 'none'
+                  }} />
+                </div>
+              </div>
+            </Marker>
+          )}
+
           {/* Custom Station Alarm Pin Marker */}
           {alarmPinCoord && (
             <Marker longitude={alarmPinCoord.lng} latitude={alarmPinCoord.lat} anchor="bottom">
@@ -24891,7 +24999,7 @@ export default function UserMapPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <MapPin size={16} style={{ color: '#FF4D6A' }} />
                   <span style={{ fontSize: '13px', color: 'var(--text-primary)', fontWeight: 600 }}>
-                    Hacé click en el mapa para marcar tu {mapSelectionMode === 'origin' ? 'Origen' : 'Destino'}
+                    {mapSelectionMode === 'origin' ? 'Select your location' : 'Choose your destination'}
                   </span>
                 </div>
                 <button
@@ -25251,7 +25359,7 @@ export default function UserMapPage() {
         {activePanel === 'map' && (
           <div style={{
             position: 'absolute',
-            top: '50%',
+            top: '35%',
             transform: 'translateY(-50%)',
             right: '14px',
             zIndex: 10,
@@ -27255,16 +27363,16 @@ function MiniPopup({
       }}>
         <img
           src={
-            bus.line_number === '12' ? '/images/bus-12-real.jpg' :
-            bus.line_number === '37' ? '/images/bus-37-real.jpg' :
+            bus.line_number === '12' ? '/images/bus-12-real.png' :
+            bus.line_number === '37' ? '/images/bus-37-real.png' :
             bus.line_number === '28' ? '/images/bus-28-real.png' :
             bus.line_number === '39' ? '/images/bus-39-real.jpg' :
             bus.line_number === '59' ? '/images/bus-59-real.png' :
-            bus.line_number === '60' ? '/images/bus-60-real.jpg' :
+            bus.line_number === '60' ? '/images/bus-60-real.png' :
             bus.line_number === '102' ? '/images/bus-102-real.jpg' :
-            bus.line_number === '152' ? '/images/bus-152-real.jpg' :
-            bus.line_number === 'T-Amarillo' ? '/images/bus-T-Amarillo.jpg' :
-            bus.line_number === 'T-Rojo' ? '/images/bus-T-Rojo.jpg' :
+            bus.line_number === '152' ? '/images/bus-152-real.png' :
+            bus.line_number === 'T-Amarillo' ? '/images/bus-T-Amarillo.png' :
+            bus.line_number === 'T-Rojo' ? '/images/bus-T-Rojo.png' :
             `/images/bus-${bus.line_number}.png`
           }
           alt={`Bus ${bus.line_number}`}
