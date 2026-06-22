@@ -21290,13 +21290,14 @@ export default function UserMapPage() {
   const [touristRedSelected, setTouristRedSelected] = useState(false)
   const [drawerState, setDrawerState] = useState<'collapsed' | 'half' | 'expanded'>('half')
   const [halfY, setHalfY] = useState(450)
-  const mapSelectionY = typeof window !== 'undefined' ? (window.innerHeight * 0.9 - 190) : 620
+  const [mapSelectionY, setMapSelectionY] = useState(540)
 
 
   useEffect(() => {
     if (typeof window === 'undefined') return
     const updateHeight = () => {
       setHalfY(window.innerHeight * 0.9 - 320)
+      setMapSelectionY(window.innerHeight * 0.9 - 270)
     }
     updateHeight()
     window.addEventListener('resize', updateHeight)
