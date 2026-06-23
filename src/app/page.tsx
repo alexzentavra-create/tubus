@@ -25148,7 +25148,7 @@ export default function UserMapPage() {
         </AnimatePresence>
 
         {/* ── STACKED HEADER CONTROLS (Safe Area & Notch Compliant - Anchored at the bottom) ── */}
-        {selectedLines.length > 0 && activePanel === 'map' && (
+        {selectedLines.length > 0 && activePanel === 'map' && !activeTravelRoute && !originCoord && !destCoord && lineSelectorTab !== 'route' && (
           <div style={{
             position: 'absolute',
             bottom: isMobile ? 'calc(env(safe-area-inset-bottom) + 76px)' : '24px',
