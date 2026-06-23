@@ -22947,9 +22947,9 @@ export default function UserMapPage() {
                 placeholder="Origen (¿Dónde te encontrás?)"
                 style={{
                   width: '100%', padding: '8px 12px', borderRadius: '10px',
-                  background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
-                  border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
-                  color: 'var(--text-primary)', fontSize: '13px', outline: 'none', boxSizing: 'border-box'
+                  background: '#FFFFFF',
+                  border: '1px solid #3B82F6',
+                  color: '#000000', fontSize: '13px', outline: 'none', boxSizing: 'border-box'
                 }}
               />
               {originResults.length > 0 && (
@@ -23059,9 +23059,9 @@ export default function UserMapPage() {
                 placeholder="Destino (¿A dónde vamos?)"
                 style={{
                   width: '100%', padding: '8px 12px', borderRadius: '10px',
-                  background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
-                  border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
-                  color: 'var(--text-primary)', fontSize: '13px', outline: 'none', boxSizing: 'border-box'
+                  background: '#FFFFFF',
+                  border: '1px solid #3B82F6',
+                  color: '#000000', fontSize: '13px', outline: 'none', boxSizing: 'border-box'
                 }}
               />
               {destResults.length > 0 && (
@@ -25681,6 +25681,7 @@ export default function UserMapPage() {
                 )}
                 {activePanel === 'profile' && (
                   <ProfilePanel
+                    prefs={prefs}
                     user={user}
                     onLogout={handleLogout}
                     profileName={profileName}
@@ -26370,6 +26371,7 @@ function SettingsPanel({
 
 // ─── Profile Panel ────────────────────────────────────────────────────────────
 function ProfilePanel({
+  prefs,
   user,
   onLogout,
   profileName,
@@ -26399,6 +26401,7 @@ function ProfilePanel({
   allLines,
   solveRoutes
 }: {
+  prefs: any
   user: any
   onLogout: () => void
   profileName: string
@@ -26868,75 +26871,129 @@ function ProfilePanel({
 
             {/* Ad Creation Form */}
             <GlassCard>
-              <form onSubmit={handleAdSubmit} style={{ padding: '14px' }}>
-                <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <PlusCircle size={14} style={{ color: '#F59E0B' }} />
+              <form onSubmit={handleAdSubmit} style={{ padding: '16px' }}>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <PlusCircle size={15} style={{ color: '#F59E0B' }} />
                   Crear Nueva Campaña
                 </div>
 
-                <div style={{ marginBottom: '10px' }}>
-                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, marginBottom: '4px' }}>Título del Anuncio *</label>
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Título del Anuncio *</label>
                   <input
                     type="text"
                     required
                     value={adTitle}
                     onChange={e => setAdTitle(e.target.value)}
                     placeholder="Ej. 20% off en Café Central"
-                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-primary)', fontSize: '12px', outline: 'none' }}
+                    style={{
+                      width: '100%', padding: '10px 12px', borderRadius: '10px',
+                      background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                      border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                      color: 'var(--text-primary)', fontSize: '13px', outline: 'none', transition: 'border-color 0.2s'
+                    }}
                   />
                 </div>
 
-                <div style={{ marginBottom: '10px' }}>
-                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, marginBottom: '4px' }}>Descripción / Copia de Venta *</label>
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Descripción / Copia de Venta *</label>
                   <textarea
                     required
                     rows={2}
                     value={adDesc}
                     onChange={e => setAdDesc(e.target.value)}
                     placeholder="Ej. Presentando la app obtené descuento en desayunos..."
-                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-primary)', fontSize: '12px', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }}
+                    style={{
+                      width: '100%', padding: '10px 12px', borderRadius: '10px',
+                      background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                      border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                      color: 'var(--text-primary)', fontSize: '13px', outline: 'none', resize: 'vertical', fontFamily: 'inherit', transition: 'border-color 0.2s'
+                    }}
                   />
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
-                  <div style={{ flex: 1 }}>
-                    <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, marginBottom: '4px' }}>Link de Destino</label>
-                    <input
-                      type="url"
-                      value={adUrl}
-                      onChange={e => setAdUrl(e.target.value)}
-                      placeholder="https://tupagina.com"
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-primary)', fontSize: '12px', outline: 'none' }}
-                    />
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Link de Destino</label>
+                  <input
+                    type="url"
+                    value={adUrl}
+                    onChange={e => setAdUrl(e.target.value)}
+                    placeholder="https://tupagina.com"
+                    style={{
+                      width: '100%', padding: '10px 12px', borderRadius: '10px',
+                      background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                      border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                      color: 'var(--text-primary)', fontSize: '13px', outline: 'none', transition: 'border-color 0.2s'
+                    }}
+                  />
+                </div>
+
+                {/* Presupuesto section - redesigned to be nice, modern, tight, and all in a single row */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  background: prefs.darkMap ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                  border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                  marginBottom: '12px'
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600 }}>Presupuesto $</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '1px' }}>Monto sugerido en pesos/USD</span>
                   </div>
-                  <div style={{ width: '90px' }}>
-                    <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, marginBottom: '4px' }}>Presupuesto (USD)</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '16px', fontWeight: 600, fontFamily: 'DM Mono' }}>$</span>
                     <input
                       type="number"
                       value={adBudget}
                       onChange={e => setAdBudget(e.target.value)}
                       placeholder="50"
                       min="10"
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-primary)', fontSize: '12px', outline: 'none', fontFamily: 'DM Mono' }}
+                      style={{
+                        width: '80px',
+                        padding: '6px 10px',
+                        borderRadius: '8px',
+                        background: prefs.darkMap ? 'rgba(0,0,0,0.2)' : '#FFFFFF',
+                        border: '1px solid #3B82F6',
+                        color: 'var(--text-primary)',
+                        fontSize: '14px',
+                        fontWeight: 700,
+                        outline: 'none',
+                        textAlign: 'right',
+                        fontFamily: 'DM Mono'
+                      }}
                     />
                   </div>
                 </div>
 
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, marginBottom: '4px' }}>URL de Imagen Promo</label>
+                <div style={{ marginBottom: '14px' }}>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>URL de Imagen Promo</label>
                   <input
                     type="url"
                     value={adImg}
                     onChange={e => setAdImg(e.target.value)}
                     placeholder="https://images.unsplash.com/... (opcional)"
-                    style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-primary)', fontSize: '12px', outline: 'none' }}
+                    style={{
+                      width: '100%', padding: '10px 12px', borderRadius: '10px',
+                      background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                      border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                      color: 'var(--text-primary)', fontSize: '13px', outline: 'none', transition: 'border-color 0.2s'
+                    }}
                   />
                 </div>
 
                 <button
                   type="submit"
                   disabled={adSubmitting}
-                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: 'none', background: 'linear-gradient(90deg, #F59E0B, #D97706)', color: 'white', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  style={{
+                    width: '100%', padding: '12px', borderRadius: '10px', border: 'none',
+                    background: 'linear-gradient(90deg, #F59E0B, #D97706)', color: 'white',
+                    fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    boxShadow: '0 2px 4px rgba(245,158,11,0.2)', transition: 'transform 0.1s, opacity 0.2s'
+                  }}
                 >
                   {adSubmitting ? 'Cargando campaña...' : 'Enviar Anuncio a Revisión'}
                 </button>
