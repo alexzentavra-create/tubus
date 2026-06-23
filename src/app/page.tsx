@@ -21489,10 +21489,47 @@ export default function UserMapPage() {
   const [adSubmissions, setAdSubmissions] = useState<any[]>([])
   const [chatMessages, setChatMessages] = useState<any[]>([])
 
+  const [userWalkingToDest, setUserWalkingToDest] = useState<boolean>(false)
+
+  const handleLeftBus = () => {
+    setUserBoardedBus(false)
+    setShowGotOffPrompt(false)
+    setTrackedBusId(null)
+
+    if (activeTravelRoute && destCoord) {
+      const distToFinalDest = globalDistanceKm(
+        { latitude: activeTravelRoute.destStop.latitude, longitude: activeTravelRoute.destStop.longitude },
+        { lat: destCoord.lat, lng: destCoord.lng }
+      )
+      if (distToFinalDest > 0.05) { // more than 50 meters
+        setUserWalkingToDest(true)
+        setViewState(v => ({
+          ...v,
+          latitude: (activeTravelRoute.destStop.latitude + destCoord.lat) / 2,
+          longitude: (activeTravelRoute.destStop.longitude + destCoord.lng) / 2,
+          zoom: 15.5,
+          pitch: 0,
+          bearing: 0,
+          transitionDuration: 1000
+        }))
+        toast.success("🚶 Te bajaste del colectivo. Sigue el camino peatonal hasta tu destino.")
+        return
+      }
+    }
+
+    setActiveTravelRoute(null)
+    setSelectedLines([])
+    setOriginCoord(null)
+    setDestCoord(null)
+    setDrawerState('half')
+    toast.success("✨ ¡Viaje terminado! Gracias por viajar con TuBus.")
+  }
+
   useEffect(() => {
     if (!activeTravelRoute) {
       setUserBoardedBus(false)
       setShowGotOffPrompt(false)
+      setUserWalkingToDest(false)
     }
   }, [activeTravelRoute])
 
@@ -21562,21 +21599,11 @@ export default function UserMapPage() {
   useEffect(() => {
     if (!userBoardedBus) return
     const timer = setTimeout(() => {
-      setUserBoardedBus(false)
-      setShowGotOffPrompt(false)
-      setTrackedBusId(null)
-      setActiveTravelRoute(null)
-      setViewState(v => ({
-        ...v,
-        zoom: 14.5,
-        pitch: 0,
-        bearing: 0,
-        transitionDuration: 1000
-      }))
-      toast.success("✨ El viaje ha terminado automáticamente (Llegada simulada).")
+      toast.success("✨ Llegada simulada al destino del colectivo.")
+      handleLeftBus()
     }, 60000)
     return () => clearTimeout(timer)
-  }, [userBoardedBus])
+  }, [userBoardedBus, activeTravelRoute, destCoord])
 
   const [ticketPrices, setTicketPrices] = useState<{ min: number; max: number; loading: boolean }>({
     min: 728.28,
