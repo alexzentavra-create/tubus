@@ -26749,7 +26749,7 @@ function ProfilePanel({
                     value={localName}
                     onChange={e => setLocalName(e.target.value)}
                     placeholder="Ej. Alejandro Pérez"
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: '#FFFFFF', border: '1px solid #3B82F6', color: '#000000', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
                 {/* Phone */}
@@ -26760,7 +26760,7 @@ function ProfilePanel({
                     value={localPhone}
                     onChange={e => setLocalPhone(e.target.value)}
                     placeholder="Ej. +54 9 11 1234-5678"
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: '#FFFFFF', border: '1px solid #3B82F6', color: '#000000', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
                 {/* Email */}
@@ -26771,7 +26771,7 @@ function ProfilePanel({
                     value={localEmail}
                     onChange={e => setLocalEmail(e.target.value)}
                     placeholder="ejemplo@email.com"
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: '#FFFFFF', border: '1px solid #3B82F6', color: '#000000', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
               </div>
