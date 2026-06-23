@@ -8,7 +8,8 @@ import {
   LogOut, Heart, ChevronRight, User, Sliders, Moon, Globe,
   Navigation as NavIcon, LayoutDashboard, Menu,
   Locate, Plus, Minus, Sun, Route, Activity, Clock,
-  Megaphone, MessageSquare, PlusCircle, CheckCircle2, MessageCircle, Edit2
+  Megaphone, MessageSquare, PlusCircle, CheckCircle2, MessageCircle, Edit2,
+  HelpCircle, Upload
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { OFFICIAL_ROUTES } from '@/lib/officialRoutes'
@@ -26462,6 +26463,29 @@ function ProfilePanel({
   const [adImg, setAdImg] = useState('')
   const [adBudget, setAdBudget] = useState('50')
   const [adSubmitting, setAdSubmitting] = useState(false)
+  const [adUploadedImg, setAdUploadedImg] = useState<string | null>(null)
+  const [adTermsAccepted, setAdTermsAccepted] = useState(false)
+  const [showRulesModal, setShowRulesModal] = useState(false)
+  const [targetAudience, setTargetAudience] = useState('todos')
+  const [influenceRadius, setInfluenceRadius] = useState('1km')
+  const [selectedAdSchedule, setSelectedAdSchedule] = useState('todos')
+  const adFileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleAdImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert('La imagen es demasiado grande. Por favor, seleccioná una imagen de menos de 2 MB.')
+        return
+      }
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string
+        setAdUploadedImg(base64)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
 
   // Support Chat Form States
   const [chatInput, setChatInput] = useState('')
@@ -26536,6 +26560,10 @@ function ProfilePanel({
       alert('Por favor completá los campos requeridos (Título y Descripción).')
       return
     }
+    if (!adTermsAccepted) {
+      alert('Debés aceptar los términos y condiciones de contenido publicitario para continuar.')
+      return
+    }
 
     setAdSubmitting(true)
 
@@ -26546,11 +26574,14 @@ function ProfilePanel({
         title: adTitle,
         description: adDesc,
         targetUrl: adUrl || 'https://tubus.com.ar',
-        imageUrl: adImg || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80',
+        imageUrl: adUploadedImg || adImg || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80',
         budget: Number(adBudget) || 50,
         status: 'pending',
         created_at: new Date().toISOString(),
-        adminComment: 'Aguardando revisión del equipo de moderación.'
+        adminComment: 'Aguardando revisión del equipo de moderación.',
+        targetAudience,
+        influenceRadius,
+        selectedAdSchedule
       }
 
       const updated = [newAd, ...adSubmissions]
@@ -26562,6 +26593,8 @@ function ProfilePanel({
       setAdUrl('')
       setAdImg('')
       setAdBudget('50')
+      setAdUploadedImg(null)
+      setAdTermsAccepted(false)
       setAdSubmitting(false)
 
       // Schedule simulated review/approval in 5 seconds
@@ -26927,7 +26960,76 @@ function ProfilePanel({
                   />
                 </div>
 
-                {/* Presupuesto section - redesigned to be nice, modern, tight, and all in a single row */}
+                {/* targetAudience input */}
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Público Objetivo</label>
+                  <select
+                    value={targetAudience}
+                    onChange={e => setTargetAudience(e.target.value)}
+                    style={{
+                      width: '100%', padding: '10px 12px', borderRadius: '10px',
+                      background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                      border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                      color: 'var(--text-primary)', fontSize: '13px', outline: 'none', transition: 'border-color 0.2s'
+                    }}
+                  >
+                    <option value="todos">Público General (Toda la red)</option>
+                    <option value="Línea 12">Línea 12 (Palermo - Barracas)</option>
+                    <option value="Línea 28">Línea 28 (Retiro - Liniers)</option>
+                    <option value="Línea 37">Línea 37 (Lanús - Palermo)</option>
+                    <option value="Línea 60">Línea 60 (Constitución - Tigre)</option>
+                    <option value="Línea 152">Línea 152 (La Boca - Olivos)</option>
+                    <option value="Línea T-Amarillo">Turística Amarilla</option>
+                    <option value="Línea T-Rojo">Turística Roja</option>
+                  </select>
+                </div>
+
+                {/* influenceRadius slider */}
+                <div style={{ marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <label style={{ color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Radio de Influencia</label>
+                    <span style={{ color: '#3B82F6', fontSize: '12px', fontWeight: 700 }}>{influenceRadius}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="15"
+                    value={parseInt(influenceRadius) || 1}
+                    onChange={e => setInfluenceRadius(e.target.value + 'km')}
+                    style={{ width: '100%', accentColor: '#3B82F6', cursor: 'pointer' }}
+                  />
+                </div>
+
+                {/* selectedAdSchedule check */}
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Horario de Exhibición</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
+                    {[
+                      { id: 'todos', label: 'Todo el día', icon: '☀️🌙' },
+                      { id: 'morning', label: 'Mañana (6-12h)', icon: '🌅' },
+                      { id: 'afternoon', label: 'Tarde (12-20h)', icon: '🌇' },
+                      { id: 'night', label: 'Noche (20-6h)', icon: '🌃' }
+                    ].map(opt => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        onClick={() => setSelectedAdSchedule(opt.id)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 10px', borderRadius: '8px',
+                          border: selectedAdSchedule === opt.id ? '2px solid #3B82F6' : prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                          background: selectedAdSchedule === opt.id ? 'rgba(59,130,246,0.1)' : 'transparent',
+                          color: selectedAdSchedule === opt.id ? '#3B82F6' : 'var(--text-primary)',
+                          fontSize: '11px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left'
+                        }}
+                      >
+                        <span>{opt.icon}</span>
+                        <span>{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Presupuesto section */}
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -26968,20 +27070,82 @@ function ProfilePanel({
                   </div>
                 </div>
 
-                <div style={{ marginBottom: '14px' }}>
-                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>URL de Imagen Promo</label>
-                  <input
-                    type="url"
-                    value={adImg}
-                    onChange={e => setAdImg(e.target.value)}
-                    placeholder="https://images.unsplash.com/... (opcional)"
-                    style={{
-                      width: '100%', padding: '10px 12px', borderRadius: '10px',
-                      background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
-                      border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
-                      color: 'var(--text-primary)', fontSize: '13px', outline: 'none', transition: 'border-color 0.2s'
-                    }}
-                  />
+                {/* URL de Imagen / Upload file */}
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Imagen del Anuncio (Banner)</label>
+                  
+                  {adUploadedImg ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', borderRadius: '10px', background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)', border: '1px dashed #3B82F6' }}>
+                      <img src={adUploadedImg} alt="Banner subido" style={{ width: '45px', height: '45px', objectFit: 'cover', borderRadius: '6px' }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-primary)', fontWeight: 600 }}>Banner cargado con éxito</div>
+                        <div style={{ fontSize: '9px', color: 'var(--text-muted)' }}>Imagen local de campaña</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAdUploadedImg(null)}
+                        style={{ background: 'transparent', border: 'none', color: '#EF4444', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <input
+                        type="url"
+                        value={adImg}
+                        onChange={e => setAdImg(e.target.value)}
+                        placeholder="https://link-a-tu-imagen.jpg (URL opcional)"
+                        style={{
+                          width: '100%', padding: '10px 12px', borderRadius: '10px',
+                          background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                          border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                          color: 'var(--text-primary)', fontSize: '13px', outline: 'none', transition: 'border-color 0.2s'
+                        }}
+                      />
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                        <span style={{ height: '1px', flex: 1, background: 'rgba(255,255,255,0.08)' }}></span>
+                        <span style={{ color: 'var(--text-muted)', fontSize: '10px', textTransform: 'uppercase', fontWeight: 600 }}>o bien</span>
+                        <span style={{ height: '1px', flex: 1, background: 'rgba(255,255,255,0.08)' }}></span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => adFileInputRef.current?.click()}
+                        style={{
+                          width: '100%', padding: '10px', borderRadius: '10px',
+                          background: 'rgba(59, 130, 246, 0.08)', border: '1px dashed #3B82F6',
+                          color: '#3B82F6', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                          transition: 'background 0.2s'
+                        }}
+                      >
+                        <Upload size={14} />
+                        Subir Archivo de Imagen
+                      </button>
+                      <input
+                        ref={adFileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAdImageUpload}
+                        style={{ display: 'none' }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* terms and rules acceptance */}
+                <div style={{ marginBottom: '16px', marginTop: '16px' }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer', userSelect: 'none' }}>
+                    <input
+                      type="checkbox"
+                      checked={adTermsAccepted}
+                      onChange={e => setAdTermsAccepted(e.target.checked)}
+                      style={{ marginTop: '2px', cursor: 'pointer', width: '15px', height: '15px', accentColor: '#F59E0B' }}
+                    />
+                    <div style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                      Acepto los <span onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowRulesModal(true); }} style={{ color: '#3B82F6', textDecoration: 'underline', fontWeight: 600, cursor: 'pointer' }}>Términos y Reglas de Publicación</span> de TuBus.
+                    </div>
+                  </label>
                 </div>
 
                 <button
