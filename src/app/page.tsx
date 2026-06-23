@@ -27071,7 +27071,21 @@ function ProfilePanel({
             </div>
 
             {/* Messages Window */}
-            <div style={{ flex: 1, minHeight: '190px', maxHeight: '280px', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', background: 'rgba(0,0,0,0.25)', padding: '10px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '12px' }}>
+            <div style={{
+              flex: 1,
+              minHeight: '190px',
+              maxHeight: '280px',
+              border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+              borderRadius: '14px',
+              background: prefs.darkMap ? 'rgba(15, 23, 42, 0.4)' : 'rgba(241, 245, 249, 0.5)',
+              padding: '12px',
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              marginBottom: '12px',
+              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)'
+            }}>
               {chatMessages.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '11px' }}>Comenzá a chatear con soporte de TuBus...</div>
               ) : (
@@ -27083,17 +27097,32 @@ function ProfilePanel({
                       style={{
                         alignSelf: isUser ? 'flex-end' : 'flex-start',
                         maxWidth: '85%',
-                        background: isUser ? 'linear-gradient(135deg, #059669, #047857)' : 'rgba(255,255,255,0.04)',
-                        border: isUser ? 'none' : '1px solid rgba(255,255,255,0.06)',
-                        borderRadius: isUser ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-                        padding: '8px 11px',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
+                        background: isUser ? 'linear-gradient(135deg, #10B981, #059669)' : (prefs.darkMap ? 'rgba(30, 41, 59, 0.8)' : '#FFFFFF'),
+                        border: isUser ? 'none' : (prefs.darkMap ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.06)'),
+                        borderRadius: isUser ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
+                        padding: '10px 14px',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px'
                       }}
                     >
-                      <div style={{ fontSize: '12px', color: '#FFF', lineHeight: '1.4', wordBreak: 'break-word' }}>
+                      <div style={{
+                        fontSize: '13px',
+                        color: isUser ? '#FFFFFF' : 'var(--text-primary)',
+                        lineHeight: '1.4',
+                        wordBreak: 'break-word',
+                        fontWeight: 500
+                      }}>
                         {msg.text}
                       </div>
-                      <div style={{ textAlign: 'right', fontSize: '9px', color: 'rgba(255,255,255,0.5)', marginTop: '3px', fontFamily: 'DM Mono' }}>
+                      <div style={{
+                        textAlign: 'right',
+                        fontSize: '9px',
+                        color: isUser ? 'rgba(255,255,255,0.7)' : 'var(--text-muted)',
+                        fontFamily: 'DM Mono',
+                        marginTop: '2px'
+                      }}>
                         {msg.timestamp}
                       </div>
                     </div>
@@ -27104,17 +27133,38 @@ function ProfilePanel({
             </div>
 
             {/* Message input */}
-            <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: '6px' }}>
+            <form onSubmit={handleSendMessage} style={{ display: 'flex', gap: '8px' }}>
               <input
                 type="text"
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
                 placeholder="Escribí tu mensaje acá..."
-                style={{ flex: 1, padding: '10px 12px', borderRadius: '10px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none' }}
+                style={{
+                  flex: 1,
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  background: '#FFFFFF',
+                  border: '1px solid #3B82F6',
+                  color: '#000000',
+                  fontSize: '13px',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
               />
               <button
                 type="submit"
-                style={{ padding: '0 16px', borderRadius: '10px', border: 'none', background: '#EC4899', color: 'white', fontWeight: 600, fontSize: '12px', cursor: 'pointer', boxShadow: '0 4px 10px rgba(236,72,153,0.2)' }}
+                style={{
+                  padding: '0 20px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #EC4899, #DB2777)',
+                  color: 'white',
+                  fontWeight: 700,
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(236,72,153,0.3)',
+                  transition: 'all 150ms'
+                }}
               >
                 Enviar
               </button>
