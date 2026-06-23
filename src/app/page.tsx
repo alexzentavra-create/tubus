@@ -21463,6 +21463,23 @@ export default function UserMapPage() {
   const [showGotOffPrompt, setShowGotOffPrompt] = useState<boolean>(false)
   const [currentAdIndex, setCurrentAdIndex] = useState<number>(0)
 
+  // Keep state values in refs to avoid restarting simulation interval
+  const activeTravelRouteRef = useRef<any>(null)
+  const userBoardedBusRef = useRef<boolean>(false)
+  const trackedBusIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    activeTravelRouteRef.current = activeTravelRoute
+  }, [activeTravelRoute])
+
+  useEffect(() => {
+    userBoardedBusRef.current = userBoardedBus
+  }, [userBoardedBus])
+
+  useEffect(() => {
+    trackedBusIdRef.current = trackedBusId
+  }, [trackedBusId])
+
   // User Profile, Search History, Ads, and Support Chat states
   const [profileName, setProfileName] = useState('Alejandro')
   const [profilePhone, setProfilePhone] = useState('+54 11 5555-5555')
@@ -22456,33 +22473,33 @@ export default function UserMapPage() {
 
       // Filter and set buses state for rendering
       const filtered = simulatedBusesRef.current.filter(bus => selectedIds.has(bus.line_id))
-      const busesToSet = activeTravelRoute
+      const busesToSet = activeTravelRouteRef.current
         ? filtered.filter(b => {
-            if (b.line_id !== activeTravelRoute.line_id) return false
-            if (b.direction !== activeTravelRoute.direction) return false
+            if (b.line_id !== activeTravelRouteRef.current.line_id) return false
+            if (b.direction !== activeTravelRouteRef.current.direction) return false
 
             // Resolve boarding (origin) and alighting (destination) stop path index values
-            let idxO = activeTravelRoute.originStop.pathIndex
-            let idxD = activeTravelRoute.destStop.pathIndex
+            let idxO = activeTravelRouteRef.current.originStop.pathIndex
+            let idxD = activeTravelRouteRef.current.destStop.pathIndex
             
-            const routeKey = activeTravelRoute.line_number.replace(/^0+/, '')
+            const routeKey = activeTravelRouteRef.current.line_number.replace(/^0+/, '')
             const officialRoute = OFFICIAL_ROUTES[routeKey]
             const pathRef = officialRoute
-              ? (activeTravelRoute.direction === 'vuelta' ? officialRoute.vuelta?.path : officialRoute.ida?.path) || []
+              ? (activeTravelRouteRef.current.direction === 'vuelta' ? officialRoute.vuelta?.path : officialRoute.ida?.path) || []
               : []
             
             if (pathRef.length > 0) {
               if (idxO === undefined) {
                 let minD = Infinity
                 pathRef.forEach((pt: any, idx: number) => {
-                  const dist = Math.hypot(pt.lat - activeTravelRoute.originStop.latitude, pt.lng - activeTravelRoute.originStop.longitude)
+                  const dist = Math.hypot(pt.lat - activeTravelRouteRef.current.originStop.latitude, pt.lng - activeTravelRouteRef.current.originStop.longitude)
                   if (dist < minD) { minD = dist; idxO = idx }
                 })
               }
               if (idxD === undefined) {
                 let minD = Infinity
                 pathRef.forEach((pt: any, idx: number) => {
-                  const dist = Math.hypot(pt.lat - activeTravelRoute.destStop.latitude, pt.lng - activeTravelRoute.destStop.longitude)
+                  const dist = Math.hypot(pt.lat - activeTravelRouteRef.current.destStop.latitude, pt.lng - activeTravelRouteRef.current.destStop.longitude)
                   if (dist < minD) { minD = dist; idxD = idx }
                 })
               }
@@ -22497,7 +22514,7 @@ export default function UserMapPage() {
             if (idxO !== undefined && b.pathIndex > idxO) {
               const distKm = globalDistanceKm(
                 { latitude: b.latitude, longitude: b.longitude },
-                { lat: activeTravelRoute.originStop.latitude, lng: activeTravelRoute.originStop.longitude }
+                { lat: activeTravelRouteRef.current.originStop.latitude, lng: activeTravelRouteRef.current.originStop.longitude }
               )
               if (distKm > 0.3) {
                 return false
@@ -22509,25 +22526,25 @@ export default function UserMapPage() {
         : filtered
       setBuses(busesToSet)
 
-      if (userBoardedBus && trackedBusId && activeTravelRoute) {
-        const trackedBus = simulatedBusesRef.current.find(b => b.id === trackedBusId)
+      if (userBoardedBusRef.current && trackedBusIdRef.current && activeTravelRouteRef.current) {
+        const trackedBus = simulatedBusesRef.current.find(b => b.id === trackedBusIdRef.current)
         if (trackedBus) {
           const distKm = globalDistanceKm(
             { latitude: trackedBus.latitude, longitude: trackedBus.longitude },
-            { lat: activeTravelRoute.destStop.latitude, lng: activeTravelRoute.destStop.longitude }
+            { lat: activeTravelRouteRef.current.destStop.latitude, lng: activeTravelRouteRef.current.destStop.longitude }
           )
           
-          let idxD = activeTravelRoute.destStop.pathIndex
+          let idxD = activeTravelRouteRef.current.destStop.pathIndex
           if (idxD === undefined) {
-            const routeKey = activeTravelRoute.line_number.replace(/^0+/, '')
+            const routeKey = activeTravelRouteRef.current.line_number.replace(/^0+/, '')
             const officialRoute = OFFICIAL_ROUTES[routeKey]
             const pathRef = officialRoute
-              ? (activeTravelRoute.direction === 'vuelta' ? officialRoute.vuelta?.path : officialRoute.ida?.path) || []
+              ? (activeTravelRouteRef.current.direction === 'vuelta' ? officialRoute.vuelta?.path : officialRoute.ida?.path) || []
               : []
             if (pathRef.length > 0) {
               let minD = Infinity
               pathRef.forEach((pt: any, idx: number) => {
-                const dist = Math.hypot(pt.lat - activeTravelRoute.destStop.latitude, pt.lng - activeTravelRoute.destStop.longitude)
+                const dist = Math.hypot(pt.lat - activeTravelRouteRef.current.destStop.latitude, pt.lng - activeTravelRouteRef.current.destStop.longitude)
                 if (dist < minD) { minD = dist; idxD = idx }
               })
             }
@@ -22545,7 +22562,7 @@ export default function UserMapPage() {
     return () => {
       if (mockTickRef.current) { clearInterval(mockTickRef.current); mockTickRef.current = null }
     }
-  }, [selectedLines, activeTravelRoute, userBoardedBus, trackedBusId])
+  }, [selectedLines])
 
   // Prune expired traffic segments older than 30 minutes on a recurring schedule
   useEffect(() => {
