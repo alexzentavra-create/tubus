@@ -24834,6 +24834,11 @@ export default function UserMapPage() {
                 onClick={() => {
                   setActiveTravelRoute(null)
                   setTrackedBusId(null)
+                  setSelectedLines([])
+                  setSolvedRoutes([])
+                  setShowLineSelector(true)
+                  setLineSelectorTab('route')
+                  setDrawerState('half')
                 }}
                 style={{
                   background: 'none', border: 'none', color: '#EF4444', fontSize: '11px', fontWeight: 700, cursor: 'pointer'
