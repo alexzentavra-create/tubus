@@ -24968,7 +24968,7 @@ export default function UserMapPage() {
                     </div>
                   )}
 
-                  {nextBus && (
+                  {nextBus && !userBoardedBus && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', borderRadius: '8px', border: prefs.darkMap ? '1px dashed rgba(255,255,255,0.1)' : '1px dashed rgba(0,0,0,0.08)' }}>
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
                         <span style={{ 
@@ -25051,7 +25051,7 @@ export default function UserMapPage() {
                   </div>
 
                   {/* Alternative lines selector */}
-                  {solvedRoutes.length > 1 && (
+                  {solvedRoutes.length > 1 && !userBoardedBus && (
                     <div style={{
                       display: 'flex', flexDirection: 'column', gap: '4px',
                       borderTop: prefs.darkMap ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.04)',
