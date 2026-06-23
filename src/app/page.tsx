@@ -21495,33 +21495,27 @@ export default function UserMapPage() {
     setUserBoardedBus(false)
     setShowGotOffPrompt(false)
     setTrackedBusId(null)
-
-    if (activeTravelRoute && destCoord) {
-      const distToFinalDest = globalDistanceKm(
-        { latitude: activeTravelRoute.destStop.latitude, longitude: activeTravelRoute.destStop.longitude },
-        { lat: destCoord.lat, lng: destCoord.lng }
-      )
-      if (distToFinalDest > 0.05) { // more than 50 meters
-        setUserWalkingToDest(true)
-        setViewState(v => ({
-          ...v,
-          latitude: (activeTravelRoute.destStop.latitude + destCoord.lat) / 2,
-          longitude: (activeTravelRoute.destStop.longitude + destCoord.lng) / 2,
-          zoom: 15.5,
-          pitch: 0,
-          bearing: 0,
-          transitionDuration: 1000
-        }))
-        toast.success("🚶 Te bajaste del colectivo. Sigue el camino peatonal hasta tu destino.")
-        return
-      }
-    }
+    setUserWalkingToDest(false)
 
     setActiveTravelRoute(null)
     setSelectedLines([])
     setOriginCoord(null)
     setDestCoord(null)
+    setSolvedRoutes([])
+    setOriginInput("")
+    setDestInput("")
     setDrawerState('half')
+
+    setViewState(v => ({
+      ...v,
+      latitude: -34.6037,
+      longitude: -58.4173,
+      zoom: 13,
+      pitch: 30,
+      bearing: 0,
+      transitionDuration: 1000
+    }))
+
     toast.success("✨ ¡Viaje terminado! Gracias por viajar con TuBus.")
   }
 
@@ -24944,11 +24938,7 @@ export default function UserMapPage() {
                             )}
                             <button
                               onClick={() => {
-                                setUserBoardedBus(false)
-                                setShowGotOffPrompt(false)
-                                setTrackedBusId(null)
-                                setActiveTravelRoute(null)
-                                toast.success("✨ ¡Viaje terminado! Gracias por viajar con TuBus.")
+                                handleLeftBus()
                               }}
                               style={{
                                 width: '100%', padding: '8px', borderRadius: '8px',
