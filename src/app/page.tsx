@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, Fragment } from 'react'
 import Map, { Marker, Popup, NavigationControl, GeolocateControl, Source, Layer } from 'react-map-gl/maplibre'
 import { toast } from 'react-hot-toast'
 import { motion, AnimatePresence, useDragControls } from 'framer-motion'
@@ -26621,21 +26621,30 @@ function ProfilePanel({
   interface AdScheduleDetail {
     splits: number;
     startTimes: number[];
+    days?: string[];
+    frequency?: number;
+    pacing?: string;
   }
   const [adScheduleDetails, setAdScheduleDetails] = useState<Record<string, AdScheduleDetail>>({
-    todos: { splits: 1, startTimes: [0] },
-    morning: { splits: 1, startTimes: [0] },
-    afternoon: { splits: 1, startTimes: [0] },
-    night: { splits: 1, startTimes: [0] }
+    todos: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, pacing: 'uniform' },
+    morning: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, pacing: 'uniform' },
+    afternoon: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, pacing: 'uniform' },
+    night: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, pacing: 'uniform' }
   })
   const [configuringSlotId, setConfiguringSlotId] = useState<string | null>(null)
   const [tempSplits, setTempSplits] = useState(1)
   const [tempStartTimes, setTempStartTimes] = useState<number[]>([0])
+  const [tempDays, setTempDays] = useState<string[]>(['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'])
+  const [tempFrequency, setTempFrequency] = useState<number>(0)
+  const [tempPacing, setTempPacing] = useState<string>('uniform')
 
   useEffect(() => {
     if (configuringSlotId && adScheduleDetails[configuringSlotId]) {
       setTempSplits(adScheduleDetails[configuringSlotId].splits)
       setTempStartTimes(adScheduleDetails[configuringSlotId].startTimes)
+      setTempDays(adScheduleDetails[configuringSlotId].days || ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'])
+      setTempFrequency(adScheduleDetails[configuringSlotId].frequency || 0)
+      setTempPacing(adScheduleDetails[configuringSlotId].pacing || 'uniform')
     }
   }, [configuringSlotId, adScheduleDetails])
 
@@ -26779,7 +26788,13 @@ function ProfilePanel({
         selectedAdSchedule: selectedAdSchedules.join(','),
         selectedStops: targetAudience !== 'todos' ? adSelectedStops : [],
         adScheduleDetails: selectedAdSchedules.reduce((acc, id) => {
-          acc[id] = adScheduleDetails[id] || { splits: 1, startTimes: [0] };
+          acc[id] = {
+            splits: adScheduleDetails[id]?.splits || 1,
+            startTimes: adScheduleDetails[id]?.startTimes || [0],
+            days: adScheduleDetails[id]?.days || ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'],
+            frequency: adScheduleDetails[id]?.frequency || 0,
+            pacing: adScheduleDetails[id]?.pacing || 'uniform'
+          };
           return acc;
         }, {} as Record<string, AdScheduleDetail>)
       }
@@ -26798,10 +26813,10 @@ function ProfilePanel({
       setAdSelectedStops([])
       setSelectedAdSchedules(['todos'])
       setAdScheduleDetails({
-        todos: { splits: 1, startTimes: [0] },
-        morning: { splits: 1, startTimes: [0] },
-        afternoon: { splits: 1, startTimes: [0] },
-        night: { splits: 1, startTimes: [0] }
+        todos: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, pacing: 'uniform' },
+        morning: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, pacing: 'uniform' },
+        afternoon: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, pacing: 'uniform' },
+        night: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, pacing: 'uniform' }
       })
       setAdSubmitting(false)
 
@@ -27760,8 +27775,10 @@ function ProfilePanel({
               maxWidth: '440px',
               padding: '24px',
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4)',
-              color: '#F8FAFC'
-            }}>
+              color: '#F8FAFC',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }} className="custom-scrollbar">
               {/* Header */}
               <div style={{ marginBottom: '20px' }}>
                 <h3 style={{ fontSize: '16px', fontWeight: 700, margin: '0 0 4px 0', color: '#10B981' }}>Configuración Detallada de Horario</h3>
@@ -27820,7 +27837,7 @@ function ProfilePanel({
                   background: '#1E293B',
                   borderRadius: '12px',
                   border: '1px solid rgba(255,255,255,0.1)',
-                  overflow: 'hidden',
+                  marginTop: '32px',
                   marginBottom: '16px',
                   display: 'flex',
                   alignItems: 'center'
@@ -27843,20 +27860,100 @@ function ProfilePanel({
                   {tempStartTimes.slice(0, tempSplits).map((startTime, idx) => {
                     const leftPct = (startTime / maxSlotMins) * 100;
                     const widthPct = (splitDuration / maxSlotMins) * 100;
+                    const startStr = formatOffsetToTime(configuringSlotId, startTime);
+                    const endStr = formatOffsetToTime(configuringSlotId, startTime + splitDuration);
+
+                    const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+                      const track = e.currentTarget.parentElement;
+                      if (!track) return;
+                      
+                      e.preventDefault();
+                      e.currentTarget.setPointerCapture(e.pointerId);
+                      
+                      const rect = track.getBoundingClientRect();
+                      const trackWidth = rect.width;
+                      const initialStartTime = startTime;
+                      const initialPointerX = e.clientX;
+                      
+                      const minVal = idx === 0 ? 0 : tempStartTimes[idx - 1] + splitDuration;
+                      const maxVal = idx === tempSplits - 1 ? maxSlotMins - splitDuration : tempStartTimes[idx + 1] - splitDuration;
+                      
+                      const handlePointerMove = (moveEvent: PointerEvent) => {
+                        const deltaX = moveEvent.clientX - initialPointerX;
+                        const deltaMins = (deltaX / trackWidth) * maxSlotMins;
+                        const newStartTime = Math.max(minVal, Math.min(maxVal, Math.round(initialStartTime + deltaMins)));
+                        
+                        setTempStartTimes(prev => {
+                          const next = [...prev];
+                          next[idx] = newStartTime;
+                          return next;
+                        });
+                      };
+                      
+                      const handlePointerUp = () => {
+                        window.removeEventListener('pointermove', handlePointerMove);
+                        window.removeEventListener('pointerup', handlePointerUp);
+                      };
+                      
+                      window.addEventListener('pointermove', handlePointerMove);
+                      window.addEventListener('pointerup', handlePointerUp);
+                    };
+
                     return (
-                      <div
-                        key={idx}
-                        style={{
-                          position: 'absolute',
-                          left: `${leftPct}%`,
-                          width: `${widthPct}%`,
-                          height: '100%',
-                          background: 'linear-gradient(90deg, #10B981, #059669)',
-                          boxShadow: '0 0 10px rgba(16, 185, 129, 0.4)',
-                          borderRadius: '2px',
-                          transition: 'left 0.1s ease-out, width 0.1s ease-out'
-                        }}
-                      />
+                      <Fragment key={idx}>
+                        <div
+                          onPointerDown={handlePointerDown}
+                          style={{
+                            position: 'absolute',
+                            left: `${leftPct}%`,
+                            width: `${widthPct}%`,
+                            height: '100%',
+                            background: 'linear-gradient(90deg, #10B981, #059669)',
+                            boxShadow: '0 0 10px rgba(16, 185, 129, 0.4)',
+                            borderRadius: '12px',
+                            cursor: 'grab',
+                            transition: 'left 0.05s ease-out, width 0.05s ease-out',
+                            touchAction: 'none',
+                            zIndex: 2
+                          }}
+                          title="Arrastrá para mover el horario"
+                        />
+                        {/* Time tag floating above */}
+                        <div
+                          style={{
+                            position: 'absolute',
+                            left: `${leftPct + widthPct / 2}%`,
+                            transform: 'translateX(-50%)',
+                            bottom: '32px',
+                            background: '#10B981',
+                            color: '#0F172A',
+                            fontSize: '9px',
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            whiteSpace: 'nowrap',
+                            pointerEvents: 'none',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                            transition: 'left 0.05s ease-out',
+                            zIndex: 10
+                          }}
+                        >
+                          {startStr} - {endStr}
+                          <div
+                            style={{
+                              position: 'absolute',
+                              bottom: '-4px',
+                              left: '50%',
+                              transform: 'translateX(-50%)',
+                              width: 0,
+                              height: 0,
+                              borderLeft: '4px solid transparent',
+                              borderRight: '4px solid transparent',
+                              borderTop: '4px solid #10B981'
+                            }}
+                          />
+                        </div>
+                      </Fragment>
                     );
                   })}
                 </div>
@@ -27868,7 +27965,7 @@ function ProfilePanel({
               </div>
 
               {/* Slider Controls */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
                 {tempStartTimes.slice(0, tempSplits).map((startTime, idx) => {
                   const minVal = idx === 0 ? 0 : tempStartTimes[idx - 1] + splitDuration;
                   const maxVal = idx === tempSplits - 1 ? maxSlotMins - splitDuration : tempStartTimes[idx + 1] - splitDuration;
@@ -27906,6 +28003,122 @@ function ProfilePanel({
                 })}
               </div>
 
+              {/* Días de Exhibición */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Días de Exhibición</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '4px' }}>
+                  {[
+                    { key: 'lun', label: 'L' },
+                    { key: 'mar', label: 'M' },
+                    { key: 'mie', label: 'M' },
+                    { key: 'jue', label: 'J' },
+                    { key: 'vie', label: 'V' },
+                    { key: 'sab', label: 'S' },
+                    { key: 'dom', label: 'D' }
+                  ].map(day => {
+                    const isDaySelected = tempDays.includes(day.key);
+                    return (
+                      <button
+                        key={day.key}
+                        type="button"
+                        onClick={() => {
+                          setTempDays(prev =>
+                            prev.includes(day.key)
+                              ? prev.filter(d => d !== day.key)
+                              : [...prev, day.key]
+                          );
+                        }}
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          border: isDaySelected ? '2px solid #10B981' : '1px solid rgba(255,255,255,0.1)',
+                          background: isDaySelected ? 'rgba(16,185,129,0.15)' : 'transparent',
+                          color: isDaySelected ? '#10B981' : 'var(--text-secondary)',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 150ms'
+                        }}
+                      >
+                        {day.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Frecuencia & Entrega */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                <div>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Frecuencia</label>
+                  <select
+                    value={tempFrequency}
+                    onChange={e => setTempFrequency(Number(e.target.value))}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(15, 23, 42, 0.5)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: 'var(--text-primary)',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value={0}>Continuo</option>
+                    <option value={2}>Cada 2 min</option>
+                    <option value={5}>Cada 5 min</option>
+                    <option value={10}>Cada 10 min</option>
+                    <option value={15}>Cada 15 min</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Pacing (Entrega)</label>
+                  <div style={{ display: 'flex', background: 'rgba(15, 23, 42, 0.5)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', padding: '2px', height: '34px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setTempPacing('uniform')}
+                      style={{
+                        flex: 1,
+                        border: 'none',
+                        borderRadius: '6px',
+                        background: tempPacing === 'uniform' ? '#10B981' : 'transparent',
+                        color: tempPacing === 'uniform' ? '#0F172A' : 'var(--text-secondary)',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all 150ms'
+                      }}
+                    >
+                      Uniforme
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTempPacing('accelerated')}
+                      style={{
+                        flex: 1,
+                        border: 'none',
+                        borderRadius: '6px',
+                        background: tempPacing === 'accelerated' ? '#10B981' : 'transparent',
+                        color: tempPacing === 'accelerated' ? '#0F172A' : 'var(--text-secondary)',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all 150ms'
+                      }}
+                    >
+                      Acelerado
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               {/* Actions */}
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button
@@ -27913,6 +28126,9 @@ function ProfilePanel({
                   onClick={() => {
                     setTempSplits(1);
                     setTempStartTimes([0]);
+                    setTempDays(['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom']);
+                    setTempFrequency(0);
+                    setTempPacing('uniform');
                   }}
                   style={{
                     padding: '8px 14px',
@@ -27954,7 +28170,10 @@ function ProfilePanel({
                         ...prev,
                         [configuringSlotId]: {
                           splits: tempSplits,
-                          startTimes: tempStartTimes.slice(0, tempSplits)
+                          startTimes: tempStartTimes.slice(0, tempSplits),
+                          days: tempDays,
+                          frequency: tempFrequency,
+                          pacing: tempPacing
                         }
                       }));
                       setConfiguringSlotId(null);

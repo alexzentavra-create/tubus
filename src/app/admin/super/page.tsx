@@ -1938,9 +1938,20 @@ function AdsTab({ ads, setAds }: { ads: any[]; setAds: (val: any[]) => void }) {
                             return `${startStr} a ${endStr}`;
                           });
 
+                          const daysStr = detail.days ? detail.days.map((d: string) => d.toUpperCase()).join(',') : 'L,M,M,J,V,S,D';
+                          const freqStr = detail.frequency === 0 || detail.frequency === undefined ? 'Continuo' : `Cada ${detail.frequency}m`;
+                          const pacingStr = detail.pacing === 'accelerated' ? 'Acelerado' : 'Uniforme';
+
                           return (
-                            <span key={slotId} style={{ background: 'rgba(59,130,246,0.1)', color: '#60a5fa', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>
-                              <strong>{slotNames[slotId] || slotId}</strong> [{intervals.join(', ')}]
+                            <span key={slotId} style={{ background: 'rgba(59,130,246,0.1)', color: '#60a5fa', padding: '6px 8px', borderRadius: '6px', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                              <div>
+                                <strong>{slotNames[slotId] || slotId}</strong>: <span style={{ color: '#fff' }}>{intervals.join(', ')}</span>
+                              </div>
+                              <div style={{ fontSize: '9px', color: '#a3a3a3', display: 'flex', gap: '8px' }}>
+                                <span>Días: <strong style={{ color: '#fff' }}>{daysStr}</strong></span>
+                                <span>Freq: <strong style={{ color: '#fff' }}>{freqStr}</strong></span>
+                                <span>Pacing: <strong style={{ color: '#fff' }}>{pacingStr}</strong></span>
+                              </div>
                             </span>
                           );
                         })}
