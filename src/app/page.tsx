@@ -21488,11 +21488,45 @@ export default function UserMapPage() {
   const [profileAvatar, setProfileAvatar] = useState('avatar1')
   const [searchHistory, setSearchHistory] = useState<any[]>([])
   const [adSubmissions, setAdSubmissions] = useState<any[]>([])
+  const [triggeredAd, setTriggeredAd] = useState<any | null>(null)
   const [chatMessages, setChatMessages] = useState<any[]>([])
 
   const [userWalkingToDest, setUserWalkingToDest] = useState<boolean>(false)
 
   const handleLeftBus = () => {
+    if (activeTravelRoute) {
+      const activeLineNum = activeTravelRoute.line_number;
+      const alightingStop = activeTravelRoute.destStop;
+      
+      const approvedAds = adSubmissions.filter(ad => ad.status === 'approved');
+      const matchingAd = approvedAds.find(ad => {
+        const targetsLine = ad.targetAudience === `Línea ${activeLineNum}`;
+        if (!targetsLine) return false;
+        
+        if (ad.selectedStops && ad.selectedStops.length > 0) {
+          const matchedLine = MOCK_LINES.find(l => l.line_number === activeLineNum);
+          if (matchedLine) {
+            const allLineStops = getMockStopsForLine(matchedLine);
+            const targetStopsObjects = allLineStops.filter(s => ad.selectedStops.includes(s.name));
+            const isNearTargetStop = targetStopsObjects.some(targetStop => {
+              const dist = globalDistanceKm(
+                { latitude: alightingStop.latitude, longitude: alightingStop.longitude },
+                { lat: targetStop.latitude, lng: targetStop.longitude }
+              );
+              const radiusKm = parseFloat(ad.influenceRadius) || 0.3;
+              return dist <= radiusKm;
+            });
+            if (isNearTargetStop) return true;
+          }
+        }
+        return false;
+      });
+
+      if (matchingAd) {
+        setTriggeredAd(matchingAd);
+      }
+    }
+
     setUserBoardedBus(false)
     setShowGotOffPrompt(false)
     setTrackedBusId(null)
@@ -25782,6 +25816,117 @@ export default function UserMapPage() {
           )}
         </AnimatePresence>
 
+        <AnimatePresence>
+          {triggeredAd && (
+            <div style={{
+              position: 'fixed',
+              top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0, 0, 0, 0.6)',
+              backdropFilter: 'blur(8px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10000,
+              padding: '20px'
+            }}>
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                style={{
+                  background: prefs.darkMap ? '#1E293B' : '#FFFFFF',
+                  color: 'var(--text-primary)',
+                  width: '100%',
+                  maxWidth: '400px',
+                  borderRadius: '20px',
+                  boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2)',
+                  overflow: 'hidden',
+                  border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  position: 'relative'
+                }}
+              >
+                {/* Ad Header */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '16px 20px',
+                  borderBottom: prefs.darkMap ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)'
+                }}>
+                  <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#3B82F6', letterSpacing: '0.05em' }}>
+                    📢 Beneficio Exclusivo TuBus
+                  </span>
+                  <button
+                    onClick={() => setTriggeredAd(null)}
+                    style={{
+                      background: 'none', border: 'none', color: 'var(--text-muted)',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Ad Banner Image */}
+                <div style={{ width: '100%', height: '180px', overflow: 'hidden', background: '#000000' }}>
+                  <img
+                    src={triggeredAd.imageUrl}
+                    alt={triggeredAd.title}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                </div>
+
+                {/* Ad Body */}
+                <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, lineHeight: 1.3 }}>
+                    {triggeredAd.title}
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                    {triggeredAd.description}
+                  </p>
+                </div>
+
+                {/* Ad Actions */}
+                <div style={{
+                  padding: '16px 20px',
+                  background: prefs.darkMap ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)',
+                  borderTop: prefs.darkMap ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)',
+                  display: 'flex',
+                  gap: '12px'
+                }}>
+                  <button
+                    onClick={() => setTriggeredAd(null)}
+                    style={{
+                      flex: 1, padding: '10px', borderRadius: '10px',
+                      background: 'transparent', color: 'var(--text-secondary)',
+                      border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
+                      fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s'
+                    }}
+                  >
+                    Cerrar
+                  </button>
+                  <button
+                    onClick={() => {
+                      window.open(triggeredAd.targetUrl || 'https://tubus.com.ar', '_blank')
+                      setTriggeredAd(null)
+                    }}
+                    style={{
+                      flex: 2, padding: '10px', borderRadius: '10px',
+                      background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)', color: '#FFFFFF',
+                      border: 'none', fontSize: '13px', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s',
+                      boxShadow: '0 4px 6px rgba(37, 99, 235, 0.2)'
+                    }}
+                  >
+                    Obtener Beneficio
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
         {/* Mobile Bottom Navigation Bar */}
         {isMobile && (
           <div
@@ -26469,6 +26614,7 @@ function ProfilePanel({
   const [targetAudience, setTargetAudience] = useState('todos')
   const [influenceRadius, setInfluenceRadius] = useState('1km')
   const [selectedAdSchedule, setSelectedAdSchedule] = useState('todos')
+  const [adSelectedStops, setAdSelectedStops] = useState<string[]>([])
   const adFileInputRef = useRef<HTMLInputElement>(null)
 
   const handleAdImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -26560,6 +26706,16 @@ function ProfilePanel({
       alert('Por favor completá los campos requeridos (Título y Descripción).')
       return
     }
+    if (targetAudience !== 'todos') {
+      if (adSelectedStops.length === 0) {
+        alert('Por favor seleccioná al menos 1 parada de la línea para tu campaña.')
+        return
+      }
+      if (adSelectedStops.length > 2) {
+        alert('Podés seleccionar como máximo 2 paradas para tu campaña.')
+        return
+      }
+    }
     if (!adTermsAccepted) {
       alert('Debés aceptar los términos y condiciones de contenido publicitario para continuar.')
       return
@@ -26581,12 +26737,13 @@ function ProfilePanel({
         adminComment: 'Aguardando revisión del equipo de moderación.',
         targetAudience,
         influenceRadius,
-        selectedAdSchedule
+        selectedAdSchedule,
+        selectedStops: targetAudience !== 'todos' ? adSelectedStops : []
       }
 
       const updated = [newAd, ...adSubmissions]
       setAdSubmissions(updated)
-      localStorage.setItem('tu_bus_submitted_ads', JSON.stringify(updated))
+      localStorage.setItem('bu_submitted_ads', JSON.stringify(updated))
 
       setAdTitle('')
       setAdDesc('')
@@ -26595,6 +26752,7 @@ function ProfilePanel({
       setAdBudget('50')
       setAdUploadedImg(null)
       setAdTermsAccepted(false)
+      setAdSelectedStops([])
       setAdSubmitting(false)
 
       // Schedule simulated review/approval in 5 seconds
@@ -26610,7 +26768,7 @@ function ProfilePanel({
           return ad
         })
         setAdSubmissions(approvedAds)
-        localStorage.setItem('tu_bus_submitted_ads', JSON.stringify(approvedAds))
+        localStorage.setItem('bu_submitted_ads', JSON.stringify(approvedAds))
       }, 5000)
 
     }, 800)
@@ -26965,7 +27123,10 @@ function ProfilePanel({
                   <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Público Objetivo</label>
                   <select
                     value={targetAudience}
-                    onChange={e => setTargetAudience(e.target.value)}
+                    onChange={e => {
+                      setTargetAudience(e.target.value)
+                      setAdSelectedStops([])
+                    }}
                     style={{
                       width: '100%', padding: '10px 12px', borderRadius: '10px',
                       background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
@@ -26983,6 +27144,88 @@ function ProfilePanel({
                     <option value="Línea T-Rojo">Turística Roja</option>
                   </select>
                 </div>
+
+                {targetAudience !== 'todos' && (() => {
+                  const lineNum = targetAudience.replace('Línea ', '')
+                  const matchedLine = MOCK_LINES.find(l => l.line_number === lineNum)
+                  if (!matchedLine) return null
+                  
+                  const stops = getMockStopsForLine(matchedLine)
+                  const uniqueStops: BusStop[] = []
+                  const seenNames = new Set<string>()
+                  stops.forEach(s => {
+                    if (!seenNames.has(s.name)) {
+                      seenNames.add(s.name)
+                      uniqueStops.push(s)
+                    }
+                  })
+
+                  return (
+                    <div style={{
+                      marginBottom: '12px',
+                      padding: '12px',
+                      borderRadius: '12px',
+                      background: prefs.darkMap ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                      border: prefs.darkMap ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)',
+                    }}>
+                      <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+                        Seleccioná 1 o 2 paradas de exhibición *
+                      </label>
+                      <div style={{
+                        maxHeight: '140px',
+                        overflowY: 'auto',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px',
+                        paddingRight: '4px'
+                      }} className="stops-select-list">
+                        {uniqueStops.map(stop => {
+                          const isChecked = adSelectedStops.includes(stop.name)
+                          return (
+                            <label
+                              key={stop.id}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                fontSize: '12px',
+                                color: 'var(--text-primary)',
+                                cursor: 'pointer',
+                                padding: '6px 8px',
+                                borderRadius: '8px',
+                                background: isChecked ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+                                transition: 'all 0.15s'
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    setAdSelectedStops(prev => prev.filter(name => name !== stop.name))
+                                  } else {
+                                    if (adSelectedStops.length >= 2) {
+                                      toast.error('Solo podés seleccionar hasta 2 paradas')
+                                      return
+                                    }
+                                    setAdSelectedStops(prev => [...prev, stop.name])
+                                  }
+                                }}
+                                style={{ accentColor: '#3B82F6', cursor: 'pointer', width: '15px', height: '15px' }}
+                              />
+                              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {stop.name}
+                              </span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                      <div style={{ marginTop: '8px', fontSize: '10px', color: (adSelectedStops.length === 0 || adSelectedStops.length > 2) ? '#EF4444' : '#10B981', fontWeight: 600 }}>
+                        Seleccionadas: {adSelectedStops.length} de 2 (Requerido: 1 o 2)
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 {/* influenceRadius slider */}
                 <div style={{ marginBottom: '12px' }}>
@@ -27766,7 +28009,7 @@ function MiniPopup({
             bus.line_number === '59' ? '/images/bus-59-real.png' :
             bus.line_number === '60' ? '/images/bus-60-real.png' :
             bus.line_number === '102' ? '/images/bus-102-real.jpg' :
-            bus.line_number === '152' ? '/images/bus-152-real.jpg' :
+            bus.line_number === '152' ? '/images/bus-152-real.png' :
             bus.line_number === 'T-Amarillo' ? '/images/bus-T-Amarillo.png' :
             bus.line_number === 'T-Rojo' ? '/images/bus-T-Rojo.png' :
             `/images/bus-${bus.line_number}.png`
