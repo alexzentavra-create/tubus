@@ -57,6 +57,195 @@ export const MOCK_STOPS: Record<string, BusStop[]> = {
   ],
 }
 
+import stopIntersections from './stops_intersection_map.json'
+
+// Helper to convert stop height names to clean intersections
+export function getIntersectionForStopName(stopName: string, lat: number, lng: number): string {
+  const coordKey = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+  const mapped = (stopIntersections as any)[coordKey] || (stopIntersections as any)[stopName];
+  if (mapped && mapped.includes(' y ')) {
+    return mapped;
+  }
+
+  const name = stopName.trim().toUpperCase();
+  const match = name.match(/^(\d+)\s+(.+)$/);
+  if (!match) {
+    return stopName;
+  }
+
+  const height = parseInt(match[1], 10);
+  const street = match[2].replace(/\bAV\b|\bAVENIDA\b/g, '').replace(/\bMANUEL\b|\bGENERAL\b|\bMANUEL AUGUSTO\b/g, '').trim();
+
+  const cleanStr = (s: string) => {
+    return s.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  };
+
+  // Rule-based dictionary for major avenues/streets
+  if (street.includes('SANTA FE')) {
+    if (height >= 1800 && height < 2000) return 'Av. Santa Fe y Riobamba';
+    if (height >= 2000 && height < 2100) return 'Av. Santa Fe y Ayacucho';
+    if (height >= 2100 && height < 2200) return 'Av. Santa Fe y Junín';
+    if (height >= 2200 && height < 2300) return 'Av. Santa Fe y Uriburu';
+    if (height >= 2300 && height < 2400) return 'Av. Santa Fe y Azcuénaga';
+    if (height >= 2400 && height < 2600) return 'Av. Santa Fe y Pueyrredón';
+    if (height >= 2600 && height < 2700) return 'Av. Santa Fe y Ecuador';
+    if (height >= 2700 && height < 2800) return 'Av. Santa Fe y Anchorena';
+    if (height >= 2800 && height < 2900) return 'Av. Santa Fe y Laprida';
+    if (height >= 2900 && height < 3000) return 'Av. Santa Fe y Agüero';
+    if (height >= 3000 && height < 3100) return 'Av. Santa Fe y Austria';
+    if (height >= 3100 && height < 3200) return 'Av. Santa Fe y Billinghurst';
+    if (height >= 3200 && height < 3400) return 'Av. Santa Fe y Coronel Díaz';
+    if (height >= 3400 && height < 3500) return 'Av. Santa Fe y Bulnes';
+    if (height >= 3500 && height < 3600) return 'Av. Santa Fe y Salguero';
+    if (height >= 3600 && height < 3800) return 'Av. Santa Fe y Scalabrini Ortiz';
+    if (height >= 3800 && height < 3900) return 'Av. Santa Fe y Aráoz';
+    if (height >= 3900 && height < 4000) return 'Av. Santa Fe y Gurruchaga';
+    if (height >= 4000 && height < 4100) return 'Av. Santa Fe y Armenia';
+    if (height >= 4100 && height < 4200) return 'Av. Santa Fe y Thames';
+    if (height >= 4200 && height < 4300) return 'Av. Santa Fe y Uriarte';
+    if (height >= 4300 && height < 4400) return 'Av. Santa Fe y Plaza Italia';
+    if (height >= 4400 && height < 4600) return 'Av. Santa Fe y Av. Juan B. Justo';
+    return `Av. Santa Fe ${height}`;
+  }
+
+  if (street.includes('LAS HERAS')) {
+    if (height >= 1600 && height < 1800) return 'Av. Las Heras y Montevideo';
+    if (height >= 1800 && height < 1900) return 'Av. Las Heras y Av. Callao';
+    if (height >= 1900 && height < 2000) return 'Av. Las Heras y Ayacucho';
+    if (height >= 2000 && height < 2100) return 'Av. Las Heras y Junín';
+    if (height >= 2100 && height < 2200) return 'Av. Las Heras y Uriburu';
+    if (height >= 2200 && height < 2300) return 'Av. Las Heras y Cantilo';
+    if (height >= 2300 && height < 2400) return 'Av. Las Heras y Av. Pueyrredón';
+    if (height >= 2400 && height < 2600) return 'Av. Las Heras y Laprida';
+    if (height >= 2600 && height < 2700) return 'Av. Las Heras y Agüero';
+    if (height >= 2700 && height < 2800) return 'Av. Las Heras y Austria';
+    if (height >= 2800 && height < 3000) return 'Av. Las Heras y Billinghurst';
+    if (height >= 3000 && height < 3300) return 'Av. Las Heras y Av. Coronel Díaz';
+    if (height >= 3300 && height < 3500) return 'Av. Las Heras y Av. Scalabrini Ortiz';
+    if (height >= 3500 && height < 3700) return 'Av. Las Heras y Lafinur';
+    if (height >= 3700) return 'Av. Las Heras y Plaza Italia';
+    return `Av. Las Heras ${height}`;
+  }
+
+  if (street.includes('PUEYRREDON')) {
+    if (height >= 0 && height < 200) return 'Av. Pueyrredón y Bartolomé Mitre';
+    if (height >= 200 && height < 400) return 'Av. Pueyrredón y Sarmiento';
+    if (height >= 400 && height < 600) return 'Av. Pueyrredón y Av. Corrientes';
+    if (height >= 600 && height < 800) return 'Av. Pueyrredón y Av. Córdoba';
+    if (height >= 800 && height < 1000) return 'Av. Pueyrredón y Paraguay';
+    if (height >= 1000 && height < 1200) return 'Av. Pueyrredón y Av. Santa Fe';
+    if (height >= 1200 && height < 1400) return 'Av. Pueyrredón y Juncal';
+    if (height >= 1400 && height < 1600) return 'Av. Pueyrredón y French';
+    if (height >= 1600) return 'Av. Pueyrredón y Av. Las Heras';
+    return `Av. Pueyrredón ${height}`;
+  }
+
+  if (street.includes('ENTRE RIOS')) {
+    if (height >= 0 && height < 200) return 'Av. Entre Ríos y Alsina';
+    if (height >= 200 && height < 400) return 'Av. Entre Ríos y Av. Belgrano';
+    if (height >= 400 && height < 600) return 'Av. Entre Ríos y México';
+    if (height >= 600 && height < 800) return 'Av. Entre Ríos y Av. Independencia';
+    if (height >= 800 && height < 1000) return 'Av. Entre Ríos y Carlos Calvo';
+    if (height >= 1000 && height < 1200) return 'Av. Entre Ríos y Humberto I';
+    if (height >= 1200 && height < 1400) return 'Av. Entre Ríos y Av. San Juan';
+    if (height >= 1400) return 'Av. Entre Ríos y Av. Caseros';
+    return `Av. Entre Ríos ${height}`;
+  }
+
+  if (street.includes('CALLAO')) {
+    if (height >= 0 && height < 200) return 'Av. Callao y Bartolomé Mitre';
+    if (height >= 200 && height < 400) return 'Av. Callao y Av. Corrientes';
+    if (height >= 400 && height < 600) return 'Av. Callao y Lavalle';
+    if (height >= 600 && height < 800) return 'Av. Callao y Tucumán';
+    if (height >= 800 && height < 1000) return 'Av. Callao y Av. Córdoba';
+    if (height >= 1000 && height < 1200) return 'Av. Callao y Av. Santa Fe';
+    if (height >= 1200 && height < 1400) return 'Av. Callao y Juncal';
+    if (height >= 1400) return 'Av. Callao y Av. Las Heras';
+    return `Av. Callao ${height}`;
+  }
+
+  if (street.includes('MONTES DE OCA')) {
+    if (height >= 0 && height < 200) return 'Av. Montes de Oca y Bernardo de Irigoyen';
+    if (height >= 200 && height < 400) return 'Av. Montes de Oca y Finochietto';
+    if (height >= 400 && height < 600) return 'Av. Montes de Oca y Guanahani';
+    if (height >= 600 && height < 800) return 'Av. Montes de Oca y Brandsen';
+    if (height >= 800 && height < 1000) return 'Av. Montes de Oca y Olavarría';
+    if (height >= 1000 && height < 1200) return 'Av. Montes de Oca y Rocha';
+    if (height >= 1200 && height < 1400) return 'Av. Montes de Oca y Luján';
+    if (height >= 1400 && height < 1600) return 'Av. Montes de Oca y California';
+    if (height >= 1600 && height < 1800) return 'Av. Montes de Oca y Av. Iriarte';
+    if (height >= 1800) return 'Av. Montes de Oca y Osvaldo Cruz';
+    return `Av. Montes de Oca ${height}`;
+  }
+
+  if (street.includes('VELEZ SARSFIELD')) {
+    if (height >= 200 && height < 400) return 'Av. Vélez Sársfield y Av. Caseros';
+    if (height >= 400 && height < 600) return 'Av. Vélez Sársfield y Pepirí';
+    if (height >= 600 && height < 800) return 'Av. Vélez Sársfield y Iguazú';
+    if (height >= 800 && height < 1000) return 'Av. Vélez Sársfield y Zavaleta';
+    if (height >= 1000 && height < 1200) return 'Av. Vélez Sársfield y Lafayette';
+    if (height >= 1200 && height < 1400) return 'Av. Vélez Sársfield y Suárez';
+    if (height >= 1400 && height < 1600) return 'Av. Vélez Sársfield y Olavarría';
+    if (height >= 1600) return 'Av. Vélez Sársfield y Lamadrid';
+    return `Av. Vélez Sársfield ${height}`;
+  }
+
+  if (street.includes('VIEYTES')) {
+    if (height >= 1400 && height < 1600) return 'Vieytes y California';
+    if (height >= 1600 && height < 1800) return 'Vieytes y Av. Iriarte';
+    if (height >= 1800 && height < 1900) return 'Vieytes y Pedro de Luján';
+    if (height >= 1900) return 'Vieytes y Suárez';
+    return `Vieytes ${height}`;
+  }
+
+  if (street.includes('CALIFORNIA')) {
+    if (height >= 1900 && height < 2100) return 'California y Vieytes';
+    if (height >= 2100 && height < 2300) return 'California y Av. Montes de Oca';
+    if (height >= 2300) return 'California y Herrera';
+    return `California ${height}`;
+  }
+
+  if (street.includes('CONSTITUCION')) {
+    if (height >= 1100 && height < 1300) return 'Constitución y Lima';
+    if (height >= 1300 && height < 1500) return 'Constitución y Santiago del Estero';
+    if (height >= 1500 && height < 1700) return 'Constitución y Sáenz Peña';
+    if (height >= 1700) return 'Constitución y Av. Entre Ríos';
+    return `Constitución ${height}`;
+  }
+
+  if (street.includes('RIOBAMBA')) {
+    if (height >= 200 && height < 400) return 'Riobamba y Av. Corrientes';
+    if (height >= 400 && height < 600) return 'Riobamba y Lavalle';
+    if (height >= 600 && height < 800) return 'Riobamba y Tucumán';
+    if (height >= 800 && height < 1000) return 'Riobamba y Av. Córdoba';
+    if (height >= 1000 && height < 1200) return 'Riobamba y Av. Santa Fe';
+    if (height >= 1200) return 'Riobamba y Arenales';
+    return `Riobamba ${height}`;
+  }
+
+  if (street.includes('CABILDO')) {
+    if (height >= 1000 && height < 1200) return 'Av. Cabildo y Céspedes';
+    if (height >= 1200 && height < 1400) return 'Av. Cabildo y Zabala';
+    if (height >= 1400 && height < 1600) return 'Av. Cabildo y Virrey del Pino';
+    if (height >= 1600 && height < 1800) return 'Av. Cabildo y Virrey Loreto';
+    if (height >= 1800 && height < 2000) return 'Av. Cabildo y La Pampa';
+    if (height >= 2000 && height < 2200) return 'Av. Cabildo y Echeverría';
+    if (height >= 2200 && height < 2400) return 'Av. Cabildo y Juramento';
+    if (height >= 2400 && height < 2600) return 'Av. Cabildo y Blanco Encalada';
+    if (height >= 2600 && height < 2800) return 'Av. Cabildo y Av. Monroe';
+    if (height >= 2800 && height < 3000) return 'Av. Cabildo y Av. Congreso';
+    if (height >= 3000 && height < 3200) return 'Av. Cabildo y Iberá';
+    if (height >= 3200 && height < 3400) return 'Av. Cabildo y Quesada';
+    if (height >= 3400 && height < 3600) return 'Av. Cabildo y Juana Azurduy';
+    if (height >= 3600 && height < 3800) return 'Av. Cabildo y Crisólogo Larralde';
+    if (height >= 3800) return 'Av. Cabildo y General Paz';
+    return `Av. Cabildo ${height}`;
+  }
+
+  const cleanedStreet = cleanStr(street);
+  return `${cleanedStreet} ${height}`;
+}
+
 // ─── GTFS Route Processing ──────────────────────────────────────────────────
 
 function officialRouteForLine(line: BusLine): OfficialRoute | null {
@@ -68,19 +257,22 @@ function routeTemplateForLine(line: BusLine, direction: 'ida' | 'vuelta' = 'ida'
   if (officialRoute) {
     const dirObj = direction === 'vuelta' ? officialRoute.vuelta : officialRoute.ida
     if (dirObj?.stops) {
-      return dirObj.stops.map((stop, index) => ({
-        id: `${line.id}-official-${stop.id}-${direction}`,
-        line_id: line.id,
-        name: stop.name,
-        street_name: stop.name,
-        stop_number: index + 1,
-        latitude: stop.lat,
-        longitude: stop.lng,
-        direction: direction,
-        avg_wait_minutes: 6,
-        total_daily_users: 120,
-        pathIndex: (stop as any).pathIndex,
-      }))
+      return dirObj.stops.map((stop, index) => {
+        const cleanName = getIntersectionForStopName(stop.name, stop.lat, stop.lng);
+        return {
+          id: `${line.id}-official-${stop.id}-${direction}`,
+          line_id: line.id,
+          name: cleanName,
+          street_name: cleanName,
+          stop_number: index + 1,
+          latitude: stop.lat,
+          longitude: stop.lng,
+          direction: direction,
+          avg_wait_minutes: 6,
+          total_daily_users: 120,
+          pathIndex: (stop as any).pathIndex,
+        };
+      })
     }
   }
 
