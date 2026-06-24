@@ -26618,6 +26618,27 @@ function ProfilePanel({
   const adFileInputRef = useRef<HTMLInputElement>(null)
   const [adCostPerMinute, setAdCostPerMinute] = useState(10)
 
+  interface AdScheduleDetail {
+    splits: number;
+    startTimes: number[];
+  }
+  const [adScheduleDetails, setAdScheduleDetails] = useState<Record<string, AdScheduleDetail>>({
+    todos: { splits: 1, startTimes: [0] },
+    morning: { splits: 1, startTimes: [0] },
+    afternoon: { splits: 1, startTimes: [0] },
+    night: { splits: 1, startTimes: [0] }
+  })
+  const [configuringSlotId, setConfiguringSlotId] = useState<string | null>(null)
+  const [tempSplits, setTempSplits] = useState(1)
+  const [tempStartTimes, setTempStartTimes] = useState<number[]>([0])
+
+  useEffect(() => {
+    if (configuringSlotId && adScheduleDetails[configuringSlotId]) {
+      setTempSplits(adScheduleDetails[configuringSlotId].splits)
+      setTempStartTimes(adScheduleDetails[configuringSlotId].startTimes)
+    }
+  }, [configuringSlotId, adScheduleDetails])
+
   useEffect(() => {
     const saved = localStorage.getItem('ad_cost_per_minute')
     if (saved) {
@@ -26756,7 +26777,11 @@ function ProfilePanel({
         targetAudience,
         influenceRadius,
         selectedAdSchedule: selectedAdSchedules.join(','),
-        selectedStops: targetAudience !== 'todos' ? adSelectedStops : []
+        selectedStops: targetAudience !== 'todos' ? adSelectedStops : [],
+        adScheduleDetails: selectedAdSchedules.reduce((acc, id) => {
+          acc[id] = adScheduleDetails[id] || { splits: 1, startTimes: [0] };
+          return acc;
+        }, {} as Record<string, AdScheduleDetail>)
       }
 
       const updated = [newAd, ...adSubmissions]
@@ -26772,6 +26797,12 @@ function ProfilePanel({
       setAdTermsAccepted(false)
       setAdSelectedStops([])
       setSelectedAdSchedules(['todos'])
+      setAdScheduleDetails({
+        todos: { splits: 1, startTimes: [0] },
+        morning: { splits: 1, startTimes: [0] },
+        afternoon: { splits: 1, startTimes: [0] },
+        night: { splits: 1, startTimes: [0] }
+      })
       setAdSubmitting(false)
 
       // Schedule simulated review/approval in 5 seconds
@@ -27293,6 +27324,12 @@ function ProfilePanel({
                               })
                             }
                           }}
+                          onDoubleClick={() => {
+                            if (isSelected) {
+                              setConfiguringSlotId(opt.id)
+                            }
+                          }}
+                          title={isSelected ? "Doble clic para configurar horarios exactos" : undefined}
                           style={{
                             display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px 10px', borderRadius: '8px',
                             border: isSelected ? '2px solid #3B82F6' : prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
@@ -27307,12 +27344,20 @@ function ProfilePanel({
                           </div>
                           {isSelected && budgetNum > 0 && (
                             <div style={{ fontSize: '9px', color: '#10B981', fontWeight: 700, marginTop: '2px' }}>
-                              Consume: ${allocated.toFixed(0)}
+                              Consume: ${allocated.toFixed(0)} ({(() => {
+                                const mins = adCostPerMinute > 0 ? allocated / adCostPerMinute : 0;
+                                const m = Math.floor(mins);
+                                const s = Math.round((mins - m) * 60);
+                                return s === 0 ? `${m} min/día` : `${m}m ${s}s/día`;
+                              })()})
                             </div>
                           )}
                         </button>
                       )
                     })}
+                  </div>
+                  <div style={{ fontSize: '9px', color: 'var(--text-muted)', marginTop: '6px', fontStyle: 'italic' }}>
+                    * Doble clic en una opción seleccionada para configurar horarios exactos.
                   </div>
                 </div>
 
@@ -27385,7 +27430,7 @@ function ProfilePanel({
                       color: prefs.darkMap ? '#a7f3d0' : '#065f46'
                     }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                        <span style={{ fontWeight: 600 }}>Exhibición estimada:</span>
+                        <span style={{ fontWeight: 600 }}>Exhibición diaria estimada:</span>
                         <span style={{ fontWeight: 800 }}>{durationText}</span>
                       </div>
                       <div style={{ fontSize: '9px', color: 'var(--text-muted)' }}>
@@ -27661,6 +27706,280 @@ function ProfilePanel({
           </div>
         )}
       </div>
+
+      {/* Ad Detailed Schedule Modal */}
+      {configuringSlotId !== null && (() => {
+        const slotName = configuringSlotId === 'todos' ? 'Todo el día' : configuringSlotId === 'morning' ? 'Mañana (6-12h)' : configuringSlotId === 'afternoon' ? 'Tarde (12-20h)' : 'Noche (20-6h)';
+        const maxSlotMins = configuringSlotId === 'todos' ? 1440 : configuringSlotId === 'morning' ? 360 : configuringSlotId === 'afternoon' ? 480 : 600;
+        
+        const budgetNum = Number(adBudget) || 0;
+        const allocatedBudget = selectedAdSchedules.length > 0 ? (budgetNum / selectedAdSchedules.length) : 0;
+        const slotDuration = adCostPerMinute > 0 ? allocatedBudget / adCostPerMinute : 0;
+        const splitDuration = tempSplits > 0 ? slotDuration / tempSplits : 0;
+
+        const formatOffsetToTime = (slotId: string, offsetMins: number) => {
+          let startHour = 0;
+          if (slotId === 'morning') startHour = 6;
+          else if (slotId === 'afternoon') startHour = 12;
+          else if (slotId === 'night') startHour = 20;
+
+          const totalMins = startHour * 60 + offsetMins;
+          const wrappedMins = totalMins % 1440;
+          const hours = Math.floor(wrappedMins / 60);
+          const mins = Math.floor(wrappedMins % 60);
+          return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+        };
+
+        const formatDuration = (mins: number) => {
+          const m = Math.floor(mins);
+          const s = Math.round((mins - m) * 60);
+          if (s === 0) return `${m} min`;
+          return `${m} min ${s} s`;
+        };
+
+        return (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}>
+            <div style={{
+              background: 'rgba(15, 23, 42, 0.95)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '440px',
+              padding: '24px',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.4)',
+              color: '#F8FAFC'
+            }}>
+              {/* Header */}
+              <div style={{ marginBottom: '20px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 700, margin: '0 0 4px 0', color: '#10B981' }}>Configuración Detallada de Horario</h3>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                  Slot: <strong style={{ color: '#fff' }}>{slotName}</strong> • Presupuesto: <strong style={{ color: '#fff' }}>${allocatedBudget.toFixed(0)}</strong>
+                </div>
+              </div>
+
+              {/* Splits selector */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Cantidad de Períodos</label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {[1, 2, 3].map(num => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => {
+                        setTempSplits(num);
+                        const defaults = [];
+                        const step = maxSlotMins / num;
+                        for (let i = 0; i < num; i++) {
+                          const val = Math.min(maxSlotMins - splitDuration, Math.round(i * step));
+                          defaults.push(val);
+                        }
+                        setTempStartTimes(defaults);
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        border: tempSplits === num ? '2px solid #10B981' : '1px solid rgba(255,255,255,0.1)',
+                        background: tempSplits === num ? 'rgba(16,185,129,0.1)' : 'transparent',
+                        color: tempSplits === num ? '#10B981' : 'var(--text-primary)',
+                        fontWeight: 600,
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
+                      }}
+                    >
+                      {num} {num === 1 ? 'período' : 'períodos'}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                  Cada período durará <strong style={{ color: '#10B981' }}>{formatDuration(splitDuration)}</strong>
+                </div>
+              </div>
+
+              {/* Visual Timeline Track */}
+              <div style={{ marginBottom: '8px' }}>
+                <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Línea de Tiempo Visual</label>
+                <div style={{
+                  position: 'relative',
+                  width: '100%',
+                  height: '24px',
+                  background: '#1E293B',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  overflow: 'hidden',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}>
+                  {[...Array(5)].map((_, idx) => {
+                    const pct = (idx / 4) * 100;
+                    return (
+                      <div
+                        key={idx}
+                        style={{
+                          position: 'absolute',
+                          left: `${pct}%`,
+                          width: '1px',
+                          height: '100%',
+                          background: 'rgba(255,255,255,0.08)'
+                        }}
+                      />
+                    );
+                  })}
+                  {tempStartTimes.slice(0, tempSplits).map((startTime, idx) => {
+                    const leftPct = (startTime / maxSlotMins) * 100;
+                    const widthPct = (splitDuration / maxSlotMins) * 100;
+                    return (
+                      <div
+                        key={idx}
+                        style={{
+                          position: 'absolute',
+                          left: `${leftPct}%`,
+                          width: `${widthPct}%`,
+                          height: '100%',
+                          background: 'linear-gradient(90deg, #10B981, #059669)',
+                          boxShadow: '0 0 10px rgba(16, 185, 129, 0.4)',
+                          borderRadius: '2px',
+                          transition: 'left 0.1s ease-out, width 0.1s ease-out'
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'DM Mono', marginBottom: '24px' }}>
+                  <span>{formatOffsetToTime(configuringSlotId, 0)}</span>
+                  <span>{formatOffsetToTime(configuringSlotId, maxSlotMins / 2)}</span>
+                  <span>{formatOffsetToTime(configuringSlotId, maxSlotMins)}</span>
+                </div>
+              </div>
+
+              {/* Slider Controls */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+                {tempStartTimes.slice(0, tempSplits).map((startTime, idx) => {
+                  const minVal = idx === 0 ? 0 : tempStartTimes[idx - 1] + splitDuration;
+                  const maxVal = idx === tempSplits - 1 ? maxSlotMins - splitDuration : tempStartTimes[idx + 1] - splitDuration;
+
+                  const startStr = formatOffsetToTime(configuringSlotId, startTime);
+                  const endStr = formatOffsetToTime(configuringSlotId, startTime + splitDuration);
+
+                  return (
+                    <div key={idx} style={{ background: 'rgba(255,255,255,0.02)', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '12px' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Período {idx + 1}</span>
+                        <span style={{ fontFamily: 'DM Mono', fontWeight: 700, color: '#10B981' }}>{startStr} a {endStr}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={Math.max(0, maxSlotMins - splitDuration)}
+                        value={startTime}
+                        onChange={e => {
+                          const val = Number(e.target.value);
+                          setTempStartTimes(prev => {
+                            const next = [...prev];
+                            next[idx] = Math.max(minVal, Math.min(maxVal, val));
+                            return next;
+                          });
+                        }}
+                        style={{
+                          width: '100%',
+                          accentColor: '#10B981',
+                          cursor: 'pointer'
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTempSplits(1);
+                    setTempStartTimes([0]);
+                  }}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(239,68,68,0.2)',
+                    background: 'rgba(239,68,68,0.05)',
+                    color: '#F87171',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 150ms'
+                  }}
+                >
+                  Restablecer
+                </button>
+                <div style={{ flex: 1 }} />
+                <button
+                  type="button"
+                  onClick={() => setConfiguringSlotId(null)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    background: 'transparent',
+                    color: 'var(--text-secondary)',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 150ms'
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (configuringSlotId) {
+                      setAdScheduleDetails(prev => ({
+                        ...prev,
+                        [configuringSlotId]: {
+                          splits: tempSplits,
+                          startTimes: tempStartTimes.slice(0, tempSplits)
+                        }
+                      }));
+                      setConfiguringSlotId(null);
+                    }
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: '#10B981',
+                    color: '#FFFFFF',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(16,185,129,0.2)',
+                    transition: 'all 150ms'
+                  }}
+                >
+                  Guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   )
 }

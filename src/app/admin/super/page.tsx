@@ -1896,9 +1896,56 @@ function AdsTab({ ads, setAds }: { ads: any[]; setAds: (val: any[]) => void }) {
 
                   <p style={{ fontSize: '13px', color: '#b8c0d0', margin: '4px 0 8px 0', lineHeight: '1.4' }}>{ad.description}</p>
                   
-                  <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#8f94a5' }}>
-                    <span>Presupuesto: <strong style={{ color: '#fff' }}>{ad.budget}</strong></span>
+                  <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#8f94a5', flexWrap: 'wrap' }}>
+                    <span>Presupuesto: <strong style={{ color: '#fff' }}>${ad.budget}</strong></span>
                     <span>Link: <a href={ad.targetUrl || ad.link} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'none' }}>{ad.targetUrl || ad.link} ↗</a></span>
+                    {ad.selectedAdSchedule && (
+                      <div style={{ width: '100%', marginTop: '6px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <span style={{ color: '#8f94a5' }}>Horarios:</span>
+                        {ad.selectedAdSchedule.split(',').map((slotId: string) => {
+                          const slotNames: Record<string, string> = {
+                            todos: 'Todo el día',
+                            morning: 'Mañana',
+                            afternoon: 'Tarde',
+                            night: 'Noche'
+                          };
+                          const maxSlotMins = slotId === 'todos' ? 1440 : slotId === 'morning' ? 360 : slotId === 'afternoon' ? 480 : 600;
+                          const totalSlots = ad.selectedAdSchedule.split(',').length;
+                          const allocatedBudget = totalSlots > 0 ? (ad.budget / totalSlots) : 0;
+                          const costPerMin = Number(localStorage.getItem('ad_cost_per_minute') || '10') || 10;
+                          const slotDuration = costPerMin > 0 ? allocatedBudget / costPerMin : 0;
+                          
+                          const detail = ad.adScheduleDetails?.[slotId] || { splits: 1, startTimes: [0] };
+                          const splitsCount = detail.splits || 1;
+                          const splitDuration = splitsCount > 0 ? slotDuration / splitsCount : 0;
+                          
+                          const formatOffsetToTime = (sid: string, offsetMins: number) => {
+                            let startHour = 0;
+                            if (sid === 'morning') startHour = 6;
+                            else if (sid === 'afternoon') startHour = 12;
+                            else if (sid === 'night') startHour = 20;
+
+                            const totalMins = startHour * 60 + offsetMins;
+                            const wrappedMins = totalMins % 1440;
+                            const hours = Math.floor(wrappedMins / 60);
+                            const mins = Math.floor(wrappedMins % 60);
+                            return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+                          };
+
+                          const intervals = (detail.startTimes || [0]).slice(0, splitsCount).map((startTime: number) => {
+                            const startStr = formatOffsetToTime(slotId, startTime);
+                            const endStr = formatOffsetToTime(slotId, startTime + splitDuration);
+                            return `${startStr} a ${endStr}`;
+                          });
+
+                          return (
+                            <span key={slotId} style={{ background: 'rgba(59,130,246,0.1)', color: '#60a5fa', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>
+                              <strong>{slotNames[slotId] || slotId}</strong> [{intervals.join(', ')}]
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
