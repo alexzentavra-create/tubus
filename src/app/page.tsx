@@ -26624,20 +26624,20 @@ function ProfilePanel({
     startTimes: number[];
     days?: string[];
     frequency?: number;
-    pacing?: string;
+    placements?: string[];
   }
   const [adScheduleDetails, setAdScheduleDetails] = useState<Record<string, AdScheduleDetail>>({
-    todos: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, pacing: 'uniform' },
-    morning: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, pacing: 'uniform' },
-    afternoon: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, pacing: 'uniform' },
-    night: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, pacing: 'uniform' }
+    todos: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: ['portada'] },
+    morning: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: ['portada'] },
+    afternoon: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: ['portada'] },
+    night: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: ['portada'] }
   })
   const [configuringSlotId, setConfiguringSlotId] = useState<string | null>(null)
   const [tempSplits, setTempSplits] = useState(1)
   const [tempStartTimes, setTempStartTimes] = useState<number[]>([0])
   const [tempDays, setTempDays] = useState<string[]>(['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'])
   const [tempFrequency, setTempFrequency] = useState<number>(0)
-  const [tempPacing, setTempPacing] = useState<string>('uniform')
+  const [tempPlacements, setTempPlacements] = useState<string[]>(['portada'])
 
   useEffect(() => {
     if (configuringSlotId && adScheduleDetails[configuringSlotId]) {
@@ -26645,7 +26645,7 @@ function ProfilePanel({
       setTempStartTimes(adScheduleDetails[configuringSlotId].startTimes)
       setTempDays(adScheduleDetails[configuringSlotId].days || ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'])
       setTempFrequency(adScheduleDetails[configuringSlotId].frequency || 0)
-      setTempPacing(adScheduleDetails[configuringSlotId].pacing || 'uniform')
+      setTempPlacements(adScheduleDetails[configuringSlotId].placements || ['portada'])
     }
   }, [configuringSlotId, adScheduleDetails])
 
@@ -26794,7 +26794,7 @@ function ProfilePanel({
             startTimes: adScheduleDetails[id]?.startTimes || [0],
             days: adScheduleDetails[id]?.days || ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'],
             frequency: adScheduleDetails[id]?.frequency || 0,
-            pacing: adScheduleDetails[id]?.pacing || 'uniform'
+            placements: adScheduleDetails[id]?.placements || ['portada']
           };
           return acc;
         }, {} as Record<string, AdScheduleDetail>)
@@ -26814,10 +26814,10 @@ function ProfilePanel({
       setAdSelectedStops([])
       setSelectedAdSchedules(['todos'])
       setAdScheduleDetails({
-        todos: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, pacing: 'uniform' },
-        morning: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, pacing: 'uniform' },
-        afternoon: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, pacing: 'uniform' },
-        night: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, pacing: 'uniform' }
+        todos: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: ['portada'] },
+        morning: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: ['portada'] },
+        afternoon: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: ['portada'] },
+        night: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: ['portada'] }
       })
       setAdSubmitting(false)
 
@@ -27359,13 +27359,36 @@ function ProfilePanel({
                             <span>{opt.label}</span>
                           </div>
                           {isSelected && budgetNum > 0 && (
-                            <div style={{ fontSize: '9px', color: '#10B981', fontWeight: 700, marginTop: '2px' }}>
-                              Consume: ${allocated.toFixed(0)} ({(() => {
-                                const mins = adCostPerMinute > 0 ? allocated / adCostPerMinute : 0;
-                                const m = Math.floor(mins);
-                                const s = Math.round((mins - m) * 60);
-                                return s === 0 ? `${m} min/día` : `${m}m ${s}s/día`;
-                              })()})
+                            <div style={{ fontSize: '9px', color: '#10B981', fontWeight: 700, marginTop: '2px', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                              <div>Consume: ${allocated.toFixed(0)}</div>
+                              <div style={{ fontSize: '8px', color: 'var(--text-muted)', fontWeight: 500, whiteSpace: 'normal', lineHeight: '1.2' }}>
+                                {(() => {
+                                  const detail = adScheduleDetails[opt.id] || { splits: 1, startTimes: [0], placements: ['portada'] };
+                                  const placements = detail.placements || ['portada'];
+                                  const budgetPerPlacement = placements.length > 0 ? allocated / placements.length : 0;
+                                  
+                                  const formatMins = (mins: number) => {
+                                    const m = Math.floor(mins);
+                                    const s = Math.round((mins - m) * 60);
+                                    return s === 0 ? `${m}m` : `${m}m ${s}s`;
+                                  };
+
+                                  const parts: string[] = [];
+                                  if (placements.includes('portada')) {
+                                    const mins = adCostPerMinute > 0 ? budgetPerPlacement / adCostPerMinute : 0;
+                                    parts.push(`Portada: ${formatMins(mins)}`);
+                                  }
+                                  if (placements.includes('mapa')) {
+                                    const mins = (adCostPerMinute + 120) > 0 ? budgetPerPlacement / (adCostPerMinute + 120) : 0;
+                                    parts.push(`Mapa: ${formatMins(mins)}`);
+                                  }
+                                  if (placements.includes('notificaciones')) {
+                                    const count = budgetPerPlacement / 100;
+                                    parts.push(`Notif: ${count.toFixed(1)}/día`);
+                                  }
+                                  return parts.join(', ');
+                                })()}
+                              </div>
                             </div>
                           )}
                         </button>
@@ -28079,6 +28102,84 @@ function ProfilePanel({
                 </select>
               </div>
 
+              {/* Canales de Publicación */}
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Canales de Publicación</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {/* Option 1: Portada */}
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={tempPlacements.includes('portada')}
+                      onChange={() => {
+                        setTempPlacements(prev => {
+                          if (prev.includes('portada')) {
+                            if (prev.length === 1) return prev;
+                            return prev.filter(p => p !== 'portada');
+                          }
+                          return [...prev, 'portada'];
+                        });
+                      }}
+                      style={{ accentColor: '#10B981', marginTop: '3px', cursor: 'pointer' }}
+                    />
+                    <div style={{ fontSize: '12px', color: 'var(--text-primary)' }}>
+                      <span style={{ fontWeight: 600 }}>Anuncio en portada principal</span>{' '}
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
+                        (el anuncio grande en la parte inferior del menú principal)
+                      </span>
+                    </div>
+                  </label>
+
+                  {/* Option 2: Mapa */}
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={tempPlacements.includes('mapa')}
+                      onChange={() => {
+                        setTempPlacements(prev => {
+                          if (prev.includes('mapa')) {
+                            if (prev.length === 1) return prev;
+                            return prev.filter(p => p !== 'mapa');
+                          }
+                          return [...prev, 'mapa'];
+                        });
+                      }}
+                      style={{ accentColor: '#10B981', marginTop: '3px', cursor: 'pointer' }}
+                    />
+                    <div style={{ fontSize: '12px', color: 'var(--text-primary)' }}>
+                      <span style={{ fontWeight: 600 }}>Anuncio en el mapa</span>{' '}
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
+                        (se muestra en el mapa al buscar la línea; dura 10s con versión corta del anuncio. Costo adicional: +$20 pesos por 10s. ¡10x más visualizaciones!)
+                      </span>
+                    </div>
+                  </label>
+
+                  {/* Option 3: Notificaciones */}
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={tempPlacements.includes('notificaciones')}
+                      onChange={() => {
+                        setTempPlacements(prev => {
+                          if (prev.includes('notificaciones')) {
+                            if (prev.length === 1) return prev;
+                            return prev.filter(p => p !== 'notificaciones');
+                          }
+                          return [...prev, 'notificaciones'];
+                        });
+                      }}
+                      style={{ accentColor: '#10B981', marginTop: '3px', cursor: 'pointer' }}
+                    />
+                    <div style={{ fontSize: '12px', color: 'var(--text-primary)' }}>
+                      <span style={{ fontWeight: 600 }}>Notificaciones</span>{' '}
+                      <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
+                        (notificaciones en el celular de usuarios acercándose a la parada. Costo: $100 pesos por notificación. ¡50x más visualizaciones!)
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
               {/* Actions */}
               <div style={{ display: 'flex', gap: '10px' }}>
                 <button
@@ -28088,6 +28189,7 @@ function ProfilePanel({
                     setTempStartTimes([0]);
                     setTempDays(['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom']);
                     setTempFrequency(0);
+                    setTempPlacements(['portada']);
                   }}
                   style={{
                     padding: '8px 14px',
@@ -28131,7 +28233,8 @@ function ProfilePanel({
                           splits: tempSplits,
                           startTimes: tempStartTimes.slice(0, tempSplits),
                           days: tempDays,
-                          frequency: tempFrequency
+                          frequency: tempFrequency,
+                          placements: tempPlacements
                         }
                       }));
                       setConfiguringSlotId(null);

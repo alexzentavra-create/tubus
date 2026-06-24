@@ -1940,17 +1940,43 @@ function AdsTab({ ads, setAds }: { ads: any[]; setAds: (val: any[]) => void }) {
 
                           const daysStr = detail.days ? detail.days.map((d: string) => d.toUpperCase()).join(',') : 'L,M,M,J,V,S,D';
                           const freqStr = detail.frequency === 0 || detail.frequency === undefined ? 'Continuo' : `Cada ${detail.frequency}m`;
-                          const pacingStr = detail.pacing === 'accelerated' ? 'Acelerado' : 'Uniforme';
-
                           return (
                             <span key={slotId} style={{ background: 'rgba(59,130,246,0.1)', color: '#60a5fa', padding: '6px 8px', borderRadius: '6px', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
                               <div>
                                 <strong>{slotNames[slotId] || slotId}</strong>: <span style={{ color: '#fff' }}>{intervals.join(', ')}</span>
                               </div>
-                              <div style={{ fontSize: '9px', color: '#a3a3a3', display: 'flex', gap: '8px' }}>
-                                <span>Días: <strong style={{ color: '#fff' }}>{daysStr}</strong></span>
-                                <span>Freq: <strong style={{ color: '#fff' }}>{freqStr}</strong></span>
-                                <span>Pacing: <strong style={{ color: '#fff' }}>{pacingStr}</strong></span>
+                              <div style={{ fontSize: '9px', color: '#a3a3a3', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                  <span>Días: <strong style={{ color: '#fff' }}>{daysStr}</strong></span>
+                                  <span>Freq: <strong style={{ color: '#fff' }}>{freqStr}</strong></span>
+                                </div>
+                                <div style={{ color: '#10B981', fontWeight: 600 }}>
+                                  {(() => {
+                                    const placements = detail.placements || ['portada'];
+                                    const budgetPerPlacement = placements.length > 0 ? allocatedBudget / placements.length : 0;
+                                    
+                                    const formatMins = (mins: number) => {
+                                      const m = Math.floor(mins);
+                                      const s = Math.round((mins - m) * 60);
+                                      return s === 0 ? `${m}m` : `${m}m ${s}s`;
+                                    };
+
+                                    const parts: string[] = [];
+                                    if (placements.includes('portada')) {
+                                      const mins = costPerMin > 0 ? budgetPerPlacement / costPerMin : 0;
+                                      parts.push(`Portada: ${formatMins(mins)}`);
+                                    }
+                                    if (placements.includes('mapa')) {
+                                      const mins = (costPerMin + 120) > 0 ? budgetPerPlacement / (costPerMin + 120) : 0;
+                                      parts.push(`Mapa: ${formatMins(mins)}`);
+                                    }
+                                    if (placements.includes('notificaciones')) {
+                                      const count = budgetPerPlacement / 100;
+                                      parts.push(`Notif: ${count.toFixed(1)}/día`);
+                                    }
+                                    return `Canales: ` + parts.join(', ');
+                                  })()}
+                                </div>
                               </div>
                             </span>
                           );
