@@ -26613,7 +26613,7 @@ function ProfilePanel({
   const [showRulesModal, setShowRulesModal] = useState(false)
   const [targetAudience, setTargetAudience] = useState('todos')
   const [influenceRadius, setInfluenceRadius] = useState('1km')
-  const [selectedAdSchedule, setSelectedAdSchedule] = useState<string>('todos')
+  const [selectedAdSchedules, setSelectedAdSchedules] = useState<string[]>(['todos'])
   const [adSelectedStops, setAdSelectedStops] = useState<string[]>([])
   const adFileInputRef = useRef<HTMLInputElement>(null)
   const [adCostPerMinute, setAdCostPerMinute] = useState(10)
@@ -26755,7 +26755,7 @@ function ProfilePanel({
         adminComment: 'Aguardando revisión del equipo de moderación.',
         targetAudience,
         influenceRadius,
-        selectedAdSchedule,
+        selectedAdSchedule: selectedAdSchedules.join(','),
         selectedStops: targetAudience !== 'todos' ? adSelectedStops : []
       }
 
@@ -26771,6 +26771,7 @@ function ProfilePanel({
       setAdUploadedImg(null)
       setAdTermsAccepted(false)
       setAdSelectedStops([])
+      setSelectedAdSchedules(['todos'])
       setAdSubmitting(false)
 
       // Schedule simulated review/approval in 5 seconds
@@ -27270,23 +27271,48 @@ function ProfilePanel({
                       { id: 'morning', label: 'Mañana (6-12h)', icon: '🌅' },
                       { id: 'afternoon', label: 'Tarde (12-20h)', icon: '🌇' },
                       { id: 'night', label: 'Noche (20-6h)', icon: '🌃' }
-                    ].map(opt => (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        onClick={() => setSelectedAdSchedule(opt.id)}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 10px', borderRadius: '8px',
-                          border: selectedAdSchedule === opt.id ? '2px solid #3B82F6' : prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
-                          background: selectedAdSchedule === opt.id ? 'rgba(59,130,246,0.1)' : 'transparent',
-                          color: selectedAdSchedule === opt.id ? '#3B82F6' : 'var(--text-primary)',
-                          fontSize: '11px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left'
-                        }}
-                      >
-                        <span>{opt.icon}</span>
-                        <span>{opt.label}</span>
-                      </button>
-                    ))}
+                    ].map(opt => {
+                      const isSelected = selectedAdSchedules.includes(opt.id)
+                      const budgetNum = Number(adBudget) || 0
+                      const allocated = isSelected && selectedAdSchedules.length > 0 ? (budgetNum / selectedAdSchedules.length) : 0
+
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            if (opt.id === 'todos') {
+                              setSelectedAdSchedules(['todos'])
+                            } else {
+                              setSelectedAdSchedules(prev => {
+                                if (prev.includes('todos')) {
+                                  return [opt.id]
+                                }
+                                const next = prev.includes(opt.id) ? prev.filter(x => x !== opt.id) : [...prev, opt.id]
+                                return next.length === 0 ? ['todos'] : next
+                              })
+                            }
+                          }}
+                          style={{
+                            display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px 10px', borderRadius: '8px',
+                            border: isSelected ? '2px solid #3B82F6' : prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                            background: isSelected ? 'rgba(59,130,246,0.1)' : 'transparent',
+                            color: isSelected ? '#3B82F6' : 'var(--text-primary)',
+                            fontSize: '11px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s', textAlign: 'left'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>{opt.icon}</span>
+                            <span>{opt.label}</span>
+                          </div>
+                          {isSelected && budgetNum > 0 && (
+                            <div style={{ fontSize: '9px', color: '#10B981', fontWeight: 700, marginTop: '2px' }}>
+                              Consume: ${allocated.toFixed(0)}
+                            </div>
+                          )}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
 
@@ -27304,7 +27330,7 @@ function ProfilePanel({
                 }}>
                   <div style={{ display: 'flex', flexDirection: 'column' }}>
                     <span style={{ color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600 }}>Presupuesto $</span>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '1px' }}>Monto sugerido en pesos/USD</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '1px' }}>Monto usado en Pesos Argentinos</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ color: 'var(--text-secondary)', fontSize: '16px', fontWeight: 600, fontFamily: 'DM Mono' }}>$</span>
@@ -27330,6 +27356,44 @@ function ProfilePanel({
                     />
                   </div>
                 </div>
+
+                {/* Estimate Runtime Display */}
+                {(() => {
+                  const budgetNum = Number(adBudget) || 0
+                  if (budgetNum <= 0) return null
+                  const totalMinutes = adCostPerMinute > 0 ? budgetNum / adCostPerMinute : 0
+                  const totalHours = totalMinutes / 60
+                  const totalDays = totalHours / 24
+
+                  let durationText = ''
+                  if (totalDays >= 1) {
+                    durationText = `${totalDays.toFixed(1)} días (${totalHours.toFixed(0)} horas)`
+                  } else if (totalHours >= 1) {
+                    durationText = `${totalHours.toFixed(1)} horas (${totalMinutes.toFixed(0)} minutos)`
+                  } else {
+                    durationText = `${totalMinutes.toFixed(0)} minutos`
+                  }
+
+                  return (
+                    <div style={{
+                      marginBottom: '12px',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(16, 185, 129, 0.08)',
+                      border: '1px solid rgba(16, 185, 129, 0.2)',
+                      fontSize: '11px',
+                      color: prefs.darkMap ? '#a7f3d0' : '#065f46'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                        <span style={{ fontWeight: 600 }}>Exhibición estimada:</span>
+                        <span style={{ fontWeight: 800 }}>{durationText}</span>
+                      </div>
+                      <div style={{ fontSize: '9px', color: 'var(--text-muted)' }}>
+                        Costo de <strong>${adCostPerMinute} por minuto</strong> (configurado por administración).
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 {/* URL de Imagen / Upload file */}
                 <div style={{ marginBottom: '12px' }}>
