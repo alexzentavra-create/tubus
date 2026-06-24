@@ -26627,17 +26627,71 @@ function ProfilePanel({
     placements?: string[];
   }
   const [adScheduleDetails, setAdScheduleDetails] = useState<Record<string, AdScheduleDetail>>({
-    todos: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: ['portada'] },
-    morning: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: ['portada'] },
-    afternoon: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: ['portada'] },
-    night: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: ['portada'] }
+    todos: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: [] },
+    morning: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: [] },
+    afternoon: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: [] },
+    night: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: [] }
   })
   const [configuringSlotId, setConfiguringSlotId] = useState<string | null>(null)
   const [tempSplits, setTempSplits] = useState(1)
   const [tempStartTimes, setTempStartTimes] = useState<number[]>([0])
   const [tempDays, setTempDays] = useState<string[]>(['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'])
   const [tempFrequency, setTempFrequency] = useState<number>(0)
-  const [tempPlacements, setTempPlacements] = useState<string[]>(['portada'])
+  const [tempPlacements, setTempPlacements] = useState<string[]>([])
+
+  const clickTimersRef = useRef<Record<string, NodeJS.Timeout | null>>({})
+  const lastClicksRef = useRef<Record<string, number>>({})
+
+  const handleSlotClick = (slotId: string) => {
+    if (slotId === 'todos') {
+      setSelectedAdSchedules(['todos'])
+    } else {
+      setSelectedAdSchedules(prev => {
+        if (prev.includes('todos')) {
+          return [slotId]
+        }
+        const next = prev.includes(slotId) ? prev.filter(x => x !== slotId) : [...prev, slotId]
+        return next.length === 0 ? ['todos'] : next
+      })
+    }
+  }
+
+  const handleSlotDoubleClick = (slotId: string) => {
+    setSelectedAdSchedules(prev => {
+      if (slotId === 'todos') {
+        return ['todos']
+      }
+      if (prev.includes('todos')) {
+        return [slotId]
+      }
+      if (!prev.includes(slotId)) {
+        return [...prev, slotId]
+      }
+      return prev
+    })
+    setConfiguringSlotId(slotId)
+  }
+
+  const handleSlotClickOrDoubleClick = (slotId: string) => {
+    const now = Date.now()
+    const lastClick = lastClicksRef.current[slotId] || 0
+    if (now - lastClick < 300) {
+      if (clickTimersRef.current[slotId]) {
+        clearTimeout(clickTimersRef.current[slotId]!)
+        clickTimersRef.current[slotId] = null
+      }
+      handleSlotDoubleClick(slotId)
+    } else {
+      if (clickTimersRef.current[slotId]) {
+        clearTimeout(clickTimersRef.current[slotId]!)
+      }
+      clickTimersRef.current[slotId] = setTimeout(() => {
+        clickTimersRef.current[slotId] = null
+        handleSlotClick(slotId)
+      }, 250)
+    }
+    lastClicksRef.current[slotId] = now
+  }
 
   useEffect(() => {
     if (configuringSlotId && adScheduleDetails[configuringSlotId]) {
@@ -26645,7 +26699,7 @@ function ProfilePanel({
       setTempStartTimes(adScheduleDetails[configuringSlotId].startTimes)
       setTempDays(adScheduleDetails[configuringSlotId].days || ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'])
       setTempFrequency(adScheduleDetails[configuringSlotId].frequency || 0)
-      setTempPlacements(adScheduleDetails[configuringSlotId].placements || ['portada'])
+      setTempPlacements(adScheduleDetails[configuringSlotId].placements || [])
     }
   }, [configuringSlotId, adScheduleDetails])
 
@@ -26794,7 +26848,7 @@ function ProfilePanel({
             startTimes: adScheduleDetails[id]?.startTimes || [0],
             days: adScheduleDetails[id]?.days || ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'],
             frequency: adScheduleDetails[id]?.frequency || 0,
-            placements: adScheduleDetails[id]?.placements || ['portada']
+            placements: adScheduleDetails[id]?.placements || []
           };
           return acc;
         }, {} as Record<string, AdScheduleDetail>)
@@ -26814,10 +26868,10 @@ function ProfilePanel({
       setAdSelectedStops([])
       setSelectedAdSchedules(['todos'])
       setAdScheduleDetails({
-        todos: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: ['portada'] },
-        morning: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: ['portada'] },
-        afternoon: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: ['portada'] },
-        night: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: ['portada'] }
+        todos: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: [] },
+        morning: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: [] },
+        afternoon: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: [] },
+        night: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: [] }
       })
       setAdSubmitting(false)
 
@@ -27327,25 +27381,8 @@ function ProfilePanel({
                         <button
                           key={opt.id}
                           type="button"
-                          onClick={() => {
-                            if (opt.id === 'todos') {
-                              setSelectedAdSchedules(['todos'])
-                            } else {
-                              setSelectedAdSchedules(prev => {
-                                if (prev.includes('todos')) {
-                                  return [opt.id]
-                                }
-                                const next = prev.includes(opt.id) ? prev.filter(x => x !== opt.id) : [...prev, opt.id]
-                                return next.length === 0 ? ['todos'] : next
-                              })
-                            }
-                          }}
-                          onDoubleClick={() => {
-                            if (isSelected) {
-                              setConfiguringSlotId(opt.id)
-                            }
-                          }}
-                          title={isSelected ? "Doble clic para configurar horarios exactos" : undefined}
+                          onClick={() => handleSlotClickOrDoubleClick(opt.id)}
+                          title="Clic para seleccionar, doble clic para configurar"
                           style={{
                             display: 'flex', flexDirection: 'column', gap: '4px', padding: '8px 10px', borderRadius: '8px',
                             border: isSelected ? '2px solid #3B82F6' : prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
@@ -27363,8 +27400,11 @@ function ProfilePanel({
                               <div>Consume: ${allocated.toFixed(0)}</div>
                               <div style={{ fontSize: '8px', color: 'var(--text-muted)', fontWeight: 500, whiteSpace: 'normal', lineHeight: '1.2' }}>
                                 {(() => {
-                                  const detail = adScheduleDetails[opt.id] || { splits: 1, startTimes: [0], placements: ['portada'] };
-                                  const placements = detail.placements || ['portada'];
+                                  const detail = adScheduleDetails[opt.id] || { splits: 1, startTimes: [0], placements: [] };
+                                  const placements = detail.placements || [];
+                                  if (placements.length === 0) {
+                                    return 'Sin canales seleccionados (doble clic)';
+                                  }
                                   const budgetPerPlacement = placements.length > 0 ? allocated / placements.length : 0;
                                   
                                   const formatMins = (mins: number) => {
@@ -28104,77 +28144,129 @@ function ProfilePanel({
 
               {/* Canales de Publicación */}
               <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Canales de Publicación</label>
+                <label style={{ display: 'block', color: '#FFFFFF', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Canales de Publicación</label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {/* Option 1: Portada */}
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={tempPlacements.includes('portada')}
-                      onChange={() => {
-                        setTempPlacements(prev => {
-                          if (prev.includes('portada')) {
-                            if (prev.length === 1) return prev;
-                            return prev.filter(p => p !== 'portada');
-                          }
-                          return [...prev, 'portada'];
-                        });
-                      }}
-                      style={{ accentColor: '#10B981', marginTop: '3px', cursor: 'pointer' }}
-                    />
-                    <div style={{ fontSize: '12px', color: 'var(--text-primary)' }}>
-                      <span style={{ fontWeight: 600 }}>Anuncio en portada principal</span>{' '}
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
-                        (el anuncio grande en la parte inferior del menú principal)
-                      </span>
+                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', padding: '12px', borderRadius: '8px', background: tempPlacements.includes('portada') ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.03)', border: tempPlacements.includes('portada') ? '1px solid #10B981' : '1px solid rgba(255,255,255,0.08)', cursor: 'pointer', transition: 'all 0.2s' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1 }}>
+                      <input
+                        type="checkbox"
+                        checked={tempPlacements.includes('portada')}
+                        onChange={() => {
+                          setTempPlacements(prev => {
+                            if (prev.includes('portada')) {
+                              return prev.filter(p => p !== 'portada');
+                            }
+                            return [...prev, 'portada'];
+                          });
+                        }}
+                        style={{ accentColor: '#10B981', marginTop: '4px', cursor: 'pointer', width: '16px', height: '16px' }}
+                      />
+                      <div style={{ fontSize: '12px', color: '#FFFFFF' }}>
+                        <span style={{ fontWeight: 700, fontSize: '13px', display: 'block', marginBottom: '2px' }}>Anuncio en portada principal</span>
+                        <span style={{ color: '#E5E7EB', fontSize: '11px', lineHeight: '1.4' }}>
+                          (el anuncio grande en la parte inferior del menú principal)
+                        </span>
+                      </div>
+                    </div>
+                    {/* Visual Preview */}
+                    <div style={{ flexShrink: 0 }}>
+                      <div style={{ width: '75px', height: '105px', background: '#1F2937', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', position: 'relative', overflow: 'hidden', padding: '4px', display: 'flex', flexDirection: 'column', gap: '3px', boxSizing: 'border-box' }}>
+                        <div style={{ height: '8px', background: '#374151', borderRadius: '2px', width: '70%' }} />
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <div style={{ height: '12px', background: '#4B5563', borderRadius: '3px' }} />
+                          <div style={{ height: '12px', background: '#4B5563', borderRadius: '3px' }} />
+                          <div style={{ height: '12px', background: '#4B5563', borderRadius: '3px' }} />
+                        </div>
+                        <div style={{ height: '24px', background: 'linear-gradient(135deg, #10B981, #059669)', borderRadius: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '6px', fontWeight: 'bold', textAlign: 'center', lineHeight: '1.1' }}>
+                          PORTADA AD
+                        </div>
+                      </div>
                     </div>
                   </label>
 
                   {/* Option 2: Mapa */}
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={tempPlacements.includes('mapa')}
-                      onChange={() => {
-                        setTempPlacements(prev => {
-                          if (prev.includes('mapa')) {
-                            if (prev.length === 1) return prev;
-                            return prev.filter(p => p !== 'mapa');
-                          }
-                          return [...prev, 'mapa'];
-                        });
-                      }}
-                      style={{ accentColor: '#10B981', marginTop: '3px', cursor: 'pointer' }}
-                    />
-                    <div style={{ fontSize: '12px', color: 'var(--text-primary)' }}>
-                      <span style={{ fontWeight: 600 }}>Anuncio en el mapa</span>{' '}
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
-                        (se muestra en el mapa al buscar la línea; dura 10s con versión corta del anuncio. Costo adicional: +$20 pesos por 10s. ¡10x más visualizaciones!)
-                      </span>
+                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', padding: '12px', borderRadius: '8px', background: tempPlacements.includes('mapa') ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.03)', border: tempPlacements.includes('mapa') ? '1px solid #10B981' : '1px solid rgba(255,255,255,0.08)', cursor: 'pointer', transition: 'all 0.2s' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1 }}>
+                      <input
+                        type="checkbox"
+                        checked={tempPlacements.includes('mapa')}
+                        onChange={() => {
+                          setTempPlacements(prev => {
+                            if (prev.includes('mapa')) {
+                              return prev.filter(p => p !== 'mapa');
+                            }
+                            return [...prev, 'mapa'];
+                          });
+                        }}
+                        style={{ accentColor: '#10B981', marginTop: '4px', cursor: 'pointer', width: '16px', height: '16px' }}
+                      />
+                      <div style={{ fontSize: '12px', color: '#FFFFFF' }}>
+                        <span style={{ fontWeight: 700, fontSize: '13px', display: 'block', marginBottom: '2px' }}>Anuncio en el mapa</span>
+                        <span style={{ color: '#E5E7EB', fontSize: '11px', lineHeight: '1.4' }}>
+                          (se muestra en el mapa al buscar la línea; dura 10s con versión corta del anuncio. Costo adicional: +$20 pesos por 10s. ¡10x más visualizaciones!)
+                        </span>
+                      </div>
+                    </div>
+                    {/* Visual Preview */}
+                    <div style={{ flexShrink: 0 }}>
+                      <div style={{ width: '75px', height: '105px', background: '#1F2937', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', position: 'relative', overflow: 'hidden', boxSizing: 'border-box' }}>
+                        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.15 }}>
+                          <div style={{ borderLeft: '1px solid #fff', height: '100%', left: '30%', position: 'absolute' }} />
+                          <div style={{ borderLeft: '1px solid #fff', height: '100%', left: '60%', position: 'absolute' }} />
+                          <div style={{ borderTop: '1px solid #fff', width: '100%', top: '40%', position: 'absolute' }} />
+                          <div style={{ borderTop: '1px solid #fff', width: '100%', top: '70%', position: 'absolute' }} />
+                        </div>
+                        <div style={{ position: 'absolute', top: '20px', left: '10px', width: '45px', height: '50px', borderLeft: '2px solid #3B82F6', borderBottom: '2px solid #3B82F6', opacity: 0.7 }} />
+                        <div style={{ position: 'absolute', top: '15px', left: '8px', width: '6px', height: '6px', borderRadius: '50%', background: '#EF4444' }} />
+                        <div style={{ position: 'absolute', bottom: '8px', left: '6px', right: '6px', height: '38px', background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.4)', padding: '2px', display: 'flex', flexDirection: 'column', gap: '2px', justifyContent: 'center', alignItems: 'center', boxSizing: 'border-box' }}>
+                          <div style={{ fontSize: '5.5px', color: '#fff', fontWeight: 'bold' }}>MAP AD</div>
+                          <div style={{ width: '100%', height: '3px', background: 'rgba(255,255,255,0.3)', borderRadius: '1px' }} />
+                          <div style={{ width: '80%', height: '2px', background: '#10B981', borderRadius: '1px' }} />
+                        </div>
+                      </div>
                     </div>
                   </label>
 
                   {/* Option 3: Notificaciones */}
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={tempPlacements.includes('notificaciones')}
-                      onChange={() => {
-                        setTempPlacements(prev => {
-                          if (prev.includes('notificaciones')) {
-                            if (prev.length === 1) return prev;
-                            return prev.filter(p => p !== 'notificaciones');
-                          }
-                          return [...prev, 'notificaciones'];
-                        });
-                      }}
-                      style={{ accentColor: '#10B981', marginTop: '3px', cursor: 'pointer' }}
-                    />
-                    <div style={{ fontSize: '12px', color: 'var(--text-primary)' }}>
-                      <span style={{ fontWeight: 600 }}>Notificaciones</span>{' '}
-                      <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>
-                        (notificaciones en el celular de usuarios acercándose a la parada. Costo: $100 pesos por notificación. ¡50x más visualizaciones!)
-                      </span>
+                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', padding: '12px', borderRadius: '8px', background: tempPlacements.includes('notificaciones') ? 'rgba(16,185,129,0.08)' : 'rgba(255,255,255,0.03)', border: tempPlacements.includes('notificaciones') ? '1px solid #10B981' : '1px solid rgba(255,255,255,0.08)', cursor: 'pointer', transition: 'all 0.2s' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1 }}>
+                      <input
+                        type="checkbox"
+                        checked={tempPlacements.includes('notificaciones')}
+                        onChange={() => {
+                          setTempPlacements(prev => {
+                            if (prev.includes('notificaciones')) {
+                              return prev.filter(p => p !== 'notificaciones');
+                            }
+                            return [...prev, 'notificaciones'];
+                          });
+                        }}
+                        style={{ accentColor: '#10B981', marginTop: '4px', cursor: 'pointer', width: '16px', height: '16px' }}
+                      />
+                      <div style={{ fontSize: '12px', color: '#FFFFFF' }}>
+                        <span style={{ fontWeight: 700, fontSize: '13px', display: 'block', marginBottom: '2px' }}>Notificaciones</span>
+                        <span style={{ color: '#E5E7EB', fontSize: '11px', lineHeight: '1.4' }}>
+                          (notificaciones en el celular de usuarios acercándose a la parada. Costo: $100 pesos por notificación. ¡50x más visualizaciones!)
+                        </span>
+                      </div>
+                    </div>
+                    {/* Visual Preview */}
+                    <div style={{ flexShrink: 0 }}>
+                      <div style={{ width: '75px', height: '105px', background: 'linear-gradient(180deg, #312E81, #1E1B4B)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', position: 'relative', overflow: 'hidden', padding: '4px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', boxSizing: 'border-box' }}>
+                        <div style={{ fontSize: '7px', color: 'rgba(255,255,255,0.7)', fontWeight: 'bold', marginTop: '2px' }}>12:30</div>
+                        <div style={{ width: '100%', background: 'rgba(255,255,255,0.95)', borderRadius: '5px', padding: '3px', display: 'flex', flexDirection: 'column', gap: '1px', boxShadow: '0 2px 4px rgba(0,0,0,0.3)', boxSizing: 'border-box' }}>
+                          <div style={{ display: 'flex', justifySelf: 'stretch', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+                              <span style={{ fontSize: '5px' }}>🔔</span>
+                              <span style={{ fontSize: '4.5px', fontWeight: 'bold', color: '#111827' }}>TuBus</span>
+                            </div>
+                            <span style={{ fontSize: '3px', color: '#6B7280' }}>ahora</span>
+                          </div>
+                          <div style={{ fontSize: '4px', fontWeight: 'bold', color: '#111827', lineHeight: 1.1 }}>¡Anuncio Cerca!</div>
+                          <div style={{ fontSize: '3.5px', color: '#374151', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>Llegando a la parada...</div>
+                        </div>
+                      </div>
                     </div>
                   </label>
                 </div>
@@ -28189,7 +28281,7 @@ function ProfilePanel({
                     setTempStartTimes([0]);
                     setTempDays(['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom']);
                     setTempFrequency(0);
-                    setTempPlacements(['portada']);
+                    setTempPlacements([]);
                   }}
                   style={{
                     padding: '8px 14px',
@@ -28226,6 +28318,10 @@ function ProfilePanel({
                 <button
                   type="button"
                   onClick={() => {
+                    if (tempPlacements.length === 0) {
+                      alert("Por favor, selecciona al menos un canal de publicación.");
+                      return;
+                    }
                     if (configuringSlotId) {
                       setAdScheduleDetails(prev => ({
                         ...prev,
