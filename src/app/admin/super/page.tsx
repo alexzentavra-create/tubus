@@ -1756,6 +1756,23 @@ function AnalyticsTab() {
 // ─── AdsTab Component ─────────────────────────────────────────────────────────
 function AdsTab({ ads, setAds }: { ads: any[]; setAds: (val: any[]) => void }) {
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({})
+  const [costPerMinuteInput, setCostPerMinuteInput] = useState('10')
+
+  useEffect(() => {
+    const saved = localStorage.getItem('ad_cost_per_minute')
+    if (saved) {
+      setCostPerMinuteInput(saved)
+    }
+  }, [])
+
+  const saveCostPerMinute = () => {
+    localStorage.setItem('ad_cost_per_minute', costPerMinuteInput)
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'ad_cost_per_minute',
+      newValue: costPerMinuteInput
+    }))
+    toast.success('Costo por minuto de anuncios actualizado')
+  }
 
   const updateAdStatus = (id: string, status: 'approved' | 'rejected') => {
     const updated = ads.map(ad => ad.id === id ? { ...ad, status } : ad)
@@ -1782,6 +1799,43 @@ function AdsTab({ ads, setAds }: { ads: any[]; setAds: (val: any[]) => void }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* Configuration Card */}
+      <div style={{
+        background: '#121527',
+        borderRadius: '12px',
+        border: '1px solid rgba(255, 255, 255, 0.06)',
+        padding: '20px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '16px'
+      }}>
+        <div>
+          <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 4px 0', color: '#fff' }}>Tarifas de Publicidad</h3>
+          <p style={{ fontSize: '12px', color: '#8f94a5', margin: 0 }}>Define el costo por minuto de exhibición de anuncios en la red TuBus.</p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#0b0f19', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '8px', padding: '6px 12px' }}>
+            <span style={{ color: '#8f94a5', fontSize: '13px' }}>$</span>
+            <input
+              type="number"
+              value={costPerMinuteInput}
+              onChange={e => setCostPerMinuteInput(e.target.value)}
+              style={{ width: '60px', background: 'transparent', border: 'none', color: '#fff', fontSize: '14px', outline: 'none', fontWeight: 600 }}
+            />
+            <span style={{ color: '#8f94a5', fontSize: '12px' }}>/ min</span>
+          </div>
+          <button
+            onClick={saveCostPerMinute}
+            style={{
+              background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s'
+            }}
+          >
+            Guardar Tarifa
+          </button>
+        </div>
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
         <KPI icon={Megaphone} label="Anuncios Totales" value={ads.length} color="#3b82f6" />
         <KPI icon={CheckCircle2} label="Aprobados" value={ads.filter(a => a.status === 'approved').length} color="#00c689" />

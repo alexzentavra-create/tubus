@@ -26613,9 +26613,27 @@ function ProfilePanel({
   const [showRulesModal, setShowRulesModal] = useState(false)
   const [targetAudience, setTargetAudience] = useState('todos')
   const [influenceRadius, setInfluenceRadius] = useState('1km')
-  const [selectedAdSchedule, setSelectedAdSchedule] = useState('todos')
+  const [selectedAdSchedule, setSelectedAdSchedule] = useState<string>('todos')
   const [adSelectedStops, setAdSelectedStops] = useState<string[]>([])
   const adFileInputRef = useRef<HTMLInputElement>(null)
+  const [adCostPerMinute, setAdCostPerMinute] = useState(10)
+
+  useEffect(() => {
+    const saved = localStorage.getItem('ad_cost_per_minute')
+    if (saved) {
+      setAdCostPerMinute(Number(saved))
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'ad_cost_per_minute' && e.newValue) {
+        setAdCostPerMinute(Number(e.newValue))
+      }
+    }
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
 
   const handleAdImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
