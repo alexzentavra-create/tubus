@@ -26572,7 +26572,7 @@ function ProfilePanel({
   searchHistory: any[]
   setSearchHistory: (val: any[]) => void
   adSubmissions: any[]
-  setAdSubmissions: (val: any[]) => void
+  setAdSubmissions: React.Dispatch<React.SetStateAction<any[]>>
   chatMessages: any[]
   setChatMessages: any
   setOriginInput: (val: string) => void
@@ -26628,6 +26628,12 @@ function ProfilePanel({
   const [adSelectedStops, setAdSelectedStops] = useState<string[]>([])
   const adFileInputRef = useRef<HTMLInputElement>(null)
   const [adCostPerMinute, setAdCostPerMinute] = useState(5)
+
+  const [showMercadoPagoModal, setShowMercadoPagoModal] = useState(false)
+  const [pendingAd, setPendingAd] = useState<any>(null)
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false)
+  const [paymentSuccess, setPaymentSuccess] = useState(false)
+  const [paymentAmount, setPaymentAmount] = useState(0)
 
   interface AdScheduleDetail {
     splits: number;
@@ -26834,74 +26840,35 @@ function ProfilePanel({
       return
     }
 
-    setAdSubmitting(true)
+    const newAd = {
+      id: Date.now().toString(),
+      title: adTitle,
+      description: adDesc,
+      targetUrl: adUrl || 'https://tubus.com.ar',
+      imageUrl: adUploadedImg || adImg || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80',
+      budget: Number(adBudget) || 50,
+      status: 'pending',
+      created_at: new Date().toISOString(),
+      adminComment: 'Aguardando revisión del equipo de moderación y aprobación de pago.',
+      targetAudience,
+      influenceRadius,
+      selectedAdSchedule: selectedAdSchedules.join(','),
+      selectedStops: targetAudience !== 'todos' ? adSelectedStops : [],
+      adScheduleDetails: selectedAdSchedules.reduce((acc, id) => {
+        acc[id] = {
+          splits: adScheduleDetails[id]?.splits || 1,
+          startTimes: adScheduleDetails[id]?.startTimes || [0],
+          days: adScheduleDetails[id]?.days || ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'],
+          frequency: adScheduleDetails[id]?.frequency || 0,
+          placements: adScheduleDetails[id]?.placements || []
+        };
+        return acc;
+      }, {} as Record<string, AdScheduleDetail>)
+    };
 
-    // Simulate submission flow
-    setTimeout(() => {
-      const newAd = {
-        id: Date.now().toString(),
-        title: adTitle,
-        description: adDesc,
-        targetUrl: adUrl || 'https://tubus.com.ar',
-        imageUrl: adUploadedImg || adImg || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80',
-        budget: Number(adBudget) || 50,
-        status: 'pending',
-        created_at: new Date().toISOString(),
-        adminComment: 'Aguardando revisión del equipo de moderación.',
-        targetAudience,
-        influenceRadius,
-        selectedAdSchedule: selectedAdSchedules.join(','),
-        selectedStops: targetAudience !== 'todos' ? adSelectedStops : [],
-        adScheduleDetails: selectedAdSchedules.reduce((acc, id) => {
-          acc[id] = {
-            splits: adScheduleDetails[id]?.splits || 1,
-            startTimes: adScheduleDetails[id]?.startTimes || [0],
-            days: adScheduleDetails[id]?.days || ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'],
-            frequency: adScheduleDetails[id]?.frequency || 0,
-            placements: adScheduleDetails[id]?.placements || []
-          };
-          return acc;
-        }, {} as Record<string, AdScheduleDetail>)
-      }
-
-      const updated = [newAd, ...adSubmissions]
-      setAdSubmissions(updated)
-      localStorage.setItem('bu_submitted_ads', JSON.stringify(updated))
-
-      setAdTitle('')
-      setAdDesc('')
-      setAdUrl('')
-      setAdImg('')
-      setAdBudget('50')
-      setAdUploadedImg(null)
-      setAdTermsAccepted(false)
-      setAdSelectedStops([])
-      setSelectedAdSchedules(['todos'])
-      setAdScheduleDetails({
-        todos: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: [] },
-        morning: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: [] },
-        afternoon: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: [] },
-        night: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: [] }
-      })
-      setAdSubmitting(false)
-
-      // Schedule simulated review/approval in 5 seconds
-      setTimeout(() => {
-        const approvedAds = updated.map(ad => {
-          if (ad.id === newAd.id) {
-            return {
-              ...ad,
-              status: 'approved',
-              adminComment: '¡Tu anuncio ha sido verificado y ya está circulando en la red TuBus!'
-            }
-          }
-          return ad
-        })
-        setAdSubmissions(approvedAds)
-        localStorage.setItem('bu_submitted_ads', JSON.stringify(approvedAds))
-      }, 5000)
-
-    }, 800)
+    setPendingAd(newAd);
+    setPaymentAmount(newAd.budget);
+    setShowMercadoPagoModal(true);
   }
 
   const handleSendMessage = (e: React.FormEvent) => {
@@ -27613,13 +27580,13 @@ function ProfilePanel({
                   disabled={adSubmitting}
                   style={{
                     width: '100%', padding: '12px', borderRadius: '10px', border: 'none',
-                    background: 'linear-gradient(90deg, #F59E0B, #D97706)', color: 'white',
+                    background: 'linear-gradient(90deg, #009EE3, #007EB5)', color: 'white',
                     fontSize: '13px', fontWeight: 700, cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                    boxShadow: '0 2px 4px rgba(245,158,11,0.2)', transition: 'transform 0.1s, opacity 0.2s'
+                    boxShadow: '0 2px 4px rgba(0,158,227,0.2)', transition: 'transform 0.1s, opacity 0.2s'
                   }}
                 >
-                  {adSubmitting ? 'Cargando campaña...' : 'Enviar Anuncio a Revisión'}
+                  {adSubmitting ? 'Cargando campaña...' : 'Pagar anuncio y enviar para revisión'}
                 </button>
               </form>
             </GlassCard>
@@ -27656,11 +27623,11 @@ function ProfilePanel({
                             padding: '2px 6px',
                             borderRadius: '999px',
                             textTransform: 'uppercase',
-                            background: ad.status === 'approved' ? 'rgba(16,185,129,0.15)' : ad.status === 'rejected' ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)',
-                            color: ad.status === 'approved' ? '#34D399' : ad.status === 'rejected' ? '#F87171' : '#FBBF24',
-                            border: `1px solid ${ad.status === 'approved' ? 'rgba(16,185,129,0.3)' : ad.status === 'rejected' ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.3)'}`
+                            background: ad.status === 'approved' ? 'rgba(16,185,129,0.15)' : ad.status === 'rejected' ? 'rgba(239,68,68,0.15)' : ad.status === 'expired' ? 'rgba(108,117,125,0.15)' : 'rgba(245,158,11,0.15)',
+                            color: ad.status === 'approved' ? '#34D399' : ad.status === 'rejected' ? '#F87171' : ad.status === 'expired' ? '#94A3B8' : '#FBBF24',
+                            border: `1px solid ${ad.status === 'approved' ? 'rgba(16,185,129,0.3)' : ad.status === 'rejected' ? 'rgba(239,68,68,0.3)' : ad.status === 'expired' ? 'rgba(108,117,125,0.3)' : 'rgba(245,158,11,0.3)'}`
                           }}>
-                            {ad.status === 'approved' ? 'Aprobado' : ad.status === 'rejected' ? 'Rechazado' : 'Pendiente'}
+                            {ad.status === 'approved' ? 'Aprobado' : ad.status === 'rejected' ? 'Rechazado' : ad.status === 'expired' ? 'Finalizado' : 'Pendiente'}
                           </span>
                         </div>
 
@@ -27675,6 +27642,58 @@ function ProfilePanel({
                           <div style={{ marginTop: '8px', padding: '8px', borderRadius: '6px', background: 'rgba(255,255,255,0.03)', borderLeft: '3px solid #64748B', fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
                             <strong style={{ color: 'var(--text-secondary)', display: 'block', marginBottom: '2px', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Moderador:</strong>
                             {ad.adminComment}
+                          </div>
+                        )}
+
+                        {ad.status === 'expired' && (
+                          <div style={{ display: 'flex', gap: '8px', marginTop: '10px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '10px' }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setPendingAd(ad);
+                                setPaymentAmount(ad.budget);
+                                setShowMercadoPagoModal(true);
+                              }}
+                              style={{
+                                flex: 1,
+                                padding: '6px 10px',
+                                borderRadius: '6px',
+                                border: 'none',
+                                background: '#10B981',
+                                color: '#FFFFFF',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                transition: 'all 150ms'
+                              }}
+                            >
+                              Renovar Pago
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (confirm('¿Estás seguro de que deseas cancelar y eliminar este anuncio?')) {
+                                  const updated = adSubmissions.filter(item => item.id !== ad.id);
+                                  setAdSubmissions(updated);
+                                  localStorage.setItem('bu_submitted_ads', JSON.stringify(updated));
+                                  toast.success('Anuncio cancelado y eliminado.');
+                                }
+                              }}
+                              style={{
+                                flex: 1,
+                                padding: '6px 10px',
+                                borderRadius: '6px',
+                                border: '1px solid rgba(239,68,68,0.4)',
+                                background: 'transparent',
+                                color: '#EF4444',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                transition: 'all 150ms'
+                              }}
+                            >
+                              Cancelar Anuncio
+                            </button>
                           </div>
                         )}
                       </div>
@@ -27804,7 +27823,9 @@ function ProfilePanel({
         
         const budgetNum = Number(adBudget) || 0;
         const allocatedBudget = selectedAdSchedules.length > 0 ? (budgetNum / selectedAdSchedules.length) : 0;
-        const slotDuration = adCostPerMinute > 0 ? allocatedBudget / adCostPerMinute : 0;
+        const rawSlotDuration = adCostPerMinute > 0 ? allocatedBudget / adCostPerMinute : 0;
+        const isMultiDay = rawSlotDuration > maxSlotMins;
+        const slotDuration = isMultiDay ? maxSlotMins : rawSlotDuration;
         const splitDuration = tempSplits > 0 ? slotDuration / tempSplits : 0;
 
         const formatOffsetToTime = (slotId: string, offsetMins: number) => {
@@ -27863,44 +27884,63 @@ function ProfilePanel({
               </div>
 
               {/* Splits selector */}
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Cantidad de Períodos</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  {[1, 2, 3].map(num => (
-                    <button
-                      key={num}
-                      type="button"
-                      onClick={() => {
-                        setTempSplits(num);
-                        const defaults = [];
-                        const step = maxSlotMins / num;
-                        for (let i = 0; i < num; i++) {
-                          const val = Math.min(maxSlotMins - splitDuration, Math.round(i * step));
-                          defaults.push(val);
-                        }
-                        setTempStartTimes(defaults);
-                      }}
-                      style={{
-                        flex: 1,
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        border: tempSplits === num ? '2px solid #10B981' : '1px solid rgba(255,255,255,0.1)',
-                        background: tempSplits === num ? 'rgba(16,185,129,0.1)' : 'transparent',
-                        color: tempSplits === num ? '#10B981' : 'var(--text-primary)',
-                        fontWeight: 600,
-                        fontSize: '12px',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s'
-                      }}
-                    >
-                      {num} {num === 1 ? 'período' : 'períodos'}
-                    </button>
-                  ))}
+              {!isMultiDay ? (
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Cantidad de Períodos</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {[1, 2, 3].map(num => (
+                      <button
+                        key={num}
+                        type="button"
+                        onClick={() => {
+                          setTempSplits(num);
+                          const defaults = [];
+                          const step = maxSlotMins / num;
+                          for (let i = 0; i < num; i++) {
+                            const val = Math.min(maxSlotMins - splitDuration, Math.round(i * step));
+                            defaults.push(val);
+                          }
+                          setTempStartTimes(defaults);
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          border: tempSplits === num ? '2px solid #10B981' : '1px solid rgba(255,255,255,0.1)',
+                          background: tempSplits === num ? 'rgba(16,185,129,0.1)' : 'transparent',
+                          color: tempSplits === num ? '#10B981' : 'var(--text-primary)',
+                          fontWeight: 600,
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s'
+                        }}
+                      >
+                        {num} {num === 1 ? 'período' : 'períodos'}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                    Cada período durará <strong style={{ color: '#10B981' }}>{formatDuration(splitDuration)}</strong>
+                  </div>
                 </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
-                  Cada período durará <strong style={{ color: '#10B981' }}>{formatDuration(splitDuration)}</strong>
+              ) : (
+                <div style={{
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  border: '1px solid rgba(16, 185, 129, 0.2)',
+                  borderRadius: '10px',
+                  padding: '12px',
+                  marginBottom: '20px',
+                  color: '#FFFFFF',
+                  fontSize: '12px',
+                  lineHeight: '1.4'
+                }}>
+                  <div style={{ fontWeight: 700, color: '#10B981', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    📅 Campaña Multidía Activa
+                  </div>
+                  Tu presupuesto de <strong style={{ color: '#10B981' }}>${allocatedBudget.toFixed(0)}</strong> para este slot equivale a <strong style={{ color: '#10B981' }}>{Math.round(rawSlotDuration)} minutos</strong> de exhibición.
+                  Dado que este horario tiene un límite de {maxSlotMins} minutos diarios, tu anuncio se mostrará de forma continua (100% de cobertura) durante <strong style={{ color: '#10B981' }}>{Math.ceil(rawSlotDuration / maxSlotMins)} días</strong>.
                 </div>
-              </div>
+              )}
 
               {/* Visual Timeline Track */}
               <div style={{ marginBottom: '8px' }}>
@@ -27932,105 +27972,127 @@ function ProfilePanel({
                       />
                     );
                   })}
-                  {tempStartTimes.slice(0, tempSplits).map((startTime, idx) => {
-                    const leftPct = (startTime / maxSlotMins) * 100;
-                    const widthPct = (splitDuration / maxSlotMins) * 100;
-                    const startStr = formatOffsetToTime(configuringSlotId, startTime);
-                    const endStr = formatOffsetToTime(configuringSlotId, startTime + splitDuration);
+                  {!isMultiDay ? (
+                    tempStartTimes.slice(0, tempSplits).map((startTime, idx) => {
+                      const leftPct = (startTime / maxSlotMins) * 100;
+                      const widthPct = (splitDuration / maxSlotMins) * 100;
+                      const startStr = formatOffsetToTime(configuringSlotId, startTime);
+                      const endStr = formatOffsetToTime(configuringSlotId, startTime + splitDuration);
 
-                    const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-                      const track = e.currentTarget.parentElement;
-                      if (!track) return;
-                      
-                      e.preventDefault();
-                      e.currentTarget.setPointerCapture(e.pointerId);
-                      
-                      const rect = track.getBoundingClientRect();
-                      const trackWidth = rect.width;
-                      const initialStartTime = startTime;
-                      const initialPointerX = e.clientX;
-                      
-                      const minVal = idx === 0 ? 0 : tempStartTimes[idx - 1] + splitDuration;
-                      const maxVal = idx === tempSplits - 1 ? maxSlotMins - splitDuration : tempStartTimes[idx + 1] - splitDuration;
-                      
-                      const handlePointerMove = (moveEvent: PointerEvent) => {
-                        const deltaX = moveEvent.clientX - initialPointerX;
-                        const deltaMins = (deltaX / trackWidth) * maxSlotMins;
-                        const newStartTime = Math.max(minVal, Math.min(maxVal, Math.round(initialStartTime + deltaMins)));
+                      const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+                        const track = e.currentTarget.parentElement;
+                        if (!track) return;
                         
-                        setTempStartTimes(prev => {
-                          const next = [...prev];
-                          next[idx] = newStartTime;
-                          return next;
-                        });
+                        e.preventDefault();
+                        e.currentTarget.setPointerCapture(e.pointerId);
+                        
+                        const rect = track.getBoundingClientRect();
+                        const trackWidth = rect.width;
+                        const initialStartTime = startTime;
+                        const initialPointerX = e.clientX;
+                        
+                        const minVal = idx === 0 ? 0 : tempStartTimes[idx - 1] + splitDuration;
+                        const maxVal = idx === tempSplits - 1 ? maxSlotMins - splitDuration : tempStartTimes[idx + 1] - splitDuration;
+                        
+                        const handlePointerMove = (moveEvent: PointerEvent) => {
+                          const deltaX = moveEvent.clientX - initialPointerX;
+                          const deltaMins = (deltaX / trackWidth) * maxSlotMins;
+                          const newStartTime = Math.max(minVal, Math.min(maxVal, Math.round(initialStartTime + deltaMins)));
+                          
+                          setTempStartTimes(prev => {
+                            const next = [...prev];
+                            next[idx] = newStartTime;
+                            return next;
+                          });
+                        };
+                        
+                        const handlePointerUp = () => {
+                          window.removeEventListener('pointermove', handlePointerMove);
+                          window.removeEventListener('pointerup', handlePointerUp);
+                        };
+                        
+                        window.addEventListener('pointermove', handlePointerMove);
+                        window.addEventListener('pointerup', handlePointerUp);
                       };
-                      
-                      const handlePointerUp = () => {
-                        window.removeEventListener('pointermove', handlePointerMove);
-                        window.removeEventListener('pointerup', handlePointerUp);
-                      };
-                      
-                      window.addEventListener('pointermove', handlePointerMove);
-                      window.addEventListener('pointerup', handlePointerUp);
-                    };
 
-                    return (
-                      <Fragment key={idx}>
-                        <div
-                          onPointerDown={handlePointerDown}
-                          style={{
-                            position: 'absolute',
-                            left: `${leftPct}%`,
-                            width: `${widthPct}%`,
-                            height: '100%',
-                            background: 'linear-gradient(90deg, #10B981, #059669)',
-                            boxShadow: '0 0 10px rgba(16, 185, 129, 0.4)',
-                            borderRadius: '12px',
-                            cursor: 'grab',
-                            transition: 'left 0.05s ease-out, width 0.05s ease-out',
-                            touchAction: 'none',
-                            zIndex: 2
-                          }}
-                          title="Arrastrá para mover el horario"
-                        />
-                        {/* Time tag floating above */}
-                        <div
-                          style={{
-                            position: 'absolute',
-                            left: `${leftPct + widthPct / 2}%`,
-                            transform: 'translateX(-50%)',
-                            bottom: '32px',
-                            background: '#10B981',
-                            color: '#0F172A',
-                            fontSize: '9px',
-                            fontWeight: 700,
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            whiteSpace: 'nowrap',
-                            pointerEvents: 'none',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                            transition: 'left 0.05s ease-out',
-                            zIndex: 10
-                          }}
-                        >
-                          {startStr} - {endStr}
+                      return (
+                        <Fragment key={idx}>
+                          <div
+                            onPointerDown={handlePointerDown}
+                            style={{
+                              position: 'absolute',
+                              left: `${leftPct}%`,
+                              width: `${widthPct}%`,
+                              height: '100%',
+                              background: 'linear-gradient(90deg, #10B981, #059669)',
+                              boxShadow: '0 0 10px rgba(16, 185, 129, 0.4)',
+                              borderRadius: '12px',
+                              cursor: 'grab',
+                              transition: 'left 0.05s ease-out, width 0.05s ease-out',
+                              touchAction: 'none',
+                              zIndex: 2
+                            }}
+                            title="Arrastrá para mover el horario"
+                          />
+                          {/* Time tag floating above */}
                           <div
                             style={{
                               position: 'absolute',
-                              bottom: '-4px',
-                              left: '50%',
+                              left: `${leftPct + widthPct / 2}%`,
                               transform: 'translateX(-50%)',
-                              width: 0,
-                              height: 0,
-                              borderLeft: '4px solid transparent',
-                              borderRight: '4px solid transparent',
-                              borderTop: '4px solid #10B981'
+                              bottom: '32px',
+                              background: '#10B981',
+                              color: '#0F172A',
+                              fontSize: '9px',
+                              fontWeight: 700,
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              whiteSpace: 'nowrap',
+                              pointerEvents: 'none',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                              transition: 'left 0.05s ease-out',
+                              zIndex: 10
                             }}
-                          />
-                        </div>
-                      </Fragment>
-                    );
-                  })}
+                          >
+                            {startStr} - {endStr}
+                            <div
+                              style={{
+                                position: 'absolute',
+                                bottom: '-4px',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                width: 0,
+                                height: 0,
+                                borderLeft: '4px solid transparent',
+                                borderRight: '4px solid transparent',
+                                borderTop: '4px solid #10B981'
+                              }}
+                            />
+                          </div>
+                        </Fragment>
+                      );
+                    })
+                  ) : (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: '0%',
+                        width: '100%',
+                        height: '100%',
+                        background: 'linear-gradient(90deg, #10B981, #059669)',
+                        boxShadow: '0 0 10px rgba(16, 185, 129, 0.4)',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#FFFFFF',
+                        fontSize: '9px',
+                        fontWeight: 800
+                      }}
+                    >
+                      COBERTURA CONTINUA (100%)
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'DM Mono', marginBottom: '24px' }}>
                   <span>{formatOffsetToTime(configuringSlotId, 0)}</span>
@@ -28040,43 +28102,45 @@ function ProfilePanel({
               </div>
 
               {/* Slider Controls */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
-                {tempStartTimes.slice(0, tempSplits).map((startTime, idx) => {
-                  const minVal = idx === 0 ? 0 : tempStartTimes[idx - 1] + splitDuration;
-                  const maxVal = idx === tempSplits - 1 ? maxSlotMins - splitDuration : tempStartTimes[idx + 1] - splitDuration;
+              {!isMultiDay && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
+                  {tempStartTimes.slice(0, tempSplits).map((startTime, idx) => {
+                    const minVal = idx === 0 ? 0 : tempStartTimes[idx - 1] + splitDuration;
+                    const maxVal = idx === tempSplits - 1 ? maxSlotMins - splitDuration : tempStartTimes[idx + 1] - splitDuration;
 
-                  const startStr = formatOffsetToTime(configuringSlotId, startTime);
-                  const endStr = formatOffsetToTime(configuringSlotId, startTime + splitDuration);
+                    const startStr = formatOffsetToTime(configuringSlotId, startTime);
+                    const endStr = formatOffsetToTime(configuringSlotId, startTime + splitDuration);
 
-                  return (
-                    <div key={idx} style={{ background: 'rgba(255,255,255,0.02)', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '12px' }}>
-                        <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Período {idx + 1}</span>
-                        <span style={{ fontFamily: 'DM Mono', fontWeight: 700, color: '#10B981' }}>{startStr} a {endStr}</span>
+                    return (
+                      <div key={idx} style={{ background: 'rgba(255,255,255,0.02)', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '12px' }}>
+                          <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Período {idx + 1}</span>
+                          <span style={{ fontFamily: 'DM Mono', fontWeight: 700, color: '#10B981' }}>{startStr} a {endStr}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0}
+                          max={Math.max(0, maxSlotMins - splitDuration)}
+                          value={startTime}
+                          onChange={e => {
+                            const val = Number(e.target.value);
+                            setTempStartTimes(prev => {
+                              const next = [...prev];
+                              next[idx] = Math.max(minVal, Math.min(maxVal, val));
+                              return next;
+                            });
+                          }}
+                          style={{
+                            width: '100%',
+                            accentColor: '#10B981',
+                            cursor: 'pointer'
+                          }}
+                        />
                       </div>
-                      <input
-                        type="range"
-                        min={0}
-                        max={Math.max(0, maxSlotMins - splitDuration)}
-                        value={startTime}
-                        onChange={e => {
-                          const val = Number(e.target.value);
-                          setTempStartTimes(prev => {
-                            const next = [...prev];
-                            next[idx] = Math.max(minVal, Math.min(maxVal, val));
-                            return next;
-                          });
-                        }}
-                        style={{
-                          width: '100%',
-                          accentColor: '#10B981',
-                          cursor: 'pointer'
-                        }}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Días de Exhibición */}
               <div style={{ marginBottom: '20px' }}>
@@ -28369,6 +28433,270 @@ function ProfilePanel({
 
         if (typeof document === 'undefined') return null;
         return createPortal(modalContent, document.body);
+      })()}
+
+      {/* Mercado Pago simulated modal */}
+      {showMercadoPagoModal && (() => {
+        const mpModalContent = (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '20px'
+          }}>
+            <div style={{
+              background: '#FFFFFF',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '400px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+              overflow: 'hidden',
+              color: '#111827',
+              fontFamily: 'system-ui, -apple-system, sans-serif'
+            }}>
+              {/* Header */}
+              <div style={{ background: '#009EE3', padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '18px', fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.02em' }}>mercado pago</span>
+                </div>
+                <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  🔒 Pago Seguro
+                </span>
+              </div>
+
+              {/* Content */}
+              {isProcessingPayment ? (
+                <div style={{ padding: '40px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', minHeight: '280px' }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    border: '4px solid rgba(0, 158, 227, 0.15)',
+                    borderTop: '4px solid #009EE3',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }} />
+                  <style>{`
+                    @keyframes spin {
+                      0% { transform: rotate(0deg); }
+                      100% { transform: rotate(360deg); }
+                    }
+                  `}</style>
+                  <div style={{ fontSize: '14px', fontWeight: 600, color: '#374151' }}>Procesando tu pago...</div>
+                  <div style={{ fontSize: '11px', color: '#6B7280' }}>Esto puede demorar unos segundos. No cierres la ventana.</div>
+                </div>
+              ) : paymentSuccess ? (
+                <div style={{ padding: '40px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', minHeight: '280px' }}>
+                  <div style={{
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '50%',
+                    background: '#00A650',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '28px',
+                    color: '#FFFFFF',
+                    boxShadow: '0 4px 10px rgba(0, 166, 80, 0.3)'
+                  }}>
+                    ✓
+                  </div>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#00A650' }}>¡Pago Aprobado!</div>
+                  <div style={{ fontSize: '12px', color: '#374151', textAlign: 'center' }}>Tu campaña publicitaria ha sido registrada con éxito y fue enviada a revisión.</div>
+                </div>
+              ) : (
+                <div style={{ padding: '24px' }}>
+                  {/* Summary Card */}
+                  <div style={{ background: '#F3F4F6', borderRadius: '10px', padding: '14px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Concepto</div>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Campaña: {pendingAd?.title}</div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Total</div>
+                      <div style={{ fontSize: '18px', fontWeight: 800, color: '#009EE3' }}>${paymentAmount.toFixed(0)}</div>
+                    </div>
+                  </div>
+
+                  {/* Form fields */}
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    setIsProcessingPayment(true);
+                    setTimeout(() => {
+                      setIsProcessingPayment(false);
+                      setPaymentSuccess(true);
+                      
+                      setTimeout(() => {
+                        // Check if it already exists (renewal)
+                        const exists = adSubmissions.some(item => item.id === pendingAd.id);
+                        let updatedList = [];
+                        if (exists) {
+                          updatedList = adSubmissions.map(item => {
+                            if (item.id === pendingAd.id) {
+                              return {
+                                ...item,
+                                status: 'pending',
+                                adminComment: 'Pago de renovación recibido. En revisión.',
+                                created_at: new Date().toISOString()
+                              };
+                            }
+                            return item;
+                          });
+                        } else {
+                          updatedList = [pendingAd, ...adSubmissions];
+                        }
+                        setAdSubmissions(updatedList);
+                        localStorage.setItem('bu_submitted_ads', JSON.stringify(updatedList));
+                        
+                        if (!exists) {
+                          // Reset forms
+                          setAdTitle('');
+                          setAdDesc('');
+                          setAdUrl('');
+                          setAdImg('');
+                          setAdBudget('50');
+                          setAdUploadedImg(null);
+                          setAdTermsAccepted(false);
+                          setAdSelectedStops([]);
+                          setSelectedAdSchedules(['todos']);
+                          setAdScheduleDetails({
+                            todos: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: [] },
+                            morning: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: [] },
+                            afternoon: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: [] },
+                            night: { splits: 1, startTimes: [0], days: ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'], frequency: 0, placements: [] }
+                          });
+                        }
+
+                        toast.success(exists ? "¡Pago de renovación aprobado!" : "¡Pago aprobado! Tu anuncio está en revisión por moderación.");
+
+                        // Start approval timer (5s)
+                        const adIdToApprove = pendingAd.id;
+                        setTimeout(() => {
+                          setAdSubmissions((prevAds: any[]) => {
+                            const approved = prevAds.map((item: any) => {
+                              if (item.id === adIdToApprove) {
+                                toast.success(`🎉 ¡Tu campaña "${item.title}" ha sido aprobada y ya está activa!`);
+                                return {
+                                  ...item,
+                                  status: 'approved',
+                                  adminComment: '¡Tu anuncio ha sido verificado y ya está circulando en la red TuBus!',
+                                  activated_at: new Date().toISOString() // Track active time
+                                };
+                              }
+                              return item;
+                            });
+                            localStorage.setItem('bu_submitted_ads', JSON.stringify(approved));
+                            return approved;
+                          });
+
+                          // Start expiration timer (30 seconds after approval)
+                          setTimeout(() => {
+                            setAdSubmissions((prevAds: any[]) => {
+                              const expired = prevAds.map((item: any) => {
+                                if (item.id === adIdToApprove && item.status === 'approved') {
+                                  toast.error(`⚠️ Tu campaña de anuncio "${item.title}" ha finalizado.`);
+                                  return {
+                                    ...item,
+                                    status: 'expired',
+                                    adminComment: 'Campaña finalizada. Requiere renovación de pago.'
+                                  };
+                                }
+                                return item;
+                              });
+                              localStorage.setItem('bu_submitted_ads', JSON.stringify(expired));
+                              return expired;
+                            });
+                          }, 30000);
+
+                        }, 5000);
+                        
+                        setShowMercadoPagoModal(false);
+                        setPaymentSuccess(false);
+                        setPendingAd(null);
+                      }, 1500);
+                    }, 1500);
+                  }}>
+                    <div style={{ marginBottom: '14px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', color: '#4B5563', fontWeight: 600, marginBottom: '4px' }}>Número de tarjeta</label>
+                      <input
+                        type="text"
+                        placeholder="XXXX XXXX XXXX XXXX"
+                        required
+                        style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                      />
+                    </div>
+
+                    <div style={{ marginBottom: '14px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', color: '#4B5563', fontWeight: 600, marginBottom: '4px' }}>Nombre en la tarjeta</label>
+                      <input
+                        type="text"
+                        placeholder="JUAN PEREZ"
+                        required
+                        style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '13px', outline: 'none', textTransform: 'uppercase', boxSizing: 'border-box' }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '11px', color: '#4B5563', fontWeight: 600, marginBottom: '4px' }}>Vencimiento</label>
+                        <input
+                          type="text"
+                          placeholder="MM/AA"
+                          required
+                          style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '11px', color: '#4B5563', fontWeight: 600, marginBottom: '4px' }}>Código de seg. (CVV)</label>
+                        <input
+                          type="password"
+                          placeholder="123"
+                          maxLength={4}
+                          required
+                          style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #D1D5DB', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowMercadoPagoModal(false);
+                          setPendingAd(null);
+                        }}
+                        style={{
+                          flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #D1D5DB',
+                          background: '#FFFFFF', color: '#4B5563', fontSize: '13px', fontWeight: 600, cursor: 'pointer'
+                        }}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        style={{
+                          flex: 1, padding: '10px', borderRadius: '8px', border: 'none',
+                          background: '#009EE3', color: '#FFFFFF', fontSize: '13px', fontWeight: 600, cursor: 'pointer'
+                        }}
+                      >
+                        Pagar
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+        if (typeof document === 'undefined') return null;
+        return createPortal(mpModalContent, document.body);
       })()}
     </div>
   )
