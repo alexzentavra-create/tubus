@@ -29121,14 +29121,14 @@ function MiniPopup({
       }}>
         <img
           src={
-            bus.line_number === '12' ? '/images/bus-12-real.png' :
-            bus.line_number === '37' ? '/images/bus-37-real.png' :
+            bus.line_number === '12' ? '/images/bus-12-real.jpg' :
+            bus.line_number === '37' ? '/images/bus-37-real.jpg' :
             bus.line_number === '28' ? '/images/bus-28-real.png' :
             bus.line_number === '39' ? '/images/bus-39-real.jpg' :
             bus.line_number === '59' ? '/images/bus-59-real.png' :
-            bus.line_number === '60' ? '/images/bus-60-real.png' :
+            bus.line_number === '60' ? '/images/bus-60-real.jpg' :
             bus.line_number === '102' ? '/images/bus-102-real.jpg' :
-            bus.line_number === '152' ? '/images/bus-152-real.png' :
+            bus.line_number === '152' ? '/images/bus-152-real.jpg' :
             bus.line_number === 'T-Amarillo' ? '/images/bus-T-Amarillo.png' :
             bus.line_number === 'T-Rojo' ? '/images/bus-T-Rojo.png' :
             `/images/bus-${bus.line_number}.png`
