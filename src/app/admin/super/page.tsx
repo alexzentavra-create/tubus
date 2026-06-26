@@ -1756,7 +1756,7 @@ function AnalyticsTab() {
 // ─── AdsTab Component ─────────────────────────────────────────────────────────
 function AdsTab({ ads, setAds }: { ads: any[]; setAds: (val: any[]) => void }) {
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({})
-  const [costPerMinuteInput, setCostPerMinuteInput] = useState('100')
+  const [costPerMinuteInput, setCostPerMinuteInput] = useState('5')
 
   useEffect(() => {
     const saved = localStorage.getItem('ad_cost_per_minute')
@@ -1912,7 +1912,7 @@ function AdsTab({ ads, setAds }: { ads: any[]; setAds: (val: any[]) => void }) {
                           const maxSlotMins = slotId === 'todos' ? 1440 : slotId === 'morning' ? 360 : slotId === 'afternoon' ? 480 : 600;
                           const totalSlots = ad.selectedAdSchedule.split(',').length;
                           const allocatedBudget = totalSlots > 0 ? (ad.budget / totalSlots) : 0;
-                          const costPerMin = Number(localStorage.getItem('ad_cost_per_minute') || '100') || 100;
+                          const costPerMin = Number(localStorage.getItem('ad_cost_per_minute') || '5') || 5;
                           const slotDuration = costPerMin > 0 ? allocatedBudget / costPerMin : 0;
                           
                           const detail = ad.adScheduleDetails?.[slotId] || { splits: 1, startTimes: [0] };

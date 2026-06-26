@@ -26627,7 +26627,7 @@ function ProfilePanel({
   const [selectedAdSchedules, setSelectedAdSchedules] = useState<string[]>(['todos'])
   const [adSelectedStops, setAdSelectedStops] = useState<string[]>([])
   const adFileInputRef = useRef<HTMLInputElement>(null)
-  const [adCostPerMinute, setAdCostPerMinute] = useState(100)
+  const [adCostPerMinute, setAdCostPerMinute] = useState(5)
 
   interface AdScheduleDetail {
     splits: number;
