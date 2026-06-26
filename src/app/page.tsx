@@ -21514,7 +21514,17 @@ export default function UserMapPage() {
                 { latitude: alightingStop.latitude, longitude: alightingStop.longitude },
                 { lat: targetStop.latitude, lng: targetStop.longitude }
               );
-              const radiusKm = parseFloat(ad.influenceRadius) || 0.3;
+              let radiusKm = 0.3;
+              if (ad.influenceRadius) {
+                if (ad.influenceRadius.endsWith('km')) {
+                  radiusKm = parseFloat(ad.influenceRadius);
+                } else if (ad.influenceRadius.endsWith('m')) {
+                  radiusKm = parseFloat(ad.influenceRadius) / 1000;
+                } else {
+                  const val = parseFloat(ad.influenceRadius);
+                  radiusKm = val > 15 ? val / 1000 : val;
+                }
+              }
               return dist <= radiusKm;
             });
             if (isNearTargetStop) return true;
@@ -26613,7 +26623,7 @@ function ProfilePanel({
   const [adTermsAccepted, setAdTermsAccepted] = useState(false)
   const [showRulesModal, setShowRulesModal] = useState(false)
   const [targetAudience, setTargetAudience] = useState('todos')
-  const [influenceRadius, setInfluenceRadius] = useState('1km')
+  const [influenceRadius, setInfluenceRadius] = useState('150m')
   const [selectedAdSchedules, setSelectedAdSchedules] = useState<string[]>(['todos'])
   const [adSelectedStops, setAdSelectedStops] = useState<string[]>([])
   const adFileInputRef = useRef<HTMLInputElement>(null)
@@ -27355,10 +27365,11 @@ function ProfilePanel({
                   </div>
                   <input
                     type="range"
-                    min="1"
-                    max="15"
-                    value={parseInt(influenceRadius) || 1}
-                    onChange={e => setInfluenceRadius(e.target.value + 'km')}
+                    min="0"
+                    max="300"
+                    step="10"
+                    value={parseInt(influenceRadius) || 0}
+                    onChange={e => setInfluenceRadius(e.target.value + 'm')}
                     style={{ width: '100%', accentColor: '#3B82F6', cursor: 'pointer' }}
                   />
                 </div>
