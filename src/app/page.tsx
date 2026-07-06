@@ -21573,7 +21573,7 @@ export default function UserMapPage() {
     }
   }, [activeTravelRoute])
 
-  // Fetch street-aligned walking routes (OSRM foot) with grid fallbacks
+  // Calculate street-aligned walking routes (using a 29-degree rotated grid algorithm to follow streets bidirectionally)
   useEffect(() => {
     if (!originCoord || !destCoord) {
       setWalkingPath1([])
@@ -21588,45 +21588,37 @@ export default function UserMapPage() {
       return
     }
 
-    const getGridFallbackPath = (p1: { lat: number; lng: number }, p2: { lat: number; lng: number }) => {
+    const getRotatedGridPath = (p1: { lat: number; lng: number }, p2: { lat: number; lng: number }) => {
+      // Buenos Aires grid is rotated by ~29 degrees.
+      // We rotate points by -29 degrees to align them with the axes of the street grid.
+      const theta = (29 * Math.PI) / 180
+      const cosT = Math.cos(theta)
+      const sinT = Math.sin(theta)
+
+      // Convert to rotated grid coordinate system
+      const u1 = p1.lng * cosT + p1.lat * sinT
+      const v1 = -p1.lng * sinT + p1.lat * cosT
+
+      const u2 = p2.lng * cosT + p2.lat * sinT
+      const v2 = -p2.lng * sinT + p2.lat * cosT
+
+      // We determine the corner point where the two segments of the L-shape meet.
+      // Walking along the avenue first (u) then the cross-street (v) corresponds to corner (u2, v1).
+      const cornerLng = u2 * cosT - v1 * sinT
+      const cornerLat = u2 * sinT + v1 * cosT
+
       return [
         { lat: p1.lat, lng: p1.lng },
-        { lat: p1.lat, lng: p2.lng }, // Corner point (aligned horizontally first)
+        { lat: cornerLat, lng: cornerLng },
         { lat: p2.lat, lng: p2.lng }
       ]
     }
 
     const oStop = currentRoute.originStop
-    const url1 = `https://router.project-osrm.org/route/v1/foot/${originCoord.lng},${originCoord.lat};${oStop.longitude},${oStop.latitude}?overview=full&geometries=geojson`
-    fetch(url1)
-      .then(res => res.json())
-      .then(data => {
-        if (data.routes && data.routes[0] && data.routes[0].geometry) {
-          const coords = data.routes[0].geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] }))
-          setWalkingPath1(coords)
-        } else {
-          setWalkingPath1(getGridFallbackPath(originCoord, { lat: oStop.latitude, lng: oStop.longitude }))
-        }
-      })
-      .catch(() => {
-        setWalkingPath1(getGridFallbackPath(originCoord, { lat: oStop.latitude, lng: oStop.longitude }))
-      })
+    setWalkingPath1(getRotatedGridPath(originCoord, { lat: oStop.latitude, lng: oStop.longitude }))
 
     const dStop = currentRoute.destStop
-    const url2 = `https://router.project-osrm.org/route/v1/foot/${dStop.longitude},${dStop.latitude};${destCoord.lng},${destCoord.lat}?overview=full&geometries=geojson`
-    fetch(url2)
-      .then(res => res.json())
-      .then(data => {
-        if (data.routes && data.routes[0] && data.routes[0].geometry) {
-          const coords = data.routes[0].geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] }))
-          setWalkingPath2(coords)
-        } else {
-          setWalkingPath2(getGridFallbackPath({ lat: dStop.latitude, lng: dStop.longitude }, destCoord))
-        }
-      })
-      .catch(() => {
-        setWalkingPath2(getGridFallbackPath({ lat: dStop.latitude, lng: dStop.longitude }, destCoord))
-      })
+    setWalkingPath2(getRotatedGridPath({ lat: dStop.latitude, lng: dStop.longitude }, destCoord))
   }, [originCoord, destCoord, activeTravelRoute, travelRoute])
 
   // Synchronize userCoords to follow the tracked bus in real-time when userBoardedBus is active
