@@ -21573,7 +21573,7 @@ export default function UserMapPage() {
     }
   }, [activeTravelRoute])
 
-  // Set walking path coordinates directly to straight lines
+  // Fetch street-aligned walking routes (OSRM foot) with grid fallbacks
   useEffect(() => {
     if (!originCoord || !destCoord) {
       setWalkingPath1([])
@@ -21588,11 +21588,45 @@ export default function UserMapPage() {
       return
     }
 
+    const getGridFallbackPath = (p1: { lat: number; lng: number }, p2: { lat: number; lng: number }) => {
+      return [
+        { lat: p1.lat, lng: p1.lng },
+        { lat: p1.lat, lng: p2.lng }, // Corner point (aligned horizontally first)
+        { lat: p2.lat, lng: p2.lng }
+      ]
+    }
+
     const oStop = currentRoute.originStop
-    setWalkingPath1([{ lat: originCoord.lat, lng: originCoord.lng }, { lat: oStop.latitude, lng: oStop.longitude }])
+    const url1 = `https://router.project-osrm.org/route/v1/foot/${originCoord.lng},${originCoord.lat};${oStop.longitude},${oStop.latitude}?overview=full&geometries=geojson`
+    fetch(url1)
+      .then(res => res.json())
+      .then(data => {
+        if (data.routes && data.routes[0] && data.routes[0].geometry) {
+          const coords = data.routes[0].geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] }))
+          setWalkingPath1(coords)
+        } else {
+          setWalkingPath1(getGridFallbackPath(originCoord, { lat: oStop.latitude, lng: oStop.longitude }))
+        }
+      })
+      .catch(() => {
+        setWalkingPath1(getGridFallbackPath(originCoord, { lat: oStop.latitude, lng: oStop.longitude }))
+      })
 
     const dStop = currentRoute.destStop
-    setWalkingPath2([{ lat: dStop.latitude, lng: dStop.longitude }, { lat: destCoord.lat, lng: destCoord.lng }])
+    const url2 = `https://router.project-osrm.org/route/v1/foot/${dStop.longitude},${dStop.latitude};${destCoord.lng},${destCoord.lat}?overview=full&geometries=geojson`
+    fetch(url2)
+      .then(res => res.json())
+      .then(data => {
+        if (data.routes && data.routes[0] && data.routes[0].geometry) {
+          const coords = data.routes[0].geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] }))
+          setWalkingPath2(coords)
+        } else {
+          setWalkingPath2(getGridFallbackPath({ lat: dStop.latitude, lng: dStop.longitude }, destCoord))
+        }
+      })
+      .catch(() => {
+        setWalkingPath2(getGridFallbackPath({ lat: dStop.latitude, lng: dStop.longitude }, destCoord))
+      })
   }, [originCoord, destCoord, activeTravelRoute, travelRoute])
 
   // Synchronize userCoords to follow the tracked bus in real-time when userBoardedBus is active
@@ -21661,6 +21695,10 @@ export default function UserMapPage() {
   const [alarmThresholdType, setAlarmThresholdType] = useState<'minutes' | 'blocks'>('minutes')
   const [alarmThresholdValue, setAlarmThresholdValue] = useState<number>(5)
   const [activeAlarms, setActiveAlarms] = useState<any[]>([])
+  const activeAlarmsRef = useRef<any[]>([])
+  useEffect(() => {
+    activeAlarmsRef.current = activeAlarms
+  }, [activeAlarms])
 
   // Alarm Ringing / Audio Synth States & Refs
   const [alarmNotificationType, setAlarmNotificationType] = useState<'notification' | 'ringing'>('notification')
@@ -22643,9 +22681,10 @@ export default function UserMapPage() {
           : 0
 
         // Check active alarms for this bus
-        if (activeAlarms.length > 0) {
+        const currentAlarms = activeAlarmsRef.current || []
+        if (currentAlarms.length > 0) {
           const triggeredAlarms: string[] = []
-          activeAlarms.forEach(alarm => {
+          currentAlarms.forEach(alarm => {
             if (alarm.type === 'bus_alarm' && alarm.busId === bus.id) {
               const stop = alarm.stop
               const distKm = globalDistanceKm({ latitude: bus.latitude, longitude: bus.longitude }, { lat: stop.latitude, lng: stop.longitude })
@@ -24213,6 +24252,8 @@ export default function UserMapPage() {
             const isFav = prefs.favStops.includes(stop.id)
             const stopColor = line?.color || '#B8C8E0'
 
+            if (activeMode === 'tourist' && !isTourist) return null
+
             if (isTourist) {
               if (activeMode === 'tourist' && showAllTouristStops) return null
               return (
@@ -24371,7 +24412,7 @@ export default function UserMapPage() {
             })
           }
 
-          {nearbyStops.map((stop: BusStop) => (
+          {activeMode !== 'tourist' && nearbyStops.map((stop: BusStop) => (
             <Marker key={stop.id} longitude={stop.longitude} latitude={stop.latitude} anchor="center">
               <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'rgba(184,200,224,0.6)', border: '2px solid rgba(184,200,224,0.3)' }} />
             </Marker>
@@ -25235,7 +25276,7 @@ export default function UserMapPage() {
         {activeTravelRoute && (
           <div style={{
             position: 'absolute',
-            bottom: isMobile ? '80px' : '20px',
+            bottom: isMobile ? 'calc(env(safe-area-inset-bottom) + 80px)' : '20px',
             left: '14px',
             right: '14px',
             margin: '0 auto',
@@ -27300,6 +27341,13 @@ function ProfilePanel({
   const [adUrl, setAdUrl] = useState('')
   const [adImg, setAdImg] = useState('')
   const [adBudget, setAdBudget] = useState('50')
+  const [adStartDate, setAdStartDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [adEndDate, setAdEndDate] = useState(() => {
+    const d = new Date()
+    d.setMonth(d.getMonth() + 1)
+    return d.toISOString().split('T')[0]
+  })
+  const [adAutoDebit, setAdAutoDebit] = useState(false)
   const [adSubmitting, setAdSubmitting] = useState(false)
   const [adUploadedImg, setAdUploadedImg] = useState<string | null>(null)
   const [adTermsAccepted, setAdTermsAccepted] = useState(false)
@@ -27529,6 +27577,9 @@ function ProfilePanel({
       targetUrl: adUrl || 'https://tubus.com.ar',
       imageUrl: adUploadedImg || adImg || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80',
       budget: Number(adBudget) || 50,
+      startDate: adStartDate,
+      endDate: adEndDate,
+      autoDebit: adAutoDebit,
       status: 'pending',
       created_at: new Date().toISOString(),
       adminComment: 'Aguardando revisión del equipo de moderación y aprobación de pago.',
@@ -27882,7 +27933,7 @@ function ProfilePanel({
                 </div>
 
                 <div style={{ marginBottom: '12px' }}>
-                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Link de Destino</label>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Link de Destino (Opcional)</label>
                   <input
                     type="url"
                     value={adUrl}
@@ -28005,6 +28056,53 @@ function ProfilePanel({
                     </div>
                   )
                 })()}
+
+                {/* Campaign Dates Selection */}
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Fecha de Inicio</label>
+                    <input
+                      type="date"
+                      value={adStartDate}
+                      onChange={e => setAdStartDate(e.target.value)}
+                      style={{
+                        width: '100%', padding: '10px 12px', borderRadius: '10px',
+                        background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                        border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                        color: 'var(--text-primary)', fontSize: '13px', outline: 'none'
+                      }}
+                    />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Fecha de Fin</label>
+                    <input
+                      type="date"
+                      value={adEndDate}
+                      onChange={e => setAdEndDate(e.target.value)}
+                      style={{
+                        width: '100%', padding: '10px 12px', borderRadius: '10px',
+                        background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                        border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                        color: 'var(--text-primary)', fontSize: '13px', outline: 'none'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Auto Debit Checkbox */}
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none' }}>
+                    <input
+                      type="checkbox"
+                      checked={adAutoDebit}
+                      onChange={e => setAdAutoDebit(e.target.checked)}
+                      style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#009EE3' }}
+                    />
+                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                      Débito Automático en Mercado Pago
+                    </span>
+                  </label>
+                </div>
 
                 {/* influenceRadius slider */}
                 <div style={{ marginBottom: '12px' }}>
@@ -29246,6 +29344,13 @@ function ProfilePanel({
                           setAdBudget('50');
                           setAdUploadedImg(null);
                           setAdTermsAccepted(false);
+                          setAdStartDate(new Date().toISOString().split('T')[0]);
+                          setAdEndDate(() => {
+                            const d = new Date()
+                            d.setMonth(d.getMonth() + 1)
+                            return d.toISOString().split('T')[0]
+                          });
+                          setAdAutoDebit(false);
                           setAdSelectedStops([]);
                           setSelectedAdSchedules(['todos']);
                           setAdScheduleDetails({
