@@ -23523,7 +23523,7 @@ export default function UserMapPage() {
                 📍 Puntos de Interés
               </span>
               <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                Ver todas las paradas turísticas en el mapa
+                Ver atracciones turísticas en el mapa
               </span>
             </div>
             <button
@@ -24238,16 +24238,17 @@ export default function UserMapPage() {
             })}
 
           {lineStops.map((stop: BusStop) => {
+            // In tourist mode, do not show any bus stops unless they are part of the active travel route
+            if (activeMode === 'tourist') {
+              if (!activeTravelRoute || stop.line_id !== activeTravelRoute.line_id) return null
+            }
             if (activeTravelRoute && stop.line_id !== activeTravelRoute.line_id) return null
             const line = lines.find(l => l.id === stop.line_id)
             const isTourist = (line as any)?.is_tourist
             const isFav = prefs.favStops.includes(stop.id)
             const stopColor = line?.color || '#B8C8E0'
 
-            if (activeMode === 'tourist' && !isTourist) return null
-
             if (isTourist) {
-              if (activeMode === 'tourist' && showAllTouristStops) return null
               return (
                 <Marker key={stop.id} longitude={stop.longitude} latitude={stop.latitude} anchor="bottom">
                   <div
@@ -24289,39 +24290,6 @@ export default function UserMapPage() {
             )
           })}
 
-          {/* Render All Tourist Stops when toggle is active */}
-          {activeMode === 'tourist' && showAllTouristStops && getUniqueTouristStops().map((stop: BusStop) => {
-            const line = allLines.find(l => l.id === stop.line_id)
-            const stopColor = line?.color || '#F59E0B'
-            return (
-              <Marker key={`tourist-all-${stop.id}`} longitude={stop.longitude} latitude={stop.latitude} anchor="bottom">
-                <div
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedTouristStop(stop);
-                  }}
-                  style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer',
-                    transform: 'scale(1)', transition: 'transform 0.15s', zIndex: 15
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.15)'}
-                  onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                >
-                  <div style={{
-                    background: 'rgba(15, 23, 42, 0.9)', color: '#ffffff', fontSize: '9px', padding: '3px 6px',
-                    borderRadius: '8px', fontWeight: 800, boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                    border: `1.5px solid ${stopColor}`, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px'
-                  }}>
-                    <span style={{ color: stopColor }}>★</span> {stop.name}
-                  </div>
-                  <div style={{
-                    width: '10px', height: '10px', borderRadius: '50%', background: stopColor,
-                    border: '2px solid white', marginTop: '-3px', boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                  }} />
-                </div>
-              </Marker>
-            )
-          })}
 
           {/* Render Clubbing & Shopping Custom Markers */}
           {(activeMode === 'clubbing' || activeMode === 'shopping') && MOCK_PLACES
@@ -24359,7 +24327,7 @@ export default function UserMapPage() {
           }
 
           {/* Render Smaller Tourist Landmarks along the route */}
-          {activeMode === 'tourist' && MOCK_PLACES
+          {activeMode === 'tourist' && showAllTouristStops && MOCK_PLACES
             .filter(place => place.city === selectedCity && place.type === 'tourist')
             .map(place => {
               const isParkOrGarden = place.name.toLowerCase().includes('jardín') || place.name.toLowerCase().includes('rosedal') || place.name.toLowerCase().includes('plaza');
