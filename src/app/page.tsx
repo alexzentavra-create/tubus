@@ -10,7 +10,7 @@ import {
   Navigation as NavIcon, LayoutDashboard, Menu,
   Locate, Plus, Minus, Sun, Route, Activity, Clock,
   Megaphone, MessageSquare, PlusCircle, CheckCircle2, MessageCircle, Edit2,
-  HelpCircle, Upload
+  HelpCircle, Upload, Smartphone, CreditCard, PhoneCall
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { OFFICIAL_ROUTES } from '@/lib/officialRoutes'
@@ -21573,7 +21573,7 @@ export default function UserMapPage() {
     }
   }, [activeTravelRoute])
 
-  // Fetch street-aligned walking path using OSRM Foot Routing API
+  // Set walking path coordinates directly to straight lines
   useEffect(() => {
     if (!originCoord || !destCoord) {
       setWalkingPath1([])
@@ -21588,39 +21588,11 @@ export default function UserMapPage() {
       return
     }
 
-    // Walking path 1: originCoord -> originStop
     const oStop = currentRoute.originStop
-    const url1 = `https://router.project-osrm.org/route/v1/foot/${originCoord.lng},${originCoord.lat};${oStop.longitude},${oStop.latitude}?overview=full&geometries=geojson`
-    fetch(url1)
-      .then(res => res.json())
-      .then(data => {
-        if (data.routes && data.routes[0] && data.routes[0].geometry) {
-          const coords = data.routes[0].geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] }))
-          setWalkingPath1(coords)
-        } else {
-          setWalkingPath1([{ lat: originCoord.lat, lng: originCoord.lng }, { lat: oStop.latitude, lng: oStop.longitude }])
-        }
-      })
-      .catch(() => {
-        setWalkingPath1([{ lat: originCoord.lat, lng: originCoord.lng }, { lat: oStop.latitude, lng: oStop.longitude }])
-      })
+    setWalkingPath1([{ lat: originCoord.lat, lng: originCoord.lng }, { lat: oStop.latitude, lng: oStop.longitude }])
 
-    // Walking path 2: destStop -> destCoord
     const dStop = currentRoute.destStop
-    const url2 = `https://router.project-osrm.org/route/v1/foot/${dStop.longitude},${dStop.latitude};${destCoord.lng},${destCoord.lat}?overview=full&geometries=geojson`
-    fetch(url2)
-      .then(res => res.json())
-      .then(data => {
-        if (data.routes && data.routes[0] && data.routes[0].geometry) {
-          const coords = data.routes[0].geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] }))
-          setWalkingPath2(coords)
-        } else {
-          setWalkingPath2([{ lat: dStop.latitude, lng: dStop.longitude }, { lat: destCoord.lat, lng: destCoord.lng }])
-        }
-      })
-      .catch(() => {
-        setWalkingPath2([{ lat: dStop.latitude, lng: dStop.longitude }, { lat: destCoord.lat, lng: destCoord.lng }])
-      })
+    setWalkingPath2([{ lat: dStop.latitude, lng: dStop.longitude }, { lat: destCoord.lat, lng: destCoord.lng }])
   }, [originCoord, destCoord, activeTravelRoute, travelRoute])
 
   // Synchronize userCoords to follow the tracked bus in real-time when userBoardedBus is active
@@ -21690,6 +21662,20 @@ export default function UserMapPage() {
   const [alarmThresholdValue, setAlarmThresholdValue] = useState<number>(5)
   const [activeAlarms, setActiveAlarms] = useState<any[]>([])
 
+  // Alarm Ringing / Audio Synth States & Refs
+  const [alarmNotificationType, setAlarmNotificationType] = useState<'notification' | 'ringing'>('notification')
+  const [activeRingingAlarm, setActiveRingingAlarm] = useState<any>(null)
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  const alarmOscNodesRef = useRef<any[]>([])
+
+  // SUBE Card Reader States
+  const [showSubeModal, setShowSubeModal] = useState(false)
+  const [subeNfcSupported, setSubeNfcSupported] = useState(true)
+  const [subeNfcStatus, setSubeNfcStatus] = useState<'idle' | 'scanning' | 'reading' | 'success' | 'error' | 'manual'>('idle')
+  const [subeCardNumber, setSubeCardNumber] = useState('')
+  const [subeBalance, setSubeBalance] = useState<number | null>(null)
+  const [subeErrorMsg, setSubeErrorMsg] = useState('')
+
   // Helper distance function
   const distanceKm = (a: { latitude: number; longitude: number } | BusStop, b: { lat: number; lng: number }) => {
     const lat1 = a.latitude * Math.PI / 180
@@ -21704,6 +21690,232 @@ export default function UserMapPage() {
     const dy = lat2 - lat1
     const dx = lng2 - lng1
     return ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360
+  }
+
+  const playNotificationBeep = () => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
+      const ctx = new AudioContextClass()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.setValueAtTime(880, ctx.currentTime)
+      gain.gain.setValueAtTime(0.3, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.5)
+    } catch (err) {
+      console.warn("Could not play notification beep:", err)
+    }
+  }
+
+  const startRingingSound = () => {
+    try {
+      stopRingingSound()
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
+      const ctx = new AudioContextClass()
+      audioCtxRef.current = ctx
+
+      const osc1 = ctx.createOscillator()
+      const osc2 = ctx.createOscillator()
+      const mainGain = ctx.createGain()
+
+      osc1.frequency.setValueAtTime(440, ctx.currentTime)
+      osc2.frequency.setValueAtTime(480, ctx.currentTime)
+      mainGain.gain.setValueAtTime(0.0, ctx.currentTime)
+
+      osc1.connect(mainGain)
+      osc2.connect(mainGain)
+      mainGain.connect(ctx.destination)
+
+      osc1.start()
+      osc2.start()
+
+      alarmOscNodesRef.current = [osc1, osc2, mainGain]
+
+      // Initial ring
+      mainGain.gain.setValueAtTime(0, ctx.currentTime)
+      mainGain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.05)
+      mainGain.gain.setValueAtTime(0.15, ctx.currentTime + 0.45)
+      mainGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.5)
+
+      mainGain.gain.setValueAtTime(0, ctx.currentTime + 0.6)
+      mainGain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.65)
+      mainGain.gain.setValueAtTime(0.15, ctx.currentTime + 1.05)
+      mainGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.1)
+
+      const interval = setInterval(() => {
+        if (!audioCtxRef.current) {
+          clearInterval(interval)
+          return
+        }
+        const time = ctx.currentTime
+        mainGain.gain.setValueAtTime(0, time)
+        mainGain.gain.linearRampToValueAtTime(0.15, time + 0.05)
+        mainGain.gain.setValueAtTime(0.15, time + 0.45)
+        mainGain.gain.linearRampToValueAtTime(0, time + 0.5)
+
+        mainGain.gain.setValueAtTime(0, time + 0.6)
+        mainGain.gain.linearRampToValueAtTime(0.15, time + 0.65)
+        mainGain.gain.setValueAtTime(0.15, time + 1.05)
+        mainGain.gain.linearRampToValueAtTime(0, time + 1.1)
+      }, 3000)
+
+      ;(ctx as any).ringInterval = interval
+    } catch (err) {
+      console.warn("Could not start ringing sound:", err)
+    }
+  }
+
+  const stopRingingSound = () => {
+    try {
+      if (audioCtxRef.current) {
+        if ((audioCtxRef.current as any).ringInterval) {
+          clearInterval((audioCtxRef.current as any).ringInterval)
+        }
+        audioCtxRef.current.close()
+        audioCtxRef.current = null
+      }
+      alarmOscNodesRef.current.forEach(node => {
+        try {
+          node.disconnect()
+          node.stop()
+        } catch(e){}
+      })
+      alarmOscNodesRef.current = []
+    } catch (err) {
+      console.warn("Error stopping ring sound:", err)
+    }
+  }
+
+  // Seed SUBE cards pre-registered db
+  useEffect(() => {
+    const subeDb = {
+      '6061267812345678': { balance: 1250.50, status: 'active', name: 'Alejandro' },
+      '6061999999999999': { balance: 0.0, status: 'blocked', name: 'Tarjeta Bloqueada' }
+    }
+    if (typeof window !== 'undefined') {
+      if (!localStorage.getItem('sube_cards_db_pre')) {
+        localStorage.setItem('sube_cards_db_pre', JSON.stringify(subeDb))
+      }
+      if (!('NDEFReader' in window)) {
+        setSubeNfcSupported(false)
+      }
+    }
+  }, [])
+
+  const handleManualSubeLookup = (cardNum: string) => {
+    const cleanNum = cardNum.replace(/\s+/g, '')
+    if (cleanNum.length !== 16 || !/^\d+$/.test(cleanNum)) {
+      setSubeErrorMsg('El numero de tarjeta debe tener 16 digitos.')
+      setSubeNfcStatus('error')
+      return
+    }
+    
+    setSubeNfcStatus('reading')
+    setTimeout(() => {
+      const db = JSON.parse(localStorage.getItem('sube_cards_db_pre') || '{}')
+      const card = db[cleanNum]
+      if (card) {
+        if (card.status === 'blocked') {
+          setSubeErrorMsg('La tarjeta se encuentra bloqueada por robo o perdida.')
+          setSubeNfcStatus('error')
+        } else {
+          setSubeBalance(card.balance)
+          setSubeCardNumber(cleanNum)
+          setSubeNfcStatus('success')
+        }
+      } else {
+        // Generate deterministic balance based on the card number
+        let hash = 0
+        for (let i = 0; i < cleanNum.length; i++) {
+          hash = cleanNum.charCodeAt(i) + ((hash << 5) - hash)
+        }
+        const balance = Math.abs(hash % 2000) + 120.50
+        setSubeBalance(Math.round(balance * 100) / 100)
+        setSubeCardNumber(cleanNum)
+        setSubeNfcStatus('success')
+      }
+    }, 1000)
+  }
+
+  const handleNfcScan = async () => {
+    if (typeof window === 'undefined') return
+    setSubeErrorMsg('')
+    
+    if (!('NDEFReader' in window)) {
+      // Simulate NFC scan for non-Web NFC browsers (e.g. desktop, Safari)
+      setSubeNfcStatus('scanning')
+      const simTimeout = setTimeout(() => {
+        const db = JSON.parse(localStorage.getItem('sube_cards_db_pre') || '{}')
+        const cardNum = '6061267812345678' // Alejandro's card
+        const card = db[cardNum]
+        if (card) {
+          if (card.status === 'blocked') {
+            setSubeErrorMsg('La tarjeta se encuentra bloqueada por robo o perdida.')
+            setSubeNfcStatus('error')
+          } else {
+            setSubeBalance(card.balance)
+            setSubeCardNumber(cardNum)
+            setSubeNfcStatus('success')
+          }
+        }
+      }, 2000)
+      
+      ;(window as any).subeSimTimeout = simTimeout
+      return
+    }
+
+    try {
+      setSubeNfcStatus('scanning')
+      const reader = new (window as any).NDEFReader()
+      await reader.scan()
+      
+      reader.onreading = ({ serialNumber }: any) => {
+        setSubeNfcStatus('reading')
+        setTimeout(() => {
+          const db = JSON.parse(localStorage.getItem('sube_cards_db_pre') || '{}')
+          const cleanUid = serialNumber.replace(/:/g, '').toUpperCase()
+          const card = db[cleanUid]
+          if (card) {
+            if (card.status === 'blocked') {
+              setSubeErrorMsg('La tarjeta se encuentra bloqueada por robo o perdida.')
+              setSubeNfcStatus('error')
+            } else {
+              setSubeBalance(card.balance)
+              setSubeCardNumber(cleanUid)
+              setSubeNfcStatus('success')
+            }
+          } else {
+            // Generate deterministic balance for new scanned UIDs
+            let hash = 0
+            for (let i = 0; i < cleanUid.length; i++) {
+              hash = cleanUid.charCodeAt(i) + ((hash << 5) - hash)
+            }
+            const balance = Math.abs(hash % 2000) + 250.00
+            const newBalance = Math.round(balance * 100) / 100
+            
+            db[cleanUid] = { balance: newBalance, status: 'active', name: 'Tarjeta NFC' }
+            localStorage.setItem('sube_cards_db_pre', JSON.stringify(db))
+            
+            setSubeBalance(newBalance)
+            setSubeCardNumber(cleanUid)
+            setSubeNfcStatus('success')
+          }
+        }, 1200)
+      }
+
+      reader.onreadingerror = () => {
+        setSubeErrorMsg("Error al leer la tarjeta. Apoye su tarjeta nuevamente en la parte posterior.")
+        setSubeNfcStatus('error')
+      }
+    } catch (err) {
+      console.error("NFC Scanning error:", err)
+      setSubeErrorMsg("No se pudo iniciar el lector NFC. Verifique si el NFC esta encendido.")
+      setSubeNfcStatus('error')
+    }
   }
 
   // Map-Matching / 'Snap-to-Route' algorithm to align raw GPS coordinates to active route polylines
@@ -22452,10 +22664,20 @@ export default function UserMapPage() {
               }
 
               if (triggered) {
-                toast(`🚨 ¡Alerta de Colectivo! El Interno ${bus.bus_unit} está a menos de ${alarm.thresholdValue} ${alarm.thresholdType === 'meters' ? 'metros' : alarm.thresholdType === 'minutes' ? 'minutos' : 'cuadras'} de tu parada (${stop.name})`, {
-                  icon: '🔔',
-                  duration: 8000
-                })
+                if (alarm.notificationType === 'ringing') {
+                  setActiveRingingAlarm({
+                    ...alarm,
+                    title: '¡Alerta de Colectivo!',
+                    message: `El Interno ${bus.bus_unit} está a menos de ${alarm.thresholdValue} ${alarm.thresholdType === 'meters' ? 'metros' : alarm.thresholdType === 'minutes' ? 'minutos' : 'cuadras'} de tu parada (${stop.name}).`
+                  })
+                  startRingingSound()
+                } else {
+                  playNotificationBeep()
+                  toast(`🚨 ¡Alerta de Colectivo! El Interno ${bus.bus_unit} está a menos de ${alarm.thresholdValue} ${alarm.thresholdType === 'meters' ? 'metros' : alarm.thresholdType === 'minutes' ? 'minutos' : 'cuadras'} de tu parada (${stop.name})`, {
+                    icon: '🔔',
+                    duration: 8000
+                  })
+                }
                 triggeredAlarms.push(alarm.id)
               }
             } else if (alarm.type === 'stop_alarm' && alarm.lineId === bus.line_id) {
@@ -22489,12 +22711,24 @@ export default function UserMapPage() {
 
                 if (triggered) {
                   const line = MOCK_LINES.find(l => l.id === alarm.lineId)
-                  const lineName = line ? `Línea ${line.line_number}` : 'Colectivo'
+                  const lineName = line ? `Linea ${line.line_number}` : 'Colectivo'
                   const currentSt = getNearestStreetName(bus.latitude, bus.longitude)
-                  toast(`🚨 ¡Recordatorio de Parada! Tu próximo colectivo de la ${lineName} (Interno ${bus.bus_unit}) está a ${triggerVal} ${alarm.thresholdType === 'minutes' ? 'minutos' : 'cuadras'} de tu parada personalizada (actualmente cerca de ${currentSt}).`, {
-                    icon: '⏱️',
-                    duration: 8000
-                  })
+                  const msg = `Tu proximo colectivo de la ${lineName} (Interno ${bus.bus_unit}) esta a ${triggerVal} ${alarm.thresholdType === 'minutes' ? 'minutos' : 'cuadras'} de tu parada personalizada.`
+                  
+                  if (alarm.notificationType === 'ringing') {
+                    setActiveRingingAlarm({
+                      ...alarm,
+                      title: 'Recordatorio de Parada',
+                      message: msg
+                    })
+                    startRingingSound()
+                  } else {
+                    playNotificationBeep()
+                    toast(`Recordatorio: ${msg} (actualmente cerca de ${currentSt}).`, {
+                      icon: '🔔',
+                      duration: 8000
+                    })
+                  }
                   triggeredAlarms.push(alarm.id)
                 }
               }
@@ -22809,9 +23043,7 @@ export default function UserMapPage() {
       ? activeTravelRoute.direction
       : directionFilter
 
-    const paths = lineShapes.length > 0
-      ? lineShapes.map(s => s.geometry.coordinates.map(([lng, lat]: any) => ({ lat, lng })))
-      : getMockRoutePathsForLine(line, activeDir)
+    const paths = getMockRoutePathsForLine(line, activeDir)
 
     // Slice coordinates to show ONLY the trip portion if activeTravelRoute is set for this line
     let pathsToDraw = paths
@@ -23431,15 +23663,26 @@ export default function UserMapPage() {
 
         {/* Bottom Bar: Payment Icon + Main Button + Filters (Matches Yango bottom bar style) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid rgba(184,200,224,0.08)', paddingTop: '10px', marginTop: 'auto' }}>
-          {/* Visa/SUBE card badge */}
-          <div style={{
-            width: '42px', height: '34px', borderRadius: '8px',
-            background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
-            border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-          }} title="SUBE Card">
+          {/* Visa/SUBE card button */}
+          <button
+            onClick={() => {
+              setShowSubeModal(true)
+              setSubeNfcStatus('idle')
+              setSubeCardNumber('')
+              setSubeBalance(null)
+              setSubeErrorMsg('')
+            }}
+            style={{
+              width: '42px', height: '34px', borderRadius: '8px',
+              background: prefs.darkMap ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+              border: prefs.darkMap ? '1px solid rgba(255,255,255,0.12)' : '1px solid rgba(0,0,0,0.12)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              cursor: 'pointer', outline: 'none', transition: 'all 150ms'
+            }}
+            title="Consultar Saldo SUBE"
+          >
             <span style={{ fontSize: '9px', fontWeight: 900, color: '#0057B7', fontFamily: 'system-ui' }}>SUBE</span>
-          </div>
+          </button>
 
           {/* Main button: Comenzar Viaje / Request */}
           <button
@@ -23946,6 +24189,7 @@ export default function UserMapPage() {
 
           {buses
             .filter(bus => {
+              if (activeTravelRoute && bus.line_id !== activeTravelRoute.line_id) return false
               if (showOnlyFocusedLine && focusedLineId && bus.line_id !== focusedLineId) return false
               if (bus.line_number === '60' && branchFilter !== 'all' && bus.ramal !== branchFilter) return false
               if (trackedBusId && bus.id !== trackedBusId) return false
@@ -23963,6 +24207,7 @@ export default function UserMapPage() {
             })}
 
           {lineStops.map((stop: BusStop) => {
+            if (activeTravelRoute && stop.line_id !== activeTravelRoute.line_id) return null
             const line = lines.find(l => l.id === stop.line_id)
             const isTourist = (line as any)?.is_tourist
             const isFav = prefs.favStops.includes(stop.id)
@@ -24376,16 +24621,128 @@ export default function UserMapPage() {
               latitude={selectedPlace.lat}
               anchor="bottom"
               offset={28}
-              closeButton={true}
+              closeButton={false}
               onClose={() => setSelectedPlace(null)}
             >
               <div style={{
-                padding: '4px', maxWidth: '220px', fontFamily: 'DM Sans, sans-serif',
-                color: prefs.darkMap ? 'white' : 'var(--text-primary)'
+                position: 'relative',
+                width: '260px',
+                borderRadius: '16px',
+                background: prefs.darkMap
+                  ? 'linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(10, 15, 26, 0.99) 100%)'
+                  : 'linear-gradient(135deg, rgba(255, 255, 255, 0.99) 0%, rgba(249, 250, 251, 0.99) 100%)',
+                color: prefs.darkMap ? 'white' : 'var(--text-primary)',
+                fontFamily: 'DM Sans, sans-serif',
+                boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+                border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                overflow: 'hidden'
               }}>
-                <h4 style={{ fontWeight: 'bold', fontSize: '13px', margin: '0 0 4px 0' }}>{selectedPlace.name}</h4>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '0 0 6px 0', lineHeight: '1.4' }}>{selectedPlace.description}</p>
-                <div style={{ fontSize: '10px', fontWeight: 'bold', color: '#F59E0B' }}>⭐ {selectedPlace.rating} / 5.0</div>
+                {/* Speech bubble downward pointer */}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '-8px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: 0,
+                  height: 0,
+                  borderLeft: '8px solid transparent',
+                  borderRight: '8px solid transparent',
+                  borderTop: `8px solid ${prefs.darkMap ? 'rgba(10, 15, 26, 0.99)' : 'rgba(249, 250, 251, 0.99)'}`,
+                  zIndex: 10
+                }} />
+
+                {selectedPlace.imageUrl ? (
+                  <div style={{ width: '100%', height: '120px', overflow: 'hidden', position: 'relative' }}>
+                    <img
+                      src={selectedPlace.imageUrl}
+                      alt={selectedPlace.name}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                    <button
+                      onClick={() => setSelectedPlace(null)}
+                      style={{
+                        position: 'absolute',
+                        top: '10px',
+                        right: '10px',
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        background: 'rgba(15, 23, 42, 0.65)',
+                        color: 'white',
+                        border: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        zIndex: 12,
+                        backdropFilter: 'blur(4px)'
+                      }}
+                    >
+                      <X size={14} />
+                    </button>
+                    <div style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      background: 'linear-gradient(to top, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0) 100%)',
+                      padding: '8px 12px'
+                    }}>
+                      <span style={{
+                        fontSize: '9px',
+                        fontWeight: 800,
+                        color: '#F59E0B',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em'
+                      }}>
+                        {selectedPlace.type === 'clubbing' ? '🍷 Bar / Club' : '🛍️ Compras'}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ padding: '12px 14px 0 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '9px', fontWeight: 800, color: '#F59E0B', textTransform: 'uppercase' }}>
+                      {selectedPlace.type === 'clubbing' ? '🍷 Bar / Club' : '🛍️ Compras'}
+                    </span>
+                    <button
+                      onClick={() => setSelectedPlace(null)}
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        background: prefs.darkMap ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                        color: prefs.darkMap ? 'white' : 'black',
+                        border: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+
+                <div style={{ padding: '12px 14px' }}>
+                  <h4 style={{ fontWeight: 800, fontSize: '15px', margin: '0 0 4px 0', lineHeight: '1.2' }}>
+                    {selectedPlace.name}
+                  </h4>
+                  
+                  <div style={{ fontSize: '10px', color: '#F59E0B', fontWeight: 600, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                    <span>⭐ {selectedPlace.rating} / 5.0</span>
+                  </div>
+
+                  <p style={{
+                    fontSize: '11px',
+                    color: prefs.darkMap ? 'rgba(255,255,255,0.8)' : 'rgba(15, 23, 42, 0.8)',
+                    margin: 0,
+                    lineHeight: '1.4',
+                    textAlign: 'left'
+                  }}>
+                    {selectedPlace.description}
+                  </p>
+                </div>
               </div>
             </Popup>
           )}
@@ -24818,6 +25175,29 @@ export default function UserMapPage() {
                     />
                   </div>
 
+                  {/* Alarm Type (Notif vs Phone Ring) Selector */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>TIPO DE ALERTA:</span>
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      {(['notification', 'ringing'] as const).map(mode => (
+                        <button
+                          key={mode}
+                          type="button"
+                          onClick={() => setAlarmNotificationType(mode)}
+                          style={{
+                            flex: 1, padding: '5px 8px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer',
+                            background: alarmNotificationType === mode ? 'rgba(245,158,11,0.15)' : (prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'),
+                            border: `1px solid ${alarmNotificationType === mode ? '#F59E0B' : 'transparent'}`,
+                            color: alarmNotificationType === mode ? '#F59E0B' : 'var(--text-secondary)', fontWeight: 600,
+                            transition: 'all 150ms'
+                          }}
+                        >
+                          {mode === 'notification' ? '🔔 Notificación' : '📞 Llamada (Alarma)'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {nearbyLines.length > 0 && (
                     <button
                       onClick={() => {
@@ -24828,7 +25208,8 @@ export default function UserMapPage() {
                           lineId: targetLine.id,
                           coord: alarmPinCoord,
                           thresholdType: alarmThresholdType,
-                          thresholdValue: alarmThresholdValue
+                          thresholdValue: alarmThresholdValue,
+                          notificationType: alarmNotificationType
                         }
                         setActiveAlarms(prev => [...prev, alarm])
                         toast.success(`Recordatorio fijado para Línea ${targetLine.line_number} a ${alarmThresholdValue} ${alarmThresholdType === 'minutes' ? 'minutos' : 'cuadras'}`)
@@ -26287,6 +26668,307 @@ export default function UserMapPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* SUBE NFC Balance Reader Modal */}
+        {showSubeModal && (
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9000,
+            background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', padding: '16px'
+          }}>
+            <div style={{
+              width: '100%', maxWidth: '320px', borderRadius: '20px',
+              background: prefs.darkMap
+                ? 'linear-gradient(135deg, rgba(17, 24, 39, 0.98) 0%, rgba(10, 15, 26, 0.99) 100%)'
+                : 'linear-gradient(135deg, rgba(255, 255, 255, 0.99) 0%, rgba(249, 250, 251, 0.99) 100%)',
+              color: prefs.darkMap ? 'white' : 'var(--text-primary)',
+              fontFamily: 'DM Sans, sans-serif',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+              border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+              overflow: 'hidden', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '10px', fontWeight: 800, color: '#0057B7', letterSpacing: '0.05em' }}>CONSULTA DE SALDO</span>
+                <button
+                  onClick={() => {
+                    if ((window as any).subeSimTimeout) clearTimeout((window as any).subeSimTimeout)
+                    setShowSubeModal(false)
+                  }}
+                  style={{
+                    width: '24px', height: '24px', borderRadius: '50%',
+                    background: prefs.darkMap ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                    color: prefs.darkMap ? 'white' : 'black', border: 'none',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              <h3 style={{ fontSize: '16px', fontWeight: 800, margin: 0 }}>Tarjeta SUBE</h3>
+
+              {subeNfcStatus === 'idle' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', alignItems: 'center', padding: '10px 0' }}>
+                  <div style={{
+                    width: '70px', height: '70px', borderRadius: '50%', background: 'rgba(0,87,183,0.1)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0057B7'
+                  }}>
+                    <Smartphone size={32} />
+                  </div>
+                  <p style={{ fontSize: '11px', textAlign: 'center', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.5' }}>
+                    Acerca tu tarjeta SUBE a la parte trasera de tu telefono o presiona escanear.
+                  </p>
+                  
+                  <button
+                    onClick={handleNfcScan}
+                    style={{
+                      width: '100%', padding: '10px', background: '#0057B7', color: 'white',
+                      border: 'none', borderRadius: '10px', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+                      boxShadow: '0 4px 12px rgba(0, 87, 183, 0.25)'
+                    }}
+                  >
+                    📡 Escanear NFC
+                  </button>
+
+                  <div style={{ width: '100%', height: '1px', background: 'var(--border-color)', margin: '4px 0' }} />
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>O INGRESAR MANUALMENTE:</span>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <input
+                        type="text"
+                        placeholder="N° de tarjeta (16 dígitos)"
+                        value={subeCardNumber}
+                        maxLength={16}
+                        onChange={(e) => setSubeCardNumber(e.target.value.replace(/\D/g, ''))}
+                        style={{
+                          flex: 1, padding: '8px 10px', borderRadius: '8px', fontSize: '11px',
+                          background: prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                          border: '1px solid var(--border-color)', color: 'var(--text-primary)', outline: 'none'
+                        }}
+                      />
+                      <button
+                        onClick={() => handleManualSubeLookup(subeCardNumber)}
+                        disabled={subeCardNumber.length < 16}
+                        style={{
+                          padding: '0 12px', background: subeCardNumber.length === 16 ? '#0057B7' : 'rgba(0,87,183,0.3)',
+                          color: 'white', border: 'none', borderRadius: '8px', fontSize: '11px', fontWeight: 700,
+                          cursor: subeCardNumber.length === 16 ? 'pointer' : 'not-allowed'
+                        }}
+                      >
+                        Consultar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {subeNfcStatus === 'scanning' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', padding: '20px 0' }}>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="sube-ring" style={{
+                      position: 'absolute', width: '90px', height: '90px', borderRadius: '50%',
+                      border: '2px solid #0057B7', animation: 'sube-pulse 2s infinite'
+                    }} />
+                    <div style={{
+                      width: '70px', height: '70px', borderRadius: '50%', background: 'rgba(0,87,183,0.1)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0057B7', zIndex: 2
+                    }}>
+                      <Smartphone size={32} />
+                    </div>
+                  </div>
+                  <style>{`
+                    @keyframes sube-pulse {
+                      0% { transform: scale(0.8); opacity: 0.8; }
+                      100% { transform: scale(1.4); opacity: 0; }
+                    }
+                  `}</style>
+                  <p style={{ fontSize: '12px', fontWeight: 600, color: '#0057B7', margin: 0 }}>
+                    Apoye la tarjeta en el reverso
+                  </p>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', textAlign: 'center' }}>
+                    Buscando tarjeta SUBE por NFC...
+                  </span>
+                  <button
+                    onClick={() => {
+                      if ((window as any).subeSimTimeout) clearTimeout((window as any).subeSimTimeout)
+                      setSubeNfcStatus('idle')
+                    }}
+                    style={{
+                      padding: '6px 16px', background: 'rgba(239,68,68,0.1)', color: '#EF4444',
+                      border: '1px solid rgba(239,68,68,0.2)', borderRadius: '6px', fontSize: '10px',
+                      fontWeight: 700, cursor: 'pointer'
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              )}
+
+              {subeNfcStatus === 'reading' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', padding: '20px 0' }}>
+                  <div style={{
+                    width: '70px', height: '70px', borderRadius: '50%', background: 'rgba(245,158,11,0.1)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F59E0B'
+                  }}>
+                    <Smartphone size={32} />
+                  </div>
+                  <p style={{ fontSize: '12px', fontWeight: 600, color: '#F59E0B', margin: 0 }}>
+                    Leyendo tarjeta...
+                  </p>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                    No mueva la tarjeta del dispositivo.
+                  </span>
+                </div>
+              )}
+
+              {subeNfcStatus === 'success' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', alignItems: 'center', padding: '10px 0' }}>
+                  <div style={{
+                    width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(16,185,129,0.1)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10B981'
+                  }}>
+                    <CreditCard size={28} />
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+                      Saldo Disponible
+                    </div>
+                    <div style={{ fontSize: '26px', fontWeight: 900, color: '#10B981', margin: '4px 0' }}>
+                      ${subeBalance?.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--text-secondary)', fontFamily: 'DM Mono' }}>
+                      SUBE N°: {subeCardNumber.replace(/(\d{4})/g, '$1 ').trim()}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setSubeNfcStatus('idle')}
+                    style={{
+                      width: '100%', padding: '8px', background: '#0057B7', color: 'white',
+                      border: 'none', borderRadius: '8px', fontSize: '11px', fontWeight: 700, cursor: 'pointer'
+                    }}
+                  >
+                    Consultar otra tarjeta
+                  </button>
+                </div>
+              )}
+
+              {subeNfcStatus === 'error' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', alignItems: 'center', padding: '10px 0' }}>
+                  <div style={{
+                    width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(239,68,68,0.1)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EF4444'
+                  }}>
+                    <AlertTriangle size={28} />
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#EF4444' }}>
+                      Error de Lectura
+                    </div>
+                    <p style={{ fontSize: '10.5px', color: 'var(--text-secondary)', margin: '4px 0 0 0', lineHeight: '1.4' }}>
+                      {subeErrorMsg || 'No se pudo verificar la tarjeta SUBE.'}
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                    <button
+                      onClick={() => setSubeNfcStatus('idle')}
+                      style={{
+                        flex: 1, padding: '8px', background: 'rgba(184,200,224,0.1)', color: 'var(--text-primary)',
+                        border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '11px',
+                        fontWeight: 700, cursor: 'pointer'
+                      }}
+                    >
+                      Volver
+                    </button>
+                    <button
+                      onClick={handleNfcScan}
+                      style={{
+                        flex: 1, padding: '8px', background: '#0057B7', color: 'white',
+                        border: 'none', borderRadius: '8px', fontSize: '11px', fontWeight: 700, cursor: 'pointer'
+                      }}
+                    >
+                      Reintentar
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Full-Screen Ringing Call Alarm Dialog */}
+        {activeRingingAlarm && (
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999,
+            background: '#0E141F', display: 'flex', flexDirection: 'column',
+            justifyContent: 'space-between', padding: '48px 24px', fontFamily: 'DM Sans, sans-serif'
+          }}>
+            {/* Top info */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', marginTop: '24px' }}>
+              <div style={{
+                width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(245,158,11,0.1)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#F59E0B'
+              }}>
+                <PhoneCall size={32} style={{ animation: 'sube-pulse 1.5s infinite' }} />
+              </div>
+              <h2 style={{ color: '#F59E0B', fontSize: '20px', fontWeight: 800, margin: 0 }}>
+                {activeRingingAlarm.title || 'Recordatorio de Parada'}
+              </h2>
+              <p style={{ color: '#9CA3AF', fontSize: '11px', letterSpacing: '0.1em', textTransform: 'uppercase', margin: 0 }}>
+                Llamando...
+              </p>
+            </div>
+
+            {/* Message Body */}
+            <div style={{ padding: '0 16px', textAlign: 'center' }}>
+              <p style={{ color: 'white', fontSize: '14px', lineHeight: '1.6', margin: 0, fontWeight: 500 }}>
+                {activeRingingAlarm.message}
+              </p>
+            </div>
+
+            {/* Buttons Row */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', alignItems: 'center' }}>
+              <button
+                onClick={() => {
+                  stopRingingSound()
+                  const postponedValue = activeRingingAlarm.thresholdValue + (activeRingingAlarm.thresholdType === 'minutes' ? 3 : 2)
+                  const postponed = {
+                    ...activeRingingAlarm,
+                    id: `alarm-postponed-${Date.now()}`,
+                    thresholdValue: postponedValue
+                  }
+                  setActiveAlarms(prev => [...prev, postponed])
+                  toast.success(`Alarma pospuesta por ${activeRingingAlarm.thresholdType === 'minutes' ? '3 minutos' : '2 cuadras'}`)
+                  setActiveRingingAlarm(null)
+                }}
+                style={{
+                  width: '100%', maxWidth: '260px', padding: '12px', background: 'rgba(255,255,255,0.06)',
+                  color: 'white', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '14px',
+                  fontSize: '12px', fontWeight: 700, cursor: 'pointer', textAlign: 'center',
+                  transition: 'background 150ms'
+                }}
+              >
+                💤 Posponer
+              </button>
+              <button
+                onClick={() => {
+                  stopRingingSound()
+                  setActiveRingingAlarm(null)
+                }}
+                style={{
+                  width: '100%', maxWidth: '260px', padding: '12px', background: '#EF4444',
+                  color: 'white', border: 'none', borderRadius: '14px',
+                  fontSize: '12px', fontWeight: 800, cursor: 'pointer', textAlign: 'center',
+                  boxShadow: '0 4px 16px rgba(239, 68, 68, 0.4)'
+                }}
+              >
+                🔴 Desactivar Alarma
+              </button>
+            </div>
+          </div>
+        )}
       </div>
       </div>
     </div>
@@ -29065,6 +29747,7 @@ function MiniPopup({
   const [popupTab, setPopupTab] = useState<'characteristics' | 'notifications'>('characteristics')
   const [thresholdType, setThresholdType] = useState<'minutes' | 'meters' | 'blocks'>('minutes')
   const [thresholdVal, setThresholdVal] = useState<number>(5)
+  const [alarmNotificationType, setAlarmNotificationType] = useState<'notification' | 'ringing'>('notification')
 
   const busColor = bus.line_number === '12' ? '#EF4444' : 
                    bus.line_number === '28' ? '#16A34A' :
@@ -29291,6 +29974,28 @@ function MiniPopup({
                 />
               </div>
 
+              {/* Alert sound selection toggle */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '2px' }}>
+                <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>TIPO DE ALERTA:</span>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {(['notification', 'ringing'] as const).map(mode => (
+                    <button
+                      key={mode}
+                      onClick={() => setAlarmNotificationType(mode)}
+                      style={{
+                        flex: 1, padding: '4px 6px', borderRadius: '6px', fontSize: '10px', cursor: 'pointer',
+                        background: alarmNotificationType === mode ? 'rgba(245,158,11,0.15)' : (darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)'),
+                        border: `1px solid ${alarmNotificationType === mode ? '#F59E0B' : 'transparent'}`,
+                        color: alarmNotificationType === mode ? '#F59E0B' : 'var(--text-secondary)', fontWeight: 600,
+                        transition: 'all 150ms'
+                      }}
+                    >
+                      {mode === 'notification' ? '🔔 Notif' : '📞 Llamada'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <button
                 onClick={() => {
                   const alarm = {
@@ -29303,7 +30008,8 @@ function MiniPopup({
                       longitude: originCoord?.lng ?? -58.4173
                     },
                     thresholdType,
-                    thresholdValue: thresholdVal
+                    thresholdValue: thresholdVal,
+                    notificationType: alarmNotificationType
                   }
                   onAddAlarm(alarm)
                   toast.success(`Alarma activada para el Interno ${bus.bus_unit}`)

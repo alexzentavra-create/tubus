@@ -352,27 +352,28 @@ export interface MockPlace {
   rating: number
   city: 'buenos_aires' | 'santa_cruz'
   type: 'tourist' | 'clubbing' | 'shopping'
+  imageUrl?: string
 }
 
 export const MOCK_PLACES: MockPlace[] = [
   // Clubs & Bars (Buenos Aires)
-  { id: 'c-1', name: 'Niceto Club', lat: -34.5882, lng: -58.4358, rating: 4.6, city: 'buenos_aires', type: 'clubbing', description: 'Club emblemático de Palermo, famoso por sus fiestas y recitales en vivo.' },
-  { id: 'c-2', name: 'Kika Club', lat: -34.5862, lng: -58.4300, rating: 4.2, city: 'buenos_aires', type: 'clubbing', description: 'Popular club nocturno en Palermo con música electrónica y pop.' },
-  { id: 'c-3', name: 'Crobar', lat: -34.5721, lng: -58.4230, rating: 4.4, city: 'buenos_aires', type: 'clubbing', description: 'Templo de la música electrónica ubicado en los bosques de Palermo.' },
-  { id: 'c-4', name: 'Rose in Rio', lat: -34.5501, lng: -58.4201, rating: 4.5, city: 'buenos_aires', type: 'clubbing', description: 'Club premium en la Costanera Norte con vista al río y terraza al aire libre.' },
-  { id: 'c-5', name: 'Uptown', lat: -34.5855, lng: -58.4350, rating: 4.7, city: 'buenos_aires', type: 'clubbing', description: 'Bar temático oculto ambientado como una estación de subte de Nueva York.' },
+  { id: 'c-1', name: 'Niceto Club', lat: -34.5882, lng: -58.4358, rating: 4.6, city: 'buenos_aires', type: 'clubbing', description: 'Club emblemático de Palermo, famoso por sus fiestas y recitales en vivo.', imageUrl: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=500&q=80' },
+  { id: 'c-2', name: 'Kika Club', lat: -34.5862, lng: -58.4300, rating: 4.2, city: 'buenos_aires', type: 'clubbing', description: 'Popular club nocturno en Palermo con música electrónica y pop.', imageUrl: 'https://images.unsplash.com/photo-1545128485-c400e7702796?w=500&q=80' },
+  { id: 'c-3', name: 'Crobar', lat: -34.5721, lng: -58.4230, rating: 4.4, city: 'buenos_aires', type: 'clubbing', description: 'Templo de la música electrónica ubicado en los bosques de Palermo.', imageUrl: 'https://images.unsplash.com/photo-1574391884720-bbc3740c59d1?w=500&q=80' },
+  { id: 'c-4', name: 'Rose in Rio', lat: -34.5501, lng: -58.4201, rating: 4.5, city: 'buenos_aires', type: 'clubbing', description: 'Club premium en la Costanera Norte con vista al río y terraza al aire libre.', imageUrl: 'https://images.unsplash.com/photo-1570872626485-d8ffea697003?w=500&q=80' },
+  { id: 'c-5', name: 'Uptown', lat: -34.5855, lng: -58.4350, rating: 4.7, city: 'buenos_aires', type: 'clubbing', description: 'Bar temático oculto ambientado como una estación de subte de Nueva York.', imageUrl: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=500&q=80' },
   // Clubs & Bars (Santa Cruz)
-  { id: 'c-6', name: 'Vintage Club', lat: -17.7712, lng: -63.1812, rating: 4.5, city: 'santa_cruz', type: 'clubbing', description: 'Exclusivo bar/discoteca de música crossover en la zona de Equipetrol.' },
-  { id: 'c-7', name: 'Duda Pop Bar', lat: -17.7831, lng: -63.1824, rating: 4.6, city: 'santa_cruz', type: 'clubbing', description: 'Bar de tragos con excelente ambiente y música pop/rock.' },
+  { id: 'c-6', name: 'Vintage Club', lat: -17.7712, lng: -63.1812, rating: 4.5, city: 'santa_cruz', type: 'clubbing', description: 'Exclusivo bar/discoteca de música crossover en la zona de Equipetrol.', imageUrl: 'https://images.unsplash.com/photo-1502877338535-766e1452684a?w=500&q=80' },
+  { id: 'c-7', name: 'Duda Pop Bar', lat: -17.7831, lng: -63.1824, rating: 4.6, city: 'santa_cruz', type: 'clubbing', description: 'Bar de tragos con excelente ambiente y música pop/rock.', imageUrl: 'https://images.unsplash.com/photo-1575444758702-4a6b9222336e?w=500&q=80' },
 
   // Malls & Galleries (Buenos Aires)
-  { id: 'm-1', name: 'Alto Palermo Shopping', lat: -34.5887, lng: -58.4116, rating: 4.5, city: 'buenos_aires', type: 'shopping', description: 'Uno de los centros comerciales más importantes, ubicado en Palermo.' },
-  { id: 'm-2', name: 'Galerías Pacífico', lat: -34.5996, lng: -58.3750, rating: 4.7, city: 'buenos_aires', type: 'shopping', description: 'Centro comercial histórico con arquitectura majestuosa y murales artísticos.' },
-  { id: 'm-3', name: 'Abasto Shopping', lat: -34.6030, lng: -58.4110, rating: 4.4, city: 'buenos_aires', type: 'shopping', description: 'Gran shopping ubicado en el antiguo mercado de abasto, con cines y entretenimientos.' },
-  { id: 'm-4', name: 'Recoleta Mall', lat: -34.5880, lng: -58.3930, rating: 4.3, city: 'buenos_aires', type: 'shopping', description: 'Shopping moderno en el corazón de Recoleta frente al cementerio.' },
+  { id: 'm-1', name: 'Alto Palermo Shopping', lat: -34.5887, lng: -58.4116, rating: 4.5, city: 'buenos_aires', type: 'shopping', description: 'Uno de los centros comerciales más importantes, ubicado en Palermo.', imageUrl: 'https://images.unsplash.com/photo-1519567241046-7f570eee3ce6?w=500&q=80' },
+  { id: 'm-2', name: 'Galerías Pacífico', lat: -34.5996, lng: -58.3750, rating: 4.7, city: 'buenos_aires', type: 'shopping', description: 'Centro comercial histórico con arquitectura majestuosa y murales artísticos.', imageUrl: 'https://images.unsplash.com/photo-1582037928867-677042c18e55?w=500&q=80' },
+  { id: 'm-3', name: 'Abasto Shopping', lat: -34.6030, lng: -58.4110, rating: 4.4, city: 'buenos_aires', type: 'shopping', description: 'Gran shopping ubicado en el antiguo mercado de abasto, con cines y entretenimientos.', imageUrl: 'https://images.unsplash.com/photo-1569058242253-92a9c755a0ec?w=500&q=80' },
+  { id: 'm-4', name: 'Recoleta Mall', lat: -34.5880, lng: -58.3930, rating: 4.3, city: 'buenos_aires', type: 'shopping', description: 'Shopping moderno en el corazón de Recoleta frente al cementerio.', imageUrl: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=500&q=80' },
   // Malls & Galleries (Santa Cruz)
-  { id: 'm-5', name: 'Las Brisas Shopping', lat: -17.7511, lng: -63.1750, rating: 4.6, city: 'santa_cruz', type: 'shopping', description: 'Moderno y amplio centro comercial con marcas internacionales.' },
-  { id: 'm-6', name: 'Ventura Mall', lat: -17.7700, lng: -63.1930, rating: 4.7, city: 'santa_cruz', type: 'shopping', description: 'El centro comercial más grande de la ciudad con un gran patio de comidas y tiendas.' },
+  { id: 'm-5', name: 'Las Brisas Shopping', lat: -17.7511, lng: -63.1750, rating: 4.6, city: 'santa_cruz', type: 'shopping', description: 'Moderno y amplio centro comercial con marcas internacionales.', imageUrl: 'https://images.unsplash.com/photo-1581579438747-1dc8d1e0ca96?w=500&q=80' },
+  { id: 'm-6', name: 'Ventura Mall', lat: -17.7700, lng: -63.1930, rating: 4.7, city: 'santa_cruz', type: 'shopping', description: 'El centro comercial más grande de la ciudad con un gran patio de comidas y tiendas.', imageUrl: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=500&q=80' },
 
   // Tourist Attractions (Buenos Aires)
   { id: 't-1', name: 'Obelisco', lat: -34.6037, lng: -58.3816, rating: 4.8, city: 'buenos_aires', type: 'tourist', description: 'Monumento nacional icónico de Buenos Aires en la Av. 9 de Julio.' },
