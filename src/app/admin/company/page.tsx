@@ -187,6 +187,18 @@ export default function CompanyDashboard() {
       const {data:comp} = await supabase.from('bus_companies').select('*').eq('profile_id',user.id).single()
       if (comp) {
         setCompany(comp)
+        
+        // Dynamically select the line number from the database company_name
+        const nameClean = comp.company_name || ''
+        const match = nameClean.match(/L[íi]nea\s*(\d+)/i) || nameClean.match(/(\d+)/)
+        if (match && match[1]) {
+          setSelectedLineNumber(match[1])
+        } else if (nameClean.toLowerCase().includes('amarillo')) {
+          setSelectedLineNumber('T-Amarillo')
+        } else if (nameClean.toLowerCase().includes('rojo')) {
+          setSelectedLineNumber('T-Rojo')
+        }
+
         const {data:qrs} = await supabase.from('bus_qr_codes').select('*').eq('company_id',comp.id)
         if (qrs) setQrCodes(qrs)
         const {data:sessions} = await supabase
