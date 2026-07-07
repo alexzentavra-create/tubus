@@ -8,6 +8,22 @@ import {
   Circle, Flag, Info
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+import { MOCK_LINES, getMockStopsForLine } from '@/lib/mockData'
+
+function hexToRgba(hex: string, alpha: number): string {
+  const cleanHex = hex.replace('#', '')
+  let r = 0, g = 0, b = 0
+  if (cleanHex.length === 3) {
+    r = parseInt(cleanHex[0] + cleanHex[0], 16)
+    g = parseInt(cleanHex[1] + cleanHex[1], 16)
+    b = parseInt(cleanHex[2] + cleanHex[2], 16)
+  } else if (cleanHex.length === 6) {
+    r = parseInt(cleanHex.slice(0, 2), 16)
+    g = parseInt(cleanHex.slice(2, 4), 16)
+    b = parseInt(cleanHex.slice(4, 6), 16)
+  }
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
@@ -74,6 +90,50 @@ export default function CompanyDashboard() {
   const [newBusUnit, setNewBusUnit] = useState('')
   const [activeSessions, setActiveSessions] = useState<any[]>([])
 
+  const [selectedLineNumber, setSelectedLineNumber] = useState<string>('12')
+  const [buses, setBuses] = useState<any[]>([])
+
+  // Load initial line from query parameter if present
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const lineParam = params.get('line') || params.get('line_number')
+      if (lineParam) {
+        setSelectedLineNumber(lineParam)
+      }
+    }
+  }, [])
+
+  const activeLine = MOCK_LINES.find(l => l.line_number === selectedLineNumber) || MOCK_LINES[0]
+  const themeColor = activeLine.color
+
+  const LINE_STATS: Record<string, { rating: string; punctuality: string; dailyPas: number }> = {
+    '12': { rating: '4.7', punctuality: '84%', dailyPas: 1240 },
+    '28': { rating: '4.5', punctuality: '88%', dailyPas: 2150 },
+    '37': { rating: '4.6', punctuality: '82%', dailyPas: 1480 },
+    '39': { rating: '4.8', punctuality: '91%', dailyPas: 1890 },
+    '59': { rating: '4.7', punctuality: '89%', dailyPas: 2300 },
+    '60': { rating: '4.4', punctuality: '79%', dailyPas: 3120 },
+    '102': { rating: '4.6', punctuality: '85%', dailyPas: 1150 },
+    '152': { rating: '4.7', punctuality: '87%', dailyPas: 1720 },
+    'T-Amarillo': { rating: '4.9', punctuality: '95%', dailyPas: 480 },
+    'T-Rojo': { rating: '4.8', punctuality: '93%', dailyPas: 510 },
+  }
+
+  const activeStats = LINE_STATS[activeLine.line_number] || { rating: '4.7', punctuality: '85%', dailyPas: 1200 }
+  
+  const totalPassengersOnboard = buses.reduce((acc, b) => acc + b.passenger_count, 0)
+  const avgOnboard = buses.length > 0 ? Math.round(totalPassengersOnboard / buses.length) : 0
+
+  const handleLineChange = (lineNum: string) => {
+    setSelectedLineNumber(lineNum)
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href)
+      url.searchParams.set('line', lineNum)
+      window.history.pushState({}, '', url.toString())
+    }
+  }
+
   // Checklist State
   const [todos, setTodos] = useState<Todo[]>([
     { id: 't1', text: 'Revisar reclamo sobre coche 001', done: false, date: '28 de Mayo', badge: 'Urgente', flagged: true },
@@ -84,34 +144,19 @@ export default function CompanyDashboard() {
   const [newTodoText, setNewTodoText] = useState('')
   const [showAddTodo, setShowAddTodo] = useState(false)
 
+  // Load company profile and details
   useEffect(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
     if (url.includes('placeholder.supabase.co')) {
       setCompany({
-        id: 'mock-company-id',
-        company_name: 'Línea 12 (Transporte Larrazábal)',
-        username: 'linea12',
+        id: `mock-company-${activeLine.id}`,
+        company_name: `${activeLine.line_number === 'T-Amarillo' || activeLine.line_number === 'T-Rojo' ? '' : 'Línea '}${activeLine.line_number} (${activeLine.company})`,
+        username: `linea${activeLine.line_number.toLowerCase()}`,
         is_active: true
       })
       setQrCodes([
-        { id: 'mock-qr-1', qr_token: 'DEMO-QR-L12-001', bus_unit: '001', is_active: true, company_id: 'mock-company-id', line_id: 'line-1' },
-        { id: 'mock-qr-2', qr_token: 'DEMO-QR-BUS-0387-LINEA12', bus_unit: '0387', is_active: false, company_id: 'mock-company-id', line_id: 'line-1' }
-      ])
-      setActiveSessions([
-        {
-          id: 'mock-session-1',
-          bus_unit: '001',
-          started_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          total_passengers: 12,
-          profiles: { name: 'Néstor García' }
-        },
-        {
-          id: 'mock-session-2',
-          bus_unit: '003',
-          started_at: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(),
-          total_passengers: 35,
-          profiles: { name: 'Roberto Sánchez' }
-        }
+        { id: `mock-qr-${activeLine.line_number}-1`, qr_token: `DEMO-QR-L${activeLine.line_number}-001`, bus_unit: `${activeLine.line_number}-301`, is_active: true, company_id: `mock-company-${activeLine.id}`, line_id: activeLine.id },
+        { id: `mock-qr-${activeLine.line_number}-2`, qr_token: `DEMO-QR-L${activeLine.line_number}-002`, bus_unit: `${activeLine.line_number}-302`, is_active: false, company_id: `mock-company-${activeLine.id}`, line_id: activeLine.id }
       ])
       setLoading(false)
       return
@@ -136,7 +181,103 @@ export default function CompanyDashboard() {
       }
       setLoading(false)
     })
-  }, [])
+  }, [activeLine])
+
+  // Fetch live fleet details from user app's simulator
+  useEffect(() => {
+    if (!activeLine) return
+    const fetchBuses = () => {
+      fetch(`/api/buses?line_id=${activeLine.id}&line_number=${activeLine.line_number}`)
+        .then(res => res.json())
+        .then(json => {
+          if (json.data) {
+            setBuses(json.data)
+            
+            // Map live simulated buses to activeSessions so the rest of the dashboard updates dynamically
+            const sessions = json.data.map((bus: any) => ({
+              id: bus.id,
+              bus_unit: bus.bus_unit,
+              started_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+              total_passengers: bus.passenger_count,
+              profiles: { name: bus.driver_name }
+            }))
+            setActiveSessions(sessions)
+          }
+        })
+        .catch(() => {})
+    }
+
+    fetchBuses()
+    const interval = setInterval(fetchBuses, 5000)
+    return () => clearInterval(interval)
+  }, [activeLine])
+
+  const LINE_DRIVERS: Record<string, string[]> = {
+    '12': ['Néstor García', 'Roberto Sánchez', 'Carlos Martínez', 'Juan Gómez'],
+    '28': ['Carlos M.', 'Jorge Rodríguez', 'Pablo García'],
+    '37': ['Roberto S.', 'Ana Martínez'],
+    '39': ['Esteban Ortiz', 'Lucas Domínguez', 'Martín Pereyra'],
+    '59': ['Hugo Bianchi', 'Nicolás Silva', 'Claudio Rossi'],
+    '60': ['Carlos Martínez', 'Diego Rodríguez', 'Pablo García', 'Luis Fernández'],
+    '102': ['Diego Torres', 'Fernando Gómez', 'Javier Ortega'],
+    '152': ['Roberto S.', 'Jorge R.', 'Ana C.'],
+    'T-Amarillo': ['Marta Giménez', 'Sergio Rossi', 'Elena Paz'],
+    'T-Rojo': ['Juan Pérez', 'Facundo Castro', 'Sofía Medina']
+  }
+
+  const getLineDrivers = (lineNum: string) => {
+    const names = LINE_DRIVERS[lineNum] || ['Chofer Auxiliar', 'Chofer de Guardia']
+    return names.map((name, i) => ({
+      name,
+      legajo: `LEG-${String(100 + i * 17).padStart(4, '0')}`,
+      sessions: 40 + (i * 23) % 150,
+      onTime: 85 + (i * 7) % 15,
+      rating: (4.4 + (i * 0.15) % 0.6).toFixed(1),
+      reports: i % 3 === 0 ? 1 : 0,
+      lastActive: i % 2 === 0 ? 'Hoy 08:30' : 'Ayer 18:30'
+    }))
+  }
+
+  const currentDrivers = getLineDrivers(activeLine.line_number)
+
+  const stops = getMockStopsForLine(activeLine, 'ida')
+  const topStops = [...stops]
+    .sort((a, b) => b.total_daily_users - a.total_daily_users)
+    .slice(0, 4)
+    .map(s => ({
+      name: s.name,
+      subidas: Math.round(s.total_daily_users * 0.8),
+      espera: s.avg_wait_minutes
+    }))
+
+  // Dynamic reports
+  const [reports, setReports] = useState<any[]>([])
+  useEffect(() => {
+    const driversList = LINE_DRIVERS[activeLine.line_number] || ['Chofer de Guardia']
+    const stopsList = getMockStopsForLine(activeLine, 'ida')
+    setReports([
+      {
+        id: 'rep-1',
+        type: 'No paró',
+        driver: driversList[0],
+        bus: `${activeLine.line_number}-301`,
+        stop: stopsList[0]?.name || 'Esquina Principal',
+        status: 'pending',
+        time: 'Hace 20 min',
+        desc: 'El colectivo no paró a pesar de que había espacio y se le hizo la señal correspondiente.'
+      },
+      {
+        id: 'rep-2',
+        type: 'Mal trato',
+        driver: driversList[1] || 'Chofer de Guardia',
+        bus: `${activeLine.line_number}-303`,
+        stop: stopsList[1]?.name || 'Avenida Central',
+        status: 'resolved',
+        time: 'Hace 2h',
+        desc: 'El chofer fue agresivo al responder una consulta sobre el recorrido.'
+      }
+    ])
+  }, [activeLine])
 
   const generateQR = async () => {
     if (!newBusUnit.trim() || !company) return
@@ -189,7 +330,7 @@ export default function CompanyDashboard() {
   const exportData = () => {
     const csv = ['Métrica,Valor',`Colectivos activos,${activeSessions.length}`,`Pasajeros transportados,1240`,`Calificación promedio,4.7`,`Denuncias pendientes,${todos.filter(t => !t.done && t.badge === 'Urgente').length}`].join('\n')
     const a = document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}))
-    a.download=`bienparada_linea12_${format(new Date(),'yyyy-MM-dd')}.csv`; a.click()
+    a.download=`bienparada_linea${activeLine.line_number}_${format(new Date(),'yyyy-MM-dd')}.csv`; a.click()
     toast.success('Datos exportados')
   }
 
@@ -208,7 +349,6 @@ export default function CompanyDashboard() {
     <div style={{minHeight:'100vh',background:'#0b0f19',display:'flex',alignItems:'center',justifyContent:'center'}}>
       <div style={{color:'#8f94a5',fontFamily:'DM Mono',fontSize:'13px'}}>Cargando panel...</div>
     </div>
-    
   )
 
   return (
@@ -241,17 +381,37 @@ export default function CompanyDashboard() {
             <span style={{ fontSize: '20px', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
               Bien<span style={{ color: '#8f94a5', fontWeight: 400 }}>Parada</span>
             </span>
-            <span style={{
-              fontSize: '9px',
-              color: '#fff',
-              background: '#EF4444',
-              padding: '2px 6px',
-              borderRadius: '4px',
-              fontWeight: 700,
-              letterSpacing: '0.05em',
-            }}>
-              Línea 12
-            </span>
+            
+            {/* Interactive Badge Selector */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <select
+                value={selectedLineNumber}
+                onChange={(e) => handleLineChange(e.target.value)}
+                style={{
+                  fontSize: '9px',
+                  color: '#fff',
+                  background: themeColor,
+                  border: 'none',
+                  padding: '3px 20px 3px 8px',
+                  borderRadius: '4px',
+                  fontWeight: 700,
+                  letterSpacing: '0.05em',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  appearance: 'none',
+                  WebkitAppearance: 'none',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+                  transition: 'background-color 200ms',
+                }}
+              >
+                {MOCK_LINES.map(l => (
+                  <option key={l.id} value={l.line_number} style={{ background: '#121527', color: '#fff' }}>
+                    {l.line_number === 'T-Amarillo' || l.line_number === 'T-Rojo' ? '' : 'Línea '}{l.line_number}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={10} style={{ position: 'absolute', right: '5px', color: '#fff', pointerEvents: 'none' }} />
+            </div>
           </div>
         </div>
 
@@ -300,7 +460,7 @@ export default function CompanyDashboard() {
                 right: '-2px',
                 width: '6px',
                 height: '6px',
-                background: '#EF4444',
+                background: themeColor,
                 borderRadius: '50%',
               }} />
             </div>
@@ -310,7 +470,7 @@ export default function CompanyDashboard() {
           {/* Company Title */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderLeft: '1px solid rgba(255, 255, 255, 0.1)', paddingLeft: '16px' }}>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ color: '#fff', fontWeight: 600, fontSize: '12px' }}>Transportes Callao</div>
+              <div style={{ color: '#fff', fontWeight: 600, fontSize: '12px' }}>{activeLine.company}</div>
               <div style={{ color: '#8f94a5', fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Panel Empresa</div>
             </div>
           </div>
@@ -348,13 +508,13 @@ export default function CompanyDashboard() {
                 fontWeight: active ? 600 : 500,
                 background: 'none',
                 border: 'none',
-                borderBottom: `2.5px solid ${active ? '#EF4444' : 'transparent'}`,
+                borderBottom: `2.5px solid ${active ? themeColor : 'transparent'}`,
                 cursor: 'pointer',
                 transition: 'all 200ms',
                 whiteSpace: 'nowrap',
               }}
             >
-              <item.icon size={14} style={{ color: active ? '#EF4444' : '#a3a6b8' }} />
+              <item.icon size={14} style={{ color: active ? themeColor : '#a3a6b8' }} />
               <span>{item.label}</span>
               {item.hasChevron && <ChevronDown size={11} style={{ opacity: 0.5 }} />}
             </button>
@@ -379,7 +539,7 @@ export default function CompanyDashboard() {
                 fontSize: '14px',
                 fontWeight: idx === 0 ? 600 : 500,
                 color: idx === 0 ? '#fff' : '#8f94a5',
-                borderBottom: idx === 0 ? '2px solid #EF4444' : 'none',
+                borderBottom: idx === 0 ? `2px solid ${themeColor}` : 'none',
                 paddingBottom: '4px',
                 cursor: 'pointer',
               }}
@@ -426,7 +586,7 @@ export default function CompanyDashboard() {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              background: '#EF4444',
+              background: themeColor,
               borderRadius: '6px',
               padding: '8px 16px',
               color: '#fff',
@@ -457,31 +617,31 @@ export default function CompanyDashboard() {
         {/* Pasajeros Hoy */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
           <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Pasajeros Hoy</span>
-          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>1.240</span>
+          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{activeStats.dailyPas.toLocaleString('es-ES')}</span>
           <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +12%</span>
         </div>
         {/* Calificacion Promedio */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
           <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Calificación Prom.</span>
-          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>4.7</span>
+          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{activeStats.rating}</span>
           <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +0.2</span>
         </div>
         {/* Denuncias Pendientes */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
           <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Denuncias Pend.</span>
-          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{todos.filter(t => !t.done && t.badge === 'Urgente').length}</span>
+          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{reports.filter(r => r.status === 'pending').length}</span>
           <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▼ -15.0%</span>
         </div>
         {/* Pasajeros A Bordo */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
           <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Pasajeros a Bordo</span>
-          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>47</span>
-          <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 600 }}>Promedio por coche</span>
+          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{totalPassengersOnboard}</span>
+          <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 600 }}>Promedio: {avgOnboard}/coche</span>
         </div>
         {/* En Hora */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
           <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Puntualidad</span>
-          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>84%</span>
+          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{activeStats.punctuality}</span>
           <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +2.4%</span>
         </div>
       </div>
@@ -508,7 +668,7 @@ export default function CompanyDashboard() {
                     {/* Legend */}
                     <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#a3a6b8' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#EF4444' }} />
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: themeColor }} />
                         <span>Pasajeros</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -522,8 +682,8 @@ export default function CompanyDashboard() {
                     <AreaChart data={HOURLY} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <defs>
                         <linearGradient id="colorRed" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#EF4444" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="#EF4444" stopOpacity={0} />
+                          <stop offset="5%" stopColor={themeColor} stopOpacity={0.25} />
+                          <stop offset="95%" stopColor={themeColor} stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
@@ -531,7 +691,7 @@ export default function CompanyDashboard() {
                       <YAxis stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} />
                       <Tooltip contentStyle={{ background: '#121527', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px' }} />
                       <Area type="monotone" dataKey="subidas" name="Subidas" stroke="#8f94a5" fill="none" strokeWidth={2} dot={false} />
-                      <Area type="monotone" dataKey="pasajeros" name="Pasajeros" stroke="#EF4444" fill="url(#colorRed)" strokeWidth={2.5} dot={false} />
+                      <Area type="monotone" dataKey="pasajeros" name="Pasajeros" stroke={themeColor} fill="url(#colorRed)" strokeWidth={2.5} dot={false} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -547,7 +707,7 @@ export default function CompanyDashboard() {
                     Paradas con mayor afluencia (Hoy)
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {TOP_STOPS.map((s, i) => (
+                    {topStops.map((s, i) => (
                       <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                         <div style={{ width: '26px', color: '#8f94a5', fontWeight: 700, fontSize: '13px', textAlign: 'right', flexShrink: 0 }}>{i + 1}</div>
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -556,7 +716,7 @@ export default function CompanyDashboard() {
                             <span style={{ color: '#fff', fontSize: '12px', fontFamily: 'DM Mono', fontWeight: 600, flexShrink: 0, marginLeft: '8px' }}>{s.subidas} subidas</span>
                           </div>
                           <div style={{ height: '4px', background: 'rgba(255, 255, 255, 0.04)', borderRadius: '2px' }}>
-                            <div style={{ height: '4px', borderRadius: '2px', background: '#EF4444', width: `${(s.subidas / TOP_STOPS[0].subidas) * 100}%` }} />
+                            <div style={{ height: '4px', borderRadius: '2px', background: themeColor, width: `${topStops[0]?.subidas ? (s.subidas / topStops[0].subidas) * 100 : 0}%` }} />
                           </div>
                           <div style={{ color: '#8f94a5', fontSize: '10px', marginTop: '3px' }}>espera promedio: {s.espera} min</div>
                         </div>
@@ -591,8 +751,8 @@ export default function CompanyDashboard() {
               </div>
             )}
 
-            {tab === 'buses' && <BusesTab activeSessions={activeSessions} />}
-            {tab === 'drivers' && <CompanyDrivers />}
+            {tab === 'buses' && <BusesTab buses={buses} themeColor={themeColor} />}
+            {tab === 'drivers' && <CompanyDrivers drivers={currentDrivers} themeColor={themeColor} />}
             {tab === 'qrcodes' && (
               <QRTab
                 qrCodes={qrCodes}
@@ -600,11 +760,12 @@ export default function CompanyDashboard() {
                 setNewBusUnit={setNewBusUnit}
                 onGenerate={generateQR}
                 onDownload={downloadQR}
+                themeColor={themeColor}
               />
             )}
-            {tab === 'stops' && <StopsTab />}
-            {tab === 'reports' && <CompanyReports />}
-            {tab === 'calendar' && <CalendarTab />}
+            {tab === 'stops' && <StopsTab topStops={topStops} hourlyData={HOURLY} themeColor={themeColor} />}
+            {tab === 'reports' && <CompanyReports reports={reports} onResolve={(id) => setReports(rs => rs.map(x => x.id === id ? { ...x, status: 'resolved' } : x))} themeColor={themeColor} />}
+            {tab === 'calendar' && <CalendarTab themeColor={themeColor} />}
           </div>
 
           {/* Right Column (col-span-4) */}
@@ -626,7 +787,7 @@ export default function CompanyDashboard() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
                   <span style={{ fontSize: '12px', color: '#8f94a5' }}>Pasajeros Totales</span>
-                  <div style={{ fontSize: '28px', fontWeight: 700, color: '#EF4444', marginTop: '4px' }}>1.240</div>
+                  <div style={{ fontSize: '28px', fontWeight: 700, color: themeColor, marginTop: '4px' }}>{activeStats.dailyPas.toLocaleString('es-ES')}</div>
                 </div>
                 {/* Sparkline wave */}
                 <div style={{ width: '100px', height: '40px' }}>
@@ -634,7 +795,7 @@ export default function CompanyDashboard() {
                     <LineChart data={[
                       { v: 10 }, { v: 18 }, { v: 12 }, { v: 28 }, { v: 22 }, { v: 36 }, { v: 29 }, { v: 45 }
                     ]}>
-                      <Line type="monotone" dataKey="v" stroke="#EF4444" strokeWidth={2.5} dot={false} />
+                      <Line type="monotone" dataKey="v" stroke={themeColor} strokeWidth={2.5} dot={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -649,7 +810,7 @@ export default function CompanyDashboard() {
                   <div style={{ position: 'relative', width: '56px', height: '56px' }}>
                     <svg width="56" height="56" viewBox="0 0 36 36">
                       <circle cx="18" cy="18" r="15.915" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
-                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#EF4444" strokeWidth="3"
+                      <circle cx="18" cy="18" r="15.915" fill="none" stroke={themeColor} strokeWidth="3"
                         strokeDasharray="48.2 51.8" strokeDashoffset="25" strokeLinecap="round" />
                     </svg>
                     <div style={{
@@ -676,7 +837,7 @@ export default function CompanyDashboard() {
                     <svg width="56" height="56" viewBox="0 0 36 36">
                       <circle cx="18" cy="18" r="15.915" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
                       <circle cx="18" cy="18" r="15.915" fill="none" stroke="#00c689" strokeWidth="3"
-                        strokeDasharray="84 16" strokeDashoffset="25" strokeLinecap="round" />
+                        strokeDasharray={`${parseInt(activeStats.punctuality)} ${100 - parseInt(activeStats.punctuality)}`} strokeDashoffset="25" strokeLinecap="round" />
                     </svg>
                     <div style={{
                       position: 'absolute',
@@ -687,12 +848,12 @@ export default function CompanyDashboard() {
                       fontWeight: 700,
                       color: '#fff',
                     }}>
-                      84%
+                      {activeStats.punctuality}
                     </div>
                   </div>
                   <div>
                     <div style={{ fontSize: '11px', color: '#8f94a5' }}>Puntualidad</div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff', marginTop: '2px' }}>84.0%</div>
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff', marginTop: '2px' }}>{activeStats.punctuality}</div>
                   </div>
                 </div>
               </div>
@@ -716,7 +877,7 @@ export default function CompanyDashboard() {
                     width: '28px',
                     height: '28px',
                     borderRadius: '50%',
-                    background: '#EF4444',
+                    background: themeColor,
                     border: 'none',
                     color: '#fff',
                     display: 'flex',
@@ -725,8 +886,8 @@ export default function CompanyDashboard() {
                     cursor: 'pointer',
                     transition: 'all 200ms',
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#e53e3e'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = '#EF4444'}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                 >
                   <Plus size={16} />
                 </button>
@@ -752,7 +913,7 @@ export default function CompanyDashboard() {
                   <button
                     onClick={addTodo}
                     style={{
-                      background: '#EF4444',
+                      background: themeColor,
                       border: 'none',
                       borderRadius: '4px',
                       padding: '4px 8px',
@@ -816,11 +977,11 @@ export default function CompanyDashboard() {
                             padding: '1px 6px',
                             borderRadius: '4px',
                             background: todo.badge === 'Urgente' ? 'rgba(255,77,106,0.15)' :
-                                        todo.badge === 'Nuevo' ? 'rgba(239,68,68,0.15)' :
+                                        todo.badge === 'Nuevo' ? hexToRgba(themeColor, 0.15) :
                                         todo.badge === 'Resuelto' ? 'rgba(0,198,137,0.15)' :
                                         'rgba(255,255,255,0.08)',
                             color: todo.badge === 'Urgente' ? '#ff4d6a' :
-                                   todo.badge === 'Nuevo' ? '#EF4444' :
+                                   todo.badge === 'Nuevo' ? themeColor :
                                    todo.badge === 'Resuelto' ? '#00c689' :
                                    '#8f94a5',
                             fontWeight: 600,
@@ -837,8 +998,8 @@ export default function CompanyDashboard() {
                         onClick={() => toggleFlag(todo.id)}
                         style={{
                           cursor: 'pointer',
-                          fill: todo.flagged ? '#EF4444' : 'none',
-                          stroke: todo.flagged ? '#EF4444' : 'currentColor',
+                          fill: todo.flagged ? themeColor : 'none',
+                          stroke: todo.flagged ? themeColor : 'currentColor',
                         }}
                       />
                       <Trash2
@@ -864,7 +1025,7 @@ export default function CompanyDashboard() {
             <h3 style={{color:'#fff',fontFamily:'DM Sans,sans-serif',fontWeight:700,fontSize:'18px',margin:'0 0 20px'}}>QR Generado</h3>
             <QRDisplay token={selectedQR.qr_token} busUnit={selectedQR.bus_unit}/>
             <div style={{display:'flex',gap:'10px',marginTop:'20px'}}>
-              <button onClick={()=>downloadQR(selectedQR)} style={{flex:1,padding:'11px',borderRadius:'10px',background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.25)',color:'#EF4444',fontSize:'13px',fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}>
+              <button onClick={()=>downloadQR(selectedQR)} style={{flex:1,padding:'11px',borderRadius:'10px',background:hexToRgba(themeColor, 0.1),border:`1px solid ${hexToRgba(themeColor, 0.25)}`,color:themeColor,fontSize:'13px',fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}>
                 <Download size={14}/> Descargar
               </button>
               <button onClick={()=>setShowQRModal(false)} style={{flex:1,padding:'11px',borderRadius:'10px',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',color:'#fff',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
@@ -878,55 +1039,49 @@ export default function CompanyDashboard() {
   )
 }
 
-function BusesTab({ activeSessions }: { activeSessions: any[] }) {
-  const mockBuses = [
-    {unit:'001',driver:'Néstor García',status:'active',passengers:12,speed:34,stops:8,started:'07:42'},
-    {unit:'002',driver:'Carlos Martínez',status:'inactive',passengers:0,speed:0,stops:0,started:'—'},
-    {unit:'003',driver:'Roberto Sánchez',status:'active',passengers:7,speed:28,stops:5,started:'08:15'},
-    {unit:'005',driver:'Juan Gómez',status:'inactive',passengers:0,speed:0,stops:0,started:'—'},
-  ]
+function BusesTab({ buses, themeColor }: { buses: any[]; themeColor: string }) {
   return (
     <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
-      {mockBuses.map((b,i)=>(
-        <div key={i} style={{
-          background: '#121527',
-          borderRadius: '12px',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          padding: '16px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '16px',
-        }}>
-          <div style={{width:'42px',height:'42px',borderRadius:'12px',background:b.status==='active'?'rgba(34,211,160,0.1)':'rgba(184,200,224,0.05)',border:`1px solid ${b.status==='active'?'rgba(34,211,160,0.25)':'rgba(184,200,224,0.1)'}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-            <Bus size={18} style={{color:b.status==='active'?'#22D3A0':'#8f94a5'}}/>
-          </div>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'3px'}}>
-              <span style={{color:'#fff',fontWeight:700,fontSize:'15px'}}>Unidad {b.unit}</span>
-              <span style={{padding:'2px 8px',borderRadius:'999px',fontSize:'10px',fontFamily:'DM Mono',fontWeight:600,background:b.status==='active'?'rgba(34,211,160,0.1)':'rgba(184,200,224,0.05)',color:b.status==='active'?'#22D3A0':'#8f94a5',border:`1px solid ${b.status==='active'?'rgba(34,211,160,0.2)':'rgba(184,200,224,0.1)'}`}}>
-                {b.status==='active'?'EN SERVICIO':'INACTIVO'}
-              </span>
-            </div>
-            <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono'}}>
-              {b.driver} {b.status==='active'?`· ${b.passengers} pas · ${b.speed} km/h · desde ${b.started}`:''}
-            </div>
-          </div>
-          {b.status==='active'&&<div style={{flexShrink:0,textAlign:'right'}}>
-            <div style={{color:'#22D3A0',fontSize:'12px',fontFamily:'DM Mono',fontWeight:600}}>{b.stops} paradas</div>
-          </div>}
+      {buses.length === 0 ? (
+        <div style={{textAlign:'center',padding:'40px',color:'#8f94a5',fontFamily:'DM Mono',fontSize:'13px'}}>
+          No hay colectivos activos en servicio para esta línea en este momento.
         </div>
-      ))}
+      ) : (
+        buses.map((b, i) => (
+          <div key={i} style={{
+            background: '#121527',
+            borderRadius: '12px',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            padding: '16px 20px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
+          }}>
+            <div style={{width:'42px',height:'42px',borderRadius:'12px',background:b.status==='moving'?'rgba(34,211,160,0.1)':'rgba(184,200,224,0.05)',border:`1px solid ${b.status==='moving'?'rgba(34,211,160,0.25)':'rgba(184,200,224,0.1)'}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+              <Bus size={18} style={{color:b.status==='moving'?'#22D3A0':'#8f94a5'}}/>
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'3px'}}>
+                <span style={{color:'#fff',fontWeight:700,fontSize:'15px'}}>Unidad {b.bus_unit}</span>
+                <span style={{padding:'2px 8px',borderRadius:'999px',fontSize:'10px',fontFamily:'DM Mono',fontWeight:600,background:b.status==='moving'?'rgba(34,211,160,0.1)':'rgba(184,200,224,0.05)',color:b.status==='moving'?'#22D3A0':'#8f94a5',border:`1px solid ${b.status==='moving'?'rgba(34,211,160,0.2)':'rgba(184,200,224,0.1)'}`}}>
+                  {b.status==='moving'?'EN MOVIMIENTO':'DETENIDO'}
+                </span>
+              </div>
+              <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono'}}>
+                {b.driver_name} {b.status==='moving'?`· ${b.passenger_count} pas · ${b.speed_kmh} km/h · rumbo ${b.heading}°`:''}
+              </div>
+            </div>
+            {b.status==='moving'&&<div style={{flexShrink:0,textAlign:'right'}}>
+              <div style={{color:'#22D3A0',fontSize:'12px',fontFamily:'DM Mono',fontWeight:600}}>{b.eta_minutes} min ETA</div>
+            </div>}
+          </div>
+        ))
+      )}
     </div>
   )
 }
 
-function CompanyDrivers() {
-  const drivers = [
-    {name:'Néstor García',legajo:'LEG-0042',sessions:127,onTime:94,rating:4.8,reports:0,lastActive:'Hoy 07:42'},
-    {name:'Carlos Martínez',legajo:'LEG-0018',sessions:89,onTime:88,rating:4.6,reports:1,lastActive:'Ayer 18:30'},
-    {name:'Roberto Sánchez',legajo:'LEG-0067',sessions:203,onTime:96,rating:4.9,reports:0,lastActive:'Hoy 08:15'},
-    {name:'Juan Gómez',legajo:'LEG-0091',sessions:42,onTime:91,rating:4.5,reports:0,lastActive:'Hoy 08:30'},
-  ]
+function CompanyDrivers({ drivers, themeColor }: { drivers: any[]; themeColor: string }) {
   return (
     <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
       {drivers.map((d,i)=>(
@@ -946,7 +1101,7 @@ function CompanyDrivers() {
             </div>
             <div style={{textAlign:'right'}}>
               <div style={{display:'flex',alignItems:'center',gap:'4px',justifyContent:'flex-end'}}>
-                <Star size={12} style={{color:'#EF4444',fill:'#EF4444'}}/><span style={{color:'#fff',fontFamily:'DM Mono',fontWeight:700,fontSize:'13px'}}>{d.rating}</span>
+                <Star size={12} style={{color:themeColor,fill:themeColor}}/><span style={{color:'#fff',fontFamily:'DM Mono',fontWeight:700,fontSize:'13px'}}>{d.rating}</span>
               </div>
               {d.reports>0&&<div style={{color:'#FF4D6A',fontSize:'10px',fontFamily:'DM Mono',marginTop:'2px'}}>{d.reports} denuncia</div>}
             </div>
@@ -965,7 +1120,7 @@ function CompanyDrivers() {
   )
 }
 
-function QRTab({qrCodes,newBusUnit,setNewBusUnit,onGenerate,onDownload}:{qrCodes:any[];newBusUnit:string;setNewBusUnit:(v:string)=>void;onGenerate:()=>void;onDownload:(qr:any)=>void}) {
+function QRTab({qrCodes,newBusUnit,setNewBusUnit,onGenerate,onDownload,themeColor}:{qrCodes:any[];newBusUnit:string;setNewBusUnit:(v:string)=>void;onGenerate:()=>void;onDownload:(qr:any)=>void;themeColor:string}) {
   const [selected, setSelected] = useState<any>(null)
   return (
     <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
@@ -984,7 +1139,7 @@ function QRTab({qrCodes,newBusUnit,setNewBusUnit,onGenerate,onDownload}:{qrCodes
             style={{flex:1}}
             onKeyDown={e=>e.key==='Enter'&&onGenerate()}
           />
-          <button onClick={onGenerate} disabled={!newBusUnit.trim()} style={{padding:'13px 20px',borderRadius:'10px',background:'rgba(239, 68, 68, 0.15)',border:'1px solid rgba(239, 68, 68, 0.3)',color:'#EF4444',fontWeight:600,fontSize:'13px',cursor:newBusUnit.trim()?'pointer':'not-allowed',display:'flex',alignItems:'center',gap:'8px',flexShrink:0,transition:'all 200ms',opacity:newBusUnit.trim()?1:0.5}}>
+          <button onClick={onGenerate} disabled={!newBusUnit.trim()} style={{padding:'13px 20px',borderRadius:'10px',background:hexToRgba(themeColor, 0.15),border:`1px solid ${hexToRgba(themeColor, 0.3)}`,color:themeColor,fontWeight:600,fontSize:'13px',cursor:newBusUnit.trim()?'pointer':'not-allowed',display:'flex',alignItems:'center',gap:'8px',flexShrink:0,transition:'all 200ms',opacity:newBusUnit.trim()?1:0.5}}>
             <Plus size={15}/> Generar QR
           </button>
         </div>
@@ -1004,14 +1159,14 @@ function QRTab({qrCodes,newBusUnit,setNewBusUnit,onGenerate,onDownload}:{qrCodes
             <div key={qr.id} style={{
               background: '#121527',
               borderRadius: '12px',
-              border: `1px solid ${selected?.id===qr.id?'rgba(239, 68, 68, 0.3)':'rgba(255, 255, 255, 0.06)'}`,
+              border: `1px solid ${selected?.id===qr.id?hexToRgba(themeColor, 0.35):'rgba(255, 255, 255, 0.06)'}`,
               padding: '16px',
               cursor: 'pointer',
               transition: 'all 200ms'
             }} onClick={()=>setSelected(selected?.id===qr.id?null:qr)}>
               <QRDisplay token={qr.qr_token} busUnit={qr.bus_unit}/>
               <div style={{marginTop:'14px',display:'flex',gap:'8px'}}>
-                <button onClick={e=>{e.stopPropagation();onDownload(qr)}} style={{flex:1,padding:'8px',borderRadius:'8px',background:'rgba(239, 68, 68, 0.1)',border:'1px solid rgba(239, 68, 68, 0.2)',color:'#EF4444',fontSize:'11px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'5px'}}>
+                <button onClick={e=>{e.stopPropagation();onDownload(qr)}} style={{flex:1,padding:'8px',borderRadius:'8px',background:hexToRgba(themeColor, 0.1),border:`1px solid ${hexToRgba(themeColor, 0.25)}`,color:themeColor,fontSize:'11px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'5px'}}>
                   <Download size={12}/> Descargar
                 </button>
               </div>
@@ -1023,24 +1178,12 @@ function QRTab({qrCodes,newBusUnit,setNewBusUnit,onGenerate,onDownload}:{qrCodes
           ))}
         </div>
       )}
-
-      {qrCodes.length === 0 && (
-        <div style={{
-          background: '#121527',
-          borderRadius: '12px',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          padding: '24px',
-          textAlign: 'center'
-        }}>
-          <div style={{color:'#8f94a5',fontSize:'12px',marginBottom:'16px'}}>QR de ejemplo (Unidad 001 — Línea 12)</div>
-          <QRDisplay token="DEMO-QR-BUS-001-LINEA12" busUnit="001"/>
-        </div>
-      )}
     </div>
   )
 }
 
-function StopsTab() {
+function StopsTab({ topStops, hourlyData, themeColor }: { topStops: any[]; hourlyData: any[]; themeColor: string }) {
+  const barFill = hexToRgba(themeColor, 0.15)
   return (
     <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
       <div style={{
@@ -1050,8 +1193,8 @@ function StopsTab() {
         padding: '24px',
       }}>
         <div style={{color:'#8f94a5',fontSize:'12px',fontWeight:500,textTransform:'uppercase',marginBottom:'16px',letterSpacing:'0.05em'}}>Paradas más activas hoy</div>
-        {TOP_STOPS.map((s,i)=>(
-          <div key={i} style={{display:'flex',alignItems:'center',gap:'14px',marginBottom:i<TOP_STOPS.length-1?'14px':'0'}}>
+        {topStops.map((s,i)=>(
+          <div key={i} style={{display:'flex',alignItems:'center',gap:'14px',marginBottom:i<topStops.length-1?'14px':'0'}}>
             <div style={{width: '26px', color: '#8f94a5', fontWeight: 700, fontSize: '13px', textAlign: 'right', flexShrink: 0}}>{i+1}</div>
             <div style={{flex:1,minWidth:0}}>
               <div style={{display:'flex',justifyContent:'space-between',marginBottom:'5px'}}>
@@ -1059,7 +1202,7 @@ function StopsTab() {
                 <span style={{color:'#fff',fontSize:'12px',fontFamily:'DM Mono',fontWeight:600,flexShrink:0,marginLeft:'8px'}}>{s.subidas}</span>
               </div>
               <div style={{height:'4px',background:'rgba(255, 255, 255, 0.04)',borderRadius:'2px'}}>
-                <div style={{height:'4px',borderRadius:'2px',background:'#EF4444',width:`${(s.subidas/TOP_STOPS[0].subidas)*100}%`}}/>
+                <div style={{height:'4px',borderRadius:'2px',background:themeColor,width:`${topStops[0]?.subidas ? (s.subidas/topStops[0].subidas)*100 : 0}%`}}/>
               </div>
               <div style={{color:'#8f94a5',fontSize:'10px',fontFamily:'DM Mono',marginTop:'3px'}}>espera promedio: {s.espera} min</div>
             </div>
@@ -1074,12 +1217,12 @@ function StopsTab() {
       }}>
         <div style={{color:'#8f94a5',fontSize:'12px',fontWeight:500,textTransform:'uppercase',marginBottom:'12px',letterSpacing:'0.05em'}}>Subidas por hora</div>
         <ResponsiveContainer width="100%" height={180}>
-          <BarChart data={HOURLY}>
+          <BarChart data={hourlyData}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false}/>
             <XAxis dataKey="h" tick={{fill:'#8f94a5',fontSize:10}} interval={3}/>
             <YAxis tick={{fill:'#8f94a5',fontSize:10}}/>
             <Tooltip contentStyle={{ background: '#121527', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px' }}/>
-            <Bar dataKey="subidas" name="Subidas" fill="rgba(239, 68, 68, 0.15)" stroke="#EF4444" strokeWidth={1} radius={[3,3,0,0]}/>
+            <Bar dataKey="subidas" name="Subidas" fill={barFill} stroke={themeColor} strokeWidth={1} radius={[3,3,0,0]}/>
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -1087,11 +1230,7 @@ function StopsTab() {
   )
 }
 
-function CompanyReports() {
-  const [reports, setReports] = useState([
-    {id:'1',type:'No paró',driver:'Néstor García',bus:'001',stop:'Av. Rivadavia y Medrano',status:'pending',time:'Hace 20 min',desc:'El colectivo no paró en la parada habitual.'},
-    {id:'2',type:'Mal trato',driver:'Carlos Martínez',bus:'002',stop:'Av. Corrientes y Callao',status:'resolved',time:'Hace 2h',desc:'El chofer fue descortés con los pasajeros.'},
-  ])
+function CompanyReports({ reports, onResolve, themeColor }: { reports: any[]; onResolve: (id: string) => void; themeColor: string }) {
   const statusStyle:Record<string,any>={pending:{bg:'rgba(240,180,41,0.08)',c:'#F0B429',b:'rgba(240,180,41,0.2)'},resolved:{bg:'rgba(34,211,160,0.08)',c:'#22D3A0',b:'rgba(34,211,160,0.2)'}}
   return (
     <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
@@ -1122,7 +1261,7 @@ function CompanyReports() {
           </div>
           {r.status==='pending'&&(
             <div style={{display:'flex',gap:'8px',marginTop:'4px'}}>
-              <button onClick={()=>setReports(rs=>rs.map(x=>x.id===r.id?{...x,status:'resolved'}:x))} style={{flex:1,padding:'8px',borderRadius:'8px',background:'rgba(34,211,160,0.08)',border:'1px solid rgba(34,211,160,0.2)',color:'#22D3A0',fontSize:'12px',fontWeight:600,cursor:'pointer'}}>
+              <button onClick={()=>onResolve(r.id)} style={{flex:1,padding:'8px',borderRadius:'8px',background:'rgba(34,211,160,0.08)',border:'1px solid rgba(34,211,160,0.2)',color:'#22D3A0',fontSize:'12px',fontWeight:600,cursor:'pointer'}}>
                 Marcar resuelto
               </button>
             </div>
@@ -1133,7 +1272,7 @@ function CompanyReports() {
   )
 }
 
-function CalendarTab() {
+function CalendarTab({ themeColor }: { themeColor: string }) {
   const days = Array.from({length:30},(_,i)=>{
     const d = subDays(new Date(),29-i)
     const hasWork = Math.random()>0.3
@@ -1151,8 +1290,8 @@ function CalendarTab() {
         <div style={{color:'#8f94a5',fontSize:'12px',fontWeight:500,textTransform:'uppercase',marginBottom:'16px',letterSpacing:'0.05em'}}>Historial de actividad — últimos 30 días</div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(10,1fr)',gap:'6px'}}>
           {days.map((d,i)=>(
-            <button key={i} onClick={()=>setSelected(selected?.date===d.date?null:d)} style={{aspectRatio:'1/1',borderRadius:'8px',background:d.hasWork?(selected?.date===d.date?'rgba(239, 68, 68, 0.3)':'rgba(239, 68, 68, 0.12)'):'rgba(184,200,224,0.04)',border:`1px solid ${d.hasWork?(selected?.date===d.date?'rgba(239, 68, 68, 0.5)':'rgba(239, 68, 68, 0.2)'):'rgba(184,200,224,0.06)'}`,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'1px',transition:'all 200ms',padding:'4px'}}>
-              <span style={{color:d.hasWork?'#EF4444':'#8f94a5',fontSize:'11px',fontWeight:d.hasWork?700:400,fontFamily:'DM Mono'}}>{d.label}</span>
+            <button key={i} onClick={()=>setSelected(selected?.date===d.date?null:d)} style={{aspectRatio:'1/1',borderRadius:'8px',background:d.hasWork?(selected?.date===d.date?hexToRgba(themeColor, 0.3):hexToRgba(themeColor, 0.12)):'rgba(184,200,224,0.04)',border:`1px solid ${d.hasWork?(selected?.date===d.date?hexToRgba(themeColor, 0.5):hexToRgba(themeColor, 0.2)):'rgba(184,200,224,0.06)'}`,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'1px',transition:'all 200ms',padding:'4px'}}>
+              <span style={{color:d.hasWork?themeColor:'#8f94a5',fontSize:'11px',fontWeight:d.hasWork?700:400,fontFamily:'DM Mono'}}>{d.label}</span>
               <span style={{color:'#8f94a5',fontSize:'8px',fontFamily:'DM Mono',textTransform:'uppercase'}}>{d.dayName}</span>
             </button>
           ))}
@@ -1185,7 +1324,7 @@ function CalendarTab() {
         </div>
       )}
       <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
-        <div style={{display:'flex',alignItems:'center',gap:'6px'}}><div style={{width:'10px',height:'10px',borderRadius:'3px',background:'rgba(239, 68, 68, 0.12)',border:'1px solid rgba(239, 68, 68, 0.2)'}}/><span style={{color:'#8f94a5',fontSize:'11px'}}>Día trabajado</span></div>
+        <div style={{display:'flex',alignItems:'center',gap:'6px'}}><div style={{width:'10px',height:'10px',borderRadius:'3px',background:hexToRgba(themeColor, 0.12),border:`1px solid ${hexToRgba(themeColor, 0.2)}`}}/><span style={{color:'#8f94a5',fontSize:'11px'}}>Día trabajado</span></div>
         <div style={{display:'flex',alignItems:'center',gap:'6px'}}><div style={{width:'10px',height:'10px',borderRadius:'3px',background:'rgba(184,200,224,0.04)',border:'1px solid rgba(184,200,224,0.06)'}}/><span style={{color:'#8f94a5',fontSize:'11px'}}>Sin actividad</span></div>
       </div>
     </div>
