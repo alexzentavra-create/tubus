@@ -162,6 +162,42 @@ export default function CompanyDashboard() {
     }, 4500)
     return () => clearInterval(interval)
   }, [])
+
+  const [liveEvents, setLiveEvents] = useState<Array<{ id: string; time: string; text: string; icon: string; color: string }>>([
+    { id: '1', time: 'Hace 2m', text: 'Pico de pasajeros: Coche 301 reporta ocupación del 82%.', icon: '👥', color: '#22d3ee' },
+    { id: '2', time: 'Hace 5m', text: 'Congestión en Av. Pueyrredón: demora de 4 min en Coche 302.', icon: '🚦', color: '#ff4d6a' },
+    { id: '3', time: 'Hace 12m', text: 'Conducción eficiente: Coche 303 califica con 98% en Eco-Driving.', icon: '🍃', color: '#00c689' },
+  ])
+
+  useEffect(() => {
+    const EVENT_TEMPLATES = [
+      { text: 'Congestión moderada detectada en Av. Cabildo para Coche 305.', icon: '🚦', color: '#ff4d6a' },
+      { text: 'Unidad 302 reporta conducción eficiente excepcional (100% Eco).', icon: '🍃', color: '#00c689' },
+      { text: 'Frecuencia regularizada: tiempo de espera reducido a 5 min.', icon: '⏱️', color: '#22D3A0' },
+      { text: 'Alta afluencia de pasajeros en parada Pueyrredón.', icon: '👥', color: '#22d3ee' },
+      { text: 'Unidad 304 reanudó ruta habitual tras desvío por obras.', icon: '✅', color: '#00c689' },
+      { text: 'Coche 301 finalizó recorrido habitual sin novedades.', icon: '🏁', color: '#8f94a5' },
+    ]
+
+    const interval = setInterval(() => {
+      const template = EVENT_TEMPLATES[Math.floor(Math.random() * EVENT_TEMPLATES.length)]
+      const newEvent = {
+        id: Math.random().toString(),
+        time: 'Ahora',
+        text: template.text,
+        icon: template.icon,
+        color: template.color
+      }
+      setLiveEvents(prev => {
+        const updatedPrev = prev.map((e, idx) => ({
+          ...e,
+          time: idx === 0 ? 'Hace 1m' : `Hace ${(idx + 1) * 3}m`
+        }))
+        return [newEvent, ...updatedPrev].slice(0, 3)
+      })
+    }, 12000)
+    return () => clearInterval(interval)
+  }, [])
   
   const totalPassengersOnboard = buses.reduce((acc, b) => acc + b.passenger_count, 0)
   const avgOnboard = buses.length > 0 ? Math.round(totalPassengersOnboard / buses.length) : 0
@@ -1350,20 +1386,36 @@ export default function CompanyDashboard() {
                 <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#fff', margin: 0 }}>Resumen de Estado</h3>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div>
-                  <span style={{ fontSize: '12px', color: '#8f94a5' }}>Pasajeros Totales (Hoy)</span>
-                  <div style={{ fontSize: '28px', fontWeight: 700, color: themeColor, marginTop: '4px' }}>{liveDailyPassengers.toLocaleString('es-ES')}</div>
-                </div>
-                {/* Sparkline wave */}
-                <div style={{ width: '100px', height: '40px' }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={[
-                      { v: 10 }, { v: 18 }, { v: 12 }, { v: 28 }, { v: 22 }, { v: 36 }, { v: 29 }, { v: 45 }
-                    ]}>
-                      <Line type="monotone" dataKey="v" stroke={themeColor} strokeWidth={2.5} dot={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
+              {/* Novedades en Vivo / Live Events Feed */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <span style={{ fontSize: '11px', color: '#8f94a5', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Novedades en Vivo</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {liveEvents.map((evt) => (
+                    <div
+                      key={evt.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '8px',
+                        padding: '8px 10px',
+                        background: 'rgba(255, 255, 255, 0.015)',
+                        border: '1px solid rgba(255, 255, 255, 0.03)',
+                        borderRadius: '8px',
+                        fontSize: '11.5px',
+                        color: '#dfe2ec',
+                        lineHeight: '1.4',
+                      }}
+                    >
+                      <span style={{ fontSize: '13px', display: 'inline-block', marginTop: '1px' }}>{evt.icon}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                          <span style={{ fontSize: '10px', color: evt.color, fontWeight: 700 }}>AUTODETECTADO</span>
+                          <span style={{ fontSize: '9px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{evt.time}</span>
+                        </div>
+                        <div>{evt.text}</div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
