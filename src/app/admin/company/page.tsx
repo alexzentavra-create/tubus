@@ -93,6 +93,23 @@ export default function CompanyDashboard() {
   const [selectedLineNumber, setSelectedLineNumber] = useState<string>('12')
   const [buses, setBuses] = useState<any[]>([])
 
+  // Dynamic Chart Filters
+  const [chartPeriod, setChartPeriod] = useState<'day' | 'week' | 'month'>('day')
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0])
+
+  // Modals & Sub-views
+  const [showPassengerModal, setShowPassengerModal] = useState(false)
+  const [showPuntualidadTimeline, setShowPuntualidadTimeline] = useState(false)
+
+  // Stops Timeframe Settings
+  const [stopsTimeframes, setStopsTimeframes] = useState<Record<string, { start: number; end: number }>>({})
+  const [editingStopId, setEditingStopId] = useState<string | null>(null)
+  const [editingStart, setEditingStart] = useState<number>(0)
+  const [editingEnd, setEditingEnd] = useState<number>(5)
+
+  // Live GPS control logs
+  const [gpsPassageLogs, setGpsPassageLogs] = useState<any[]>([])
+
   // Load initial line from query parameter if present
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -212,6 +229,97 @@ export default function CompanyDashboard() {
     return () => clearInterval(interval)
   }, [activeLine])
 
+  // Initialize stops timeframes when activeLine stops are loaded
+  useEffect(() => {
+    const defaultTimeframes: Record<string, { start: number; end: number }> = {}
+    stops.forEach((s, idx) => {
+      defaultTimeframes[s.id] = {
+        start: idx * 5,
+        end: idx * 5 + 4
+      }
+    })
+    setStopsTimeframes(defaultTimeframes)
+  }, [selectedLineNumber])
+
+  // Simulated GPS tracking passage logs
+  useEffect(() => {
+    if (buses.length === 0) return
+    const now = new Date()
+    const currentHour = now.getHours()
+    const currentMin = now.getMinutes()
+    const currentSec = now.getSeconds()
+
+    setGpsPassageLogs(prev => {
+      const updated = [...prev]
+      let changed = false
+
+      buses.forEach(bus => {
+        const matchedStop = stops.find(s => s.name === bus.next_stop_name || s.id === bus.next_stop_id)
+        if (matchedStop) {
+          const logId = `gps-${bus.id}-${matchedStop.id}-${currentHour}-${currentMin}`
+          const exists = updated.some(l => l.id === logId)
+          if (!exists) {
+            const tf = stopsTimeframes[matchedStop.id] || { start: (matchedStop.stop_number - 1) * 5, end: (matchedStop.stop_number - 1) * 5 + 4 }
+            
+            const offsetMin = currentMin % 60
+            const inTimeframe = offsetMin >= tf.start && offsetMin <= tf.end
+            const isLate = offsetMin > tf.end
+            const status = inTimeframe ? 'A tiempo' : (isLate ? 'Demorado' : 'Adelantado')
+
+            updated.unshift({
+              id: logId,
+              busUnit: bus.bus_unit,
+              driver: bus.driver_name,
+              stopName: matchedStop.name,
+              time: `${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}:${String(currentSec).padStart(2, '0')}`,
+              scheduled: `${String(tf.start).padStart(2, '0')}-${String(tf.end).padStart(2, '0')} min`,
+              status
+            })
+            changed = true
+          }
+        }
+      })
+
+      return changed ? updated.slice(0, 20) : prev
+    })
+  }, [buses, stopsTimeframes])
+
+  const getChartData = () => {
+    if (chartPeriod === 'week') {
+      return Array.from({ length: 7 }, (_, i) => {
+        const d = subDays(new Date(selectedDate), 6 - i)
+        const dayLabel = format(d, 'EEEE', { locale: es })
+        const base = activeStats.dailyPas
+        const seed = activeLine.line_number.charCodeAt(0) + i * 23
+        const val = Math.sin(seed) * 0.2 + 1.0
+        const subidos = Math.round(base * val * 0.8)
+        const bajados = Math.round(subidos * 0.95)
+        return { label: dayLabel.substring(0, 3), subidos, bajados }
+      })
+    }
+    if (chartPeriod === 'month') {
+      return Array.from({ length: 30 }, (_, i) => {
+        const d = subDays(new Date(selectedDate), 29 - i)
+        const dayLabel = format(d, 'dd MMM', { locale: es })
+        const base = activeStats.dailyPas
+        const seed = activeLine.line_number.charCodeAt(0) + i * 17
+        const val = Math.cos(seed) * 0.3 + 1.0
+        const subidos = Math.round(base * val * 0.8)
+        const bajados = Math.round(subidos * 0.93)
+        return { label: dayLabel, subidos, bajados }
+      })
+    }
+    return HOURLY.map((h, i) => {
+      const seed = activeLine.line_number.charCodeAt(0) + i * 7
+      const factor = 0.9 + (seed % 3) * 0.1
+      const sub = Math.round(h.subidas * factor)
+      const baj = Math.round(h.pasajeros * 0.45 * factor)
+      return { label: h.h, subidos: sub, bajados: baj }
+    })
+  }
+
+  const currentChartData = getChartData()
+
   const LINE_DRIVERS: Record<string, string[]> = {
     '12': ['Néstor García', 'Roberto Sánchez', 'Carlos Martínez', 'Juan Gómez'],
     '28': ['Carlos M.', 'Jorge Rodríguez', 'Pablo García'],
@@ -278,6 +386,65 @@ export default function CompanyDashboard() {
       }
     ])
   }, [activeLine])
+
+  // Auto-detect and sync system issues to Todo List
+  useEffect(() => {
+    setTodos(prev => {
+      const updated = [...prev]
+      let changed = false
+
+      // 1. Sync pending reports
+      reports.forEach(r => {
+        const todoId = `todo-rep-${r.id}`
+        const exists = updated.some(t => t.id === todoId)
+        if (!exists && r.status === 'pending') {
+          updated.unshift({
+            id: todoId,
+            text: `Atender denuncia [${r.type}]: Unidad ${r.bus} - Chofer ${r.driver}`,
+            done: false,
+            date: 'Hoy',
+            badge: 'Urgente',
+            flagged: true
+          })
+          changed = true
+        } else if (exists && r.status === 'resolved') {
+          const idx = updated.findIndex(t => t.id === todoId)
+          if (idx !== -1 && !updated[idx].done) {
+            updated[idx] = { ...updated[idx], done: true, badge: 'Resuelto' }
+            changed = true
+          }
+        }
+      })
+
+      // 2. Sync stopped or broken down buses
+      buses.forEach(b => {
+        if (b.speed_kmh === 0 && b.status === 'stopped') {
+          const todoId = `todo-bus-stop-${b.id}`
+          const exists = updated.some(t => t.id === todoId)
+          if (!exists) {
+            updated.unshift({
+              id: todoId,
+              text: `Alerta GPS: Unidad ${b.bus_unit} detenida en parada ${b.next_stop_name || 'recorrido'}`,
+              done: false,
+              date: 'Hoy',
+              badge: 'Nuevo',
+              flagged: true
+            })
+            changed = true
+          }
+        } else if (b.speed_kmh > 0) {
+          const todoId = `todo-bus-stop-${b.id}`
+          const idx = updated.findIndex(t => t.id === todoId)
+          if (idx !== -1 && !updated[idx].done) {
+            updated[idx] = { ...updated[idx], done: true, badge: 'Resuelto' }
+            changed = true
+          }
+        }
+      })
+
+      return changed ? updated : prev
+    })
+  }, [reports, buses])
 
   const generateQR = async () => {
     if (!newBusUnit.trim() || !company) return
@@ -353,7 +520,8 @@ export default function CompanyDashboard() {
 
   return (
     <div style={{
-      minHeight: '100vh',
+      height: '100vh',
+      overflowY: 'auto',
       background: '#0b0f19',
       color: '#fff',
       display: 'flex',
@@ -601,7 +769,7 @@ export default function CompanyDashboard() {
         </div>
       </div>
 
-      {/* KPI Row (6 elements) */}
+      {/* KPI Row (5 elements now) */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
@@ -609,25 +777,34 @@ export default function CompanyDashboard() {
         padding: '12px 24px 24px',
       }}>
         {/* Colectivos Activos */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+        <div
+          onClick={() => { setTab('buses'); setShowPuntualidadTimeline(false); }}
+          style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)', cursor: 'pointer', transition: 'all 200ms' }}
+          onMouseEnter={(e) => e.currentTarget.style.borderColor = themeColor}
+          onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'}
+        >
           <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Colectivos Activos</span>
           <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{activeSessions.length}</span>
           <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +1 hoy</span>
         </div>
         {/* Pasajeros Hoy */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+        <div
+          onClick={() => setShowPassengerModal(true)}
+          style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)', cursor: 'pointer', transition: 'all 200ms' }}
+          onMouseEnter={(e) => e.currentTarget.style.borderColor = themeColor}
+          onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'}
+        >
           <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Pasajeros Hoy</span>
           <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{activeStats.dailyPas.toLocaleString('es-ES')}</span>
           <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +12%</span>
         </div>
-        {/* Calificacion Promedio */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Calificación Prom.</span>
-          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{activeStats.rating}</span>
-          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +0.2</span>
-        </div>
         {/* Denuncias Pendientes */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+        <div
+          onClick={() => { setTab('reports'); setShowPuntualidadTimeline(false); }}
+          style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)', cursor: 'pointer', transition: 'all 200ms' }}
+          onMouseEnter={(e) => e.currentTarget.style.borderColor = themeColor}
+          onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'}
+        >
           <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Denuncias Pend.</span>
           <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{reports.filter(r => r.status === 'pending').length}</span>
           <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▼ -15.0%</span>
@@ -639,7 +816,12 @@ export default function CompanyDashboard() {
           <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 600 }}>Promedio: {avgOnboard}/coche</span>
         </div>
         {/* En Hora */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+        <div
+          onClick={() => setShowPuntualidadTimeline(!showPuntualidadTimeline)}
+          style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: showPuntualidadTimeline ? hexToRgba(themeColor, 0.08) : '#121527', padding: '16px', borderRadius: '12px', border: `1px solid ${showPuntualidadTimeline ? themeColor : 'rgba(255, 255, 255, 0.06)'}`, cursor: 'pointer', transition: 'all 200ms' }}
+          onMouseEnter={(e) => { if (!showPuntualidadTimeline) e.currentTarget.style.borderColor = themeColor }}
+          onMouseLeave={(e) => { if (!showPuntualidadTimeline) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}
+        >
           <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Puntualidad</span>
           <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{activeStats.punctuality}</span>
           <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +2.4%</span>
@@ -653,100 +835,361 @@ export default function CompanyDashboard() {
           <div style={{ gridColumn: 'span 8', display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {tab === 'overview' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                {/* Performance Chart Card */}
-                <div style={{
-                  background: '#121527',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
-                  padding: '24px',
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                    <div>
-                      <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#fff', margin: 0 }}>Pasajeros por Hora</h3>
-                      <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Pasajeros a bordo y subidas registradas hoy</p>
-                    </div>
-                    {/* Legend */}
-                    <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#a3a6b8' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: themeColor }} />
-                        <span>Pasajeros</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#8f94a5' }} />
-                        <span>Subidas</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <ResponsiveContainer width="100%" height={220}>
-                    <AreaChart data={HOURLY} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorRed" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor={themeColor} stopOpacity={0.25} />
-                          <stop offset="95%" stopColor={themeColor} stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-                      <XAxis dataKey="h" stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} interval={3} />
-                      <YAxis stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} />
-                      <Tooltip contentStyle={{ background: '#121527', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px' }} />
-                      <Area type="monotone" dataKey="subidas" name="Subidas" stroke="#8f94a5" fill="none" strokeWidth={2} dot={false} />
-                      <Area type="monotone" dataKey="pasajeros" name="Pasajeros" stroke={themeColor} fill="url(#colorRed)" strokeWidth={2.5} dot={false} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {/* Busiest Stops Card */}
-                <div style={{
-                  background: '#121527',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255, 255, 255, 0.06)',
-                  padding: '24px',
-                }}>
-                  <div style={{ color: '#8f94a5', fontSize: '12px', fontWeight: 500, textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.05em' }}>
-                    Paradas con mayor afluencia (Hoy)
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {topStops.map((s, i) => (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                        <div style={{ width: '26px', color: '#8f94a5', fontWeight: 700, fontSize: '13px', textAlign: 'right', flexShrink: 0 }}>{i + 1}</div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
-                            <span style={{ color: '#fff', fontSize: '13px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{s.name}</span>
-                            <span style={{ color: '#fff', fontSize: '12px', fontFamily: 'DM Mono', fontWeight: 600, flexShrink: 0, marginLeft: '8px' }}>{s.subidas} subidas</span>
-                          </div>
-                          <div style={{ height: '4px', background: 'rgba(255, 255, 255, 0.04)', borderRadius: '2px' }}>
-                            <div style={{ height: '4px', borderRadius: '2px', background: themeColor, width: `${topStops[0]?.subidas ? (s.subidas / topStops[0].subidas) * 100 : 0}%` }} />
-                          </div>
-                          <div style={{ color: '#8f94a5', fontSize: '10px', marginTop: '3px' }}>espera promedio: {s.espera} min</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Active fleet */}
-                {activeSessions.length > 0 && (
+                {showPuntualidadTimeline ? (
                   <div style={{
                     background: '#121527',
                     borderRadius: '12px',
                     border: '1px solid rgba(255, 255, 255, 0.06)',
                     padding: '24px',
                   }}>
-                    <div style={{ color: '#8f94a5', fontSize: '12px', fontWeight: 500, textTransform: 'uppercase', marginBottom: '14px', letterSpacing: '0.05em' }}>Colectivos en servicio ahora</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {activeSessions.map((s:any, i:number)=>(
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
-                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22D3A0' }} />
-                          <div style={{ flex: 1 }}>
-                            <div style={{ color: '#fff', fontWeight: 600, fontSize: '13px' }}>Unidad {s.bus_unit}</div>
-                            <div style={{ color: '#8f94a5', fontSize: '11px' }}>{s.profiles?.name||'Chofer'} · desde {format(new Date(s.started_at), 'HH:mm')}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                      <div>
+                        <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#fff', margin: 0 }}>Control de Puntualidad y GPS</h3>
+                        <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Planificador de frecuencia y registro de arribos en tiempo real</p>
+                      </div>
+                      <button
+                        onClick={() => setShowPuntualidadTimeline(false)}
+                        style={{
+                          background: 'rgba(255,255,255,0.04)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '6px',
+                          color: '#fff',
+                          fontSize: '12px',
+                          padding: '6px 12px',
+                          cursor: 'pointer',
+                          borderStyle: 'solid'
+                        }}
+                      >
+                        Volver a Resumen
+                      </button>
+                    </div>
+
+                    {/* Timeline stops flow */}
+                    <div style={{ borderLeft: `2.5px solid ${themeColor}`, marginLeft: '12px', paddingLeft: '24px', display: 'flex', flexDirection: 'column', gap: '28px', position: 'relative' }}>
+                      {stops.map((stop, idx) => {
+                        const tf = stopsTimeframes[stop.id] || { start: idx * 5, end: idx * 5 + 4 }
+                        const isEditing = editingStopId === stop.id
+                        const lastPass = gpsPassageLogs.find(l => l.stopName === stop.name)
+
+                        return (
+                          <div key={stop.id} style={{ position: 'relative' }}>
+                            {/* Bullet dot */}
+                            <div style={{
+                              position: 'absolute',
+                              left: '-31px',
+                              top: '2px',
+                              width: '12px',
+                              height: '12px',
+                              borderRadius: '50%',
+                              background: '#121527',
+                              border: `3px solid ${themeColor}`,
+                              boxShadow: `0 0 0 4px ${hexToRgba(themeColor, 0.15)}`
+                            }} />
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                              <div>
+                                <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#fff', margin: 0 }}>{idx + 1}. {stop.name}</h4>
+                                <p style={{ fontSize: '11px', color: '#8f94a5', margin: '4px 0 0' }}>Frecuencia de paso programada: <span style={{ color: '#fff', fontWeight: 600 }}>minuto {tf.start} al {tf.end}</span> de cada ciclo</p>
+                                
+                                {lastPass ? (
+                                  <div style={{
+                                    marginTop: '8px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    background: lastPass.status === 'A tiempo' ? 'rgba(34,211,160,0.08)' : (lastPass.status === 'Demorado' ? 'rgba(255,77,106,0.08)' : 'rgba(240,180,41,0.08)'),
+                                    border: `1px solid ${lastPass.status === 'A tiempo' ? 'rgba(34,211,160,0.15)' : (lastPass.status === 'Demorado' ? 'rgba(255,77,106,0.15)' : 'rgba(240,180,41,0.15)')}`,
+                                    borderRadius: '4px',
+                                    padding: '3px 8px',
+                                    fontSize: '10px',
+                                    color: lastPass.status === 'A tiempo' ? '#22D3A0' : (lastPass.status === 'Demorado' ? '#FF4D6A' : '#F0B429'),
+                                    fontFamily: 'DM Mono'
+                                  }}>
+                                    <span>Ultimo GPS: Unidad {lastPass.busUnit} pasó a las {lastPass.time} ({lastPass.status})</span>
+                                  </div>
+                                ) : (
+                                  <div style={{ marginTop: '8px', fontSize: '10px', color: '#64748b', fontFamily: 'DM Mono' }}>Esperando paso de colectivos por GPS...</div>
+                                )}
+                              </div>
+
+                              <div>
+                                {isEditing ? (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#1b1d32', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                      <span style={{ fontSize: '10px', color: '#8f94a5' }}>Inicio (min):</span>
+                                      <input
+                                        type="number"
+                                        value={editingStart}
+                                        onChange={(e) => setEditingStart(parseInt(e.target.value) || 0)}
+                                        style={{ width: '45px', background: '#121527', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '4px', color: '#fff', fontSize: '11px', padding: '2px 4px' }}
+                                      />
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                      <span style={{ fontSize: '10px', color: '#8f94a5' }}>Fin (min):</span>
+                                      <input
+                                        type="number"
+                                        value={editingEnd}
+                                        onChange={(e) => setEditingEnd(parseInt(e.target.value) || 0)}
+                                        style={{ width: '45px', background: '#121527', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '4px', color: '#fff', fontSize: '11px', padding: '2px 4px' }}
+                                      />
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '4px' }}>
+                                      <button
+                                        onClick={() => {
+                                          setStopsTimeframes(prev => ({
+                                            ...prev,
+                                            [stop.id]: { start: editingStart, end: editingEnd }
+                                          }));
+                                          setEditingStopId(null);
+                                          toast.success('Horario de paso guardado');
+                                        }}
+                                        style={{ flex: 1, background: themeColor, border: 'none', borderRadius: '4px', color: '#fff', fontSize: '10px', padding: '4px', cursor: 'pointer', fontWeight: 600 }}
+                                      >
+                                        Ok
+                                      </button>
+                                      <button
+                                        onClick={() => setEditingStopId(null)}
+                                        style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '4px', color: '#fff', fontSize: '10px', padding: '4px', cursor: 'pointer' }}
+                                      >
+                                        X
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      setEditingStopId(stop.id);
+                                      setEditingStart(tf.start);
+                                      setEditingEnd(tf.end);
+                                    }}
+                                    style={{
+                                      background: hexToRgba(themeColor, 0.1),
+                                      border: `1px solid ${hexToRgba(themeColor, 0.25)}`,
+                                      borderRadius: '6px',
+                                      color: themeColor,
+                                      fontSize: '11px',
+                                      padding: '4px 10px',
+                                      cursor: 'pointer',
+                                      fontWeight: 600,
+                                      borderStyle: 'solid'
+                                    }}
+                                  >
+                                    Configurar Rango
+                                  </button>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <div style={{ color: '#fff', fontSize: '12px', fontWeight: 600 }}>{s.total_passengers} pasajeros</div>
+                        )
+                      })}
+                    </div>
+
+                    {/* GPS live tracker log table */}
+                    <div style={{ marginTop: '36px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '24px' }}>
+                      <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#fff', margin: '0 0 16px' }}>Registro de Control GPS en Vivo (Paso por Parada)</h4>
+                      {gpsPassageLogs.length === 0 ? (
+                        <div style={{ color: '#8f94a5', fontSize: '12px', textAlign: 'center', padding: '24px 0', border: '1px dashed rgba(255,255,255,0.06)', borderRadius: '8px' }}>
+                          Esperando eventos de paso de la flota en el recorrido... (Los colectivos se sincronizan desde el mapa principal)
                         </div>
-                      ))}
+                      ) : (
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                <th style={{ padding: '8px', color: '#8f94a5', fontWeight: 500 }}>Hora</th>
+                                <th style={{ padding: '8px', color: '#8f94a5', fontWeight: 500 }}>Unidad</th>
+                                <th style={{ padding: '8px', color: '#8f94a5', fontWeight: 500 }}>Chofer</th>
+                                <th style={{ padding: '8px', color: '#8f94a5', fontWeight: 500 }}>Parada</th>
+                                <th style={{ padding: '8px', color: '#8f94a5', fontWeight: 500 }}>Rango Prog.</th>
+                                <th style={{ padding: '8px', color: '#8f94a5', fontWeight: 500 }}>Estado</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {gpsPassageLogs.map(log => (
+                                <tr key={log.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                  <td style={{ padding: '8px', color: '#fff', fontFamily: 'DM Mono' }}>{log.time}</td>
+                                  <td style={{ padding: '8px', color: '#fff', fontWeight: 600 }}>{log.busUnit}</td>
+                                  <td style={{ padding: '8px', color: '#a3a6b8' }}>{log.driver}</td>
+                                  <td style={{ padding: '8px', color: '#fff' }}>{log.stopName}</td>
+                                  <td style={{ padding: '8px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{log.scheduled}</td>
+                                  <td style={{ padding: '8px' }}>
+                                    <span style={{
+                                      background: log.status === 'A tiempo' ? 'rgba(34,211,160,0.08)' : (log.status === 'Demorado' ? 'rgba(255,77,106,0.08)' : 'rgba(240,180,41,0.08)'),
+                                      border: `1px solid ${log.status === 'A tiempo' ? 'rgba(34,211,160,0.15)' : (log.status === 'Demorado' ? 'rgba(255,77,106,0.15)' : 'rgba(240,180,41,0.15)')}`,
+                                      borderRadius: '4px',
+                                      padding: '2px 6px',
+                                      fontSize: '10px',
+                                      color: log.status === 'A tiempo' ? '#22D3A0' : (log.status === 'Demorado' ? '#FF4D6A' : '#F0B429'),
+                                      fontFamily: 'DM Mono',
+                                      fontWeight: 600
+                                    }}>
+                                      {log.status}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
                   </div>
+                ) : (
+                  <>
+                    {/* Performance Chart Card */}
+                    <div style={{
+                      background: '#121527',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(255, 255, 255, 0.06)',
+                      padding: '24px',
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                        <div>
+                          <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#fff', margin: 0 }}>Pasajeros por Período</h3>
+                          <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Flujo de subidas y bajadas registradas en el sistema</p>
+                        </div>
+
+                        {/* Filters & Selector */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <input
+                            type="date"
+                            value={selectedDate}
+                            onChange={(e) => {
+                              setSelectedDate(e.target.value);
+                              toast.success(`Mostrando datos de fecha: ${e.target.value}`);
+                            }}
+                            style={{
+                              background: '#1b1d2e',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              borderRadius: '6px',
+                              color: '#fff',
+                              fontSize: '11px',
+                              padding: '4px 8px',
+                              outline: 'none',
+                              cursor: 'pointer',
+                            }}
+                          />
+                          
+                          <div style={{ display: 'flex', background: '#1b1d2e', padding: '2px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                            {(['day', 'week', 'month'] as const).map(p => (
+                              <button
+                                key={p}
+                                onClick={() => {
+                                  setChartPeriod(p);
+                                  toast.success(`Filtrado por: ${p === 'day' ? 'Día' : p === 'week' ? 'Semana' : 'Mes'}`);
+                                }}
+                                style={{
+                                  padding: '4px 10px',
+                                  borderRadius: '4px',
+                                  background: chartPeriod === p ? themeColor : 'transparent',
+                                  border: 'none',
+                                  color: chartPeriod === p ? '#fff' : '#a3a6b8',
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  transition: 'all 200ms',
+                                }}
+                              >
+                                {p === 'day' ? 'Día' : p === 'week' ? 'Semana' : 'Mes'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Legend */}
+                        <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#a3a6b8' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: themeColor }} />
+                            <span>Subidos</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#8f94a5' }} />
+                            <span>Bajados</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <ResponsiveContainer width="100%" height={220}>
+                        <AreaChart data={currentChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="colorRed" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor={themeColor} stopOpacity={0.25} />
+                              <stop offset="95%" stopColor={themeColor} stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+                          <XAxis dataKey="label" stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} />
+                          <YAxis stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} />
+                          <Tooltip contentStyle={{ background: '#121527', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px' }} />
+                          <Area type="monotone" dataKey="bajados" name="Bajados" stroke="#8f94a5" fill="none" strokeWidth={2} dot={false} />
+                          <Area type="monotone" dataKey="subidos" name="Subidos" stroke={themeColor} fill="url(#colorRed)" strokeWidth={2.5} dot={false} />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    {/* Busiest Stops Card */}
+                    <div
+                      onClick={() => setTab('stops')}
+                      style={{
+                        background: '#121527',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                        padding: '24px',
+                        cursor: 'pointer',
+                        transition: 'all 200ms'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.borderColor = themeColor}
+                      onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                        <div style={{ color: '#8f94a5', fontSize: '12px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          Paradas con mayor afluencia (Hoy)
+                        </div>
+                        <span style={{ fontSize: '11px', color: themeColor, fontWeight: 600 }}>Ver todas las paradas →</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {topStops.map((s, i) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                            <div style={{ width: '26px', color: '#8f94a5', fontWeight: 700, fontSize: '13px', textAlign: 'right', flexShrink: 0 }}>{i + 1}</div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                                <span style={{ color: '#fff', fontSize: '13px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{s.name}</span>
+                                <span style={{ color: '#fff', fontSize: '12px', fontFamily: 'DM Mono', fontWeight: 600, flexShrink: 0, marginLeft: '8px' }}>{s.subidas} subidas</span>
+                              </div>
+                              <div style={{ height: '4px', background: 'rgba(255, 255, 255, 0.04)', borderRadius: '2px' }}>
+                                <div style={{ height: '4px', borderRadius: '2px', background: themeColor, width: `${topStops[0]?.subidas ? (s.subidas / topStops[0].subidas) * 100 : 0}%` }} />
+                              </div>
+                              <div style={{ color: '#8f94a5', fontSize: '10px', marginTop: '3px' }}>espera promedio: {s.espera} min</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Active fleet */}
+                    {activeSessions.length > 0 && (
+                      <div style={{
+                        background: '#121527',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                        padding: '24px',
+                      }}>
+                        <div style={{ color: '#8f94a5', fontSize: '12px', fontWeight: 500, textTransform: 'uppercase', marginBottom: '14px', letterSpacing: '0.05em' }}>Colectivos en servicio ahora</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                          {activeSessions.map((s:any, i:number)=>(
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22D3A0' }} />
+                              <div style={{ flex: 1 }}>
+                                <div style={{ color: '#fff', fontWeight: 600, fontSize: '13px' }}>Unidad {s.bus_unit}</div>
+                                <div style={{ color: '#8f94a5', fontSize: '11px' }}>{s.profiles?.name||'Chofer'} · desde {format(new Date(s.started_at), 'HH:mm')}</div>
+                              </div>
+                              <div style={{ color: '#fff', fontSize: '12px', fontWeight: 600 }}>{s.total_passengers} pasajeros</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -1031,6 +1474,70 @@ export default function CompanyDashboard() {
               <button onClick={()=>setShowQRModal(false)} style={{flex:1,padding:'11px',borderRadius:'10px',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',color:'#fff',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
                 Cerrar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Passenger Logs Modal */}
+      {showPassengerModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}>
+          <div className="glass-dark" style={{ padding: '24px', borderRadius: '16px', maxWidth: '640px', width: '100%', margin: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div>
+                <h3 style={{ color: '#fff', fontSize: '18px', fontWeight: 700, margin: 0 }}>Planilla de Pasajeros de Hoy</h3>
+                <p style={{ color: '#8f94a5', fontSize: '12px', margin: '4px 0 0' }}>Registro de ingresos y egresos registrados en la flota de la línea</p>
+              </div>
+              <button
+                onClick={() => setShowPassengerModal(false)}
+                style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '6px', color: '#fff', fontSize: '12px', padding: '6px 12px', cursor: 'pointer' }}
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div style={{ overflowY: 'auto', maxHeight: '360px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+                <thead>
+                  <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <th style={{ padding: '12px', color: '#8f94a5', fontWeight: 500 }}>Pasajero</th>
+                    <th style={{ padding: '12px', color: '#8f94a5', fontWeight: 500 }}>Acción</th>
+                    <th style={{ padding: '12px', color: '#8f94a5', fontWeight: 500 }}>Parada</th>
+                    <th style={{ padding: '12px', color: '#8f94a5', fontWeight: 500 }}>Hora</th>
+                    <th style={{ padding: '12px', color: '#8f94a5', fontWeight: 500 }}>Unidad</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { name: 'Alejandro Gómez', action: 'Subió', stop: stops[0]?.name || 'Pueyrredón', time: '16:12', bus: '301' },
+                    { name: 'María Rodríguez', action: 'Bajó', stop: stops[1]?.name || 'Corrientes', time: '16:15', bus: '301' },
+                    { name: 'Javier López', action: 'Subió', stop: stops[2]?.name || 'Medrano', time: '16:22', bus: '302' },
+                    { name: 'Ana Fernández', action: 'Subió', stop: stops[0]?.name || 'Pueyrredón', time: '16:34', bus: '303' },
+                    { name: 'Diego Martínez', action: 'Bajó', stop: stops[2]?.name || 'Medrano', time: '16:45', bus: '302' },
+                    { name: 'Sofia Romero', action: 'Subió', stop: stops[1]?.name || 'Corrientes', time: '16:50', bus: '301' },
+                    { name: 'Nicolás Silva', action: 'Bajó', stop: stops[0]?.name || 'Pueyrredón', time: '16:55', bus: '303' },
+                    { name: 'Estela Bianchi', action: 'Subió', stop: stops[3]?.name || 'Cabildo', time: '17:02', bus: '301' },
+                    { name: 'Lucas Rossi', action: 'Subió', stop: stops[1]?.name || 'Corrientes', time: '17:10', bus: '302' }
+                  ].map((p, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                      <td style={{ padding: '10px 12px', color: '#fff', fontWeight: 600 }}>{p.name}</td>
+                      <td style={{ padding: '10px 12px' }}>
+                        <span style={{
+                          background: p.action === 'Subió' ? 'rgba(34,211,160,0.1)' : 'rgba(255,77,106,0.1)',
+                          color: p.action === 'Subió' ? '#22D3A0' : '#FF4D6A',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: 600
+                        }}>{p.action}</span>
+                      </td>
+                      <td style={{ padding: '10px 12px', color: '#a3a6b8' }}>{p.stop}</td>
+                      <td style={{ padding: '10px 12px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{p.time}</td>
+                      <td style={{ padding: '10px 12px', color: '#fff', fontWeight: 600 }}>Coche {p.bus}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

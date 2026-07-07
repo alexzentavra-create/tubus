@@ -380,7 +380,8 @@ export default function SuperAdminDashboard() {
 
   return (
     <div style={{
-      minHeight: '100vh',
+      height: '100vh',
+      overflowY: 'auto',
       background: '#0b0f19',
       color: '#fff',
       display: 'flex',
