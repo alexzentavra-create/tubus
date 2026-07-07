@@ -100,6 +100,7 @@ export default function CompanyDashboard() {
   // Modals & Sub-views
   const [showPassengerModal, setShowPassengerModal] = useState(false)
   const [showPuntualidadTimeline, setShowPuntualidadTimeline] = useState(false)
+  const [showMasDropdown, setShowMasDropdown] = useState(false)
 
   // Stops Timeframe Settings
   const [stopsTimeframes, setStopsTimeframes] = useState<Record<string, { start: number; end: number }>>({})
@@ -138,6 +139,19 @@ export default function CompanyDashboard() {
   }
 
   const activeStats = LINE_STATS[activeLine.line_number] || { rating: '4.7', punctuality: '85%', dailyPas: 1200 }
+  
+  const [liveDailyPassengers, setLiveDailyPassengers] = useState<number>(0)
+
+  useEffect(() => {
+    setLiveDailyPassengers(activeStats.dailyPas)
+  }, [activeStats.dailyPas])
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLiveDailyPassengers(prev => prev + Math.floor(Math.random() * 2))
+    }, 4000)
+    return () => clearInterval(interval)
+  }, [])
   
   const totalPassengersOnboard = buses.reduce((acc, b) => acc + b.passenger_count, 0)
   const avgOnboard = buses.length > 0 ? Math.round(totalPassengersOnboard / buses.length) : 0
@@ -665,51 +679,6 @@ export default function CompanyDashboard() {
         </div>
       </header>
 
-      {/* Main Horizontal Navigation */}
-      <nav style={{
-        background: '#121527',
-        borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
-        padding: '0 24px',
-        display: 'flex',
-        gap: '24px',
-        overflowX: 'auto',
-      }}>
-        {NAV_ITEMS.map((item) => {
-          const active = tab === item.id
-          return (
-            <button
-              key={item.id}
-              onClick={() => {
-                if (item.id !== 'logout') {
-                  setTab(item.id as Tab)
-                } else {
-                  logout()
-                }
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '14px 4px',
-                color: active ? '#fff' : '#a3a6b8',
-                fontSize: '13px',
-                fontWeight: active ? 600 : 500,
-                background: 'none',
-                border: 'none',
-                borderBottom: `2.5px solid ${active ? themeColor : 'transparent'}`,
-                cursor: 'pointer',
-                transition: 'all 200ms',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <item.icon size={14} style={{ color: active ? themeColor : '#a3a6b8' }} />
-              <span>{item.label}</span>
-              {item.hasChevron && <ChevronDown size={11} style={{ opacity: 0.5 }} />}
-            </button>
-          )
-        })}
-      </nav>
-
       {/* Secondary Sub-header and Actions */}
       <div style={{
         display: 'flex',
@@ -718,23 +687,109 @@ export default function CompanyDashboard() {
         padding: '24px 24px 12px',
         flexWrap: 'wrap',
         gap: '16px',
+        position: 'relative',
       }}>
-        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-          {['Resumen', 'Flota', 'Historial', 'Más'].map((sub, idx) => (
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'center', position: 'relative' }}>
+          {[
+            { label: 'Resumen', id: 'overview', matches: ['overview'] },
+            { label: 'Flota', id: 'buses', matches: ['buses', 'drivers', 'stops'] },
+            { label: 'Historial', id: 'calendar', matches: ['calendar'] },
+          ].map((item) => {
+            const active = item.matches.includes(tab) && !showPuntualidadTimeline
+            return (
+              <span
+                key={item.label}
+                onClick={() => {
+                  setTab(item.matches[0] as Tab)
+                  setShowPuntualidadTimeline(false)
+                  setShowMasDropdown(false)
+                }}
+                style={{
+                  fontSize: '14px',
+                  fontWeight: active ? 600 : 500,
+                  color: active ? '#fff' : '#8f94a5',
+                  borderBottom: active ? `2px solid ${themeColor}` : 'none',
+                  paddingBottom: '4px',
+                  cursor: 'pointer',
+                  transition: 'all 200ms',
+                }}
+              >
+                {item.label}
+              </span>
+            )
+          })}
+
+          {/* "Más" Dropdown Selector */}
+          <div style={{ position: 'relative' }}>
             <span
-              key={sub}
+              onClick={() => setShowMasDropdown(!showMasDropdown)}
               style={{
                 fontSize: '14px',
-                fontWeight: idx === 0 ? 600 : 500,
-                color: idx === 0 ? '#fff' : '#8f94a5',
-                borderBottom: idx === 0 ? `2px solid ${themeColor}` : 'none',
+                fontWeight: (tab === 'qrcodes' || tab === 'reports' || showPuntualidadTimeline) ? 600 : 500,
+                color: (tab === 'qrcodes' || tab === 'reports' || showPuntualidadTimeline) ? '#fff' : '#8f94a5',
+                borderBottom: (tab === 'qrcodes' || tab === 'reports' || showPuntualidadTimeline) ? `2px solid ${themeColor}` : 'none',
                 paddingBottom: '4px',
                 cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                transition: 'all 200ms',
               }}
             >
-              {sub}
+              Más <ChevronDown size={12} style={{ transform: showMasDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 200ms' }} />
             </span>
-          ))}
+
+            {showMasDropdown && (
+              <div style={{
+                position: 'absolute',
+                top: '24px',
+                left: 0,
+                background: '#121527',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '8px',
+                padding: '6px 0',
+                width: '140px',
+                zIndex: 60,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+              }}>
+                {[
+                  { label: 'Puntualidad GPS', tab: 'overview', showTimeline: true },
+                  { label: 'Códigos QR', tab: 'qrcodes', showTimeline: false },
+                  { label: 'Denuncias', tab: 'reports', showTimeline: false },
+                  { label: 'Cerrar Sesión', tab: 'logout', showTimeline: false }
+                ].map((opt) => (
+                  <div
+                    key={opt.label}
+                    onClick={() => {
+                      setShowMasDropdown(false)
+                      if (opt.tab === 'logout') {
+                        const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+                        if (url.includes('placeholder.supabase.co')) {
+                          window.location.href = '/login'
+                        } else {
+                          supabase.auth.signOut().then(() => { window.location.href = '/login' })
+                        }
+                      } else {
+                        setTab(opt.tab as Tab)
+                        setShowPuntualidadTimeline(opt.showTimeline)
+                      }
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      color: (tab === opt.tab && showPuntualidadTimeline === opt.showTimeline) ? themeColor : '#a3a6b8',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      transition: 'background-color 150ms',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    {opt.label}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: '10px' }}>
@@ -815,7 +870,7 @@ export default function CompanyDashboard() {
           onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'}
         >
           <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Pasajeros Hoy</span>
-          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{activeStats.dailyPas.toLocaleString('es-ES')}</span>
+          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{liveDailyPassengers.toLocaleString('es-ES')}</span>
           <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +12%</span>
         </div>
         {/* Denuncias Pendientes */}
@@ -1255,8 +1310,8 @@ export default function CompanyDashboard() {
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <span style={{ fontSize: '12px', color: '#8f94a5' }}>Pasajeros Totales</span>
-                  <div style={{ fontSize: '28px', fontWeight: 700, color: themeColor, marginTop: '4px' }}>{activeStats.dailyPas.toLocaleString('es-ES')}</div>
+                  <span style={{ fontSize: '12px', color: '#8f94a5' }}>Pasajeros Totales (Hoy)</span>
+                  <div style={{ fontSize: '28px', fontWeight: 700, color: themeColor, marginTop: '4px' }}>{liveDailyPassengers.toLocaleString('es-ES')}</div>
                 </div>
                 {/* Sparkline wave */}
                 <div style={{ width: '100px', height: '40px' }}>
@@ -1272,22 +1327,22 @@ export default function CompanyDashboard() {
 
               <hr style={{ border: 'none', borderTop: '1px solid rgba(255, 255, 255, 0.06)', margin: 0 }} />
 
-              {/* SVG progress rings row */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                {/* Ring 1 */}
+              {/* SVG progress rings row - 3 columns */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                {/* Ring 1 - Ocupación */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center' }}>
-                  <div style={{ position: 'relative', width: '56px', height: '56px' }}>
-                    <svg width="56" height="56" viewBox="0 0 36 36">
+                  <div style={{ position: 'relative', width: '48px', height: '48px' }}>
+                    <svg width="48" height="48" viewBox="0 0 36 36">
                       <circle cx="18" cy="18" r="15.915" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
                       <circle cx="18" cy="18" r="15.915" fill="none" stroke={themeColor} strokeWidth="3"
-                        strokeDasharray="48.2 51.8" strokeDashoffset="25" strokeLinecap="round" />
+                        strokeDasharray="48 52" strokeDashoffset="25" strokeLinecap="round" />
                     </svg>
                     <div style={{
                       position: 'absolute',
                       top: '50%',
                       left: '50%',
                       transform: 'translate(-50%, -50%)',
-                      fontSize: '10px',
+                      fontSize: '9px',
                       fontWeight: 700,
                       color: '#fff',
                     }}>
@@ -1295,34 +1350,67 @@ export default function CompanyDashboard() {
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: '11px', color: '#8f94a5' }}>Ocupación Prom.</div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff', marginTop: '2px' }}>48.2%</div>
+                    <div style={{ fontSize: '10px', color: '#8f94a5', whiteSpace: 'nowrap' }}>Ocupación</div>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#fff', marginTop: '2px' }}>48.2%</div>
                   </div>
                 </div>
 
-                {/* Ring 2 */}
+                {/* Ring 2 - Choferes */}
+                {(() => {
+                  const totalD = LINE_DRIVERS[activeLine.line_number]?.length || 5
+                  const activeD = activeSessions.length
+                  const pct = Math.min(100, Math.round((activeD / totalD) * 100))
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center' }}>
+                      <div style={{ position: 'relative', width: '48px', height: '48px' }}>
+                        <svg width="48" height="48" viewBox="0 0 36 36">
+                          <circle cx="18" cy="18" r="15.915" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
+                          <circle cx="18" cy="18" r="15.915" fill="none" stroke="#00c689" strokeWidth="3"
+                            strokeDasharray={`${pct} ${100 - pct}`} strokeDashoffset="25" strokeLinecap="round" />
+                        </svg>
+                        <div style={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          fontSize: '9px',
+                          fontWeight: 700,
+                          color: '#fff',
+                        }}>
+                          {pct}%
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '10px', color: '#8f94a5', whiteSpace: 'nowrap' }}>Choferes</div>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#fff', marginTop: '2px' }}>{activeD}/{totalD}</div>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Ring 3 - Eco-Driving */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center' }}>
-                  <div style={{ position: 'relative', width: '56px', height: '56px' }}>
-                    <svg width="56" height="56" viewBox="0 0 36 36">
+                  <div style={{ position: 'relative', width: '48px', height: '48px' }}>
+                    <svg width="48" height="48" viewBox="0 0 36 36">
                       <circle cx="18" cy="18" r="15.915" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
-                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#00c689" strokeWidth="3"
-                        strokeDasharray={`${parseInt(activeStats.punctuality)} ${100 - parseInt(activeStats.punctuality)}`} strokeDashoffset="25" strokeLinecap="round" />
+                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#22d3ee" strokeWidth="3"
+                        strokeDasharray="92 8" strokeDashoffset="25" strokeLinecap="round" />
                     </svg>
                     <div style={{
                       position: 'absolute',
                       top: '50%',
                       left: '50%',
                       transform: 'translate(-50%, -50%)',
-                      fontSize: '10px',
+                      fontSize: '9px',
                       fontWeight: 700,
                       color: '#fff',
                     }}>
-                      {activeStats.punctuality}
+                      92%
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: '11px', color: '#8f94a5' }}>Puntualidad</div>
-                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff', marginTop: '2px' }}>{activeStats.punctuality}</div>
+                    <div style={{ fontSize: '10px', color: '#8f94a5', whiteSpace: 'nowrap' }}>Eco-Conduc.</div>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#fff', marginTop: '2px' }}>92.0%</div>
                   </div>
                 </div>
               </div>
