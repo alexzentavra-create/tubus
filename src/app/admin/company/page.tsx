@@ -321,7 +321,15 @@ export default function CompanyDashboard() {
         return { label: dayLabel, subidos, bajados }
       })
     }
-    return HOURLY.map((h, i) => {
+    const todayStr = format(new Date(), 'yyyy-MM-dd')
+    let maxHour = 23
+    if (selectedDate === todayStr) {
+      maxHour = new Date().getHours()
+    } else if (selectedDate > todayStr) {
+      return []
+    }
+
+    return HOURLY.slice(0, maxHour + 1).map((h, i) => {
       const seed = activeLine.line_number.charCodeAt(0) + i * 7
       const factor = 0.9 + (seed % 3) * 0.1
       const sub = Math.round(h.subidas * factor)
@@ -1121,22 +1129,28 @@ export default function CompanyDashboard() {
                         </div>
                       </div>
 
-                      <ResponsiveContainer width="100%" height={220}>
-                        <AreaChart data={currentChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                          <defs>
-                            <linearGradient id="colorRed" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor={themeColor} stopOpacity={0.25} />
-                              <stop offset="95%" stopColor={themeColor} stopOpacity={0} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-                          <XAxis dataKey="label" stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} />
-                          <YAxis stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} />
-                          <Tooltip contentStyle={{ background: '#121527', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px' }} />
-                          <Area type="monotone" dataKey="bajados" name="Bajados" stroke="#8f94a5" fill="none" strokeWidth={2} dot={false} />
-                          <Area type="monotone" dataKey="subidos" name="Subidos" stroke={themeColor} fill="url(#colorRed)" strokeWidth={2.5} dot={false} />
-                        </AreaChart>
-                      </ResponsiveContainer>
+                      {currentChartData.length === 0 ? (
+                        <div style={{ height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed rgba(255,255,255,0.06)', borderRadius: '8px', background: 'rgba(255,255,255,0.01)' }}>
+                          <span style={{ color: '#8f94a5', fontSize: '12px', fontFamily: 'DM Sans' }}>No hay registros disponibles para la fecha seleccionada</span>
+                        </div>
+                      ) : (
+                        <ResponsiveContainer width="100%" height={220}>
+                          <AreaChart data={currentChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="colorRed" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor={themeColor} stopOpacity={0.25} />
+                                <stop offset="95%" stopColor={themeColor} stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+                            <XAxis dataKey="label" stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} />
+                            <YAxis stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} />
+                            <Tooltip contentStyle={{ background: '#121527', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px' }} />
+                            <Area type="monotone" dataKey="bajados" name="Bajados" stroke="#8f94a5" fill="none" strokeWidth={2} dot={false} />
+                            <Area type="monotone" dataKey="subidos" name="Subidos" stroke={themeColor} fill="url(#colorRed)" strokeWidth={2.5} dot={false} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      )}
                     </div>
 
                     {/* Busiest Stops Card */}
