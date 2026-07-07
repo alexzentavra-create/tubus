@@ -141,6 +141,7 @@ export default function CompanyDashboard() {
   const activeStats = LINE_STATS[activeLine.line_number] || { rating: '4.7', punctuality: '85%', dailyPas: 1200 }
   
   const [liveDailyPassengers, setLiveDailyPassengers] = useState<number>(0)
+  const [floatingIndicators, setFloatingIndicators] = useState<Array<{ id: number; text: string }>>([])
 
   useEffect(() => {
     setLiveDailyPassengers(activeStats.dailyPas)
@@ -148,8 +149,17 @@ export default function CompanyDashboard() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setLiveDailyPassengers(prev => prev + Math.floor(Math.random() * 2))
-    }, 4000)
+      // Boards a group of 1 to 5 passengers
+      const amt = Math.floor(Math.random() * 5) + 1
+      setLiveDailyPassengers(prev => prev + amt)
+      
+      const newId = Date.now() + Math.random()
+      setFloatingIndicators(prev => [...prev, { id: newId, text: `+${amt}` }])
+      
+      setTimeout(() => {
+        setFloatingIndicators(prev => prev.filter(x => x.id !== newId))
+      }, 1500)
+    }, 4500)
     return () => clearInterval(interval)
   }, [])
   
@@ -865,12 +875,44 @@ export default function CompanyDashboard() {
         {/* Pasajeros Hoy */}
         <div
           onClick={() => setShowPassengerModal(true)}
-          style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)', cursor: 'pointer', transition: 'all 200ms' }}
+          style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)', cursor: 'pointer', transition: 'all 200ms', position: 'relative', overflow: 'visible' }}
           onMouseEnter={(e) => e.currentTarget.style.borderColor = themeColor}
           onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'}
         >
           <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Pasajeros Hoy</span>
-          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{liveDailyPassengers.toLocaleString('es-ES')}</span>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
+            <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{liveDailyPassengers.toLocaleString('es-ES')}</span>
+            
+            {/* Real-time floating animated boarding indicators */}
+            <div style={{ position: 'absolute', left: '110px', top: '-10px', display: 'flex', flexDirection: 'column', gap: '4px', pointerEvents: 'none', zIndex: 10 }}>
+              {floatingIndicators.map(ind => (
+                <div
+                  key={ind.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    background: 'rgba(34,211,160,0.15)',
+                    border: '1px solid rgba(34,211,160,0.3)',
+                    borderRadius: '999px',
+                    padding: '2px 8px',
+                    color: '#22D3A0',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+                    fontFamily: 'DM Mono',
+                    animation: 'floatFade 1.2s ease-out forwards',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <Users size={10} />
+                  <span>{ind.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          
           <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +12%</span>
         </div>
         {/* Denuncias Pendientes */}
@@ -1656,6 +1698,22 @@ export default function CompanyDashboard() {
           </div>
         </div>
       )}
+      <style>{`
+        @keyframes floatFade {
+          0% {
+            opacity: 0;
+            transform: translateY(15px) scale(0.75);
+          }
+          20% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-30px) scale(0.85);
+          }
+        }
+      `}</style>
     </div>
   )
 }
