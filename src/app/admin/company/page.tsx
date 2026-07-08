@@ -106,6 +106,8 @@ export default function CompanyDashboard() {
   const [activeSessions, setActiveSessions] = useState<any[]>([])
 
   const [selectedLineNumber, setSelectedLineNumber] = useState<string>('12')
+  const activeLine = MOCK_LINES.find(l => l.line_number === selectedLineNumber) || MOCK_LINES[0]
+  const themeColor = activeLine.color
   const [buses, setBuses] = useState<any[]>([])
 
   // Dynamic Chart Filters
@@ -133,14 +135,79 @@ export default function CompanyDashboard() {
     setDriverWarnings(local)
   }, [selectedLineNumber])
 
-  const addWarning = (driverName: string) => {
+  // Drivers List state & localStorage sync
+  const [driversList, setDriversList] = useState<any[]>([])
+  useEffect(() => {
+    if (!activeLine) return
+    const initialDrivers = getLineDrivers(activeLine.line_number)
+    const stored = localStorage.getItem(`mock_drivers_${activeLine.line_number}`)
+    if (stored) {
+      setDriversList(JSON.parse(stored))
+    } else {
+      const enhanced = initialDrivers.map((d: any, idx: number) => ({
+        ...d,
+        id: `driver-${idx}-${Date.now()}`,
+        dni: String(28000000 + idx * 45293),
+        age: 32 + idx * 4,
+        phone: `+54 9 11 ${5429 - idx * 100} 8234`,
+        historyBuses: [`${activeLine.line_number}-301`, `${activeLine.line_number}-302`],
+        historyDenuncias: idx % 3 === 0 ? [{ id: `rep-idx-${idx}`, type: 'No paró', date: 'Ayer', desc: 'El colectivo no paró...' }] : []
+      }))
+      setDriversList(enhanced)
+      localStorage.setItem(`mock_drivers_${activeLine.line_number}`, JSON.stringify(enhanced))
+    }
+  }, [activeLine])
+
+  const addWarning = (driverName: string, complaintType: string = 'Infracción', complaintDesc: string = 'Llamada de atención administrativa') => {
+    // 1. Update warnings mapping
     setDriverWarnings(prev => {
       const updated = { ...prev, [driverName]: (prev[driverName] || 0) + 1 }
       localStorage.setItem('mock_driver_warnings', JSON.stringify(updated))
       return updated
     })
-    toast.success(`Se ha añadido un punto de infracción a ${driverName}`);
+
+    // 2. Append to driver's historyDenuncias in profile list
+    setDriversList(prevList => {
+      const updatedList = prevList.map(d => {
+        if (d.name === driverName) {
+          const history = d.historyDenuncias || []
+          return {
+            ...d,
+            reports: (d.reports || 0) + 1,
+            historyDenuncias: [
+              ...history,
+              {
+                id: `rep-${Date.now()}`,
+                type: complaintType,
+                date: 'Hoy',
+                desc: complaintDesc
+              }
+            ]
+          }
+        }
+        return d
+      })
+      localStorage.setItem(`mock_drivers_${activeLine.line_number}`, JSON.stringify(updatedList))
+      return updatedList
+    })
+
+    toast.success(`Se ha añadido un punto de infracción y registrado en el historial de ${driverName}`);
   }
+
+  const deleteDriver = (id: string) => {
+    const updated = driversList.filter(d => d.id !== id)
+    setDriversList(updated)
+    localStorage.setItem(`mock_drivers_${activeLine.line_number}`, JSON.stringify(updated))
+    toast.success('Chofer eliminado con éxito de los registros');
+  }
+
+  // Add Driver Form states
+  const [showAddDriverModal, setShowAddDriverModal] = useState(false)
+  const [newDriverName, setNewDriverName] = useState('')
+  const [newDriverLegajo, setNewDriverLegajo] = useState('')
+  const [newDriverDni, setNewDriverDni] = useState('')
+  const [newDriverAge, setNewDriverAge] = useState('')
+  const [newDriverPhone, setNewDriverPhone] = useState('')
 
   // Load initial line from query parameter if present
   useEffect(() => {
@@ -153,8 +220,6 @@ export default function CompanyDashboard() {
     }
   }, [])
 
-  const activeLine = MOCK_LINES.find(l => l.line_number === selectedLineNumber) || MOCK_LINES[0]
-  const themeColor = activeLine.color
 
   const LINE_STATS: Record<string, { rating: string; punctuality: string; dailyPas: number }> = {
     '12': { rating: '4.7', punctuality: '84%', dailyPas: 1240 },
@@ -636,6 +701,40 @@ export default function CompanyDashboard() {
     toast.success('QR descargado (función disponible en producción)')
   }
 
+  const handleAddDriver = () => {
+    if (!newDriverName.trim() || !newDriverLegajo.trim() || !newDriverDni.trim()) {
+      toast.error('Por favor, completa los campos requeridos (Nombre, Legajo y DNI)');
+      return;
+    }
+    const newDriver = {
+      id: `driver-${Date.now()}`,
+      name: newDriverName.trim(),
+      legajo: newDriverLegajo.trim(),
+      dni: newDriverDni.trim(),
+      age: parseInt(newDriverAge) || 30,
+      phone: newDriverPhone.trim() || '+54 9 11 5000 0000',
+      sessions: 0,
+      onTime: 100,
+      rating: "5.0",
+      reports: 0,
+      lastActive: 'Sin actividad reciente',
+      historyBuses: [],
+      historyDenuncias: []
+    }
+    const updated = [...driversList, newDriver]
+    setDriversList(updated)
+    localStorage.setItem(`mock_drivers_${activeLine.line_number}`, JSON.stringify(updated))
+    setShowAddDriverModal(false)
+    
+    // Clear inputs
+    setNewDriverName('')
+    setNewDriverLegajo('')
+    setNewDriverDni('')
+    setNewDriverAge('')
+    setNewDriverPhone('')
+    toast.success(`Chofer ${newDriver.name} registrado con éxito`);
+  }
+
   const logout = async () => {
     await supabase.auth.signOut()
     window.location.href = '/login'
@@ -830,7 +929,8 @@ export default function CompanyDashboard() {
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center', position: 'relative' }}>
           {[
             { label: 'Resumen', id: 'overview', onClick: () => { setTab('overview'); setShowPuntualidadTimeline(false); }, isActive: tab === 'overview' && !showPuntualidadTimeline },
-            { label: 'Flota', id: 'buses', onClick: () => { setTab('buses'); setShowPuntualidadTimeline(false); }, isActive: ['buses', 'drivers', 'stops'].includes(tab) },
+            { label: 'Flota', id: 'buses', onClick: () => { setTab('buses'); setShowPuntualidadTimeline(false); }, isActive: tab === 'buses' },
+            { label: 'Choferes', id: 'drivers', onClick: () => { setTab('drivers'); setShowPuntualidadTimeline(false); }, isActive: tab === 'drivers' },
             { label: 'Historial', id: 'calendar', onClick: () => { setTab('calendar'); setShowPuntualidadTimeline(false); }, isActive: tab === 'calendar' },
             { label: 'Puntualidad', id: 'punctuality', onClick: () => { setTab('overview'); setShowPuntualidadTimeline(true); }, isActive: tab === 'overview' && showPuntualidadTimeline },
             { label: 'Códigos QR', id: 'qrcodes', onClick: () => { setTab('qrcodes'); setShowPuntualidadTimeline(false); }, isActive: tab === 'qrcodes' },
@@ -1384,7 +1484,16 @@ export default function CompanyDashboard() {
             )}
 
             {tab === 'buses' && <BusesTab buses={buses} themeColor={themeColor} />}
-            {tab === 'drivers' && <CompanyDrivers drivers={currentDrivers} activeSessions={activeSessions} driverWarnings={driverWarnings} themeColor={themeColor} />}
+            {tab === 'drivers' && (
+              <CompanyDrivers
+                drivers={driversList}
+                activeSessions={activeSessions}
+                driverWarnings={driverWarnings}
+                onDeleteDriver={deleteDriver}
+                onAddDriverClick={() => setShowAddDriverModal(true)}
+                themeColor={themeColor}
+              />
+            )}
             {tab === 'qrcodes' && (
               <QRTab
                 qrCodes={qrCodes}
@@ -1781,6 +1890,90 @@ export default function CompanyDashboard() {
           </div>
         </div>
       )}
+
+      {/* Add Driver Modal */}
+      {showAddDriverModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}>
+          <div className="glass-dark" style={{ padding: '24px', borderRadius: '16px', maxWidth: '450px', width: '100%', margin: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <h3 style={{ color: '#fff', fontSize: '18px', fontWeight: 700, margin: '0 0 8px' }}>Registrar Nuevo Chofer</h3>
+            <p style={{ color: '#8f94a5', fontSize: '12px', margin: '0 0 20px' }}>Ingrese la información del perfil del conductor para darlo de alta en el sistema.</p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '24px' }}>
+              <div>
+                <label style={{ display: 'block', color: '#8f94a5', fontSize: '12px', marginBottom: '6px', fontWeight: 500 }}>Nombre Completo <span style={{ color: '#ff4d6a' }}>*</span></label>
+                <input
+                  type="text"
+                  placeholder="ej. Juan Carlos Pérez"
+                  value={newDriverName}
+                  onChange={(e) => setNewDriverName(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px', outline: 'none' }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div>
+                  <label style={{ display: 'block', color: '#8f94a5', fontSize: '12px', marginBottom: '6px', fontWeight: 500 }}>DNI / Documento <span style={{ color: '#ff4d6a' }}>*</span></label>
+                  <input
+                    type="text"
+                    placeholder="ej. 32954823"
+                    value={newDriverDni}
+                    onChange={(e) => setNewDriverDni(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px', outline: 'none' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', color: '#8f94a5', fontSize: '12px', marginBottom: '6px', fontWeight: 500 }}>Legajo Interno <span style={{ color: '#ff4d6a' }}>*</span></label>
+                  <input
+                    type="text"
+                    placeholder="ej. L12-583"
+                    value={newDriverLegajo}
+                    onChange={(e) => setNewDriverLegajo(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px', outline: 'none' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr', gap: '14px' }}>
+                <div>
+                  <label style={{ display: 'block', color: '#8f94a5', fontSize: '12px', marginBottom: '6px', fontWeight: 500 }}>Edad</label>
+                  <input
+                    type="number"
+                    placeholder="ej. 35"
+                    value={newDriverAge}
+                    onChange={(e) => setNewDriverAge(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px', outline: 'none' }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', color: '#8f94a5', fontSize: '12px', marginBottom: '6px', fontWeight: 500 }}>Teléfono de Contacto</label>
+                  <input
+                    type="text"
+                    placeholder="ej. +54 9 11 5824 9342"
+                    value={newDriverPhone}
+                    onChange={(e) => setNewDriverPhone(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px', outline: 'none' }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button
+                onClick={() => setShowAddDriverModal(false)}
+                style={{ flex: 1, padding: '11px', borderRadius: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleAddDriver}
+                style={{ flex: 2, padding: '11px', borderRadius: '10px', background: themeColor, border: 'none', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Guardar Chofer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <style>{`
         @keyframes floatFade {
           0% {
@@ -1843,79 +2036,215 @@ function BusesTab({ buses, themeColor }: { buses: any[]; themeColor: string }) {
   )
 }
 
-function CompanyDrivers({ drivers, activeSessions = [], driverWarnings = {}, themeColor }: { drivers: any[]; activeSessions?: any[]; driverWarnings?: Record<string, number>; themeColor: string }) {
+function CompanyDrivers({ drivers, activeSessions = [], driverWarnings = {}, onDeleteDriver, onAddDriverClick, themeColor }: { drivers: any[]; activeSessions?: any[]; driverWarnings?: Record<string, number>; onDeleteDriver: (id: string) => void; onAddDriverClick: () => void; themeColor: string }) {
+  const [expandedDriverId, setExpandedDriverId] = useState<string | null>(null)
+
   return (
-    <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
-      {drivers.map((d,i)=>{
-        const activeSession = activeSessions.find((s: any) => s.profiles?.name === d.name)
-        const warningsCount = driverWarnings[d.name] || 0
-        
-        return (
-          <div key={i} style={{
-            background: '#121527',
-            borderRadius: '12px',
-            border: activeSession ? `1px solid ${hexToRgba(themeColor, 0.4)}` : '1px solid rgba(255, 255, 255, 0.06)',
-            padding: '16px 20px',
-            boxShadow: activeSession ? `0 0 12px ${hexToRgba(themeColor, 0.1)}` : 'none'
-          }}>
-            <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
-              <div style={{width:'44px',height:'44px',borderRadius:'12px',background:activeSession ? hexToRgba(themeColor, 0.15) : 'rgba(255,255,255,0.02)',border:activeSession ? `1px solid ${hexToRgba(themeColor, 0.3)}` : '1px solid rgba(255,255,255,0.08)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                <Users size={18} style={{color:activeSession ? themeColor : '#8f94a5'}}/>
-              </div>
-              <div style={{flex:1}}>
-                <div style={{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap'}}>
-                  <span style={{color:'#fff',fontWeight:700,fontSize:'15px'}}>{d.name}</span>
-                  {activeSession && (
-                    <span style={{
-                      padding:'2px 8px',
-                      borderRadius:'999px',
-                      background:'rgba(34,211,160,0.08)',
-                      border:'1px solid rgba(34,211,160,0.2)',
-                      color:'#22D3A0',
-                      fontSize:'9px',
-                      fontWeight:600,
-                      textTransform:'uppercase',
-                      letterSpacing:'0.03em'
-                    }}>
-                      En servicio · Colectivo {activeSession.bus_unit}
-                    </span>
-                  )}
-                  {warningsCount > 0 && (
-                    <span style={{
-                      padding:'2px 8px',
-                      borderRadius:'999px',
-                      background:'rgba(255,77,106,0.08)',
-                      border:'1px solid rgba(255,77,106,0.2)',
-                      color:'#FF4D6A',
-                      fontSize:'9px',
-                      fontWeight:600,
-                      textTransform:'uppercase',
-                      letterSpacing:'0.03em'
-                    }}>
-                      ⚠️ {warningsCount} {warningsCount === 1 ? 'Sanción' : 'Sanciones'}
-                    </span>
-                  )}
+    <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
+      {/* Header with Add Button */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#121527', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)', padding: '16px 20px' }}>
+        <div>
+          <h4 style={{ color: '#fff', fontSize: '14px', fontWeight: 600, margin: 0 }}>Registro Oficial de Conductores</h4>
+          <p style={{ color: '#8f94a5', fontSize: '11px', margin: '2px 0 0' }}>Administre los perfiles, sanciones y datos de contacto de la línea</p>
+        </div>
+        <button
+          onClick={onAddDriverClick}
+          style={{
+            padding: '8px 16px',
+            borderRadius: '8px',
+            background: themeColor,
+            color: '#fff',
+            border: 'none',
+            fontSize: '12px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            transition: 'all 200ms'
+          }}
+        >
+          <Plus size={14}/> Agregar Chofer
+        </button>
+      </div>
+
+      {drivers.length === 0 ? (
+        <div style={{textAlign:'center',padding:'40px',color:'#8f94a5',fontFamily:'DM Mono',fontSize:'13px',background:'#121527',borderRadius:'12px',border:'1px solid rgba(255,255,255,0.06)'}}>
+          No hay choferes registrados en esta línea.
+        </div>
+      ) : (
+        <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+          {drivers.map((d,i)=>{
+            const activeSession = activeSessions.find((s: any) => s.profiles?.name === d.name)
+            const warningsCount = driverWarnings[d.name] || 0
+            const isExpanded = expandedDriverId === d.id
+
+            return (
+              <div key={d.id || i} style={{
+                background: '#121527',
+                borderRadius: '12px',
+                border: isExpanded ? `1.5px solid ${themeColor}` : (activeSession ? `1px solid ${hexToRgba(themeColor, 0.4)}` : '1px solid rgba(255, 255, 255, 0.06)'),
+                padding: '16px 20px',
+                boxShadow: isExpanded ? `0 0 15px ${hexToRgba(themeColor, 0.15)}` : (activeSession ? `0 0 12px ${hexToRgba(themeColor, 0.08)}` : 'none'),
+                transition: 'all 200ms'
+              }}>
+                <div style={{display:'flex',alignItems:'center',gap:'14px',cursor:'pointer'}} onClick={() => setExpandedDriverId(isExpanded ? null : d.id)}>
+                  <div style={{width:'44px',height:'44px',borderRadius:'12px',background:activeSession ? hexToRgba(themeColor, 0.15) : 'rgba(255,255,255,0.02)',border:activeSession ? `1px solid ${hexToRgba(themeColor, 0.3)}` : '1px solid rgba(255,255,255,0.08)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    <Users size={18} style={{color:activeSession ? themeColor : '#8f94a5'}}/>
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap'}}>
+                      <span style={{color:'#fff',fontWeight:700,fontSize:'15px'}}>{d.name}</span>
+                      {activeSession && (
+                        <span style={{
+                          padding:'2px 8px',
+                          borderRadius:'999px',
+                          background:'rgba(34,211,160,0.08)',
+                          border:'1px solid rgba(34,211,160,0.2)',
+                          color:'#22D3A0',
+                          fontSize:'9px',
+                          fontWeight:600,
+                          textTransform:'uppercase',
+                          letterSpacing:'0.03em'
+                        }}>
+                          En servicio · Colectivo {activeSession.bus_unit}
+                        </span>
+                      )}
+                      {warningsCount > 0 && (
+                        <span style={{
+                          padding:'2px 8px',
+                          borderRadius:'999px',
+                          background:'rgba(255,77,106,0.08)',
+                          border:'1px solid rgba(255,77,106,0.2)',
+                          color:'#FF4D6A',
+                          fontSize:'9px',
+                          fontWeight:600,
+                          textTransform:'uppercase',
+                          letterSpacing:'0.03em'
+                        }}>
+                          ⚠️ {warningsCount} {warningsCount === 1 ? 'Sanción' : 'Sanciones'}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'2px'}}>{d.legajo} · último: {activeSession ? 'Activo ahora' : d.lastActive}</div>
+                  </div>
+                  <div style={{textAlign:'right',display:'flex',alignItems:'center',gap:'12px'}}>
+                    <div>
+                      <div style={{display:'flex',alignItems:'center',gap:'4px',justifyContent:'flex-end'}}>
+                        <Star size={12} style={{color:themeColor,fill:themeColor}}/><span style={{color:'#fff',fontFamily:'DM Mono',fontWeight:700,fontSize:'13px'}}>{d.rating}</span>
+                      </div>
+                      {d.reports>0&&<div style={{color:'#FF4D6A',fontSize:'10px',fontFamily:'DM Mono',marginTop:'2px'}}>{d.reports} denuncia</div>}
+                    </div>
+                    <ChevronDown size={16} style={{color:'#8f94a5',transform:isExpanded ? 'rotate(180deg)' : 'none',transition:'transform 200ms'}}/>
+                  </div>
                 </div>
-                <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'2px'}}>{d.legajo} · último: {activeSession ? 'Activo ahora' : d.lastActive}</div>
+
+                {/* Expanded Details Panel */}
+                {isExpanded && (
+                  <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                      {/* Left side: General Profile */}
+                      <div>
+                        <h5 style={{ color: '#fff', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.05em' }}>Perfil General</h5>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#8f94a5' }}>Documento (DNI):</span>
+                            <span style={{ color: '#fff', fontWeight: 500, fontFamily: 'DM Mono' }}>{d.dni || '—'}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#8f94a5' }}>Edad:</span>
+                            <span style={{ color: '#fff', fontWeight: 500 }}>{d.age || '—'} años</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#8f94a5' }}>Número de contacto:</span>
+                            <span style={{ color: '#fff', fontWeight: 500, fontFamily: 'DM Mono' }}>{d.phone || '—'}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#8f94a5' }}>Legajo interno:</span>
+                            <span style={{ color: '#fff', fontWeight: 500, fontFamily: 'DM Mono' }}>{d.legajo}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right side: History & Denuncias */}
+                      <div>
+                        <h5 style={{ color: '#fff', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.05em' }}>Historial y Sanciones</h5>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '12px' }}>
+                          <div>
+                            <span style={{ color: '#8f94a5', display: 'block', marginBottom: '4px' }}>Colectivos Conducidos:</span>
+                            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                              {(d.historyBuses || []).length === 0 ? (
+                                <span style={{ color: '#64748b' }}>Sin historial de unidades</span>
+                              ) : (
+                                (d.historyBuses || []).map((bus: string, bIdx: number) => (
+                                  <span key={bIdx} style={{ padding: '2px 8px', borderRadius: '4px', background: 'rgba(255,255,255,0.04)', color: '#fff', fontFamily: 'DM Mono' }}>{bus}</span>
+                                ))
+                              )}
+                            </div>
+                          </div>
+                          <div>
+                            <span style={{ color: '#8f94a5', display: 'block', marginBottom: '4px' }}>Registro de Denuncias:</span>
+                            {(d.historyDenuncias || []).length === 0 ? (
+                              <span style={{ color: '#64748b' }}>Chofer sin denuncias activas</span>
+                            ) : (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                {(d.historyDenuncias || []).map((rep: any, rIdx: number) => (
+                                  <div key={rIdx} style={{ padding: '6px 10px', borderRadius: '6px', background: 'rgba(255,77,106,0.04)', border: '1px solid rgba(255,77,106,0.1)', color: '#8f94a5' }}>
+                                    <div style={{ color: '#ff4d6a', fontWeight: 600, fontSize: '11px' }}>{rep.type} · {rep.date}</div>
+                                    <div style={{ fontSize: '10px', marginTop: '2px' }}>{rep.desc}</div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stats strip */}
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12,marginTop:20,borderTop:'1px dashed rgba(255,255,255,0.04)',paddingTop:16}}>
+                      {[{label:'Sesiones',value:d.sessions},{label:'A tiempo',value:`${d.onTime}%`},{label:'Sanciones (Puntos)',value:warningsCount}].map(({label,value})=>(
+                        <div key={label} style={{background:'rgba(6,8,16,0.3)',borderRadius:'8px',padding:'8px',textAlign:'center'}}>
+                          <div style={{color:'#fff',fontWeight:700,fontSize:'15px'}}>{value}</div>
+                          <div style={{color:'#8f94a5',fontSize:'10px',fontFamily:'DM Mono',marginTop:'2px'}}>{label}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Delete Action bar */}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`¿Estás seguro de eliminar a ${d.name} de los registros?`)) {
+                            onDeleteDriver(d.id);
+                          }
+                        }}
+                        style={{
+                          padding: '6px 14px',
+                          borderRadius: '6px',
+                          background: 'rgba(255,77,106,0.08)',
+                          border: '1px solid rgba(255,77,106,0.2)',
+                          color: '#ff4d6a',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          transition: 'all 200ms'
+                        }}
+                      >
+                        <Trash2 size={12}/> Eliminar Chofer
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div style={{textAlign:'right'}}>
-                <div style={{display:'flex',alignItems:'center',gap:'4px',justifyContent:'flex-end'}}>
-                  <Star size={12} style={{color:themeColor,fill:themeColor}}/><span style={{color:'#fff',fontFamily:'DM Mono',fontWeight:700,fontSize:'13px'}}>{d.rating}</span>
-                </div>
-                {d.reports>0&&<div style={{color:'#FF4D6A',fontSize:'10px',fontFamily:'DM Mono',marginTop:'2px'}}>{d.reports} denuncia</div>}
-              </div>
-            </div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'8px',marginTop:'12px'}}>
-              {[{label:'Sesiones',value:d.sessions},{label:'A tiempo',value:`${d.onTime}%`},{label:'Sanciones',value:warningsCount}].map(({label,value})=>(
-                <div key={label} style={{background:'rgba(6,8,16,0.3)',borderRadius:'8px',padding:'8px',textAlign:'center'}}>
-                  <div style={{color:'#fff',fontWeight:700,fontSize:'16px'}}>{value}</div>
-                  <div style={{color:'#8f94a5',fontSize:'10px',fontFamily:'DM Mono',marginTop:'2px'}}>{label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )
-      })}
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
