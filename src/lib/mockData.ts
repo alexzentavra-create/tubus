@@ -281,16 +281,50 @@ function routeTemplateForLine(line: BusLine, direction: 'ida' | 'vuelta' = 'ida'
 }
 
 export function getMockStopsForLine(line: BusLine, direction: 'all' | 'ida' | 'vuelta' = 'all'): BusStop[] {
-  if (direction === 'ida') {
-    return routeTemplateForLine(line, 'ida')
-  } else if (direction === 'vuelta') {
-    return routeTemplateForLine(line, 'vuelta')
-  } else {
-    return [...routeTemplateForLine(line, 'ida'), ...routeTemplateForLine(line, 'vuelta')]
+  let stopsList: BusStop[] = [];
+  if (typeof window !== 'undefined') {
+    const customKey = `mock_custom_stops_${line.line_number}_${direction}`;
+    const storedCustom = localStorage.getItem(customKey);
+    if (storedCustom) {
+      stopsList = JSON.parse(storedCustom);
+    }
   }
+
+  if (stopsList.length === 0) {
+    if (direction === 'ida') {
+      stopsList = routeTemplateForLine(line, 'ida');
+    } else if (direction === 'vuelta') {
+      stopsList = routeTemplateForLine(line, 'vuelta');
+    } else {
+      stopsList = [...routeTemplateForLine(line, 'ida'), ...routeTemplateForLine(line, 'vuelta')];
+    }
+  }
+
+  // Inject blocked state if configured
+  if (typeof window !== 'undefined') {
+    const blockedStops = JSON.parse(localStorage.getItem(`mock_blocked_stops_${line.line_number}`) || '[]');
+    stopsList = stopsList.map(s => {
+      const isBlocked = blockedStops.includes(s.id);
+      return {
+        ...s,
+        isBlocked,
+        name: isBlocked && !s.name.includes('[BLOQUEADA]') ? `[BLOQUEADA] ${s.name}` : s.name
+      };
+    });
+  }
+
+  return stopsList;
 }
 
 function getRoutePathForLine(line: BusLine, direction: 'ida' | 'vuelta' = 'ida'): RoutePoint[] {
+  if (typeof window !== 'undefined') {
+    const customPathKey = `mock_route_path_${line.line_number}_${direction}`;
+    const storedPath = localStorage.getItem(customPathKey);
+    if (storedPath) {
+      return JSON.parse(storedPath);
+    }
+  }
+
   const officialRoute = OFFICIAL_ROUTES[line.line_number.replace(/^0+/, '')]
   if (officialRoute) {
     const dirObj = direction === 'vuelta' ? officialRoute.vuelta : officialRoute.ida
@@ -318,7 +352,7 @@ export function getMockRoutePathsForLine(line: BusLine, direction: 'all' | 'ida'
       getRoutePathForLine(line, 'vuelta')
     ]
   } else {
-    return [getRoutePathForLine(line, direction)]
+    return [getRoutePathForLine(line, direction as 'ida' | 'vuelta')]
   }
 }
 

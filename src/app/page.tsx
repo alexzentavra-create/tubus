@@ -24287,13 +24287,38 @@ export default function UserMapPage() {
               )
             }
 
+            const isBlocked = (stop as any).isBlocked || stop.name.includes('[BLOQUEADA]')
+
             return (
               <Marker key={stop.id} longitude={stop.longitude} latitude={stop.latitude} anchor="center">
                 <div
-                  onClick={() => updatePrefs({ favStops: isFav ? prefs.favStops.filter(id => id !== stop.id) : [...prefs.favStops, stop.id] })}
+                  onClick={() => {
+                    if (isBlocked) {
+                      toast.error(`Parada ${stop.name} bloqueada temporalmente.`);
+                    } else {
+                      updatePrefs({ favStops: isFav ? prefs.favStops.filter(id => id !== stop.id) : [...prefs.favStops, stop.id] });
+                    }
+                  }}
                   title={stop.name}
-                  style={{ width: isFav ? '14px' : '10px', height: isFav ? '14px' : '10px', borderRadius: '50%', background: isFav ? stopColor : 'rgba(184,200,224,0.5)', border: `2px solid ${isFav ? stopColor : 'rgba(184,200,224,0.25)'}`, boxShadow: isFav ? `0 0 10px ${stopColor}80` : '0 0 6px rgba(184,200,224,0.3)', cursor: 'pointer' }}
-                />
+                  style={{
+                    width: isBlocked ? '16px' : (isFav ? '14px' : '10px'),
+                    height: isBlocked ? '16px' : (isFav ? '14px' : '10px'),
+                    borderRadius: '50%',
+                    background: isBlocked ? '#FF4D6A' : (isFav ? stopColor : 'rgba(184,200,224,0.5)'),
+                    border: `2px solid ${isBlocked ? '#fff' : (isFav ? stopColor : 'rgba(184,200,224,0.25)')}`,
+                    boxShadow: isBlocked ? '0 0 12px #FF4D6A' : (isFav ? `0 0 10px ${stopColor}80` : '0 0 6px rgba(184,200,224,0.3)'),
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    fontSize: '9px',
+                    fontWeight: 'bold',
+                    transition: 'all 200ms'
+                  }}
+                >
+                  {isBlocked ? '✕' : ''}
+                </div>
               </Marker>
             )
           })}

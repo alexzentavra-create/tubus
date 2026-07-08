@@ -8,7 +8,8 @@ import {
   Circle, Flag, Info
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
-import { MOCK_LINES, getMockStopsForLine } from '@/lib/mockData'
+import { MOCK_LINES, getMockStopsForLine, getMockRoutePathForLine, getMockRoutePathsForLine } from '@/lib/mockData'
+import Map, { Marker, Popup, Source, Layer } from 'react-map-gl/maplibre'
 
 function hexToRgba(hex: string, alpha: number): string {
   const cleanHex = hex.replace('#', '')
@@ -37,7 +38,7 @@ const WEEKLY = Array.from({length:7},(_,i)=>({d:format(subDays(new Date(),6-i),'
 const TOP_STOPS=[{name:'Av. Rivadavia y Pueyrredón',subidas:342,espera:4},{name:'Av. Corrientes y Callao',subidas:287,espera:6},{name:'Av. Santa Fe y Medrano',subidas:198,espera:5},{name:'Av. Cabildo y Juramento',subidas:167,espera:7}]
 const TTP={contentStyle:{background:'rgba(10,14,20,0.97)',border:'1px solid rgba(184,200,224,0.12)',borderRadius:'10px',fontSize:'12px',fontFamily:'DM Mono'},labelStyle:{color:'#C2C8D4'},itemStyle:{color:'#8A95A8'}}
 
-type Tab = 'overview'|'buses'|'drivers'|'qrcodes'|'stops'|'reports'|'calendar'
+type Tab = 'overview'|'buses'|'drivers'|'qrcodes'|'stops'|'reports'|'calendar'|'map'
 
 interface Todo {
   id: string
@@ -935,6 +936,7 @@ export default function CompanyDashboard() {
             { label: 'Puntualidad', id: 'punctuality', onClick: () => { setTab('overview'); setShowPuntualidadTimeline(true); }, isActive: tab === 'overview' && showPuntualidadTimeline },
             { label: 'Códigos QR', id: 'qrcodes', onClick: () => { setTab('qrcodes'); setShowPuntualidadTimeline(false); }, isActive: tab === 'qrcodes' },
             { label: 'Denuncias', id: 'reports', onClick: () => { setTab('reports'); setShowPuntualidadTimeline(false); }, isActive: tab === 'reports' },
+            { label: 'Mapa', id: 'map', onClick: () => { setTab('map'); setShowPuntualidadTimeline(false); }, isActive: tab === 'map' },
             { label: 'Cerrar Sesión', id: 'logout', onClick: () => {
               const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
               if (url.includes('placeholder.supabase.co')) {
@@ -1508,6 +1510,14 @@ export default function CompanyDashboard() {
             {tab === 'stops' && <StopsTab topStops={topStops} hourlyData={HOURLY} themeColor={themeColor} />}
             {tab === 'reports' && <CompanyReports reports={reports} driverWarnings={driverWarnings} onAddWarning={addWarning} onResolve={(id) => setReports(rs => rs.map(x => x.id === id ? { ...x, status: 'resolved' } : x))} themeColor={themeColor} />}
             {tab === 'calendar' && <CalendarTab themeColor={themeColor} activeStats={activeStats} />}
+            {tab === 'map' && (
+              <MapTab
+                activeLine={activeLine}
+                activeSessions={activeSessions}
+                driversList={driversList}
+                themeColor={themeColor}
+              />
+            )}
           </div>
 
           {/* Right Column (col-span-4) */}
@@ -2829,6 +2839,766 @@ function CalendarTab({ themeColor, activeStats }: { themeColor: string; activeSt
           <span style={{color:'#8f94a5',fontSize:'11px'}}>{"Menor al promedio (< -10%)"}</span>
         </div>
       </div>
+    </div>
+  )
+}
+
+const CARTODB_DARK = {
+  version: 8,
+  sources: {
+    "cartodb-dark-tiles": {
+      type: "raster",
+      tiles: [
+        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png"
+      ],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors, © CartoDB"
+    }
+  },
+  layers: [
+    {
+      id: "cartodb-dark-layer",
+      type: "raster",
+      source: "cartodb-dark-tiles",
+      minzoom: 0,
+      maxzoom: 20
+    }
+  ]
+}
+
+function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor }: { activeLine: any; activeSessions?: any[]; driversList?: any[]; themeColor: string }) {
+  const [direction, setDirection] = useState<'ida' | 'vuelta'>('ida')
+  const [stops, setStops] = useState<any[]>([])
+  const [routePath, setRoutePath] = useState<any[]>([])
+  const [blockedStops, setBlockedStops] = useState<string[]>([])
+  const [activeDetour, setActiveDetour] = useState<any>(null)
+  
+  const [viewState, setViewState] = useState({
+    latitude: -34.6037,
+    longitude: -58.3816,
+    zoom: 12.2
+  })
+
+  const [selectedBus, setSelectedBus] = useState<any>(null)
+  const [selectedStop, setSelectedStop] = useState<any>(null)
+  const [isDirty, setIsDirty] = useState(false)
+
+  // Detour panel states
+  const [showDetourPanel, setShowDetourPanel] = useState(false)
+  const [detourReason, setDetourReason] = useState<'accident' | 'protest' | 'construction' | 'traffic'>('accident')
+  const [detourStartStopId, setDetourStartStopId] = useState('')
+  const [detourEndStopId, setDetourEndStopId] = useState('')
+
+  // Add stop states
+  const [mapClickMode, setMapClickMode] = useState<'none' | 'add_stop'>('none')
+  const [newStopName, setNewStopName] = useState('')
+  const [newStopCoords, setNewStopCoords] = useState<{ lat: number; lng: number } | null>(null)
+
+  // Load stops and route path
+  useEffect(() => {
+    const loadedStops = getMockStopsForLine(activeLine, direction)
+    setStops(loadedStops)
+
+    const loadedPath = getMockRoutePathForLine(activeLine, direction)
+    setRoutePath(loadedPath)
+
+    const blocked = JSON.parse(localStorage.getItem(`mock_blocked_stops_${activeLine.line_number}`) || '[]')
+    setBlockedStops(blocked)
+
+    const detour = JSON.parse(localStorage.getItem(`mock_detour_${activeLine.line_number}_${direction}`) || 'null')
+    setActiveDetour(detour)
+
+    setIsDirty(false)
+
+    // Center map on the first stop
+    if (loadedStops.length > 0) {
+      setViewState({
+        latitude: loadedStops[0].latitude,
+        longitude: loadedStops[0].longitude,
+        zoom: 12.5
+      })
+    }
+  }, [activeLine, direction])
+
+  // Helper to find closest point in path
+  const findClosestPathIndex = (path: { lat: number; lng: number }[], lat: number, lng: number): number => {
+    if (path.length === 0) return -1
+    let minDistance = Infinity
+    let closestIndex = -1
+    for (let i = 0; i < path.length; i++) {
+      const dist = Math.hypot(path[i].lat - lat, path[i].lng - lng)
+      if (dist < minDistance) {
+        minDistance = dist
+        closestIndex = i
+      }
+    }
+    return closestIndex
+  }
+
+  // Handle stop block toggle
+  const toggleStopBlock = (stopId: string) => {
+    let updated: string[] = []
+    if (blockedStops.includes(stopId)) {
+      updated = blockedStops.filter(id => id !== stopId)
+      toast.success("Parada desbloqueada temporariamente")
+    } else {
+      updated = [...blockedStops, stopId]
+      toast.success("Parada bloqueada")
+    }
+    setBlockedStops(updated)
+    setIsDirty(true)
+    
+    // Update local state isBlocked
+    setStops((prev: any[]) => prev.map(s => s.id === stopId ? {
+      ...s,
+      isBlocked: updated.includes(stopId),
+      name: updated.includes(stopId) && !s.name.includes('[BLOQUEADA]') ? `[BLOQUEADA] ${s.name}` : s.name.replace('[BLOQUEADA] ', '')
+    } : s))
+
+    if (selectedStop?.id === stopId) {
+      setSelectedStop((prev: any) => ({
+        ...prev,
+        isBlocked: updated.includes(stopId),
+        name: updated.includes(stopId) && !prev.name.includes('[BLOQUEADA]') ? `[BLOQUEADA] ${prev.name}` : prev.name.replace('[BLOQUEADA] ', '')
+      }))
+    }
+  }
+
+  // Remove stop
+  const removeStop = (stopId: string) => {
+    const updatedStops = stops.filter(s => s.id !== stopId)
+    setStops(updatedStops)
+    setIsDirty(true)
+    setSelectedStop(null)
+    toast.success("Parada eliminada de la ruta")
+  }
+
+  // Apply detour
+  const applyDetour = () => {
+    if (!detourStartStopId || !detourEndStopId) {
+      toast.error("Por favor selecciona ambas paradas de inicio y reingreso")
+      return
+    }
+    const startStop = stops.find(s => s.id === detourStartStopId)
+    const endStop = stops.find(s => s.id === detourEndStopId)
+
+    if (!startStop || !endStop) {
+      toast.error("Paradas seleccionadas no encontradas")
+      return
+    }
+
+    const startIndex = stops.findIndex(s => s.id === detourStartStopId)
+    const endIndex = stops.findIndex(s => s.id === detourEndStopId)
+
+    if (startIndex >= endIndex) {
+      toast.error("La parada de reingreso debe ser posterior a la parada de salida")
+      return
+    }
+
+    // Generate smooth detour points (curving north/east)
+    const midLat = (startStop.latitude + endStop.latitude) / 2
+    const midLng = (startStop.longitude + endStop.longitude) / 2
+    
+    // Smooth offset for detour visual curve
+    const latOffset = 0.005
+    const lngOffset = 0.005
+
+    const detourPoints = [
+      { lat: startStop.latitude, lng: startStop.longitude },
+      { lat: midLat + latOffset, lng: midLng - lngOffset },
+      { lat: midLat + latOffset * 1.3, lng: midLng + lngOffset * 0.4 },
+      { lat: endStop.latitude, lng: endStop.longitude }
+    ]
+
+    const pathStartIdx = findClosestPathIndex(routePath, startStop.latitude, startStop.longitude)
+    const pathEndIdx = findClosestPathIndex(routePath, endStop.latitude, endStop.longitude)
+
+    let newPath = [...routePath]
+    if (pathStartIdx !== -1 && pathEndIdx !== -1 && pathStartIdx < pathEndIdx) {
+      newPath = [
+        ...routePath.slice(0, pathStartIdx + 1),
+        ...detourPoints,
+        ...routePath.slice(pathEndIdx)
+      ]
+    }
+
+    setRoutePath(newPath)
+    setActiveDetour({
+      reason: detourReason,
+      startId: detourStartStopId,
+      endId: detourEndStopId,
+      points: detourPoints
+    })
+    setIsDirty(true)
+    toast.success("Desvío aplicado temporalmente en el mapa")
+  }
+
+  // Clear detour
+  const clearDetour = () => {
+    setActiveDetour(null)
+    setDetourStartStopId('')
+    setDetourEndStopId('')
+    
+    // Reload original path
+    const loadedPath = getMockRoutePathForLine(activeLine, direction)
+    setRoutePath(loadedPath)
+    setIsDirty(true)
+    toast.success("Desvío removido. Recorrido original restaurado.")
+  }
+
+  // Save changes to localStorage
+  const saveChanges = () => {
+    localStorage.setItem(`mock_blocked_stops_${activeLine.line_number}`, JSON.stringify(blockedStops))
+    localStorage.setItem(`mock_custom_stops_${activeLine.line_number}_${direction}`, JSON.stringify(stops))
+    localStorage.setItem(`mock_route_path_${activeLine.line_number}_${direction}`, JSON.stringify(routePath))
+    if (activeDetour) {
+      localStorage.setItem(`mock_detour_${activeLine.line_number}_${direction}`, JSON.stringify(activeDetour))
+    } else {
+      localStorage.removeItem(`mock_detour_${activeLine.line_number}_${direction}`)
+    }
+    setIsDirty(false)
+    toast.success("¡Cambios operativos guardados y sincronizados con pasajeros y choferes!")
+  }
+
+  // Handle click on map to add stop
+  const handleMapClick = (e: any) => {
+    if (mapClickMode !== 'add_stop') return
+    const lat = e.lngLat.lat
+    const lng = e.lngLat.lng
+    setNewStopCoords({ lat, lng })
+  }
+
+  // Confirm new stop addition
+  const confirmAddStop = () => {
+    if (!newStopName.trim()) {
+      toast.error("Por favor ingresa un nombre para la parada")
+      return
+    }
+    if (!newStopCoords) {
+      toast.error("Haz clic en el mapa para colocar la parada")
+      return
+    }
+
+    const newStop = {
+      id: `stop-custom-${Date.now()}`,
+      line_id: activeLine.id,
+      name: newStopName.trim(),
+      street_name: newStopName.trim(),
+      stop_number: stops.length + 1,
+      latitude: newStopCoords.lat,
+      longitude: newStopCoords.lng,
+      direction: direction,
+      avg_wait_minutes: 6,
+      total_daily_users: 75
+    }
+
+    const updatedStops = [...stops, newStop]
+    setStops(updatedStops)
+
+    // Insert new stop coordinate in routePath
+    const closestIdx = findClosestPathIndex(routePath, newStopCoords.lat, newStopCoords.lng)
+    let newPath = [...routePath]
+    if (closestIdx !== -1) {
+      newPath.splice(closestIdx + 1, 0, { lat: newStopCoords.lat, lng: newStopCoords.lng })
+    }
+
+    setRoutePath(newPath)
+    setIsDirty(true)
+    setNewStopCoords(null)
+    setNewStopName('')
+    setMapClickMode('none')
+    toast.success(`Parada "${newStop.name}" añadida exitosamente`)
+  }
+
+  // Active buses for this line in real-time
+  const activeBuses = activeSessions
+    .filter(s => s.line_id === activeLine.id)
+    .map(s => {
+      // Find driver info
+      const driver = driversList.find(d => d.name === s.profiles?.name) || { name: s.profiles?.name || 'Chofer Auxiliar', rating: '4.8' }
+      return {
+        id: s.id,
+        bus_unit: s.bus_unit,
+        latitude: s.latitude || -34.6037 + (Math.random() - 0.5) * 0.03,
+        longitude: s.longitude || -58.3816 + (Math.random() - 0.5) * 0.03,
+        speed_kmh: s.speed_kmh || Math.floor(Math.random() * 25) + 15,
+        heading: s.heading || Math.floor(Math.random() * 360),
+        status: s.status || 'moving',
+        driverName: driver.name
+      }
+    })
+
+  // Format GeoJSON path
+  const routeGeoJson = {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          coordinates: routePath.map(p => [p.lng, p.lat])
+        },
+        properties: {}
+      }
+    ]
+  }
+
+  // Format Detour GeoJSON bypass
+  const detourGeoJson = activeDetour ? {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        geometry: {
+          type: 'LineString',
+          coordinates: activeDetour.points.map((p: any) => [p.lng, p.lat])
+        },
+        properties: {}
+      }
+    ]
+  } : null
+
+  return (
+    <div style={{ display: 'flex', gap: '20px', height: '620px', background: '#0b0f19', borderRadius: '16px', overflow: 'hidden' }}>
+      
+      {/* MAP VIEW */}
+      <div style={{ flex: 1, position: 'relative', background: '#121527', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+        
+        {/* Visual indicators */}
+        <div style={{ position: 'absolute', top: '12px', left: '12px', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ padding: '6px 12px', borderRadius: '6px', background: 'rgba(10,15,30,0.85)', backdropFilter: 'blur(4px)', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Activity size={12} style={{ color: themeColor }}/> Mapa Operativo · Línea {activeLine.line_number}
+          </div>
+          {activeDetour && (
+            <div style={{ padding: '6px 12px', borderRadius: '6px', background: 'rgba(255,77,106,0.15)', border: '1px solid rgba(255,77,106,0.3)', color: '#FF4D6A', fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+              ⚠️ Desvío Activo: {activeDetour.reason === 'accident' ? 'Accidente' : activeDetour.reason === 'protest' ? 'Corte/Protesta' : activeDetour.reason === 'construction' ? 'Obras' : 'Tránsito Pesado'}
+            </div>
+          )}
+        </div>
+
+        <Map
+          {...viewState}
+          onMove={e => setViewState(e.viewState)}
+          mapStyle={CARTODB_DARK as any}
+          style={{ width: '100%', height: '100%' }}
+          onClick={handleMapClick}
+        >
+          {/* Route path line */}
+          <Source id="route-path" type="geojson" data={routeGeoJson as any}>
+            <Layer
+              id="route-line-glow"
+              type="line"
+              paint={{ 'line-color': themeColor, 'line-width': 8, 'line-opacity': 0.15, 'line-blur': 2 }}
+            />
+            <Layer
+              id="route-line"
+              type="line"
+              paint={{ 'line-color': themeColor, 'line-width': 3, 'line-opacity': 0.7 }}
+            />
+          </Source>
+
+          {/* Detour path line */}
+          {detourGeoJson && (
+            <Source id="detour-path" type="geojson" data={detourGeoJson as any}>
+              <Layer
+                id="detour-line"
+                type="line"
+                paint={{ 'line-color': '#F59E0B', 'line-width': 3, 'line-dasharray': [2, 2], 'line-opacity': 0.9 }}
+              />
+            </Source>
+          )}
+
+          {/* Render Stops */}
+          {stops.map(s => {
+            const isBlocked = blockedStops.includes(s.id)
+            return (
+              <Marker key={s.id} latitude={s.latitude} longitude={s.longitude} anchor="center">
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSelectedStop(s)
+                    setSelectedBus(null)
+                  }}
+                  style={{
+                    width: isBlocked ? '16px' : '11px',
+                    height: isBlocked ? '16px' : '11px',
+                    borderRadius: '50%',
+                    background: isBlocked ? '#FF4D6A' : 'rgba(255,255,255,0.85)',
+                    border: `2px solid ${isBlocked ? '#fff' : themeColor}`,
+                    boxShadow: isBlocked ? '0 0 10px #FF4D6A' : `0 0 6px ${themeColor}`,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    fontSize: '9px',
+                    fontWeight: 700,
+                    transition: 'all 200ms'
+                  }}
+                >
+                  {isBlocked ? '✕' : ''}
+                </div>
+              </Marker>
+            )
+          })}
+
+          {/* Render Active Buses */}
+          {activeBuses.map(b => (
+            <Marker key={b.id} latitude={b.latitude} longitude={b.longitude} anchor="center">
+              <div
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setSelectedBus(b)
+                  setSelectedStop(null)
+                }}
+                style={{
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  background: themeColor,
+                  border: '1.5px solid #fff',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                  color: '#fff',
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <Bus size={10} style={{ color: '#fff' }}/>
+                {b.bus_unit}
+              </div>
+            </Marker>
+          ))}
+
+          {/* Render Add Stop Preview Pin */}
+          {newStopCoords && (
+            <Marker latitude={newStopCoords.lat} longitude={newStopCoords.lng} anchor="bottom">
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{ background: '#10B981', color: '#fff', padding: '3px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 600, border: '1px solid #fff', whiteSpace: 'nowrap' }}>
+                  Nueva Parada
+                </div>
+                <div style={{ width: '4px', height: '8px', background: '#10B981' }}/>
+              </div>
+            </Marker>
+          )}
+
+          {/* Popups */}
+          {selectedBus && (
+            <Popup
+              latitude={selectedBus.latitude}
+              longitude={selectedBus.longitude}
+              closeButton={true}
+              closeOnClick={false}
+              onClose={() => setSelectedBus(null)}
+              anchor="top"
+            >
+              <div style={{ color: '#fff', minWidth: '160px', fontFamily: 'DM Sans, sans-serif' }}>
+                <div style={{ fontWeight: 700, fontSize: '13px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '4px', marginBottom: '6px', color: themeColor }}>
+                  Unidad {selectedBus.bus_unit}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px' }}>
+                  <div><span style={{ color: '#8f94a5' }}>Chofer:</span> <strong style={{ color: '#fff' }}>{selectedBus.driverName}</strong></div>
+                  <div><span style={{ color: '#8f94a5' }}>Velocidad:</span> <strong style={{ color: '#fff' }}>{selectedBus.speed_kmh} km/h</strong></div>
+                  <div><span style={{ color: '#8f94a5' }}>Estado:</span> <span style={{ color: selectedBus.status === 'moving' ? '#22D3A0' : '#8f94a5', fontWeight: 600 }}>{selectedBus.status === 'moving' ? 'EN MOVIMIENTO' : 'DETENIDO'}</span></div>
+                </div>
+              </div>
+            </Popup>
+          )}
+
+          {selectedStop && (
+            <Popup
+              latitude={selectedStop.latitude}
+              longitude={selectedStop.longitude}
+              closeButton={true}
+              closeOnClick={false}
+              onClose={() => setSelectedStop(null)}
+              anchor="top"
+            >
+              <div style={{ color: '#fff', minWidth: '180px', fontFamily: 'DM Sans, sans-serif' }}>
+                <div style={{ fontWeight: 700, fontSize: '13px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '4px', marginBottom: '8px' }}>
+                  {selectedStop.name.replace('[BLOQUEADA] ', '')}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button
+                    onClick={() => toggleStopBlock(selectedStop.id)}
+                    style={{
+                      width: '100%',
+                      padding: '6px',
+                      borderRadius: '6px',
+                      background: selectedStop.isBlocked ? 'rgba(34,211,160,0.15)' : 'rgba(255,77,106,0.15)',
+                      border: `1px solid ${selectedStop.isBlocked ? '#22D3A0' : '#FF4D6A'}`,
+                      color: selectedStop.isBlocked ? '#22D3A0' : '#FF4D6A',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {selectedStop.isBlocked ? 'Desbloquear Parada' : 'Bloquear Parada'}
+                  </button>
+                  <button
+                    onClick={() => removeStop(selectedStop.id)}
+                    style={{
+                      width: '100%',
+                      padding: '6px',
+                      borderRadius: '6px',
+                      background: 'rgba(255,255,255,0.04)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#a3a6b8',
+                      fontSize: '11px',
+                      fontWeight: 500,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Eliminar Parada
+                  </button>
+                </div>
+              </div>
+            </Popup>
+          )}
+        </Map>
+      </div>
+
+      {/* CONTROL SIDEBAR */}
+      <div style={{ width: '320px', background: '#121527', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div>
+          <h4 style={{ color: '#fff', fontSize: '15px', fontWeight: 700, margin: 0 }}>Control de Ruta</h4>
+          <p style={{ color: '#8f94a5', fontSize: '11px', margin: '2px 0 0' }}>Administre desvíos, bloqueos y paradas</p>
+        </div>
+
+        {/* Direction Selector */}
+        <div>
+          <label style={{ display: 'block', color: '#8f94a5', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.05em' }}>Sentido del Recorrido</label>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <button
+              onClick={() => { setDirection('ida'); setSelectedStop(null); }}
+              style={{
+                padding: '8px',
+                borderRadius: '8px',
+                background: direction === 'ida' ? hexToRgba(themeColor, 0.15) : 'rgba(255,255,255,0.02)',
+                border: `1.5px solid ${direction === 'ida' ? themeColor : 'rgba(255,255,255,0.08)'}`,
+                color: direction === 'ida' ? '#fff' : '#8f94a5',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Ida
+            </button>
+            <button
+              onClick={() => { setDirection('vuelta'); setSelectedStop(null); }}
+              style={{
+                padding: '8px',
+                borderRadius: '8px',
+                background: direction === 'vuelta' ? hexToRgba(themeColor, 0.15) : 'rgba(255,255,255,0.02)',
+                border: `1.5px solid ${direction === 'vuelta' ? themeColor : 'rgba(255,255,255,0.08)'}`,
+                color: direction === 'vuelta' ? '#fff' : '#8f94a5',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Vuelta
+            </button>
+          </div>
+        </div>
+
+        {/* Emergency Detours Section */}
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <span style={{ color: '#fff', fontSize: '12px', fontWeight: 600 }}>Desvío de Emergencia</span>
+            {activeDetour && (
+              <span style={{ fontSize: '10px', color: '#F59E0B', background: 'rgba(245,158,11,0.1)', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>ACTIVO</span>
+            )}
+          </div>
+
+          {!showDetourPanel && !activeDetour ? (
+            <button
+              onClick={() => setShowDetourPanel(true)}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                color: '#fff',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                textAlign: 'left'
+              }}
+            >
+              + Configurar Desvío
+            </button>
+          ) : (
+            <div style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '8px', padding: '12px', border: '1px solid rgba(255,255,255,0.04)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div>
+                <label style={{ display: 'block', color: '#8f94a5', fontSize: '10px', marginBottom: '4px' }}>Motivo del Desvío</label>
+                <select
+                  value={detourReason}
+                  onChange={(e) => setDetourReason(e.target.value as any)}
+                  style={{ width: '100%', background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.1)', padding: '6px', borderRadius: '6px', color: '#fff', fontSize: '11px', outline: 'none' }}
+                >
+                  <option value="accident">Accidente de tránsito</option>
+                  <option value="protest">Corte / Protesta</option>
+                  <option value="construction">Obra en calzada</option>
+                  <option value="traffic">Congestión Grave</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', color: '#8f94a5', fontSize: '10px', marginBottom: '4px' }}>Parada de Salida (Corte)</label>
+                <select
+                  value={detourStartStopId}
+                  onChange={(e) => setDetourStartStopId(e.target.value)}
+                  style={{ width: '100%', background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.1)', padding: '6px', borderRadius: '6px', color: '#fff', fontSize: '11px', outline: 'none' }}
+                >
+                  <option value="">Seleccionar parada...</option>
+                  {stops.map(s => (
+                    <option key={s.id} value={s.id}>{s.name.replace('[BLOQUEADA] ', '')}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', color: '#8f94a5', fontSize: '10px', marginBottom: '4px' }}>Parada de Reingreso</label>
+                <select
+                  value={detourEndStopId}
+                  onChange={(e) => setDetourEndStopId(e.target.value)}
+                  style={{ width: '100%', background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.1)', padding: '6px', borderRadius: '6px', color: '#fff', fontSize: '11px', outline: 'none' }}
+                >
+                  <option value="">Seleccionar parada...</option>
+                  {stops.map(s => (
+                    <option key={s.id} value={s.id}>{s.name.replace('[BLOQUEADA] ', '')}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                {activeDetour ? (
+                  <button
+                    onClick={clearDetour}
+                    style={{ flex: 1, padding: '6px', borderRadius: '6px', background: 'rgba(255,77,106,0.1)', border: '1px solid rgba(255,77,106,0.2)', color: '#FF4D6A', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    Quitar Desvío
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => setShowDetourPanel(false)}
+                      style={{ flex: 1, padding: '6px', borderRadius: '6px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: '#a3a6b8', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}
+                    >
+                      Atrás
+                    </button>
+                    <button
+                      onClick={applyDetour}
+                      style={{ flex: 2, padding: '6px', borderRadius: '6px', background: themeColor, color: '#fff', border: 'none', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      Aplicar
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Add Stops tools */}
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '16px' }}>
+          <label style={{ display: 'block', color: '#fff', fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>Gestión de Paradas</label>
+          
+          {mapClickMode !== 'add_stop' ? (
+            <button
+              onClick={() => { setMapClickMode('add_stop'); toast("Haz clic en cualquier punto del mapa para colocar la nueva parada", { icon: 'ℹ️' }); }}
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '8px',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                color: '#fff',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                textAlign: 'left'
+              }}
+            >
+              + Agregar Nueva Parada
+            </button>
+          ) : (
+            <div style={{ background: 'rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ color: '#10B981', fontSize: '11px', fontWeight: 600 }}>Modo: Colocar Parada</div>
+              
+              {!newStopCoords ? (
+                <div style={{ color: '#8f94a5', fontSize: '10px', fontStyle: 'italic' }}>Haz clic en el mapa para colocar el marcador</div>
+              ) : (
+                <>
+                  <div style={{ color: '#fff', fontSize: '10px' }}>Coordenadas: {newStopCoords.lat.toFixed(5)}, {newStopCoords.lng.toFixed(5)}</div>
+                  <input
+                    type="text"
+                    placeholder="Nombre de parada..."
+                    value={newStopName}
+                    onChange={(e) => setNewStopName(e.target.value)}
+                    style={{ width: '100%', background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.1)', padding: '6px', borderRadius: '6px', color: '#fff', fontSize: '11px', outline: 'none' }}
+                  />
+                </>
+              )}
+
+              <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                <button
+                  onClick={() => { setMapClickMode('none'); setNewStopCoords(null); }}
+                  style={{ flex: 1, padding: '5px', borderRadius: '6px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: '#a3a6b8', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmAddStop}
+                  disabled={!newStopCoords}
+                  style={{ flex: 1.5, padding: '5px', borderRadius: '6px', background: '#10B981', color: '#fff', border: 'none', fontSize: '11px', fontWeight: 600, cursor: 'pointer', opacity: newStopCoords ? 1 : 0.5 }}
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Global Save Actions */}
+        <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '16px' }}>
+          {isDirty && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#F59E0B', fontSize: '11px', marginBottom: '8px', fontWeight: 600 }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#F59E0B', display: 'inline-block', animation: 'pulse 1.5s infinite' }}/>
+              Tienes cambios sin guardar
+            </div>
+          )}
+          <button
+            onClick={saveChanges}
+            style={{
+              width: '100%',
+              padding: '11px',
+              borderRadius: '8px',
+              background: themeColor,
+              border: 'none',
+              color: '#fff',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              boxShadow: `0 4px 12px ${hexToRgba(themeColor, 0.25)}`
+            }}
+          >
+            Guardar Cambios Operativos
+          </button>
+        </div>
+      </div>
+      
     </div>
   )
 }

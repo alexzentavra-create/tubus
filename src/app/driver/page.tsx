@@ -1441,20 +1441,29 @@ export default function DriverPage() {
 
             {/* Markers for stops */}
             {mockLine && stops.map((stop) => {
+              const isBlocked = (stop as any).isBlocked || stop.name.includes('[BLOQUEADA]')
               const isUpcoming = upcomingStops.some(u => u.stop.id === stop.id)
               return (
                 <Marker key={stop.id} longitude={stop.longitude} latitude={stop.latitude} pitchAlignment="map" rotationAlignment="map" anchor="center">
                   <div
                     title={stop.name}
                     style={{
-                      width: isUpcoming ? '10px' : '7px',
-                      height: isUpcoming ? '10px' : '7px',
+                      width: isBlocked ? '14px' : (isUpcoming ? '10px' : '7px'),
+                      height: isBlocked ? '14px' : (isUpcoming ? '10px' : '7px'),
                       borderRadius: '50%',
-                      background: isUpcoming ? accentColor : 'rgba(184,200,224,0.3)',
-                      border: `1.5px solid ${isUpcoming ? '#ffffff' : 'rgba(184,200,224,0.15)'}`,
-                      boxShadow: isUpcoming ? `0 0 6px ${accentColor}` : 'none',
+                      background: isBlocked ? '#FF4D6A' : (isUpcoming ? accentColor : 'rgba(184,200,224,0.3)'),
+                      border: `1.5px solid ${isBlocked ? '#ffffff' : (isUpcoming ? '#ffffff' : 'rgba(184,200,224,0.15)')}`,
+                      boxShadow: isBlocked ? '0 0 8px #FF4D6A' : (isUpcoming ? `0 0 6px ${accentColor}` : 'none'),
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#fff',
+                      fontSize: '8px',
+                      fontWeight: 'bold'
                     }}
-                  />
+                  >
+                    {isBlocked ? '✕' : ''}
+                  </div>
                 </Marker>
               )
             })}
