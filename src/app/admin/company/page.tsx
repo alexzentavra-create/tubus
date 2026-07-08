@@ -126,6 +126,22 @@ export default function CompanyDashboard() {
   // Live GPS control logs
   const [gpsPassageLogs, setGpsPassageLogs] = useState<any[]>([])
 
+  // Driver Warnings / Infractions
+  const [driverWarnings, setDriverWarnings] = useState<Record<string, number>>({})
+  useEffect(() => {
+    const local = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('mock_driver_warnings') || '{}') : {}
+    setDriverWarnings(local)
+  }, [selectedLineNumber])
+
+  const addWarning = (driverName: string) => {
+    setDriverWarnings(prev => {
+      const updated = { ...prev, [driverName]: (prev[driverName] || 0) + 1 }
+      localStorage.setItem('mock_driver_warnings', JSON.stringify(updated))
+      return updated
+    })
+    toast.success(`Se ha añadido un punto de infracción a ${driverName}`);
+  }
+
   // Load initial line from query parameter if present
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -1368,7 +1384,7 @@ export default function CompanyDashboard() {
             )}
 
             {tab === 'buses' && <BusesTab buses={buses} themeColor={themeColor} />}
-            {tab === 'drivers' && <CompanyDrivers drivers={currentDrivers} activeSessions={activeSessions} themeColor={themeColor} />}
+            {tab === 'drivers' && <CompanyDrivers drivers={currentDrivers} activeSessions={activeSessions} driverWarnings={driverWarnings} themeColor={themeColor} />}
             {tab === 'qrcodes' && (
               <QRTab
                 qrCodes={qrCodes}
@@ -1381,7 +1397,7 @@ export default function CompanyDashboard() {
               />
             )}
             {tab === 'stops' && <StopsTab topStops={topStops} hourlyData={HOURLY} themeColor={themeColor} />}
-            {tab === 'reports' && <CompanyReports reports={reports} onResolve={(id) => setReports(rs => rs.map(x => x.id === id ? { ...x, status: 'resolved' } : x))} themeColor={themeColor} />}
+            {tab === 'reports' && <CompanyReports reports={reports} driverWarnings={driverWarnings} onAddWarning={addWarning} onResolve={(id) => setReports(rs => rs.map(x => x.id === id ? { ...x, status: 'resolved' } : x))} themeColor={themeColor} />}
             {tab === 'calendar' && <CalendarTab themeColor={themeColor} activeStats={activeStats} />}
           </div>
 
@@ -1827,11 +1843,12 @@ function BusesTab({ buses, themeColor }: { buses: any[]; themeColor: string }) {
   )
 }
 
-function CompanyDrivers({ drivers, activeSessions = [], themeColor }: { drivers: any[]; activeSessions?: any[]; themeColor: string }) {
+function CompanyDrivers({ drivers, activeSessions = [], driverWarnings = {}, themeColor }: { drivers: any[]; activeSessions?: any[]; driverWarnings?: Record<string, number>; themeColor: string }) {
   return (
     <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
       {drivers.map((d,i)=>{
         const activeSession = activeSessions.find((s: any) => s.profiles?.name === d.name)
+        const warningsCount = driverWarnings[d.name] || 0
         
         return (
           <div key={i} style={{
@@ -1863,6 +1880,21 @@ function CompanyDrivers({ drivers, activeSessions = [], themeColor }: { drivers:
                       En servicio · Colectivo {activeSession.bus_unit}
                     </span>
                   )}
+                  {warningsCount > 0 && (
+                    <span style={{
+                      padding:'2px 8px',
+                      borderRadius:'999px',
+                      background:'rgba(255,77,106,0.08)',
+                      border:'1px solid rgba(255,77,106,0.2)',
+                      color:'#FF4D6A',
+                      fontSize:'9px',
+                      fontWeight:600,
+                      textTransform:'uppercase',
+                      letterSpacing:'0.03em'
+                    }}>
+                      ⚠️ {warningsCount} {warningsCount === 1 ? 'Sanción' : 'Sanciones'}
+                    </span>
+                  )}
                 </div>
                 <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'2px'}}>{d.legajo} · último: {activeSession ? 'Activo ahora' : d.lastActive}</div>
               </div>
@@ -1874,7 +1906,7 @@ function CompanyDrivers({ drivers, activeSessions = [], themeColor }: { drivers:
               </div>
             </div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'8px',marginTop:'12px'}}>
-              {[{label:'Sesiones',value:d.sessions},{label:'A tiempo',value:`${d.onTime}%`},{label:'Denuncias',value:d.reports}].map(({label,value})=>(
+              {[{label:'Sesiones',value:d.sessions},{label:'A tiempo',value:`${d.onTime}%`},{label:'Sanciones',value:warningsCount}].map(({label,value})=>(
                 <div key={label} style={{background:'rgba(6,8,16,0.3)',borderRadius:'8px',padding:'8px',textAlign:'center'}}>
                   <div style={{color:'#fff',fontWeight:700,fontSize:'16px'}}>{value}</div>
                   <div style={{color:'#8f94a5',fontSize:'10px',fontFamily:'DM Mono',marginTop:'2px'}}>{label}</div>
@@ -2001,44 +2033,54 @@ function StopsTab({ topStops, hourlyData, themeColor }: { topStops: any[]; hourl
   )
 }
 
-function CompanyReports({ reports, onResolve, themeColor }: { reports: any[]; onResolve: (id: string) => void; themeColor: string }) {
+function CompanyReports({ reports, driverWarnings = {}, onAddWarning, onResolve, themeColor }: { reports: any[]; driverWarnings?: Record<string, number>; onAddWarning: (driver: string) => void; onResolve: (id: string) => void; themeColor: string }) {
   const statusStyle:Record<string,any>={pending:{bg:'rgba(240,180,41,0.08)',c:'#F0B429',b:'rgba(240,180,41,0.2)'},resolved:{bg:'rgba(34,211,160,0.08)',c:'#22D3A0',b:'rgba(34,211,160,0.2)'}}
   return (
     <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
-      {reports.map(r=>(
-        <div key={r.id} style={{
-          background: '#121527',
-          borderRadius: '12px',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          padding: '16px 20px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '10px',
-        }}>
-          <div style={{display:'flex',alignItems:'flex-start',gap:'12px'}}>
-            <div style={{width:'36px',height:'36px',borderRadius:'10px',background:'rgba(255,77,106,0.07)',border:'1px solid rgba(255,77,106,0.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-              <AlertTriangle size={15} style={{color:'#FF4D6A'}}/>
-            </div>
-            <div style={{flex:1}}>
-              <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'4px'}}>
-                <span style={{color:'#fff',fontWeight:600,fontSize:'14px'}}>{r.type}</span>
-                <span style={{padding:'2px 7px',borderRadius:'999px',fontSize:'10px',fontFamily:'DM Mono',background:statusStyle[r.status].bg,color:statusStyle[r.status].c,border:`1px solid ${statusStyle[r.status].b}`}}>
-                  {r.status==='pending'?'Pendiente':'Resuelto'}
-                </span>
+      {reports.map(r=>{
+        const warnings = driverWarnings[r.driver] || 0
+        
+        return (
+          <div key={r.id} style={{
+            background: '#121527',
+            borderRadius: '12px',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            padding: '16px 20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+          }}>
+            <div style={{display:'flex',alignItems:'flex-start',gap:'12px'}}>
+              <div style={{width:'36px',height:'36px',borderRadius:'10px',background:'rgba(255,77,106,0.07)',border:'1px solid rgba(255,77,106,0.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                <AlertTriangle size={15} style={{color:'#FF4D6A'}}/>
               </div>
-              <div style={{color:'#8f94a5',fontSize:'12px',marginBottom:'6px'}}>{r.desc}</div>
-              <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono'}}>{r.driver} · Unidad {r.bus} · {r.stop} · {r.time}</div>
+              <div style={{flex:1}}>
+                <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'4px'}}>
+                  <span style={{color:'#fff',fontWeight:600,fontSize:'14px'}}>{r.type}</span>
+                  <span style={{padding:'2px 7px',borderRadius:'999px',fontSize:'10px',fontFamily:'DM Mono',background:statusStyle[r.status].bg,color:statusStyle[r.status].c,border:`1px solid ${statusStyle[r.status].b}`}}>
+                    {r.status==='pending'?'Pendiente':'Resuelto'}
+                  </span>
+                </div>
+                <div style={{color:'#8f94a5',fontSize:'12px',marginBottom:'6px'}}>{r.desc}</div>
+                <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono'}}>
+                  <span style={{color:'#fff',fontWeight:500}}>{r.driver}</span> {warnings > 0 ? <span style={{color:'#FF4D6A',fontWeight:600}}>(⚠️ {warnings} sanc.)</span> : ''} · Unidad {r.bus} · {r.stop} · {r.time}
+                </div>
+              </div>
             </div>
-          </div>
-          {r.status==='pending'&&(
-            <div style={{display:'flex',gap:'8px',marginTop:'4px'}}>
-              <button onClick={()=>onResolve(r.id)} style={{flex:1,padding:'8px',borderRadius:'8px',background:'rgba(34,211,160,0.08)',border:'1px solid rgba(34,211,160,0.2)',color:'#22D3A0',fontSize:'12px',fontWeight:600,cursor:'pointer'}}>
-                Marcar resuelto
+            
+            <div style={{display:'flex',gap:'8px',marginTop:'4px',alignItems:'center'}}>
+              {r.status==='pending' && (
+                <button onClick={()=>onResolve(r.id)} style={{flex:2,padding:'8px',borderRadius:'8px',background:'rgba(34,211,160,0.08)',border:'1px solid rgba(34,211,160,0.2)',color:'#22D3A0',fontSize:'12px',fontWeight:600,cursor:'pointer'}}>
+                  Marcar resuelto
+                </button>
+              )}
+              <button onClick={()=>onAddWarning(r.driver)} style={{flex:1,padding:'8px 12px',borderRadius:'8px',background:'rgba(255,77,106,0.08)',border:'1px solid rgba(255,77,106,0.25)',color:'#FF4D6A',fontSize:'11px',fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'5px'}}>
+                <AlertTriangle size={12}/> Penalizar (+1 Punto)
               </button>
             </div>
-          )}
-        </div>
-      ))}
+          </div>
+        )
+      })}
     </div>
   )
 }
