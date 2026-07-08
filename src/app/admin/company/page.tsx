@@ -737,24 +737,30 @@ export default function CompanyDashboard() {
       }}>
         <div style={{ display: 'flex', gap: '20px', alignItems: 'center', position: 'relative' }}>
           {[
-            { label: 'Resumen', id: 'overview', matches: ['overview'] },
-            { label: 'Flota', id: 'buses', matches: ['buses', 'drivers', 'stops'] },
-            { label: 'Historial', id: 'calendar', matches: ['calendar'] },
+            { label: 'Resumen', id: 'overview', onClick: () => { setTab('overview'); setShowPuntualidadTimeline(false); }, isActive: tab === 'overview' && !showPuntualidadTimeline },
+            { label: 'Flota', id: 'buses', onClick: () => { setTab('buses'); setShowPuntualidadTimeline(false); }, isActive: ['buses', 'drivers', 'stops'].includes(tab) },
+            { label: 'Historial', id: 'calendar', onClick: () => { setTab('calendar'); setShowPuntualidadTimeline(false); }, isActive: tab === 'calendar' },
+            { label: 'Puntualidad', id: 'punctuality', onClick: () => { setTab('overview'); setShowPuntualidadTimeline(true); }, isActive: tab === 'overview' && showPuntualidadTimeline },
+            { label: 'Códigos QR', id: 'qrcodes', onClick: () => { setTab('qrcodes'); setShowPuntualidadTimeline(false); }, isActive: tab === 'qrcodes' },
+            { label: 'Denuncias', id: 'reports', onClick: () => { setTab('reports'); setShowPuntualidadTimeline(false); }, isActive: tab === 'reports' },
+            { label: 'Cerrar Sesión', id: 'logout', onClick: () => {
+              const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+              if (url.includes('placeholder.supabase.co')) {
+                window.location.href = '/login'
+              } else {
+                supabase.auth.signOut().then(() => { window.location.href = '/login' })
+              }
+            }, isActive: false }
           ].map((item) => {
-            const active = item.matches.includes(tab) && !showPuntualidadTimeline
             return (
               <span
                 key={item.label}
-                onClick={() => {
-                  setTab(item.matches[0] as Tab)
-                  setShowPuntualidadTimeline(false)
-                  setShowMasDropdown(false)
-                }}
+                onClick={item.onClick}
                 style={{
                   fontSize: '14px',
-                  fontWeight: active ? 600 : 500,
-                  color: active ? '#fff' : '#8f94a5',
-                  borderBottom: active ? `2px solid ${themeColor}` : 'none',
+                  fontWeight: item.isActive ? 600 : 500,
+                  color: item.id === 'logout' ? '#ff4d6a' : (item.isActive ? '#fff' : '#8f94a5'),
+                  borderBottom: item.isActive ? `2px solid ${themeColor}` : 'none',
                   paddingBottom: '4px',
                   cursor: 'pointer',
                   transition: 'all 200ms',
@@ -764,78 +770,6 @@ export default function CompanyDashboard() {
               </span>
             )
           })}
-
-          {/* "Más" Dropdown Selector */}
-          <div style={{ position: 'relative' }}>
-            <span
-              onClick={() => setShowMasDropdown(!showMasDropdown)}
-              style={{
-                fontSize: '14px',
-                fontWeight: (tab === 'qrcodes' || tab === 'reports' || showPuntualidadTimeline) ? 600 : 500,
-                color: (tab === 'qrcodes' || tab === 'reports' || showPuntualidadTimeline) ? '#fff' : '#8f94a5',
-                borderBottom: (tab === 'qrcodes' || tab === 'reports' || showPuntualidadTimeline) ? `2px solid ${themeColor}` : 'none',
-                paddingBottom: '4px',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                transition: 'all 200ms',
-              }}
-            >
-              Más <ChevronDown size={12} style={{ transform: showMasDropdown ? 'rotate(180deg)' : 'none', transition: 'transform 200ms' }} />
-            </span>
-
-            {showMasDropdown && (
-              <div style={{
-                position: 'absolute',
-                top: '24px',
-                left: 0,
-                background: '#121527',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '8px',
-                padding: '6px 0',
-                width: '140px',
-                zIndex: 60,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-              }}>
-                {[
-                  { label: 'Puntualidad GPS', tab: 'overview', showTimeline: true },
-                  { label: 'Códigos QR', tab: 'qrcodes', showTimeline: false },
-                  { label: 'Denuncias', tab: 'reports', showTimeline: false },
-                  { label: 'Cerrar Sesión', tab: 'logout', showTimeline: false }
-                ].map((opt) => (
-                  <div
-                    key={opt.label}
-                    onClick={() => {
-                      setShowMasDropdown(false)
-                      if (opt.tab === 'logout') {
-                        const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
-                        if (url.includes('placeholder.supabase.co')) {
-                          window.location.href = '/login'
-                        } else {
-                          supabase.auth.signOut().then(() => { window.location.href = '/login' })
-                        }
-                      } else {
-                        setTab(opt.tab as Tab)
-                        setShowPuntualidadTimeline(opt.showTimeline)
-                      }
-                    }}
-                    style={{
-                      padding: '8px 16px',
-                      color: (tab === opt.tab && showPuntualidadTimeline === opt.showTimeline) ? themeColor : '#a3a6b8',
-                      fontSize: '13px',
-                      cursor: 'pointer',
-                      transition: 'background-color 150ms',
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    {opt.label}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
 
         <div style={{ display: 'flex', gap: '10px' }}>
