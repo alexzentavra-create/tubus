@@ -1969,11 +1969,39 @@ function getColorConfig(val: number, avg: number) {
 function CalendarTab({ themeColor, activeStats }: { themeColor: string; activeStats: { rating: string; punctuality: string; dailyPas: number } }) {
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day')
   const [selected, setSelected] = useState<any>(null)
+  const [historyBaseMonth, setHistoryBaseMonth] = useState<string>(format(new Date(), 'yyyy-MM'))
+
+  const getRichDetails = (item: any) => {
+    if (!item) return null;
+    const seed = item.passengers;
+    const stopsList = [
+      { name: 'Plaza Italia', flow: Math.round(seed * 0.28) },
+      { name: 'Estación Palermo', flow: Math.round(seed * 0.22) },
+      { name: 'Barrancas de Belgrano', flow: Math.round(seed * 0.18) }
+    ];
+    const activeBuses = item.type === 'day'
+      ? [`Coche ${item.bus}`, `Coche 30${(seed % 4) + 1}`, `Coche 305`]
+      : [`Coche 301`, `Coche 302`, `Coche 304`, `Coche 305`].slice(0, item.busesCount || 4);
+    const peakHour = (seed % 2 === 0) ? '08:00 - 09:30 (Pico Mañana)' : '17:30 - 19:00 (Pico Tarde)';
+    const subeGeneralPct = 70 + (seed % 10);
+    const studentPct = 15 - (seed % 5);
+    const retiredPct = 100 - subeGeneralPct - studentPct;
+    return { stopsList, activeBuses, peakHour, ticketStats: { subeGeneralPct, studentPct, retiredPct } };
+  };
+
+  // Parse custom month base date in local timezone securely
+  const [yearStr, monthStr] = historyBaseMonth.split('-')
+  const year = parseInt(yearStr, 10)
+  const month = parseInt(monthStr, 10)
+  const monthEnd = new Date(year, month, 0)
+  const today = new Date()
+  const isCurrentMonth = today.getFullYear() === year && (today.getMonth() + 1) === month
+  const targetEnd = isCurrentMonth ? today : monthEnd
 
   // 1. Day Data (last 30 days)
   const days = []
   for (let i = 0; i < 30; i++) {
-    const d = subDays(new Date(), 29 - i)
+    const d = subDays(targetEnd, 29 - i)
     const seed = i * 7.5
     const pct = 0.6 + ((seed * 17) % 80) / 100
     const passengers = Math.round(activeStats.dailyPas * pct)
@@ -1994,7 +2022,7 @@ function CalendarTab({ themeColor, activeStats }: { themeColor: string; activeSt
   // 2. Week Data (last 12 weeks)
   const weeks = []
   for (let i = 0; i < 12; i++) {
-    const d = subDays(new Date(), (11 - i) * 7)
+    const d = subDays(targetEnd, (11 - i) * 7)
     const seed = i * 11.2
     const pct = 0.8 + ((seed * 23) % 40) / 100
     const passengers = Math.round(activeStats.dailyPas * 7 * pct)
@@ -2015,7 +2043,7 @@ function CalendarTab({ themeColor, activeStats }: { themeColor: string; activeSt
   // 3. Month Data (last 6 months)
   const months = []
   for (let i = 0; i < 6; i++) {
-    const d = subDays(new Date(), (5 - i) * 30)
+    const d = subDays(targetEnd, (5 - i) * 30)
     const seed = i * 19.8
     const pct = 0.85 + ((seed * 31) % 30) / 100
     const passengers = Math.round(activeStats.dailyPas * 30 * pct)
@@ -2051,30 +2079,55 @@ function CalendarTab({ themeColor, activeStats }: { themeColor: string; activeSt
             {viewMode === 'day' ? 'Historial Diario — últimos 30 días' : viewMode === 'week' ? 'Historial Semanal — últimas 12 semanas' : 'Historial Mensual — últimos 6 meses'}
           </div>
           
-          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.03)', padding: '2px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
-            {[
-              { label: 'Día', mode: 'day' },
-              { label: 'Semana', mode: 'week' },
-              { label: 'Mes', mode: 'month' }
-            ].map((btn) => (
-              <button
-                key={btn.mode}
-                onClick={() => { setViewMode(btn.mode as any); setSelected(null); }}
-                style={{
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  background: viewMode === btn.mode ? 'rgba(255,255,255,0.08)' : 'transparent',
-                  border: 'none',
-                  color: viewMode === btn.mode ? '#fff' : '#8f94a5',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  transition: 'all 200ms',
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ color: '#8f94a5', fontSize: '12px' }}>Ver mes:</span>
+              <input
+                type="month"
+                value={historyBaseMonth}
+                max={format(new Date(), 'yyyy-MM')}
+                onChange={(e) => {
+                  setHistoryBaseMonth(e.target.value);
+                  setSelected(null);
                 }}
-              >
-                {btn.label}
-              </button>
-            ))}
+                style={{
+                  background: '#1b1d2e',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '6px',
+                  color: '#fff',
+                  fontSize: '11px',
+                  padding: '4px 8px',
+                  outline: 'none',
+                  cursor: 'pointer',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', background: 'rgba(255,255,255,0.03)', padding: '2px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+              {[
+                { label: 'Día', mode: 'day' },
+                { label: 'Semana', mode: 'week' },
+                { label: 'Mes', mode: 'month' }
+              ].map((btn) => (
+                <button
+                  key={btn.mode}
+                  onClick={() => { setViewMode(btn.mode as any); setSelected(null); }}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: '6px',
+                    background: viewMode === btn.mode ? 'rgba(255,255,255,0.08)' : 'transparent',
+                    border: 'none',
+                    color: viewMode === btn.mode ? '#fff' : '#8f94a5',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 200ms',
+                  }}
+                >
+                  {btn.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -2186,71 +2239,105 @@ function CalendarTab({ themeColor, activeStats }: { themeColor: string; activeSt
           padding: '24px',
           animation: 'fadeIn 200ms ease-out'
         }}>
-          {selected.type === 'day' && (
-            <>
-              <div style={{color:'#8f94a5',fontSize:'12px',fontWeight:500,textTransform:'uppercase',marginBottom:'16px',letterSpacing:'0.05em'}}>
-                Detalle del Día: {format(selected.date,"EEEE d 'de' MMMM",{locale:es})}
-              </div>
-              <div style={{display:'flex',gap:'12px'}}>
-                <div style={{flex:1,background:'rgba(6,8,16,0.3)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
-                  <div style={{color:'#fff',fontWeight:700,fontSize:'16px'}}>Unidad {selected.bus}</div>
-                  <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'4px'}}>Vehículo principal</div>
-                </div>
-                <div style={{flex:1,background:'rgba(6,8,16,0.3)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
-                  <div style={{color:'#fff',fontWeight:700,fontSize:'16px'}}>{selected.hours}</div>
-                  <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'4px'}}>Faja horaria</div>
-                </div>
-                <div style={{flex:1,background:'rgba(6,8,16,0.3)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
-                  <div style={{color: getColorConfig(selected.passengers, dayAvg).text, fontWeight:700,fontSize:'16px'}}>{selected.passengers.toLocaleString('es-ES')}</div>
-                  <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'4px'}}>Pasajeros</div>
-                </div>
-              </div>
-            </>
-          )}
+          {/* Title Header */}
+          <div style={{
+            color: themeColor,
+            fontSize: '15px',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            marginBottom: '20px',
+            letterSpacing: '0.05em',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+            paddingBottom: '12px'
+          }}>
+            {selected.type === 'day' && `Detalle Operativo del Día: ${format(selected.date, "EEEE d 'de' MMMM", { locale: es })}`}
+            {selected.type === 'week' && `Detalle Operativo de la ${selected.label} (${selected.dateRange})`}
+            {selected.type === 'month' && `Detalle Operativo del Mes: ${selected.label} ${selected.year}`}
+          </div>
 
-          {selected.type === 'week' && (
-            <>
-              <div style={{color:'#8f94a5',fontSize:'12px',fontWeight:500,textTransform:'uppercase',marginBottom:'16px',letterSpacing:'0.05em'}}>
-                Detalle de la {selected.label} ({selected.dateRange})
+          {/* Grid Layout of Details */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '20px' }}>
+            
+            {/* Box 1: Pasajeros y Demanda */}
+            <div style={{ background: 'rgba(6,8,16,0.3)', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ color: '#8f94a5', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Pasajeros y Demanda</div>
+              <div style={{ color: getColorConfig(selected.passengers, selected.type === 'day' ? dayAvg : selected.type === 'week' ? weekAvg : monthAvg).text, fontSize: '24px', fontWeight: 700 }}>
+                {selected.passengers.toLocaleString('es-ES')}
               </div>
-              <div style={{display:'flex',gap:'12px'}}>
-                <div style={{flex:1,background:'rgba(6,8,16,0.3)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
-                  <div style={{color:'#fff',fontWeight:700,fontSize:'16px'}}>{selected.busesCount} coches</div>
-                  <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'4px'}}>Unidades operativas</div>
-                </div>
-                <div style={{flex:1,background:'rgba(6,8,16,0.3)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
-                  <div style={{color:'#fff',fontWeight:700,fontSize:'16px'}}>{selected.busiestDayName}</div>
-                  <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'4px'}}>Día de mayor flujo</div>
-                </div>
-                <div style={{flex:1,background:'rgba(6,8,16,0.3)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
-                  <div style={{color: getColorConfig(selected.passengers, weekAvg).text, fontWeight:700,fontSize:'16px'}}>{selected.passengers.toLocaleString('es-ES')}</div>
-                  <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'4px'}}>Pasajeros semanales</div>
-                </div>
+              <div style={{ color: '#8f94a5', fontSize: '12px', marginTop: '4px' }}>
+                {selected.type === 'day' ? 'Pasajeros totales' : selected.type === 'week' ? 'Pasajeros de la semana' : 'Pasajeros del mes'}
               </div>
-            </>
-          )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '12px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '12px', color: '#fff' }}>Pico:</span>
+                <span style={{ fontSize: '12px', color: themeColor, fontWeight: 600 }}>{getRichDetails(selected)?.peakHour}</span>
+              </div>
+            </div>
 
-          {selected.type === 'month' && (
-            <>
-              <div style={{color:'#8f94a5',fontSize:'12px',fontWeight:500,marginBottom:'16px',letterSpacing:'0.05em',textTransform:'capitalize'}}>
-                Detalle del Mes: {selected.label} {selected.year}
+            {/* Box 2: Paradas Críticas */}
+            <div style={{ background: 'rgba(6,8,16,0.3)', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ color: '#8f94a5', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Paradas Críticas</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {getRichDetails(selected)?.stopsList.map((stop, index) => (
+                  <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px' }}>
+                    <span style={{ color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>
+                      {index + 1}. {stop.name}
+                    </span>
+                    <span style={{ color: '#8f94a5', fontFamily: 'DM Mono' }}>{stop.flow.toLocaleString('es-ES')} pas</span>
+                  </div>
+                ))}
               </div>
-              <div style={{display:'flex',gap:'12px'}}>
-                <div style={{flex:1,background:'rgba(6,8,16,0.3)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
-                  <div style={{color:'#fff',fontWeight:700,fontSize:'16px'}}>{selected.busiestDay}</div>
-                  <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'4px'}}>Día pico registrado</div>
+            </div>
+
+            {/* Box 3: Flota Asignada */}
+            <div style={{ background: 'rgba(6,8,16,0.3)', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ color: '#8f94a5', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Flota Asignada</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {getRichDetails(selected)?.activeBuses.map((bus, idx) => (
+                  <span key={idx} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '11px', padding: '4px 8px', borderRadius: '6px' }}>
+                    {bus}
+                  </span>
+                ))}
+              </div>
+              <div style={{ color: '#8f94a5', fontSize: '11px', marginTop: '12px' }}>
+                {selected.type === 'day' ? `Horario: ${selected.hours}` : `${selected.busesCount || 4} coches registrados`}
+              </div>
+            </div>
+
+            {/* Box 4: Medios de Pago (SUBE) */}
+            <div style={{ background: 'rgba(6,8,16,0.3)', borderRadius: '10px', padding: '16px' }}>
+              <div style={{ color: '#8f94a5', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Medios de Pago (SUBE)</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px', color: '#fff' }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                    <span>General</span>
+                    <span style={{ fontFamily: 'DM Mono' }}>{getRichDetails(selected)?.ticketStats.subeGeneralPct}%</span>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.1)', height: '4px', borderRadius: '2px' }}>
+                    <div style={{ background: themeColor, height: '100%', borderRadius: '2px', width: `${getRichDetails(selected)?.ticketStats.subeGeneralPct}%` }} />
+                  </div>
                 </div>
-                <div style={{flex:1,background:'rgba(6,8,16,0.3)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
-                  <div style={{color:'#fff',fontWeight:700,fontSize:'16px'}}>{selected.avgDaily.toLocaleString('es-ES')}/día</div>
-                  <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'4px'}}>Promedio diario</div>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                    <span>Estudiantil</span>
+                    <span style={{ fontFamily: 'DM Mono' }}>{getRichDetails(selected)?.ticketStats.studentPct}%</span>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.1)', height: '4px', borderRadius: '2px' }}>
+                    <div style={{ background: '#22d3ee', height: '100%', borderRadius: '2px', width: `${getRichDetails(selected)?.ticketStats.studentPct}%` }} />
+                  </div>
                 </div>
-                <div style={{flex:1,background:'rgba(6,8,16,0.3)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
-                  <div style={{color: getColorConfig(selected.passengers, monthAvg).text, fontWeight:700,fontSize:'16px'}}>{selected.passengers.toLocaleString('es-ES')}</div>
-                  <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'4px'}}>Pasajeros mensuales</div>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                    <span>Jubilados</span>
+                    <span style={{ fontFamily: 'DM Mono' }}>{getRichDetails(selected)?.ticketStats.retiredPct}%</span>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.1)', height: '4px', borderRadius: '2px' }}>
+                    <div style={{ background: '#00c689', height: '100%', borderRadius: '2px', width: `${getRichDetails(selected)?.ticketStats.retiredPct}%` }} />
+                  </div>
                 </div>
               </div>
-            </>
-          )}
+            </div>
+
+          </div>
         </div>
       )}
 
