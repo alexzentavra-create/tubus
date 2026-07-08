@@ -1189,10 +1189,12 @@ export default function CompanyDashboard() {
                             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: themeColor }} />
                             <span>Subidos</span>
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#8f94a5' }} />
-                            <span>Bajados</span>
-                          </div>
+                          {chartPeriod !== 'week' && chartPeriod !== 'month' && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#8f94a5' }} />
+                              <span>Bajados</span>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -1213,7 +1215,9 @@ export default function CompanyDashboard() {
                             <XAxis dataKey="label" stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} />
                             <YAxis stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} />
                             <Tooltip contentStyle={{ background: '#121527', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px' }} />
-                            <Area type="monotone" dataKey="bajados" name="Bajados" stroke="#8f94a5" fill="none" strokeWidth={2} dot={false} />
+                            {chartPeriod !== 'week' && chartPeriod !== 'month' && (
+                              <Area type="monotone" dataKey="bajados" name="Bajados" stroke="#8f94a5" fill="none" strokeWidth={2} dot={false} />
+                            )}
                             <Area type="monotone" dataKey="subidos" name="Subidos" stroke={themeColor} fill="url(#colorRed)" strokeWidth={2.5} dot={false} />
                           </AreaChart>
                         </ResponsiveContainer>
