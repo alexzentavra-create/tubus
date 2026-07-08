@@ -719,17 +719,43 @@ export default function DriverPage() {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
     if (url.includes('placeholder.supabase.co')) {
       const match = MOCK_QR_TOKENS[qrToken.trim()]
-      if (match) {
-        const mockLine = MOCK_LINES[match.lineIdx % MOCK_LINES.length]
+      const localQRs = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]') : []
+      const localMatch = localQRs.find((q: any) => q.qr_token === qrToken.trim())
+
+      if (match || localMatch) {
+        let busUnit = ''
+        let lineId = ''
+        let lineName = ''
+        let lineNumber = ''
+        let companyName = ''
+        let companyId = 'comp-1'
+        
+        if (match) {
+          const mockLine = MOCK_LINES[match.lineIdx % MOCK_LINES.length]
+          busUnit = match.busUnit
+          lineId = mockLine.id
+          lineName = mockLine.name
+          lineNumber = mockLine.line_number
+          companyName = mockLine.company
+        } else {
+          const mockLine = MOCK_LINES.find(l => l.id === localMatch.line_id) || MOCK_LINES[0]
+          busUnit = localMatch.bus_unit
+          lineId = localMatch.line_id
+          lineName = mockLine.name
+          lineNumber = mockLine.line_number
+          companyName = mockLine.company
+          companyId = localMatch.company_id
+        }
+
         const sess: ActiveSession = {
           sessionId: `mock-session-${Date.now()}`,
-          driverId: driverId,
-          driverName: driverName,
-          busUnit: match.busUnit,
-          lineId: mockLine.id,
-          lineName: mockLine.name,
-          lineNumber: mockLine.line_number,
-          companyName: mockLine.company,
+          driverId: driverId || 'mock-driver',
+          driverName: driverName || 'Chofer Demo',
+          busUnit: busUnit,
+          lineId: lineId,
+          lineName: lineName,
+          lineNumber: lineNumber,
+          companyName: companyName,
         }
         setSession(sess)
         setPassengers(0)
@@ -737,12 +763,27 @@ export default function DriverPage() {
         setShowScanner(false)
         setQrToken('')
         setScanning(false)
-        const path = getMockRoutePathForLine(mockLine)
+
+        // Save session to localStorage so admin page can retrieve it
+        const activeSessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+        // Filter out any older session for this driver to avoid duplicates
+        const updatedSessions = activeSessions.filter((s: any) => s.profiles?.name !== sess.driverName)
+        updatedSessions.push({
+          id: sess.sessionId,
+          bus_unit: sess.busUnit,
+          started_at: new Date().toISOString(),
+          total_passengers: 0,
+          profiles: { name: sess.driverName },
+          company_id: companyId
+        })
+        localStorage.setItem('mock_active_sessions', JSON.stringify(updatedSessions))
+
+        const path = getMockRoutePathForLine(MOCK_LINES.find(l => l.id === lineId) || MOCK_LINES[0])
         if (path && path.length > 0) {
           setPos({ lat: path[0].lat, lng: path[0].lng, speed: 0, heading: 0 })
           setViewState(v => ({ ...v, latitude: path[0].lat, longitude: path[0].lng, zoom: 14 }))
         }
-        toast.success(`¡Turno iniciado! Unidad ${sess.busUnit} · Línea ${mockLine.line_number}`)
+        toast.success(`¡Turno iniciado! Unidad ${sess.busUnit} · Línea ${lineNumber}`)
       } else {
         toast.error('QR inválido o inactivo en modo simulación')
         setScanning(false)
@@ -817,13 +858,21 @@ export default function DriverPage() {
     if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current)
     if (intervalRef.current) clearInterval(intervalRef.current)
     if (simIntervalRef.current) clearInterval(simIntervalRef.current)
+    
+    // Clean up local mock session
+    if (typeof window !== 'undefined') {
+      const activeSessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+      const updated = activeSessions.filter((s: any) => s.profiles?.name !== driverName)
+      localStorage.setItem('mock_active_sessions', JSON.stringify(updated))
+    }
+
     if (session && !session.sessionId.startsWith('mock-')) {
       await supabase.from('driver_sessions').update({ is_active: false, ended_at: new Date().toISOString(), total_passengers: passengers }).eq('id', session.sessionId)
       await supabase.from('bus_positions').update({ status: 'offline' }).eq('driver_id', session.driverId)
     }
     setIsOnline(false); setSession(null); setPos(null); setDuration(0); setPassengers(0)
     toast('Turno finalizado')
-  }, [session, passengers])
+  }, [session, passengers, driverName])
 
   const logout = async () => {
     if (isOnline) await endShift()

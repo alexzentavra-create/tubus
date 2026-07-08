@@ -57,8 +57,23 @@ function QRDisplay({ token, busUnit }: { token: string; busUnit: string }) {
   const hash = token.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
   const grid: boolean[][] = Array.from({length: cells}, (_, r) =>
     Array.from({length: cells}, (_, c) => {
-      if ((r < 7 && c < 7) || (r < 7 && c >= cells-7) || (r >= cells-7 && c < 7)) return true
-      return ((r * cells + c + hash) % 3) !== 0
+      // Finder pattern top-left
+      if (r < 7 && c < 7) {
+        return r === 0 || r === 6 || c === 0 || c === 6 || (r >= 2 && r <= 4 && c >= 2 && c <= 4)
+      }
+      // Finder pattern top-right
+      if (r < 7 && c >= cells - 7) {
+        const cc = c - (cells - 7)
+        return r === 0 || r === 6 || cc === 0 || cc === 6 || (r >= 2 && r <= 4 && cc >= 2 && cc <= 4)
+      }
+      // Finder pattern bottom-left
+      if (r >= cells - 7 && c < 7) {
+        const rr = r - (cells - 7)
+        return rr === 0 || rr === 6 || c === 0 || c === 6 || (rr >= 2 && rr <= 4 && c >= 2 && c <= 4)
+      }
+      
+      // Random-looking modules based on hash
+      return ((r * 17 + c * 23 + hash) % 2) === 0
     })
   )
 
@@ -260,13 +275,16 @@ export default function CompanyDashboard() {
         }
 
         const {data:qrs} = await supabase.from('bus_qr_codes').select('*').eq('company_id',comp.id)
-        if (qrs) setQrCodes(qrs)
+        const localQRs = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]').filter((q: any) => q.company_id === comp.id) : []
+        setQrCodes(qrs ? [...qrs, ...localQRs] : localQRs)
+
         const {data:sessions} = await supabase
           .from('driver_sessions')
           .select('*, profiles!driver_id(name)')
           .eq('company_id',comp.id)
           .eq('is_active',true)
-        if (sessions) setActiveSessions(sessions)
+        const localSessions = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('mock_active_sessions') || '[]').filter((s: any) => s.company_id === comp.id) : []
+        setActiveSessions(sessions ? [...sessions, ...localSessions] : localSessions)
       }
       setLoading(false)
     })
@@ -547,16 +565,55 @@ export default function CompanyDashboard() {
 
   const generateQR = async () => {
     if (!newBusUnit.trim() || !company) return
+
+    // Enforce uniqueness of QR codes per bus unit for the active line
+    const exists = qrCodes.some(qr => qr.bus_unit.toLowerCase() === newBusUnit.trim().toLowerCase())
+    if (exists) {
+      toast.error(`La unidad ${newBusUnit} ya tiene un código QR asignado.`);
+      return;
+    }
+
+    let qrData: any = null
     const {data,error} = await supabase.from('bus_qr_codes').insert({
       company_id: company.id,
+      line_id: activeLine.id,
       bus_unit: newBusUnit.trim(),
     }).select().single()
-    if (error) { toast.error('Error al generar QR'); return }
-    setQrCodes(prev => [...prev, data])
+
+    if (error || !data) {
+      // Fallback fallback storage
+      qrData = {
+        id: `mock-qr-${Date.now()}`,
+        company_id: company.id,
+        line_id: activeLine.id,
+        bus_unit: newBusUnit.trim(),
+        qr_token: `DEMO-QR-L${activeLine.line_number}-${newBusUnit.trim()}-${Math.floor(Math.random() * 1000)}`,
+        is_active: true,
+        created_at: new Date().toISOString()
+      }
+      const prevQRs = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
+      localStorage.setItem('mock_bus_qr_codes', JSON.stringify([...prevQRs, qrData]))
+    } else {
+      qrData = data
+    }
+
+    setQrCodes(prev => [...prev, qrData])
     setNewBusUnit('')
-    setSelectedQR(data)
+    setSelectedQR(qrData)
     setShowQRModal(true)
     toast.success(`QR generado para unidad ${newBusUnit}`)
+  }
+
+  const deleteQR = async (id: string) => {
+    await supabase.from('bus_qr_codes').delete().eq('id', id)
+    
+    // Always clear from localStorage too
+    const prevQRs = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
+    localStorage.setItem('mock_bus_qr_codes', JSON.stringify(prevQRs.filter((q: any) => q.id !== id)))
+
+    setQrCodes(prev => prev.filter(qr => qr.id !== id))
+    if (selectedQR?.id === id) setSelectedQR(null)
+    toast.success('Código QR eliminado correctamente');
   }
 
   const downloadQR = (qr: any) => {
@@ -1311,7 +1368,7 @@ export default function CompanyDashboard() {
             )}
 
             {tab === 'buses' && <BusesTab buses={buses} themeColor={themeColor} />}
-            {tab === 'drivers' && <CompanyDrivers drivers={currentDrivers} themeColor={themeColor} />}
+            {tab === 'drivers' && <CompanyDrivers drivers={currentDrivers} activeSessions={activeSessions} themeColor={themeColor} />}
             {tab === 'qrcodes' && (
               <QRTab
                 qrCodes={qrCodes}
@@ -1319,6 +1376,7 @@ export default function CompanyDashboard() {
                 setNewBusUnit={setNewBusUnit}
                 onGenerate={generateQR}
                 onDownload={downloadQR}
+                onDelete={deleteQR}
                 themeColor={themeColor}
               />
             )}
@@ -1769,46 +1827,68 @@ function BusesTab({ buses, themeColor }: { buses: any[]; themeColor: string }) {
   )
 }
 
-function CompanyDrivers({ drivers, themeColor }: { drivers: any[]; themeColor: string }) {
+function CompanyDrivers({ drivers, activeSessions = [], themeColor }: { drivers: any[]; activeSessions?: any[]; themeColor: string }) {
   return (
     <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
-      {drivers.map((d,i)=>(
-        <div key={i} style={{
-          background: '#121527',
-          borderRadius: '12px',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          padding: '16px 20px',
-        }}>
-          <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
-            <div style={{width:'44px',height:'44px',borderRadius:'12px',background:'rgba(255,255,255,0.02)',border:'1px solid rgba(255,255,255,0.08)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-              <Users size={18} style={{color:'#8f94a5'}}/>
-            </div>
-            <div style={{flex:1}}>
-              <div style={{color:'#fff',fontWeight:700,fontSize:'15px'}}>{d.name}</div>
-              <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'2px'}}>{d.legajo} · último: {d.lastActive}</div>
-            </div>
-            <div style={{textAlign:'right'}}>
-              <div style={{display:'flex',alignItems:'center',gap:'4px',justifyContent:'flex-end'}}>
-                <Star size={12} style={{color:themeColor,fill:themeColor}}/><span style={{color:'#fff',fontFamily:'DM Mono',fontWeight:700,fontSize:'13px'}}>{d.rating}</span>
+      {drivers.map((d,i)=>{
+        const activeSession = activeSessions.find((s: any) => s.profiles?.name === d.name)
+        
+        return (
+          <div key={i} style={{
+            background: '#121527',
+            borderRadius: '12px',
+            border: activeSession ? `1px solid ${hexToRgba(themeColor, 0.4)}` : '1px solid rgba(255, 255, 255, 0.06)',
+            padding: '16px 20px',
+            boxShadow: activeSession ? `0 0 12px ${hexToRgba(themeColor, 0.1)}` : 'none'
+          }}>
+            <div style={{display:'flex',alignItems:'center',gap:'14px'}}>
+              <div style={{width:'44px',height:'44px',borderRadius:'12px',background:activeSession ? hexToRgba(themeColor, 0.15) : 'rgba(255,255,255,0.02)',border:activeSession ? `1px solid ${hexToRgba(themeColor, 0.3)}` : '1px solid rgba(255,255,255,0.08)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                <Users size={18} style={{color:activeSession ? themeColor : '#8f94a5'}}/>
               </div>
-              {d.reports>0&&<div style={{color:'#FF4D6A',fontSize:'10px',fontFamily:'DM Mono',marginTop:'2px'}}>{d.reports} denuncia</div>}
+              <div style={{flex:1}}>
+                <div style={{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap'}}>
+                  <span style={{color:'#fff',fontWeight:700,fontSize:'15px'}}>{d.name}</span>
+                  {activeSession && (
+                    <span style={{
+                      padding:'2px 8px',
+                      borderRadius:'999px',
+                      background:'rgba(34,211,160,0.08)',
+                      border:'1px solid rgba(34,211,160,0.2)',
+                      color:'#22D3A0',
+                      fontSize:'9px',
+                      fontWeight:600,
+                      textTransform:'uppercase',
+                      letterSpacing:'0.03em'
+                    }}>
+                      En servicio · Colectivo {activeSession.bus_unit}
+                    </span>
+                  )}
+                </div>
+                <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'2px'}}>{d.legajo} · último: {activeSession ? 'Activo ahora' : d.lastActive}</div>
+              </div>
+              <div style={{textAlign:'right'}}>
+                <div style={{display:'flex',alignItems:'center',gap:'4px',justifyContent:'flex-end'}}>
+                  <Star size={12} style={{color:themeColor,fill:themeColor}}/><span style={{color:'#fff',fontFamily:'DM Mono',fontWeight:700,fontSize:'13px'}}>{d.rating}</span>
+                </div>
+                {d.reports>0&&<div style={{color:'#FF4D6A',fontSize:'10px',fontFamily:'DM Mono',marginTop:'2px'}}>{d.reports} denuncia</div>}
+              </div>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'8px',marginTop:'12px'}}>
+              {[{label:'Sesiones',value:d.sessions},{label:'A tiempo',value:`${d.onTime}%`},{label:'Denuncias',value:d.reports}].map(({label,value})=>(
+                <div key={label} style={{background:'rgba(6,8,16,0.3)',borderRadius:'8px',padding:'8px',textAlign:'center'}}>
+                  <div style={{color:'#fff',fontWeight:700,fontSize:'16px'}}>{value}</div>
+                  <div style={{color:'#8f94a5',fontSize:'10px',fontFamily:'DM Mono',marginTop:'2px'}}>{label}</div>
+                </div>
+              ))}
             </div>
           </div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'8px',marginTop:'12px'}}>
-            {[{label:'Sesiones',value:d.sessions},{label:'A tiempo',value:`${d.onTime}%`},{label:'Denuncias',value:d.reports}].map(({label,value})=>(
-              <div key={label} style={{background:'rgba(6,8,16,0.3)',borderRadius:'8px',padding:'8px',textAlign:'center'}}>
-                <div style={{color:'#fff',fontWeight:700,fontSize:'16px'}}>{value}</div>
-                <div style={{color:'#8f94a5',fontSize:'10px',fontFamily:'DM Mono',marginTop:'2px'}}>{label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
 
-function QRTab({qrCodes,newBusUnit,setNewBusUnit,onGenerate,onDownload,themeColor}:{qrCodes:any[];newBusUnit:string;setNewBusUnit:(v:string)=>void;onGenerate:()=>void;onDownload:(qr:any)=>void;themeColor:string}) {
+function QRTab({qrCodes,newBusUnit,setNewBusUnit,onGenerate,onDownload,onDelete,themeColor}:{qrCodes:any[];newBusUnit:string;setNewBusUnit:(v:string)=>void;onGenerate:()=>void;onDownload:(qr:any)=>void;onDelete:(id:string)=>void;themeColor:string}) {
   const [selected, setSelected] = useState<any>(null)
   return (
     <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
@@ -1832,7 +1912,7 @@ function QRTab({qrCodes,newBusUnit,setNewBusUnit,onGenerate,onDownload,themeColo
           </button>
         </div>
         <p style={{color:'#8f94a5',fontSize:'11px',marginTop:'10px',lineHeight:1.5}}>
-          El QR generado debe ser impreso y colocado en el colectivo. Cuando el chofer lo escanea, el sistema lo asocia automáticamente con ese vehículo.
+          El QR generado debe ser impreso y colocado en el colectivo. Cuando el chofer lo escaneara, el sistema lo asocia automáticamente con ese vehículo y chofer en tiempo real.
         </p>
       </div>
 
@@ -1856,6 +1936,9 @@ function QRTab({qrCodes,newBusUnit,setNewBusUnit,onGenerate,onDownload,themeColo
               <div style={{marginTop:'14px',display:'flex',gap:'8px'}}>
                 <button onClick={e=>{e.stopPropagation();onDownload(qr)}} style={{flex:1,padding:'8px',borderRadius:'8px',background:hexToRgba(themeColor, 0.1),border:`1px solid ${hexToRgba(themeColor, 0.25)}`,color:themeColor,fontSize:'11px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'5px'}}>
                   <Download size={12}/> Descargar
+                </button>
+                <button onClick={e=>{e.stopPropagation();onDelete(qr.id)}} style={{padding:'8px',borderRadius:'8px',background:'rgba(255, 77, 106, 0.1)',border:'1px solid rgba(255, 77, 106, 0.25)',color:'#ff4d6a',fontSize:'11px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  <Trash2 size={12}/>
                 </button>
               </div>
               <div style={{marginTop:'8px',display:'flex',alignItems:'center',gap:'6px'}}>

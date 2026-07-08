@@ -2,6 +2,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { BusPosition } from '@/types'
 import { OFFICIAL_ROUTES } from '@/lib/officialRoutes'
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key'
+const supabase = createClient(supabaseUrl, supabaseKey)
 
 const LINE_DRIVERS: Record<string, string[]> = {
   '12': ['Néstor García', 'Roberto Sánchez', 'Carlos Martínez', 'Juan Gómez'],
@@ -88,6 +93,49 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'line_id and line_number are required' }, { status: 400 })
   }
 
+  // 1. Fetch active buses from Supabase
+  let activeDbBuses: BusPosition[] = []
+  try {
+    const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+    const { data: dbBuses, error: dbError } = await supabase
+      .from('bus_positions')
+      .select(`
+        id, driver_id, line_id, bus_unit, latitude, longitude,
+        heading, speed_kmh, status, passenger_count,
+        eta_minutes, timestamp,
+        profiles!driver_id ( name )
+      `)
+      .eq('line_id', lineId)
+      .neq('status', 'offline')
+      .gte('timestamp', cutoff)
+
+    if (!dbError && dbBuses) {
+      activeDbBuses = dbBuses.map((b: any) => ({
+        id: b.id,
+        driver_id: b.driver_id,
+        line_id: b.line_id,
+        line_number: lineNumber,
+        bus_unit: b.bus_unit,
+        driver_name: b.profiles?.name || 'Chofer Real',
+        latitude: Number(b.latitude),
+        longitude: Number(b.longitude),
+        heading: Number(b.heading || 0),
+        speed_kmh: Number(b.speed_kmh || 0),
+        next_stop_id: `stop-${lineNumber}-active`,
+        next_stop_name: 'Recorrido Activo',
+        eta_minutes: Number(b.eta_minutes || 5),
+        status: b.status || 'stopped',
+        passenger_count: Number(b.passenger_count || 0),
+        timestamp: b.timestamp,
+        reports_count: 0,
+        direction: 'ida',
+        ramal: `${lineNumber}-A`
+      }))
+    }
+  } catch (err) {
+    console.error('[API Buses] Error querying Supabase active buses:', err)
+  }
+
   const apiKey = process.env.TRANSITLAND_API_KEY || 'dummy_transitland_key'
   const url = `https://transit.land/api/v2/rest/vehicles?apikey=${apiKey}`
 
@@ -126,7 +174,13 @@ export async function GET(request: NextRequest) {
     if (matchedVehicles.length === 0) {
       console.warn(`[Transitland API] Line ${lineNumber}: No matching vehicles found in Transitland payload. Generating fallback simulation...`)
       const fallbackBuses = generateFallbackSimulatedBuses(lineId, lineNumber)
-      return NextResponse.json({ data: fallbackBuses, count: fallbackBuses.length, source: 'simulation' })
+      
+      // Merge active drivers from DB and filter out simulated versions of the same units
+      const activeUnits = new Set(activeDbBuses.map(b => b.bus_unit))
+      const filteredFallback = fallbackBuses.filter(b => !activeUnits.has(b.bus_unit))
+      const combined = [...activeDbBuses, ...filteredFallback]
+      
+      return NextResponse.json({ data: combined, count: combined.length, source: 'simulation' })
     }
 
     const drivers = LINE_DRIVERS[lineNumber] || ['Chofer Auxiliar']
@@ -165,11 +219,22 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    return NextResponse.json({ data: mappedBuses, count: mappedBuses.length, source: 'realtime' })
+    // Merge active drivers from DB and filter out real-time versions of the same units
+    const activeUnits = new Set(activeDbBuses.map(b => b.bus_unit))
+    const filteredRealtime = mappedBuses.filter(b => !activeUnits.has(b.bus_unit))
+    const combined = [...activeDbBuses, ...filteredRealtime]
+
+    return NextResponse.json({ data: combined, count: combined.length, source: 'realtime' })
   } catch (error: any) {
     console.error(`[Transitland API ERROR] Error processing vehicle positions for Line ${lineNumber}:`, error)
     console.log(`[Transitland API] Generating fallback simulated buses...`)
     const fallbackBuses = generateFallbackSimulatedBuses(lineId, lineNumber)
-    return NextResponse.json({ data: fallbackBuses, count: fallbackBuses.length, source: 'simulation' })
+    
+    // Merge active drivers from DB and filter out simulated versions of the same units
+    const activeUnits = new Set(activeDbBuses.map(b => b.bus_unit))
+    const filteredFallback = fallbackBuses.filter(b => !activeUnits.has(b.bus_unit))
+    const combined = [...activeDbBuses, ...filteredFallback]
+    
+    return NextResponse.json({ data: combined, count: combined.length, source: 'simulation' })
   }
 }
