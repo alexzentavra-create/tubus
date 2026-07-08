@@ -1367,7 +1367,7 @@ export default function CompanyDashboard() {
             )}
             {tab === 'stops' && <StopsTab topStops={topStops} hourlyData={HOURLY} themeColor={themeColor} />}
             {tab === 'reports' && <CompanyReports reports={reports} onResolve={(id) => setReports(rs => rs.map(x => x.id === id ? { ...x, status: 'resolved' } : x))} themeColor={themeColor} />}
-            {tab === 'calendar' && <CalendarTab themeColor={themeColor} />}
+            {tab === 'calendar' && <CalendarTab themeColor={themeColor} activeStats={activeStats} />}
           </div>
 
           {/* Right Column (col-span-4) */}
@@ -2003,60 +2003,333 @@ function CompanyReports({ reports, onResolve, themeColor }: { reports: any[]; on
   )
 }
 
-function CalendarTab({ themeColor }: { themeColor: string }) {
-  const days = Array.from({length:30},(_,i)=>{
-    const d = subDays(new Date(),29-i)
-    const hasWork = Math.random()>0.3
-    return { date:d, label:format(d,'d'), dayName:format(d,'EEE',{locale:es}), hasWork, bus:hasWork?['001','003','005'][Math.floor(Math.random()*3)]:null, hours:hasWork?`${6+Math.floor(Math.random()*4)}:00 - ${14+Math.floor(Math.random()*4)}:00`:null }
-  })
+function getColorConfig(val: number, avg: number) {
+  if (val < avg * 0.9) {
+    return {
+      bg: 'rgba(255, 77, 106, 0.1)',
+      border: 'rgba(255, 77, 106, 0.25)',
+      text: '#ff4d6a',
+      label: 'Menor al promedio (< -10%)'
+    }
+  } else if (val > avg * 1.1) {
+    return {
+      bg: 'rgba(0, 198, 137, 0.1)',
+      border: 'rgba(0, 198, 137, 0.25)',
+      text: '#00c689',
+      label: 'Mayor al promedio (> +10%)'
+    }
+  } else {
+    return {
+      bg: 'rgba(240, 180, 41, 0.1)',
+      border: 'rgba(240, 180, 41, 0.25)',
+      text: '#F0B429',
+      label: 'Rango promedio (±10%)'
+    }
+  }
+}
+
+function CalendarTab({ themeColor, activeStats }: { themeColor: string; activeStats: { rating: string; punctuality: string; dailyPas: number } }) {
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day')
   const [selected, setSelected] = useState<any>(null)
+
+  // 1. Day Data (last 30 days)
+  const days = []
+  for (let i = 0; i < 30; i++) {
+    const d = subDays(new Date(), 29 - i)
+    const seed = i * 7.5
+    const pct = 0.6 + ((seed * 17) % 80) / 100
+    const passengers = Math.round(activeStats.dailyPas * pct)
+    days.push({
+      type: 'day',
+      date: d,
+      label: format(d, 'd'),
+      dayName: format(d, 'EEE', { locale: es }),
+      passengers,
+      bus: ['001', '003', '005', '002', '004'][i % 5],
+      hours: `${6 + (i % 4)}:00 - ${14 + (i % 4)}:00`
+    })
+  }
+  let totalDayPas = 0
+  for (const d of days) totalDayPas += d.passengers
+  const dayAvg = Math.round(totalDayPas / 30)
+
+  // 2. Week Data (last 12 weeks)
+  const weeks = []
+  for (let i = 0; i < 12; i++) {
+    const d = subDays(new Date(), (11 - i) * 7)
+    const seed = i * 11.2
+    const pct = 0.8 + ((seed * 23) % 40) / 100
+    const passengers = Math.round(activeStats.dailyPas * 7 * pct)
+    weeks.push({
+      type: 'week',
+      date: d,
+      label: `S${i + 1}`,
+      dateRange: `${format(subDays(d, 6), 'd MMM', { locale: es })} - ${format(d, 'd MMM', { locale: es })}`,
+      passengers,
+      busesCount: 5 + (i % 4),
+      busiestDayName: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][i % 6]
+    })
+  }
+  let totalWeekPas = 0
+  for (const w of weeks) totalWeekPas += w.passengers
+  const weekAvg = Math.round(totalWeekPas / 12)
+
+  // 3. Month Data (last 6 months)
+  const months = []
+  for (let i = 0; i < 6; i++) {
+    const d = subDays(new Date(), (5 - i) * 30)
+    const seed = i * 19.8
+    const pct = 0.85 + ((seed * 31) % 30) / 100
+    const passengers = Math.round(activeStats.dailyPas * 30 * pct)
+    months.push({
+      type: 'month',
+      date: d,
+      label: format(d, 'MMMM', { locale: es }),
+      year: format(d, 'yyyy'),
+      passengers,
+      busiestDay: format(subDays(d, 5 + (i % 10)), "d 'de' MMMM", { locale: es }),
+      avgDaily: Math.round(passengers / 30)
+    })
+  }
+  let totalMonthPas = 0
+  for (const m of months) totalMonthPas += m.passengers
+  const monthAvg = Math.round(totalMonthPas / 6)
+
+  // Determine current items and averages
+  const currentAvg = viewMode === 'day' ? dayAvg : viewMode === 'week' ? weekAvg : monthAvg
+
   return (
     <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
+      {/* Calendar container */}
       <div style={{
         background: '#121527',
         borderRadius: '12px',
         border: '1px solid rgba(255, 255, 255, 0.06)',
         padding: '24px',
       }}>
-        <div style={{color:'#8f94a5',fontSize:'12px',fontWeight:500,textTransform:'uppercase',marginBottom:'16px',letterSpacing:'0.05em'}}>Historial de actividad — últimos 30 días</div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(10,1fr)',gap:'6px'}}>
-          {days.map((d,i)=>(
-            <button key={i} onClick={()=>setSelected(selected?.date===d.date?null:d)} style={{aspectRatio:'1/1',borderRadius:'8px',background:d.hasWork?(selected?.date===d.date?hexToRgba(themeColor, 0.3):hexToRgba(themeColor, 0.12)):'rgba(184,200,224,0.04)',border:`1px solid ${d.hasWork?(selected?.date===d.date?hexToRgba(themeColor, 0.5):hexToRgba(themeColor, 0.2)):'rgba(184,200,224,0.06)'}`,cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:'1px',transition:'all 200ms',padding:'4px'}}>
-              <span style={{color:d.hasWork?themeColor:'#8f94a5',fontSize:'11px',fontWeight:d.hasWork?700:400,fontFamily:'DM Mono'}}>{d.label}</span>
-              <span style={{color:'#8f94a5',fontSize:'8px',fontFamily:'DM Mono',textTransform:'uppercase'}}>{d.dayName}</span>
-            </button>
-          ))}
+        {/* Header selectors */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+          <div style={{ color: '#fff', fontSize: '15px', fontWeight: 600 }}>
+            {viewMode === 'day' ? 'Historial Diario — últimos 30 días' : viewMode === 'week' ? 'Historial Semanal — últimas 12 semanas' : 'Historial Mensual — últimos 6 meses'}
+          </div>
+          
+          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.03)', padding: '2px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+            {[
+              { label: 'Día', mode: 'day' },
+              { label: 'Semana', mode: 'week' },
+              { label: 'Mes', mode: 'month' }
+            ].map((btn) => (
+              <button
+                key={btn.mode}
+                onClick={() => { setViewMode(btn.mode as any); setSelected(null); }}
+                style={{
+                  padding: '6px 14px',
+                  borderRadius: '6px',
+                  background: viewMode === btn.mode ? 'rgba(255,255,255,0.08)' : 'transparent',
+                  border: 'none',
+                  color: viewMode === btn.mode ? '#fff' : '#8f94a5',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 200ms',
+                }}
+              >
+                {btn.label}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* Dynamic Grids */}
+        {viewMode === 'day' && (
+          <div style={{display:'grid',gridTemplateColumns:'repeat(10,1fr)',gap:'6px'}}>
+            {days.map((d,i)=>{
+              const colors = getColorConfig(d.passengers, dayAvg)
+              const isSelected = selected?.type === 'day' && selected?.date === d.date
+              return (
+                <button
+                  key={i}
+                  onClick={() => setSelected(isSelected ? null : d)}
+                  style={{
+                    aspectRatio: '1/1',
+                    borderRadius: '8px',
+                    background: isSelected ? hexToRgba(colors.text, 0.3) : colors.bg,
+                    border: `1px solid ${isSelected ? colors.text : colors.border}`,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '2px',
+                    transition: 'all 200ms',
+                    padding: '4px'
+                  }}
+                >
+                  <span style={{color: colors.text, fontSize: '13px', fontWeight: 700, fontFamily: 'DM Mono'}}>{d.label}</span>
+                  <span style={{color: '#8f94a5', fontSize: '8px', fontFamily: 'DM Mono', textTransform: 'uppercase'}}>{d.dayName}</span>
+                  <span style={{color: '#fff', fontSize: '7.5px', fontFamily: 'DM Mono', opacity: 0.65}}>{(d.passengers / 1000).toFixed(1)}k</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {viewMode === 'week' && (
+          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'10px'}}>
+            {weeks.map((w,i)=>{
+              const colors = getColorConfig(w.passengers, weekAvg)
+              const isSelected = selected?.type === 'week' && selected?.label === w.label
+              return (
+                <button
+                  key={i}
+                  onClick={() => setSelected(isSelected ? null : w)}
+                  style={{
+                    borderRadius: '10px',
+                    background: isSelected ? hexToRgba(colors.text, 0.3) : colors.bg,
+                    border: `1px solid ${isSelected ? colors.text : colors.border}`,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px',
+                    transition: 'all 200ms',
+                    padding: '12px 6px'
+                  }}
+                >
+                  <span style={{color: colors.text, fontSize: '14px', fontWeight: 700}}>{w.label}</span>
+                  <span style={{color: '#8f94a5', fontSize: '9px', fontFamily: 'DM Mono'}}>{w.dateRange}</span>
+                  <span style={{color: '#fff', fontSize: '11px', fontFamily: 'DM Mono', fontWeight: 600, marginTop: '2px'}}>{w.passengers.toLocaleString('es-ES')} pas</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {viewMode === 'month' && (
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'10px'}}>
+            {months.map((m,i)=>{
+              const colors = getColorConfig(m.passengers, monthAvg)
+              const isSelected = selected?.type === 'month' && selected?.label === m.label
+              return (
+                <button
+                  key={i}
+                  onClick={() => setSelected(isSelected ? null : m)}
+                  style={{
+                    borderRadius: '10px',
+                    background: isSelected ? hexToRgba(colors.text, 0.3) : colors.bg,
+                    border: `1px solid ${isSelected ? colors.text : colors.border}`,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px',
+                    transition: 'all 200ms',
+                    padding: '16px 8px'
+                  }}
+                >
+                  <span style={{color: colors.text, fontSize: '14px', fontWeight: 700, textTransform: 'capitalize'}}>{m.label}</span>
+                  <span style={{color: '#8f94a5', fontSize: '10px', fontFamily: 'DM Mono'}}>{m.year}</span>
+                  <span style={{color: '#fff', fontSize: '12px', fontFamily: 'DM Mono', fontWeight: 600, marginTop: '2px'}}>{m.passengers.toLocaleString('es-ES')} pas</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
-      {selected && selected.hasWork && (
+
+      {/* Selected Details Panel */}
+      {selected && (
         <div style={{
           background: '#121527',
           borderRadius: '12px',
           border: '1px solid rgba(255, 255, 255, 0.06)',
           padding: '24px',
+          animation: 'fadeIn 200ms ease-out'
         }}>
-          <div style={{color:'#8f94a5',fontSize:'12px',fontWeight:500,textTransform:'uppercase',marginBottom:'12px',letterSpacing:'0.05em'}}>
-            {format(selected.date,"EEEE d 'de' MMMM",{locale:es})}
-          </div>
-          <div style={{display:'flex',gap:'12px'}}>
-            <div style={{flex:1,background:'rgba(6,8,16,0.3)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
-              <div style={{color:'#fff',fontWeight:700,fontSize:'18px'}}>Unidad {selected.bus}</div>
-              <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'4px'}}>Vehículo asignado</div>
-            </div>
-            <div style={{flex:1,background:'rgba(6,8,16,0.3)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
-              <div style={{color:'#fff',fontWeight:700,fontSize:'16px'}}>{selected.hours}</div>
-              <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'4px'}}>Horario</div>
-            </div>
-            <div style={{flex:1,background:'rgba(6,8,16,0.3)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
-              <div style={{color:'#22D3A0',fontWeight:700,fontSize:'18px'}}>{Math.floor(Math.random()*80+40)}</div>
-              <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'4px'}}>Pasajeros</div>
-            </div>
-          </div>
+          {selected.type === 'day' && (
+            <>
+              <div style={{color:'#8f94a5',fontSize:'12px',fontWeight:500,textTransform:'uppercase',marginBottom:'16px',letterSpacing:'0.05em'}}>
+                Detalle del Día: {format(selected.date,"EEEE d 'de' MMMM",{locale:es})}
+              </div>
+              <div style={{display:'flex',gap:'12px'}}>
+                <div style={{flex:1,background:'rgba(6,8,16,0.3)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
+                  <div style={{color:'#fff',fontWeight:700,fontSize:'16px'}}>Unidad {selected.bus}</div>
+                  <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'4px'}}>Vehículo principal</div>
+                </div>
+                <div style={{flex:1,background:'rgba(6,8,16,0.3)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
+                  <div style={{color:'#fff',fontWeight:700,fontSize:'16px'}}>{selected.hours}</div>
+                  <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'4px'}}>Faja horaria</div>
+                </div>
+                <div style={{flex:1,background:'rgba(6,8,16,0.3)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
+                  <div style={{color: getColorConfig(selected.passengers, dayAvg).text, fontWeight:700,fontSize:'16px'}}>{selected.passengers.toLocaleString('es-ES')}</div>
+                  <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'4px'}}>Pasajeros</div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {selected.type === 'week' && (
+            <>
+              <div style={{color:'#8f94a5',fontSize:'12px',fontWeight:500,textTransform:'uppercase',marginBottom:'16px',letterSpacing:'0.05em'}}>
+                Detalle de la {selected.label} ({selected.dateRange})
+              </div>
+              <div style={{display:'flex',gap:'12px'}}>
+                <div style={{flex:1,background:'rgba(6,8,16,0.3)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
+                  <div style={{color:'#fff',fontWeight:700,fontSize:'16px'}}>{selected.busesCount} coches</div>
+                  <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'4px'}}>Unidades operativas</div>
+                </div>
+                <div style={{flex:1,background:'rgba(6,8,16,0.3)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
+                  <div style={{color:'#fff',fontWeight:700,fontSize:'16px'}}>{selected.busiestDayName}</div>
+                  <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'4px'}}>Día de mayor flujo</div>
+                </div>
+                <div style={{flex:1,background:'rgba(6,8,16,0.3)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
+                  <div style={{color: getColorConfig(selected.passengers, weekAvg).text, fontWeight:700,fontSize:'16px'}}>{selected.passengers.toLocaleString('es-ES')}</div>
+                  <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'4px'}}>Pasajeros semanales</div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {selected.type === 'month' && (
+            <>
+              <div style={{color:'#8f94a5',fontSize:'12px',fontWeight:500,marginBottom:'16px',letterSpacing:'0.05em',textTransform:'capitalize'}}>
+                Detalle del Mes: {selected.label} {selected.year}
+              </div>
+              <div style={{display:'flex',gap:'12px'}}>
+                <div style={{flex:1,background:'rgba(6,8,16,0.3)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
+                  <div style={{color:'#fff',fontWeight:700,fontSize:'16px'}}>{selected.busiestDay}</div>
+                  <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'4px'}}>Día pico registrado</div>
+                </div>
+                <div style={{flex:1,background:'rgba(6,8,16,0.3)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
+                  <div style={{color:'#fff',fontWeight:700,fontSize:'16px'}}>{selected.avgDaily.toLocaleString('es-ES')}/día</div>
+                  <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'4px'}}>Promedio diario</div>
+                </div>
+                <div style={{flex:1,background:'rgba(6,8,16,0.3)',borderRadius:'10px',padding:'12px',textAlign:'center'}}>
+                  <div style={{color: getColorConfig(selected.passengers, monthAvg).text, fontWeight:700,fontSize:'16px'}}>{selected.passengers.toLocaleString('es-ES')}</div>
+                  <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono',marginTop:'4px'}}>Pasajeros mensuales</div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
-      <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
-        <div style={{display:'flex',alignItems:'center',gap:'6px'}}><div style={{width:'10px',height:'10px',borderRadius:'3px',background:hexToRgba(themeColor, 0.12),border:`1px solid ${hexToRgba(themeColor, 0.2)}`}}/><span style={{color:'#8f94a5',fontSize:'11px'}}>Día trabajado</span></div>
-        <div style={{display:'flex',alignItems:'center',gap:'6px'}}><div style={{width:'10px',height:'10px',borderRadius:'3px',background:'rgba(184,200,224,0.04)',border:'1px solid rgba(184,200,224,0.06)'}}/><span style={{color:'#8f94a5',fontSize:'11px'}}>Sin actividad</span></div>
+
+      {/* Legend */}
+      <div style={{display:'flex',alignItems:'center',gap:'16px',flexWrap:'wrap'}}>
+        <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+          <div style={{width:'12px',height:'12px',borderRadius:'4px',background:'rgba(0, 198, 137, 0.1)',border:'1px solid rgba(0, 198, 137, 0.25)'}}/>
+          <span style={{color:'#8f94a5',fontSize:'11px'}}>{"Mayor al promedio (> +10%)"}</span>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+          <div style={{width:'12px',height:'12px',borderRadius:'4px',background:'rgba(240, 180, 41, 0.1)',border:'1px solid rgba(240, 180, 41, 0.25)'}}/>
+          <span style={{color:'#8f94a5',fontSize:'11px'}}>Rango promedio (±10%)</span>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:'6px'}}>
+          <div style={{width:'12px',height:'12px',borderRadius:'4px',background:'rgba(255, 77, 106, 0.1)',border:'1px solid rgba(255, 77, 106, 0.25)'}}/>
+          <span style={{color:'#8f94a5',fontSize:'11px'}}>{"Menor al promedio (< -10%)"}</span>
+        </div>
       </div>
     </div>
   )
