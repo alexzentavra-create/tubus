@@ -103,10 +103,10 @@ export default function CompanyDashboard() {
   const [showMasDropdown, setShowMasDropdown] = useState(false)
 
   // Stops Timeframe Settings
-  const [stopsTimeframes, setStopsTimeframes] = useState<Record<string, { start: number; end: number }>>({})
+  const [stopsTimeframes, setStopsTimeframes] = useState<Record<string, { start: string; end: string }>>({})
   const [editingStopId, setEditingStopId] = useState<string | null>(null)
-  const [editingStart, setEditingStart] = useState<number>(0)
-  const [editingEnd, setEditingEnd] = useState<number>(5)
+  const [editingStart, setEditingStart] = useState<string>("06:00")
+  const [editingEnd, setEditingEnd] = useState<string>("23:30")
 
   // Live GPS control logs
   const [gpsPassageLogs, setGpsPassageLogs] = useState<any[]>([])
@@ -303,11 +303,20 @@ export default function CompanyDashboard() {
 
   // Initialize stops timeframes when activeLine stops are loaded
   useEffect(() => {
-    const defaultTimeframes: Record<string, { start: number; end: number }> = {}
+    const defaultTimeframes: Record<string, { start: string; end: string }> = {}
     stops.forEach((s, idx) => {
+      const startMin = idx * 10
+      const endMin = idx * 10 + 30
+      
+      const formatTime = (totalMin: number) => {
+        const h = Math.floor(totalMin / 60) % 24
+        const m = totalMin % 60
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+      }
+      
       defaultTimeframes[s.id] = {
-        start: idx * 5,
-        end: idx * 5 + 4
+        start: formatTime(360 + startMin), // starts around 06:00 + idx*10
+        end: formatTime(1410 + endMin)     // ends around 23:30 + idx*10
       }
     })
     setStopsTimeframes(defaultTimeframes)
@@ -331,11 +340,21 @@ export default function CompanyDashboard() {
           const logId = `gps-${bus.id}-${matchedStop.id}-${currentHour}-${currentMin}`
           const exists = updated.some(l => l.id === logId)
           if (!exists) {
-            const tf = stopsTimeframes[matchedStop.id] || { start: (matchedStop.stop_number - 1) * 5, end: (matchedStop.stop_number - 1) * 5 + 4 }
+            const defaultStart = matchedStop.stop_number ? `${String(Math.floor((360 + (matchedStop.stop_number - 1) * 10) / 60)).padStart(2, '0')}:${String(((matchedStop.stop_number - 1) * 10) % 60).padStart(2, '0')}` : "06:00"
+            const defaultEnd = matchedStop.stop_number ? `${String(Math.floor((1440 + (matchedStop.stop_number - 1) * 10) / 60) % 24).padStart(2, '0')}:${String(((matchedStop.stop_number - 1) * 10 + 30) % 60).padStart(2, '0')}` : "23:30"
+            const tf = stopsTimeframes[matchedStop.id] || { start: defaultStart, end: defaultEnd }
             
-            const offsetMin = currentMin % 60
-            const inTimeframe = offsetMin >= tf.start && offsetMin <= tf.end
-            const isLate = offsetMin > tf.end
+            const timeToMin = (t: string) => {
+              const [h, m] = t.split(':').map(Number)
+              return h * 60 + m
+            }
+            
+            const currentMinOfDay = currentHour * 60 + currentMin
+            const startMinOfDay = timeToMin(tf.start)
+            const endMinOfDay = timeToMin(tf.end)
+            
+            const inTimeframe = currentMinOfDay >= startMinOfDay && currentMinOfDay <= endMinOfDay
+            const isLate = currentMinOfDay > endMinOfDay
             const status = inTimeframe ? 'A tiempo' : (isLate ? 'Demorado' : 'Adelantado')
 
             updated.unshift({
@@ -344,7 +363,7 @@ export default function CompanyDashboard() {
               driver: bus.driver_name,
               stopName: matchedStop.name,
               time: `${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}:${String(currentSec).padStart(2, '0')}`,
-              scheduled: `${String(tf.start).padStart(2, '0')}-${String(tf.end).padStart(2, '0')} min`,
+              scheduled: `${tf.start} - ${tf.end} hs`,
               status
             })
             changed = true
@@ -976,7 +995,7 @@ export default function CompanyDashboard() {
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                               <div>
                                 <h4 style={{ fontSize: '14px', fontWeight: 600, color: '#fff', margin: 0 }}>{idx + 1}. {stop.name}</h4>
-                                <p style={{ fontSize: '11px', color: '#8f94a5', margin: '4px 0 0' }}>Frecuencia de paso programada: <span style={{ color: '#fff', fontWeight: 600 }}>minuto {tf.start} al {tf.end}</span> de cada ciclo</p>
+                                <p style={{ fontSize: '11px', color: '#8f94a5', margin: '4px 0 0' }}>Horario de paso programado: <span style={{ color: '#fff', fontWeight: 600 }}>{tf.start} a {tf.end} hs</span></p>
                                 
                                 {lastPass ? (
                                   <div style={{
@@ -1003,21 +1022,21 @@ export default function CompanyDashboard() {
                                 {isEditing ? (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#1b1d32', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
                                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                      <span style={{ fontSize: '10px', color: '#8f94a5' }}>Inicio (min):</span>
+                                      <span style={{ fontSize: '10px', color: '#8f94a5' }}>Inicio:</span>
                                       <input
-                                        type="number"
+                                        type="time"
                                         value={editingStart}
-                                        onChange={(e) => setEditingStart(parseInt(e.target.value) || 0)}
-                                        style={{ width: '45px', background: '#121527', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '4px', color: '#fff', fontSize: '11px', padding: '2px 4px' }}
+                                        onChange={(e) => setEditingStart(e.target.value)}
+                                        style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '4px', color: '#fff', fontSize: '11px', padding: '2px 4px', outline: 'none' }}
                                       />
                                     </div>
                                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                      <span style={{ fontSize: '10px', color: '#8f94a5' }}>Fin (min):</span>
+                                      <span style={{ fontSize: '10px', color: '#8f94a5' }}>Fin:</span>
                                       <input
-                                        type="number"
+                                        type="time"
                                         value={editingEnd}
-                                        onChange={(e) => setEditingEnd(parseInt(e.target.value) || 0)}
-                                        style={{ width: '45px', background: '#121527', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '4px', color: '#fff', fontSize: '11px', padding: '2px 4px' }}
+                                        onChange={(e) => setEditingEnd(e.target.value)}
+                                        style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '4px', color: '#fff', fontSize: '11px', padding: '2px 4px', outline: 'none' }}
                                       />
                                     </div>
                                     <div style={{ display: 'flex', gap: '4px' }}>
@@ -1038,7 +1057,7 @@ export default function CompanyDashboard() {
                                         onClick={() => setEditingStopId(null)}
                                         style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '4px', color: '#fff', fontSize: '10px', padding: '4px', cursor: 'pointer' }}
                                       >
-                                        X
+                                        Cancelar
                                       </button>
                                     </div>
                                   </div>
@@ -1061,7 +1080,7 @@ export default function CompanyDashboard() {
                                       borderStyle: 'solid'
                                     }}
                                   >
-                                    Configurar Rango
+                                    Configurar Horario
                                   </button>
                                 )}
                               </div>
