@@ -506,6 +506,109 @@ export default function CompanyDashboard() {
   const [newTodoText, setNewTodoText] = useState('')
   const [showAddTodo, setShowAddTodo] = useState(false)
 
+  // Inactive buses state
+  const [inactiveBuses, setInactiveBuses] = useState<any[]>([])
+  const [showAddInactiveBus, setShowAddInactiveBus] = useState(false)
+  const [newInactiveBusUnit, setNewInactiveBusUnit] = useState('')
+  const [newInactiveBusTimer, setNewInactiveBusTimer] = useState('30')
+
+  // Load inactive buses from localStorage on line change
+  useEffect(() => {
+    if (!activeLine) return
+    const key = `mock_inactive_buses_${activeLine.line_number}`
+    const stored = localStorage.getItem(key)
+    if (stored) {
+      setInactiveBuses(JSON.parse(stored))
+    } else {
+      const defaults = [
+        { id: 'in-1', unit: `${activeLine.line_number}-307`, minutesRemaining: 45 },
+        { id: 'in-2', unit: `${activeLine.line_number}-308`, minutesRemaining: 90 },
+        { id: 'in-3', unit: `${activeLine.line_number}-309`, minutesRemaining: 120 },
+      ]
+      setInactiveBuses(defaults)
+      localStorage.setItem(key, JSON.stringify(defaults))
+    }
+  }, [activeLine])
+
+  // Inactive buses countdown interval
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setInactiveBuses(prev => {
+        const updated = prev.map(bus => {
+          if (bus.minutesRemaining > 0) {
+            return { ...bus, minutesRemaining: bus.minutesRemaining - 1 }
+          }
+          return bus
+        })
+        if (activeLine) {
+          localStorage.setItem(`mock_inactive_buses_${activeLine.line_number}`, JSON.stringify(updated))
+        }
+        return updated
+      })
+    }, 60000)
+    return () => clearInterval(interval)
+  }, [activeLine])
+
+  // Add inactive bus
+  const addInactiveBus = () => {
+    if (!newInactiveBusUnit) {
+      toast.error("Introduce el número de interno")
+      return
+    }
+    const minutes = parseInt(newInactiveBusTimer) || 30
+    const newBus = {
+      id: `in-${Date.now()}`,
+      unit: `${activeLine.line_number}-${newInactiveBusUnit}`,
+      minutesRemaining: minutes
+    }
+    const next = [...inactiveBuses, newBus]
+    setInactiveBuses(next)
+    localStorage.setItem(`mock_inactive_buses_${activeLine.line_number}`, JSON.stringify(next))
+    setNewInactiveBusUnit('')
+    setShowAddInactiveBus(false)
+    toast.success(`Colectivo ${newBus.unit} registrado como inactivo`)
+  }
+
+  // Delete inactive bus
+  const deleteInactiveBus = (id: string) => {
+    const next = inactiveBuses.filter(b => b.id !== id)
+    setInactiveBuses(next)
+    localStorage.setItem(`mock_inactive_buses_${activeLine.line_number}`, JSON.stringify(next))
+    toast.success("Colectivo eliminado de la lista de inactivos")
+  }
+
+  // Adjust timer minutes
+  const adjustInactiveBusTimer = (id: string, delta: number) => {
+    const next = inactiveBuses.map(b => {
+      if (b.id === id) {
+        return { ...b, minutesRemaining: Math.max(0, b.minutesRemaining + delta) }
+      }
+      return b
+    })
+    setInactiveBuses(next)
+    localStorage.setItem(`mock_inactive_buses_${activeLine.line_number}`, JSON.stringify(next))
+  }
+
+  // Prompt edit timer minutes
+  const promptEditTimer = (id: string, currentMinutes: number) => {
+    const val = prompt("Minutos restantes para salida:", String(currentMinutes))
+    if (val === null) return
+    const parsed = parseInt(val)
+    if (isNaN(parsed) || parsed < 0) {
+      toast.error("Minutos inválidos")
+      return
+    }
+    const next = inactiveBuses.map(b => {
+      if (b.id === id) {
+        return { ...b, minutesRemaining: parsed }
+      }
+      return b
+    })
+    setInactiveBuses(next)
+    localStorage.setItem(`mock_inactive_buses_${activeLine.line_number}`, JSON.stringify(next))
+    toast.success("Temporizador actualizado")
+  }
+
   // Load company profile and details
   useEffect(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
@@ -1909,8 +2012,7 @@ export default function CompanyDashboard() {
 
                       {(() => {
                         const activeCount = activeSessions.length
-                        const totalBuses = qrCodes.length || 5
-                        const inactiveCount = Math.max(0, totalBuses - activeCount)
+                        const inactiveCount = inactiveBuses.length
                         const totalPassengers = activeSessions.reduce((acc: number, s: any) => acc + (s.total_passengers || 0), 0)
                         const activeDrivers = activeSessions.map((s: any) => s.profiles?.name || 'Chofer').filter(Boolean)
 
@@ -2307,6 +2409,210 @@ export default function CompanyDashboard() {
                         size={13}
                         onClick={() => deleteTodo(todo.id)}
                         style={{ cursor: 'pointer' }}
+                        onMouseEnter={(e) => e.currentTarget.style.color = '#ff4d6a'}
+                        onMouseLeave={(e) => e.currentTarget.style.color = '#8f94a5'}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Colectivos Inactivos Card */}
+            <div style={{
+              background: '#121527',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+              padding: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#fff', margin: 0 }}>Colectivos Inactivos</h3>
+                  <span style={{ fontSize: '11px', color: '#8f94a5', marginTop: '2px' }}>Programación de salida</span>
+                </div>
+                <button
+                  onClick={() => setShowAddInactiveBus(!showAddInactiveBus)}
+                  style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    background: themeColor,
+                    border: 'none',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 200ms',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                >
+                  <Plus size={16} />
+                </button>
+              </div>
+
+              {showAddInactiveBus && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#1b1d2e', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '9px', color: '#8f94a5', marginBottom: '4px' }}>Nº de Interno</label>
+                      <input
+                        type="text"
+                        placeholder="ej. 308"
+                        value={newInactiveBusUnit}
+                        onChange={(e) => setNewInactiveBusUnit(e.target.value)}
+                        style={{
+                          width: '100%',
+                          background: 'rgba(255,255,255,0.03)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '4px',
+                          color: '#fff',
+                          fontSize: '12px',
+                          padding: '4px 8px',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+                    <div style={{ width: '80px' }}>
+                      <label style={{ display: 'block', fontSize: '9px', color: '#8f94a5', marginBottom: '4px' }}>Minutos</label>
+                      <input
+                        type="number"
+                        value={newInactiveBusTimer}
+                        onChange={(e) => setNewInactiveBusTimer(e.target.value)}
+                        style={{
+                          width: '100%',
+                          background: 'rgba(255,255,255,0.03)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '4px',
+                          color: '#fff',
+                          fontSize: '12px',
+                          padding: '4px 8px',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <button
+                    onClick={addInactiveBus}
+                    style={{
+                      background: themeColor,
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '6px',
+                      color: '#fff',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      width: '100%',
+                    }}
+                  >
+                    Programar Salida
+                  </button>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto' }}>
+                {inactiveBuses.map((bus) => (
+                  <div
+                    key={bus.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '10px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(255,255,255,0.02)',
+                      border: '1px solid rgba(255, 255, 255, 0.04)',
+                      transition: 'all 200ms',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Bus size={14} style={{ color: '#8f94a5' }} />
+                      </div>
+                      <div>
+                        <div style={{ color: '#fff', fontSize: '13px', fontWeight: 600 }}>
+                          Unidad {bus.unit}
+                        </div>
+                        <div style={{ fontSize: '10px', color: '#8f94a5', marginTop: '2px' }}>
+                          Inactivo / En terminal
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      {/* Timer box */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <button
+                          onClick={() => adjustInactiveBusTimer(bus.id, -5)}
+                          style={{
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '4px',
+                            background: 'rgba(255,255,255,0.04)',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            color: '#8f94a5',
+                            fontSize: '11px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                          title="Restar 5 minutos"
+                        >
+                          -
+                        </button>
+                        <div
+                          onClick={() => promptEditTimer(bus.id, bus.minutesRemaining)}
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            background: bus.minutesRemaining <= 15 ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)',
+                            border: `1px solid ${bus.minutesRemaining <= 15 ? '#ef4444' : '#f59e0b'}`,
+                            color: bus.minutesRemaining <= 15 ? '#f87171' : '#fbbf24',
+                            fontSize: '11.5px',
+                            fontFamily: 'DM Mono',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            textAlign: 'center',
+                            minWidth: '55px',
+                          }}
+                          title="Hacer clic para editar tiempo"
+                        >
+                          {bus.minutesRemaining}m
+                        </div>
+                        <button
+                          onClick={() => adjustInactiveBusTimer(bus.id, 5)}
+                          style={{
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '4px',
+                            background: 'rgba(255,255,255,0.04)',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            color: '#8f94a5',
+                            fontSize: '11px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                          title="Sumar 5 minutos"
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      {/* Trash bin */}
+                      <Trash2
+                        size={13}
+                        onClick={() => deleteInactiveBus(bus.id)}
+                        style={{ cursor: 'pointer', color: '#8f94a5', transition: 'color 150ms' }}
                         onMouseEnter={(e) => e.currentTarget.style.color = '#ff4d6a'}
                         onMouseLeave={(e) => e.currentTarget.style.color = '#8f94a5'}
                       />
