@@ -384,6 +384,32 @@ export default function DriverPage() {
   const [stopsTimeframes, setStopsTimeframes] = useState<Record<string, { start: string; end: string }>>({})
   const [boardingStatus, setBoardingStatus] = useState<{ on: number; off: number; stopName: string } | null>(null)
 
+  // Sync driver position to local mock active sessions for passenger map to fetch in real time
+  useEffect(() => {
+    if (!session || !pos) return
+    try {
+      const activeSessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+      const updated = activeSessions.map((s: any) => {
+        if (s.id === session.sessionId || s.bus_unit === session.busUnit) {
+          return {
+            ...s,
+            latitude: pos.lat,
+            longitude: pos.lng,
+            speed_kmh: pos.speed,
+            heading: pos.heading,
+            total_passengers: passengers,
+            status: pos.speed > 2 ? 'moving' : 'stopped',
+            timestamp: new Date().toISOString()
+          }
+        }
+        return s
+      })
+      localStorage.setItem('mock_active_sessions', JSON.stringify(updated))
+    } catch (e) {
+      console.error(e)
+    }
+  }, [pos, passengers, session])
+
   const [viewState, setViewState]       = useState({
     longitude: -58.4173,
     latitude: -34.6037,
@@ -830,6 +856,27 @@ export default function DriverPage() {
       const localMatch = localQRs.find((q: any) => q.qr_token === qrToken.trim())
 
       if (match || localMatch) {
+        if (localMatch && !localMatch.is_active) {
+          const warning = {
+            id: `warning-${Date.now()}`,
+            qrId: localMatch.id,
+            qrToken: localMatch.qr_token,
+            busUnit: localMatch.bus_unit,
+            driverName: driverName || 'Chofer Demo',
+            timestamp: new Date().toISOString(),
+            message: `Intento de escaneo inactivo: Chofer ${driverName || 'Demo'} intentó ingresar en la Unidad ${localMatch.bus_unit}.`
+          }
+          try {
+            const prev = JSON.parse(localStorage.getItem('mock_qr_warnings') || '[]')
+            localStorage.setItem('mock_qr_warnings', JSON.stringify([...prev, warning]))
+          } catch (e) {
+            console.error(e)
+          }
+          toast.error('El código QR se encuentra inactivo. Se envió una advertencia al administrador.')
+          setScanning(false)
+          return
+        }
+
         let busUnit = ''
         let lineId = ''
         let lineName = ''
@@ -905,10 +952,30 @@ export default function DriverPage() {
       .from('bus_qr_codes')
       .select('*, bus_companies!company_id(company_name), bus_lines!line_id(line_number,name)')
       .eq('qr_token', qrToken.trim())
-      .eq('is_active', true)
       .single()
 
-    if (error || !qr) { toast.error('QR inválido o inactivo'); setScanning(false); return }
+    if (error || !qr) { toast.error('Código QR inválido'); setScanning(false); return }
+
+    if (!qr.is_active) {
+      const warning = {
+        id: `warning-${Date.now()}`,
+        qrId: qr.id,
+        qrToken: qr.qr_token,
+        busUnit: qr.bus_unit,
+        driverName: driverName || 'Chofer Demo',
+        timestamp: new Date().toISOString(),
+        message: `Intento de escaneo inactivo: Chofer ${driverName || 'Demo'} intentó ingresar en la Unidad ${qr.bus_unit}.`
+      }
+      try {
+        const prev = JSON.parse(localStorage.getItem('mock_qr_warnings') || '[]')
+        localStorage.setItem('mock_qr_warnings', JSON.stringify([...prev, warning]))
+      } catch (e) {
+        console.error(e)
+      }
+      toast.error('El código QR se encuentra inactivo. Se envió una advertencia al administrador.')
+      setScanning(false)
+      return
+    }
 
     await supabase.from('driver_sessions').update({ is_active: false, ended_at: new Date().toISOString() }).eq('driver_id', driverId).eq('is_active', true)
     await supabase.from('bus_positions').update({ status: 'offline' }).eq('driver_id', driverId)

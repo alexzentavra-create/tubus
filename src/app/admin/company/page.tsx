@@ -81,7 +81,7 @@ function QRDisplay({ token, busUnit }: { token: string; busUnit: string }) {
   return (
     <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'10px'}}>
       <div style={{padding:'12px',background:'#fff',borderRadius:'10px',display:'inline-block'}}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} shapeRendering="crispEdges">
           {grid.map((row, r) => row.map((cell, c) =>
             cell ? <rect key={`${r}-${c}`} x={c*cellSize} y={r*cellSize} width={cellSize} height={cellSize} fill="#000"/> : null
           ))}
@@ -129,6 +129,52 @@ export default function CompanyDashboard() {
 
   // Live GPS control logs
   const [gpsPassageLogs, setGpsPassageLogs] = useState<any[]>([])
+
+  // Inactive QR Code warnings state
+  const [qrWarnings, setQrWarnings] = useState<any[]>([])
+
+  // Load QR warnings from localStorage
+  useEffect(() => {
+    const loadQRWarnings = () => {
+      try {
+        const stored = JSON.parse(localStorage.getItem('mock_qr_warnings') || '[]')
+        setQrWarnings(stored)
+      } catch (e) {
+        console.error(e)
+      }
+    }
+    loadQRWarnings()
+    const interval = setInterval(loadQRWarnings, 2000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const handleResolveQRWarning = async (warning: any, activate: boolean) => {
+    if (activate) {
+      await supabase
+        .from('bus_qr_codes')
+        .update({ is_active: true })
+        .eq('id', warning.qrId)
+        
+      try {
+        const prevQRs = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
+        const updated = prevQRs.map((q: any) => q.id === warning.qrId ? { ...q, is_active: true } : q)
+        localStorage.setItem('mock_bus_qr_codes', JSON.stringify(updated))
+        setQrCodes(prev => prev.map((q: any) => q.id === warning.qrId ? { ...q, is_active: true } : q))
+      } catch (e) {
+        console.error(e)
+      }
+      toast.success(`Código QR de Unidad ${warning.busUnit} activado con éxito.`)
+    }
+    
+    try {
+      const stored = JSON.parse(localStorage.getItem('mock_qr_warnings') || '[]')
+      const filtered = stored.filter((w: any) => w.id !== warning.id)
+      localStorage.setItem('mock_qr_warnings', JSON.stringify(filtered))
+      setQrWarnings(filtered)
+    } catch (e) {
+      console.error(e)
+    }
+  }
 
   // Driver Warnings / Infractions
   const [driverWarnings, setDriverWarnings] = useState<Record<string, number>>({})
@@ -780,6 +826,22 @@ export default function CompanyDashboard() {
     toast.success('Código QR eliminado correctamente');
   }
 
+  const toggleQRActive = async (id: string, currentStatus: boolean) => {
+    const nextStatus = !currentStatus
+    await supabase.from('bus_qr_codes').update({ is_active: nextStatus }).eq('id', id)
+
+    try {
+      const prevQRs = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
+      const updated = prevQRs.map((q: any) => q.id === id ? { ...q, is_active: nextStatus } : q)
+      localStorage.setItem('mock_bus_qr_codes', JSON.stringify(updated))
+    } catch (e) {
+      console.error(e)
+    }
+
+    setQrCodes(prev => prev.map(qr => qr.id === id ? { ...qr, is_active: nextStatus } : qr))
+    toast.success(nextStatus ? 'Código QR activado' : 'Código QR desactivado')
+  }
+
   const downloadQR = (qr: any) => {
     toast.success('QR descargado (función disponible en producción)')
   }
@@ -1099,6 +1161,64 @@ export default function CompanyDashboard() {
           </button>
         </div>
       </div>
+
+      {/* QR Code Inactive Warnings Banner */}
+      {qrWarnings.length > 0 && (
+        <div style={{ padding: '0 24px 16px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {qrWarnings.map((w: any) => (
+              <div key={w.id} style={{
+                background: 'rgba(255, 77, 106, 0.08)',
+                border: '1px solid rgba(255, 77, 106, 0.25)',
+                borderRadius: '8px',
+                padding: '12px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <AlertTriangle size={16} style={{ color: '#ff4d6a', flexShrink: 0 }} />
+                  <div style={{ fontSize: '13px', color: '#fff' }}>
+                    <span style={{ fontWeight: 700, color: '#ff4d6a' }}>[Alerta Chofer]</span> {w.message}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                  <button
+                    onClick={() => handleResolveQRWarning(w, true)}
+                    style={{
+                      background: '#10B981',
+                      border: 'none',
+                      borderRadius: '6px',
+                      color: '#fff',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      padding: '6px 12px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Activar QR
+                  </button>
+                  <button
+                    onClick={() => handleResolveQRWarning(w, false)}
+                    style={{
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '6px',
+                      color: '#a3a6b8',
+                      fontSize: '11px',
+                      padding: '6px 12px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Descartar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* KPI Row (5 elements now) */}
       <div style={{
@@ -1630,6 +1750,7 @@ export default function CompanyDashboard() {
                 onGenerate={generateQR}
                 onDownload={downloadQR}
                 onDelete={deleteQR}
+                onToggleActive={toggleQRActive}
                 themeColor={themeColor}
               />
             )}
@@ -2909,7 +3030,7 @@ function CompanyDrivers({ drivers, activeSessions = [], driverWarnings = {}, onD
   )
 }
 
-function QRTab({qrCodes,newBusUnit,setNewBusUnit,onGenerate,onDownload,onDelete,themeColor}:{qrCodes:any[];newBusUnit:string;setNewBusUnit:(v:string)=>void;onGenerate:()=>void;onDownload:(qr:any)=>void;onDelete:(id:string)=>void;themeColor:string}) {
+function QRTab({qrCodes,newBusUnit,setNewBusUnit,onGenerate,onDownload,onDelete,onToggleActive,themeColor}:{qrCodes:any[];newBusUnit:string;setNewBusUnit:(v:string)=>void;onGenerate:()=>void;onDownload:(qr:any)=>void;onDelete:(id:string)=>void;onToggleActive:(id:string,status:boolean)=>void;themeColor:string}) {
   const [selected, setSelected] = useState<any>(null)
   return (
     <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
@@ -2951,8 +3072,12 @@ function QRTab({qrCodes,newBusUnit,setNewBusUnit,onGenerate,onDownload,onDelete,
               border: `1px solid ${selected?.id===qr.id?hexToRgba(themeColor, 0.35):'rgba(255, 255, 255, 0.06)'}`,
               padding: '16px',
               cursor: 'pointer',
-              transition: 'all 200ms'
-            }} onClick={()=>setSelected(selected?.id===qr.id?null:qr)}>
+              transition: 'all 200ms',
+              boxShadow: selected?.id===qr.id?`0 0 12px ${hexToRgba(themeColor, 0.15)}` : 'none'
+            }} onClick={()=>{
+              onToggleActive(qr.id, qr.is_active)
+              setSelected(selected?.id===qr.id?null:qr)
+            }}>
               <QRDisplay token={qr.qr_token} busUnit={qr.bus_unit}/>
               <div style={{marginTop:'14px',display:'flex',gap:'8px'}}>
                 <button onClick={e=>{e.stopPropagation();onDownload(qr)}} style={{flex:1,padding:'8px',borderRadius:'8px',background:hexToRgba(themeColor, 0.1),border:`1px solid ${hexToRgba(themeColor, 0.25)}`,color:themeColor,fontSize:'11px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'5px'}}>
@@ -2963,8 +3088,8 @@ function QRTab({qrCodes,newBusUnit,setNewBusUnit,onGenerate,onDownload,onDelete,
                 </button>
               </div>
               <div style={{marginTop:'8px',display:'flex',alignItems:'center',gap:'6px'}}>
-                <div style={{width:'6px',height:'6px',borderRadius:'50%',background:qr.is_active?'#22D3A0':'#4A5568'}}/>
-                <span style={{color:'#8f94a5',fontSize:'10px',fontFamily:'DM Mono'}}>{qr.is_active?'Activo':'Inactivo'}</span>
+                <div style={{width:'6px',height:'6px',borderRadius:'50%',background:qr.is_active?'#22D3A0':'#FF4D6A'}}/>
+                <span style={{color:qr.is_active?'#22D3A0':'#FF4D6A',fontSize:'10px',fontFamily:'DM Mono',fontWeight:600}}>{qr.is_active?'Activo':'Inactivo'}</span>
               </div>
             </div>
           ))}

@@ -22548,8 +22548,36 @@ export default function UserMapPage() {
       const selectedIds = new Set(selectedLines.map(l => l.id))
       const newTrafficColors: Record<string, { color: string; timestamp: number }> = {}
 
+      // Load mock active sessions for real-time driver GPS sync
+      let activeSessions: any[] = []
+      if (typeof window !== 'undefined') {
+        try {
+          activeSessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+        } catch (e) {}
+      }
+
       // Update all simulated buses
       simulatedBusesRef.current.forEach(bus => {
+        // GPS Sync Mechanic: If driver is online on this unit, snap the bus to driver's GPS
+        const activeSess = activeSessions.find(s => {
+          const sUnit = s.bus_unit || ''
+          const bUnit = bus.bus_unit || ''
+          const sMatch = sUnit.match(/\d+$/)
+          const bMatch = bUnit.match(/\d+$/)
+          return sMatch && bMatch && sMatch[0] === bMatch[0]
+        })
+
+        if (activeSess && activeSess.latitude !== undefined) {
+          bus.latitude = activeSess.latitude
+          bus.longitude = activeSess.longitude
+          bus.speed_kmh = activeSess.speed_kmh || 0
+          bus.heading = activeSess.heading || 0
+          bus.driver_name = activeSess.profiles?.name || bus.driver_name
+          bus.passenger_count = activeSess.total_passengers !== undefined ? activeSess.total_passengers : bus.passenger_count
+          bus.status = activeSess.status || (bus.speed_kmh > 2 ? 'moving' : 'stopped')
+          return
+        }
+
         const routeKey = bus.line_number.replace(/^0+/, '')
         const officialRoute = OFFICIAL_ROUTES[routeKey]
         if (!officialRoute) return
