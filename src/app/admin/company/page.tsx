@@ -429,26 +429,34 @@ export default function CompanyDashboard() {
     return () => clearInterval(interval)
   }, [activeLine])
 
-  // Initialize stops timeframes when activeLine stops are loaded
+  // Initialize stops timeframes when activeLine stops are loaded, persisted to localStorage
   useEffect(() => {
-    const defaultTimeframes: Record<string, { start: string; end: string }> = {}
-    stops.forEach((s, idx) => {
-      const startMin = idx * 10
-      const endMin = idx * 10 + 30
-      
-      const formatTime = (totalMin: number) => {
-        const h = Math.floor(totalMin / 60) % 24
-        const m = totalMin % 60
-        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
-      }
-      
-      defaultTimeframes[s.id] = {
-        start: formatTime(360 + startMin), // starts around 06:00 + idx*10
-        end: formatTime(1410 + endMin)     // ends around 23:30 + idx*10
-      }
-    })
-    setStopsTimeframes(defaultTimeframes)
-  }, [selectedLineNumber])
+    if (!activeLine) return
+    const stored = localStorage.getItem(`stops_timeframes_${activeLine.line_number}`)
+    if (stored) {
+      setStopsTimeframes(JSON.parse(stored))
+    } else {
+      const defaultTimeframes: Record<string, { start: string; end: string }> = {}
+      const lineStops = getMockStopsForLine(activeLine, 'ida')
+      lineStops.forEach((s, idx) => {
+        const startMin = idx * 10
+        const endMin = idx * 10 + 30
+        
+        const formatTime = (totalMin: number) => {
+          const h = Math.floor(totalMin / 60) % 24
+          const m = totalMin % 60
+          return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+        }
+        
+        defaultTimeframes[s.id] = {
+          start: formatTime(360 + startMin), // starts around 06:00 + idx*10
+          end: formatTime(1410 + endMin)     // ends around 23:30 + idx*10
+        }
+      })
+      setStopsTimeframes(defaultTimeframes)
+      localStorage.setItem(`stops_timeframes_${activeLine.line_number}`, JSON.stringify(defaultTimeframes))
+    }
+  }, [selectedLineNumber, activeLine])
 
   // Simulated GPS tracking passage logs
   useEffect(() => {
@@ -502,6 +510,52 @@ export default function CompanyDashboard() {
       return changed ? updated.slice(0, 20) : prev
     })
   }, [buses, stopsTimeframes])
+
+  // Load real-time driver passage logs from localStorage and merge them
+  useEffect(() => {
+    if (!activeLine) return
+    const mergeLogs = () => {
+      setGpsPassageLogs(prev => {
+        const updated = [...prev]
+        let changed = false
+        
+        try {
+          const keys = Object.keys(localStorage)
+          keys.forEach(k => {
+            if (k.startsWith(`driver_passage_logs_${activeLine.line_number}_`)) {
+              const busUnit = k.replace(`driver_passage_logs_${activeLine.line_number}_`, '')
+              const list = JSON.parse(localStorage.getItem(k) || '[]')
+              list.forEach((log: any) => {
+                const logId = `driver-${busUnit}-${log.stopId}`
+                const exists = updated.some(l => l.id === logId)
+                if (!exists) {
+                  const tf = stopsTimeframes[log.stopId] || { start: '--:--', end: '--:--' }
+                  updated.unshift({
+                    id: logId,
+                    busUnit,
+                    driver: 'Néstor García',
+                    stopName: log.stopName,
+                    time: log.arrivalTime,
+                    scheduled: `${tf.start} - ${tf.end} hs`,
+                    status: log.status
+                  })
+                  changed = true
+                }
+              })
+            }
+          })
+        } catch (e) {
+          console.error(e)
+        }
+        
+        return changed ? updated.slice(0, 30) : prev
+      })
+    }
+    
+    mergeLogs()
+    const interval = setInterval(mergeLogs, 2000)
+    return () => clearInterval(interval)
+  }, [activeLine, stopsTimeframes])
 
   const getChartData = () => {
     if (chartPeriod === 'week') {
@@ -1245,10 +1299,14 @@ export default function CompanyDashboard() {
                                     <div style={{ display: 'flex', gap: '4px' }}>
                                       <button
                                         onClick={() => {
-                                          setStopsTimeframes(prev => ({
-                                            ...prev,
-                                            [stop.id]: { start: editingStart, end: editingEnd }
-                                          }));
+                                          setStopsTimeframes(prev => {
+                                            const updated = {
+                                              ...prev,
+                                              [stop.id]: { start: editingStart, end: editingEnd }
+                                            };
+                                            localStorage.setItem(`stops_timeframes_${activeLine.line_number}`, JSON.stringify(updated));
+                                            return updated;
+                                          });
                                           setEditingStopId(null);
                                           toast.success('Horario de paso guardado');
                                         }}

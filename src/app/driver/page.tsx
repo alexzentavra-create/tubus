@@ -339,6 +339,14 @@ function PremiumBusMarker({ status, lineColor }: { status: string; lineColor: st
   )
 }
 
+const hexToRgba = (hex: string, alpha: number) => {
+  const cleanHex = hex.replace('#', '')
+  const r = parseInt(cleanHex.substring(0, 2), 16)
+  const g = parseInt(cleanHex.substring(2, 4), 16)
+  const b = parseInt(cleanHex.substring(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
 export default function DriverPage() {
   const supabase = createClient()
   const watchIdRef  = useRef<number | null>(null)
@@ -365,6 +373,15 @@ export default function DriverPage() {
   const [gpsGuideActive, setGpsGuideActive] = useState(true)
   const [firstPersonView, setFirstPersonView] = useState(false)
   const [dayMode, setDayMode]           = useState(false)
+  // Control de Puntualidad States
+  const [nextStopIndex, _setNextStopIndex] = useState(0)
+  const nextStopIndexRef = useRef(0)
+  const setNextStopIndex = (val: number) => {
+    nextStopIndexRef.current = val
+    _setNextStopIndex(val)
+  }
+  const [lastCrossedStop, setLastCrossedStop] = useState<{ name: string; time: string; status: string } | null>(null)
+  const [stopsTimeframes, setStopsTimeframes] = useState<Record<string, { start: string; end: string }>>({})
   const [boardingStatus, setBoardingStatus] = useState<{ on: number; off: number; stopName: string } | null>(null)
 
   const [viewState, setViewState]       = useState({
@@ -450,6 +467,51 @@ export default function DriverPage() {
     }, 1000)
     return () => clearInterval(t)
   }, [isOnline])
+
+  // Synchronize stopsTimeframes from localStorage (updating in real time if admin changes scheduled times)
+  useEffect(() => {
+    if (!session) return
+    const loadTimeframes = () => {
+      const stored = localStorage.getItem(`stops_timeframes_${session.lineNumber}`)
+      if (stored) {
+        setStopsTimeframes(JSON.parse(stored))
+      }
+    }
+    loadTimeframes()
+    const interval = setInterval(loadTimeframes, 2000)
+    return () => clearInterval(interval)
+  }, [session])
+
+  // Restore nextStopIndex and lastCrossedStop from localStorage if logs exist for this bus unit
+  useEffect(() => {
+    if (!session) return
+    try {
+      const logsKey = `driver_passage_logs_${session.lineNumber}_${session.busUnit}`
+      const logs = JSON.parse(localStorage.getItem(logsKey) || '[]')
+      const mockLine = MOCK_LINES.find(l => l.id === session.lineId)
+      if (mockLine) {
+        const stops = getMockStopsForLine(mockLine)
+        if (logs.length > 0) {
+          const lastLog = logs[logs.length - 1]
+          setLastCrossedStop({ name: lastLog.stopName, time: lastLog.arrivalTime, status: lastLog.status })
+          
+          // Find next uncrossed stop index
+          let foundIdx = 0
+          for (let i = 0; i < stops.length; i++) {
+            if (logs.some((l: any) => l.stopId === stops[i].id)) {
+              foundIdx = i + 1
+            }
+          }
+          setNextStopIndex(Math.min(stops.length, foundIdx))
+        } else {
+          setNextStopIndex(0)
+          setLastCrossedStop(null)
+        }
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }, [session])
 
   const startGPS = useCallback((uid: string, sid: string, lid: string, unit: string, initPass: number) => {
     if (!navigator.geolocation) { toast.error('GPS no disponible'); return }
@@ -539,6 +601,51 @@ export default function DriverPage() {
         lastStoppedStopId = targetStop.id
         pauseCounter = 80 // pause for 4 seconds (80 ticks of 50ms)
         currentSpeed = 0
+
+        // Control de Puntualidad: Log crossing event if it matches the current expected stop
+        try {
+          const expectedStop = stops[nextStopIndexRef.current]
+          if (expectedStop && targetStop.id === expectedStop.id) {
+            const now = new Date()
+            const nowStr = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            
+            // Calculate delay status by checking current stopsTimeframes from localStorage
+            const timeframes = JSON.parse(localStorage.getItem(`stops_timeframes_${session.lineNumber}`) || '{}')
+            const tf = timeframes[targetStop.id] || { start: '06:00', end: '23:30' }
+            const currentMin = now.getHours() * 60 + now.getMinutes()
+            
+            const timeToMin = (t: string) => {
+              const [h, m] = t.split(':').map(Number)
+              return h * 60 + m
+            }
+            
+            const startMin = timeToMin(tf.start)
+            const endMin = timeToMin(tf.end)
+            
+            let status = 'A tiempo'
+            if (currentMin > endMin) status = 'Demorado'
+            else if (currentMin < startMin) status = 'Adelantado'
+            
+            const newLog = {
+              stopId: targetStop.id,
+              stopName: targetStop.name,
+              arrivalTime: nowStr,
+              status
+            }
+            
+            const logsKey = `driver_passage_logs_${session.lineNumber}_${session.busUnit}`
+            const logs = JSON.parse(localStorage.getItem(logsKey) || '[]')
+            if (!logs.some((l: any) => l.stopId === targetStop.id)) {
+              logs.push(newLog)
+              localStorage.setItem(logsKey, JSON.stringify(logs))
+            }
+            
+            setLastCrossedStop({ name: targetStop.name, time: nowStr, status })
+            setNextStopIndex(nextStopIndexRef.current + 1)
+          }
+        } catch (e) {
+          console.error('Error logging passage:', e)
+        }
         
         // Snap simulation progress to the stop's path location to prevent jump upon resuming
         if (typeof (targetStop as any).pathIndex === 'number') {
@@ -757,6 +864,9 @@ export default function DriverPage() {
           lineNumber: lineNumber,
           companyName: companyName,
         }
+        localStorage.removeItem(`driver_passage_logs_${sess.lineNumber}_${sess.busUnit}`)
+        setNextStopIndex(0)
+        setLastCrossedStop(null)
         setSession(sess)
         setPassengers(0)
         setIsOnline(true)
@@ -841,6 +951,9 @@ export default function DriverPage() {
       lineNumber: mockLine.line_number,
       companyName: mockLine.company,
     }
+    localStorage.removeItem(`driver_passage_logs_${mockLine.line_number}_${sess.busUnit}`)
+    setNextStopIndex(0)
+    setLastCrossedStop(null)
     setSession(sess)
     setPassengers(12)
     setIsOnline(true)
@@ -893,6 +1006,19 @@ export default function DriverPage() {
   const routePath = mockLine ? getMockRoutePathForLine(mockLine) : []
   const stops = mockLine ? getMockStopsForLine(mockLine) : []
   const upcomingStops = getUpcomingStops()
+
+  const nextStop = stops[nextStopIndex]
+  const nextTf = nextStop ? (stopsTimeframes[nextStop.id] || { start: '06:00', end: '23:30' }) : null
+  const isTripFinished = nextStopIndex >= stops.length && stops.length > 0
+
+  const handleResetTrip = () => {
+    if (!session) return
+    const logsKey = `driver_passage_logs_${session.lineNumber}_${session.busUnit}`
+    localStorage.removeItem(logsKey)
+    setNextStopIndex(0)
+    setLastCrossedStop(null)
+    toast.success('¡Recorrido reiniciado para una nueva vuelta!')
+  }
 
   return (
     <div style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden', background: 'var(--void)', color: 'var(--text-primary)', fontFamily: 'DM Sans,sans-serif' }}>
@@ -1263,6 +1389,85 @@ export default function DriverPage() {
                 <div style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '14px', lineHeight: 1, fontFamily: 'Syne,sans-serif' }}>{fmt(duration)}</div>
                 <div style={{ color: 'var(--text-muted)', fontSize: '9px', fontFamily: 'DM Mono', marginTop: '6px' }}>en turno</div>
               </div>
+            </div>
+
+            {/* Control de Puntualidad y Paradas Card */}
+            <div className="glass" style={{ padding: '16px', marginBottom: '14px', border: `1px solid ${hexToRgba(accentColor, 0.15)}`, boxShadow: `0 0 15px ${hexToRgba(accentColor, 0.05)}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', borderBottom: '1px solid rgba(184,200,224,0.07)', paddingBottom: '8px' }}>
+                <Clock size={13} style={{ color: accentColor }} />
+                <span style={{ fontSize: '11px', fontWeight: 600, fontFamily: 'DM Mono', letterSpacing: '0.04em', color: accentColor, textTransform: 'uppercase' }}>Control de Puntualidad</span>
+              </div>
+
+              {isTripFinished ? (
+                <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#10B981', marginBottom: '4px' }}>
+                    🎉 ¡Fin de Recorrido!
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                    Todas las paradas han sido completadas con éxito.
+                  </div>
+                  <button
+                    onClick={handleResetTrip}
+                    style={{
+                      background: accentColor,
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '6px 12px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      fontFamily: 'DM Sans,sans-serif'
+                    }}
+                  >
+                    Iniciar Nueva Vuelta
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  {nextStop ? (
+                    <div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Próxima Estación Programada
+                      </div>
+                      <div style={{ fontSize: '15px', fontWeight: 800, color: '#fff', marginTop: '3px' }}>
+                        {nextStopIndex + 1}. {nextStop.name}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '8px', background: 'rgba(255,255,255,0.03)', padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Paso Programado:</span>
+                        <span style={{ fontSize: '12px', color: accentColor, fontWeight: 700, fontFamily: 'DM Mono' }}>
+                          {nextTf?.start} a {nextTf?.end} hs
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
+                      Esperando inicio de recorrido...
+                    </div>
+                  )}
+
+                  {lastCrossedStop && (
+                    <div style={{ marginTop: '12px', borderTop: '1px dashed rgba(184,200,224,0.07)', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ fontSize: '9px', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                        Último cruce registrado por GPS
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '11px', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>
+                          {lastCrossedStop.name}
+                        </span>
+                        <span style={{
+                          fontSize: '10px',
+                          color: lastCrossedStop.status === 'A tiempo' ? '#10B981' : (lastCrossedStop.status === 'Demorado' ? '#EF4444' : '#F59E0B'),
+                          fontWeight: 700,
+                          fontFamily: 'DM Mono'
+                        }}>
+                          {lastCrossedStop.time} ({lastCrossedStop.status})
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Upcoming Stops Timeline */}
