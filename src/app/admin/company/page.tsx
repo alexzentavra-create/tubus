@@ -110,6 +110,7 @@ export default function CompanyDashboard() {
   const activeLine = MOCK_LINES.find(l => l.line_number === selectedLineNumber) || MOCK_LINES[0]
   const themeColor = activeLine.color
   const [buses, setBuses] = useState<any[]>([])
+  const [selectedComplaintForDetail, setSelectedComplaintForDetail] = useState<any>(null)
 
   // Dynamic Chart Filters
   const [chartPeriod, setChartPeriod] = useState<'day' | 'week' | 'month'>('day')
@@ -152,12 +153,26 @@ export default function CompanyDashboard() {
         age: 32 + idx * 4,
         phone: `+54 9 11 ${5429 - idx * 100} 8234`,
         historyBuses: [`${activeLine.line_number}-301`, `${activeLine.line_number}-302`],
-        historyDenuncias: idx % 3 === 0 ? [{ id: `rep-idx-${idx}`, type: 'No paró', date: 'Ayer', desc: 'El colectivo no paró...' }] : []
+        historyDenuncias: idx % 3 === 0 ? [{
+          id: `rep-idx-${idx}-${Date.now()}`,
+          type: 'No paró',
+          date: 'Ayer',
+          time: '15:30',
+          desc: 'El colectivo no se detuvo en la parada indicada a pesar de la seña del pasajero.',
+          driver: d.name,
+          bus: `${activeLine.line_number}-301`,
+          stop: 'Av. Rivadavia y Pueyrredón'
+        }] : []
       }))
       setDriversList(enhanced)
       localStorage.setItem(`mock_drivers_${activeLine.line_number}`, JSON.stringify(enhanced))
     }
   }, [activeLine])
+
+  const updateDrivers = (updatedList: any[]) => {
+    setDriversList(updatedList)
+    localStorage.setItem(`mock_drivers_${activeLine.line_number}`, JSON.stringify(updatedList))
+  }
 
   const addWarning = (driverName: string, complaintType: string = 'Infracción', complaintDesc: string = 'Llamada de atención administrativa') => {
     // 1. Update warnings mapping
@@ -1493,6 +1508,8 @@ export default function CompanyDashboard() {
                 driverWarnings={driverWarnings}
                 onDeleteDriver={deleteDriver}
                 onAddDriverClick={() => setShowAddDriverModal(true)}
+                onUpdateDrivers={updateDrivers}
+                onViewComplaint={setSelectedComplaintForDetail}
                 themeColor={themeColor}
               />
             )}
@@ -1508,7 +1525,16 @@ export default function CompanyDashboard() {
               />
             )}
             {tab === 'stops' && <StopsTab activeLine={activeLine} themeColor={themeColor} />}
-            {tab === 'reports' && <CompanyReports reports={reports} driverWarnings={driverWarnings} onAddWarning={addWarning} onResolve={(id) => setReports(rs => rs.map(x => x.id === id ? { ...x, status: 'resolved' } : x))} themeColor={themeColor} />}
+            {tab === 'reports' && (
+              <CompanyReports
+                reports={reports}
+                driverWarnings={driverWarnings}
+                onAddWarning={addWarning}
+                onResolve={(id) => setReports(rs => rs.map(x => x.id === id ? { ...x, status: 'resolved' } : x))}
+                onViewComplaint={setSelectedComplaintForDetail}
+                themeColor={themeColor}
+              />
+            )}
             {tab === 'calendar' && <CalendarTab themeColor={themeColor} activeStats={activeStats} />}
             {tab === 'map' && (
               <MapTab
@@ -1984,6 +2010,135 @@ export default function CompanyDashboard() {
           </div>
         </div>
       )}
+
+      {/* Denuncia Detail Modal */}
+      {selectedComplaintForDetail && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 1000,
+          background: 'rgba(5, 8, 16, 0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px'
+        }}>
+          <div className="glass-dark" style={{
+            background: '#121527',
+            borderRadius: '16px',
+            border: '1px solid rgba(255,255,255,0.08)',
+            width: '100%',
+            maxWidth: '500px',
+            padding: '24px',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            position: 'relative'
+          }}>
+            <button
+              onClick={() => setSelectedComplaintForDetail(null)}
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '50%',
+                width: '28px',
+                height: '28px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+            >
+              ✕
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ padding: '3px 8px', borderRadius: '4px', background: 'rgba(255,77,106,0.1)', color: '#FF4D6A', fontSize: '10px', fontWeight: 700 }}>DENUNCIA</span>
+              <span style={{ fontSize: '11px', color: '#8f94a5' }}>ID: {selectedComplaintForDetail.id}</span>
+            </div>
+
+            <div>
+              <h3 style={{ color: '#fff', fontSize: '18px', fontWeight: 700, margin: 0 }}>{selectedComplaintForDetail.type}</h3>
+              <p style={{ color: '#8f94a5', fontSize: '12px', margin: '4px 0 0' }}>{selectedComplaintForDetail.date} · {selectedComplaintForDetail.time || 'N/A'}</p>
+            </div>
+
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '14px', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
+              <div>
+                <span style={{ color: '#8f94a5', display: 'block', fontSize: '11px', marginBottom: '2px' }}>Descripción del suceso:</span>
+                <div style={{ color: '#fff', background: 'rgba(255,255,255,0.02)', padding: '10px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)', fontSize: '12px', lineHeight: 1.5 }}>
+                  {selectedComplaintForDetail.desc}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '4px' }}>
+                <div>
+                  <span style={{ color: '#8f94a5', display: 'block', fontSize: '11px' }}>Chofer denunciado:</span>
+                  <strong style={{ color: '#fff' }}>{selectedComplaintForDetail.driver}</strong>
+                </div>
+                <div>
+                  <span style={{ color: '#8f94a5', display: 'block', fontSize: '11px' }}>Unidad de colectivo:</span>
+                  <strong style={{ color: '#fff' }}>Unidad {selectedComplaintForDetail.bus}</strong>
+                </div>
+              </div>
+
+              <div>
+                <span style={{ color: '#8f94a5', display: 'block', fontSize: '11px', marginBottom: '2px' }}>Lugar del suceso:</span>
+                <strong style={{ color: '#fff' }}>{selectedComplaintForDetail.stop || 'Ubicación Desconocida'}</strong>
+                
+                <div style={{
+                  marginTop: '8px',
+                  height: '140px',
+                  borderRadius: '8px',
+                  background: '#0b0f19',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  overflow: 'hidden',
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <div style={{ position: 'absolute', zIndex: 1, textAlign: 'center' }}>
+                    <MapPin size={24} style={{ color: '#FF4D6A', margin: '0 auto 4px' }}/>
+                    <span style={{ color: '#fff', fontSize: '10px', fontWeight: 600, background: 'rgba(0,0,0,0.6)', padding: '2px 6px', borderRadius: '4px' }}>
+                      {selectedComplaintForDetail.stop}
+                    </span>
+                  </div>
+                  
+                  <div style={{ width: '100%', height: '100%', opacity: 0.15, background: 'radial-gradient(circle, #fff 10%, transparent 11%)', backgroundSize: '12px 12px' }}/>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+              <button
+                onClick={() => setSelectedComplaintForDetail(null)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  background: themeColor,
+                  color: '#fff',
+                  border: 'none',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Aceptar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <style>{`
         @keyframes floatFade {
           0% {
@@ -2202,8 +2357,77 @@ function BusesTab({ buses, activeLine, themeColor }: { buses: any[]; activeLine:
   )
 }
 
-function CompanyDrivers({ drivers, activeSessions = [], driverWarnings = {}, onDeleteDriver, onAddDriverClick, themeColor }: { drivers: any[]; activeSessions?: any[]; driverWarnings?: Record<string, number>; onDeleteDriver: (id: string) => void; onAddDriverClick: () => void; themeColor: string }) {
+function CompanyDrivers({ drivers, activeSessions = [], driverWarnings = {}, onDeleteDriver, onAddDriverClick, onUpdateDrivers, onViewComplaint, themeColor }: { drivers: any[]; activeSessions?: any[]; driverWarnings?: Record<string, number>; onDeleteDriver: (id: string) => void; onAddDriverClick: () => void; onUpdateDrivers: (list: any[]) => void; onViewComplaint: (complaint: any) => void; themeColor: string }) {
   const [expandedDriverId, setExpandedDriverId] = useState<string | null>(null)
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>, driverId: string) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string
+      const updated = drivers.map(d => {
+        if (d.id === driverId) {
+          return { ...d, photo: dataUrl }
+        }
+        return d
+      })
+      onUpdateDrivers(updated)
+      toast.success("Foto de perfil actualizada con éxito")
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, driverId: string) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const sizeStr = file.size > 1024 * 1024 
+      ? `${(file.size / (1024 * 1024)).toFixed(1)} MB` 
+      : `${(file.size / 1024).toFixed(0)} KB`
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string
+      const updated = drivers.map(d => {
+        if (d.id === driverId) {
+          const files = d.files || []
+          return {
+            ...d,
+            files: [
+              ...files,
+              {
+                name: file.name,
+                type: file.type || 'application/octet-stream',
+                size: sizeStr,
+                data: dataUrl
+              }
+            ]
+          }
+        }
+        return d
+      })
+      onUpdateDrivers(updated)
+      toast.success(`Archivo "${file.name}" subido con éxito`)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleRemoveFile = (driverId: string, fileIdx: number) => {
+    const updated = drivers.map(d => {
+      if (d.id === driverId) {
+        const files = d.files || []
+        return {
+          ...d,
+          files: files.filter((_: any, idx: number) => idx !== fileIdx)
+        }
+      }
+      return d
+    })
+    onUpdateDrivers(updated)
+    toast.success("Archivo eliminado correctamente")
+  }
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
@@ -2255,13 +2479,17 @@ function CompanyDrivers({ drivers, activeSessions = [], driverWarnings = {}, onD
                 transition: 'all 200ms'
               }}>
                 <div style={{display:'flex',alignItems:'center',gap:'14px',cursor:'pointer'}} onClick={() => setExpandedDriverId(isExpanded ? null : d.id)}>
-                  <div style={{width:'44px',height:'44px',borderRadius:'12px',background:activeSession ? hexToRgba(themeColor, 0.15) : 'rgba(255,255,255,0.02)',border:activeSession ? `1px solid ${hexToRgba(themeColor, 0.3)}` : '1px solid rgba(255,255,255,0.08)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-                    <Users size={18} style={{color:activeSession ? themeColor : '#8f94a5'}}/>
+                  <div style={{width:'44px',height:'44px',borderRadius:'12px',overflow:'hidden',background:activeSession ? hexToRgba(themeColor, 0.15) : 'rgba(255,255,255,0.02)',border:activeSession ? `1px solid ${hexToRgba(themeColor, 0.3)}` : '1px solid rgba(255,255,255,0.08)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                    {d.photo ? (
+                      <img src={d.photo} alt={d.name} style={{width:'100%',height:'100%',objectFit:'cover'}}/>
+                    ) : (
+                      <Users size={18} style={{color:activeSession ? themeColor : '#8f94a5'}}/>
+                    )}
                   </div>
                   <div style={{flex:1}}>
                     <div style={{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap'}}>
                       <span style={{color:'#fff',fontWeight:700,fontSize:'15px'}}>{d.name}</span>
-                      {activeSession && (
+                      {activeSession ? (
                         <span style={{
                           padding:'2px 8px',
                           borderRadius:'999px',
@@ -2274,6 +2502,20 @@ function CompanyDrivers({ drivers, activeSessions = [], driverWarnings = {}, onD
                           letterSpacing:'0.03em'
                         }}>
                           En servicio · Colectivo {activeSession.bus_unit}
+                        </span>
+                      ) : (
+                        <span style={{
+                          padding:'2px 8px',
+                          borderRadius:'999px',
+                          background:'rgba(255,255,255,0.03)',
+                          border:'1px solid rgba(255,255,255,0.08)',
+                          color:'#8f94a5',
+                          fontSize:'9px',
+                          fontWeight:600,
+                          textTransform:'uppercase',
+                          letterSpacing:'0.03em'
+                        }}>
+                          Fuera de servicio
                         </span>
                       )}
                       {warningsCount > 0 && (
@@ -2308,26 +2550,48 @@ function CompanyDrivers({ drivers, activeSessions = [], driverWarnings = {}, onD
                 {/* Expanded Details Panel */}
                 {isExpanded && (
                   <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                      {/* Left side: General Profile */}
-                      <div>
-                        <h5 style={{ color: '#fff', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.05em' }}>Perfil General</h5>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#8f94a5' }}>Documento (DNI):</span>
-                            <span style={{ color: '#fff', fontWeight: 500, fontFamily: 'DM Mono' }}>{d.dni || '—'}</span>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '24px' }}>
+                      {/* Left side: General Profile with Image editing */}
+                      <div style={{ display: 'flex', gap: '20px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                          <div style={{ width: '80px', height: '80px', borderRadius: '50%', overflow: 'hidden', border: `2px solid ${themeColor}`, background: 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {d.photo ? (
+                              <img src={d.photo} alt={d.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              <Users size={32} style={{ color: '#8f94a5' }} />
+                            )}
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#8f94a5' }}>Edad:</span>
-                            <span style={{ color: '#fff', fontWeight: 500 }}>{d.age || '—'} años</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#8f94a5' }}>Número de contacto:</span>
-                            <span style={{ color: '#fff', fontWeight: 500, fontFamily: 'DM Mono' }}>{d.phone || '—'}</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#8f94a5' }}>Legajo interno:</span>
-                            <span style={{ color: '#fff', fontWeight: 500, fontFamily: 'DM Mono' }}>{d.legajo}</span>
+                          <label htmlFor={`photo-upload-${d.id}`} style={{ padding: '4px 10px', borderRadius: '6px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '10px', fontWeight: 600, cursor: 'pointer', textAlign: 'center' }}>
+                            Cambiar Foto
+                          </label>
+                          <input
+                            type="file"
+                            id={`photo-upload-${d.id}`}
+                            style={{ display: 'none' }}
+                            accept="image/*"
+                            onChange={(e) => handlePhotoChange(e, d.id)}
+                          />
+                        </div>
+                        
+                        <div style={{ flex: 1 }}>
+                          <h5 style={{ color: '#fff', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.05em' }}>Perfil General</h5>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#8f94a5' }}>Documento (DNI):</span>
+                              <span style={{ color: '#fff', fontWeight: 500, fontFamily: 'DM Mono' }}>{d.dni || '—'}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#8f94a5' }}>Edad:</span>
+                              <span style={{ color: '#fff', fontWeight: 500 }}>{d.age || '—'} años</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#8f94a5' }}>Número de contacto:</span>
+                              <span style={{ color: '#fff', fontWeight: 500, fontFamily: 'DM Mono' }}>{d.phone || '—'}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#8f94a5' }}>Legajo interno:</span>
+                              <span style={{ color: '#fff', fontWeight: 500, fontFamily: 'DM Mono' }}>{d.legajo}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -2349,13 +2613,27 @@ function CompanyDrivers({ drivers, activeSessions = [], driverWarnings = {}, onD
                             </div>
                           </div>
                           <div>
-                            <span style={{ color: '#8f94a5', display: 'block', marginBottom: '4px' }}>Registro de Denuncias:</span>
+                            <span style={{ color: '#8f94a5', display: 'block', marginBottom: '4px' }}>Registro de Denuncias (Haz clic para ver detalle):</span>
                             {(d.historyDenuncias || []).length === 0 ? (
                               <span style={{ color: '#64748b' }}>Chofer sin denuncias activas</span>
                             ) : (
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                 {(d.historyDenuncias || []).map((rep: any, rIdx: number) => (
-                                  <div key={rIdx} style={{ padding: '6px 10px', borderRadius: '6px', background: 'rgba(255,77,106,0.04)', border: '1px solid rgba(255,77,106,0.1)', color: '#8f94a5' }}>
+                                  <div
+                                    key={rIdx}
+                                    onClick={() => onViewComplaint(rep)}
+                                    style={{
+                                      padding: '6px 10px',
+                                      borderRadius: '6px',
+                                      background: 'rgba(255,77,106,0.04)',
+                                      border: '1px solid rgba(255,77,106,0.1)',
+                                      color: '#8f94a5',
+                                      cursor: 'pointer',
+                                      transition: 'border-color 150ms'
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(255,77,106,0.25)'}
+                                    onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,77,106,0.1)'}
+                                  >
                                     <div style={{ color: '#ff4d6a', fontWeight: 600, fontSize: '11px' }}>{rep.type} · {rep.date}</div>
                                     <div style={{ fontSize: '10px', marginTop: '2px' }}>{rep.desc}</div>
                                   </div>
@@ -2365,6 +2643,111 @@ function CompanyDrivers({ drivers, activeSessions = [], driverWarnings = {}, onD
                           </div>
                         </div>
                       </div>
+                    </div>
+
+                    {/* Document Files Section */}
+                    <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                      <h5 style={{ color: '#fff', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', marginBottom: '12px', letterSpacing: '0.05em' }}>Documentos y Archivos Relacionados</h5>
+                      
+                      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '14px' }}>
+                        <label
+                          htmlFor={`file-upload-${d.id}`}
+                          style={{
+                            padding: '6px 14px',
+                            borderRadius: '8px',
+                            background: 'rgba(255,255,255,0.04)',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            color: '#fff',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            transition: 'all 200ms'
+                          }}
+                        >
+                          📎 Cargar Archivo
+                        </label>
+                        <input
+                          type="file"
+                          id={`file-upload-${d.id}`}
+                          style={{ display: 'none' }}
+                          accept=".zip,.pdf,.doc,.docx,image/*"
+                          onChange={(e) => handleFileUpload(e, d.id)}
+                        />
+                        <span style={{ color: '#8f94a5', fontSize: '11px' }}>Soporta PDF, Word, ZIP e imágenes.</span>
+                      </div>
+
+                      {(d.files || []).length === 0 ? (
+                        <div style={{ color: '#64748b', fontSize: '11px', fontStyle: 'italic' }}>No hay archivos adjuntos en el perfil de este chofer.</div>
+                      ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                          {(d.files || []).map((file: any, fIdx: number) => {
+                            let fileIcon = '📄';
+                            if (file.type.includes('image')) fileIcon = '🖼️';
+                            else if (file.type.includes('pdf')) fileIcon = '📕';
+                            else if (file.type.includes('zip')) fileIcon = '📦';
+                            else if (file.type.includes('word') || file.name.endsWith('.doc') || file.name.endsWith('.docx')) fileIcon = '📘';
+
+                            return (
+                              <div
+                                key={fIdx}
+                                style={{
+                                  background: 'rgba(255,255,255,0.02)',
+                                  border: '1px solid rgba(255,255,255,0.06)',
+                                  borderRadius: '8px',
+                                  padding: '8px 12px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between'
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                                  <span style={{ fontSize: '16px' }}>{fileIcon}</span>
+                                  <div style={{ minWidth: 0 }}>
+                                    <div style={{ color: '#fff', fontSize: '11px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={file.name}>
+                                      {file.name}
+                                    </div>
+                                    <div style={{ color: '#8f94a5', fontSize: '9px' }}>
+                                      {file.size}
+                                    </div>
+                                  </div>
+                                </div>
+                                
+                                <div style={{ display: 'flex', gap: '6px' }}>
+                                  <a
+                                    href={file.data}
+                                    download={file.name}
+                                    style={{
+                                      color: themeColor,
+                                      background: 'none',
+                                      border: 'none',
+                                      fontSize: '11px',
+                                      cursor: 'pointer',
+                                      textDecoration: 'none'
+                                    }}
+                                  >
+                                    Descargar
+                                  </a>
+                                  <button
+                                    onClick={() => handleRemoveFile(d.id, fIdx)}
+                                    style={{
+                                      color: '#FF4D6A',
+                                      background: 'none',
+                                      border: 'none',
+                                      fontSize: '11px',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    Eliminar
+                                  </button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
 
                     {/* Stats strip */}
@@ -2381,18 +2764,18 @@ function CompanyDrivers({ drivers, activeSessions = [], driverWarnings = {}, onD
                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
                       <button
                         onClick={(e) => {
-                          e.stopPropagation();
-                          if (confirm(`¿Estás seguro de eliminar a ${d.name} de los registros?`)) {
-                            onDeleteDriver(d.id);
+                          e.stopPropagation()
+                          if (confirm(`¿Estás seguro de que deseas eliminar al chofer ${d.name}?`)) {
+                            onDeleteDriver(d.id)
                           }
                         }}
                         style={{
-                          padding: '6px 14px',
-                          borderRadius: '6px',
+                          padding: '8px 16px',
+                          borderRadius: '8px',
                           background: 'rgba(255,77,106,0.08)',
                           border: '1px solid rgba(255,77,106,0.2)',
-                          color: '#ff4d6a',
-                          fontSize: '11px',
+                          color: '#FF4D6A',
+                          fontSize: '12px',
                           fontWeight: 600,
                           cursor: 'pointer',
                           display: 'flex',
@@ -2400,8 +2783,10 @@ function CompanyDrivers({ drivers, activeSessions = [], driverWarnings = {}, onD
                           gap: '6px',
                           transition: 'all 200ms'
                         }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,77,106,0.15)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,77,106,0.08)'}
                       >
-                        <Trash2 size={12}/> Eliminar Chofer
+                        <Trash2 size={13}/> Eliminar Chofer
                       </button>
                     </div>
                   </div>
@@ -2637,7 +3022,7 @@ function StopsTab({ activeLine, themeColor }: { activeLine: any; themeColor: str
   )
 }
 
-function CompanyReports({ reports, driverWarnings = {}, onAddWarning, onResolve, themeColor }: { reports: any[]; driverWarnings?: Record<string, number>; onAddWarning: (driver: string) => void; onResolve: (id: string) => void; themeColor: string }) {
+function CompanyReports({ reports, driverWarnings = {}, onAddWarning, onResolve, onViewComplaint, themeColor }: { reports: any[]; driverWarnings?: Record<string, number>; onAddWarning: (driver: string) => void; onResolve: (id: string) => void; onViewComplaint: (complaint: any) => void; themeColor: string }) {
   const statusStyle:Record<string,any>={pending:{bg:'rgba(240,180,41,0.08)',c:'#F0B429',b:'rgba(240,180,41,0.2)'},resolved:{bg:'rgba(34,211,160,0.08)',c:'#22D3A0',b:'rgba(34,211,160,0.2)'}}
   return (
     <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
@@ -2645,15 +3030,23 @@ function CompanyReports({ reports, driverWarnings = {}, onAddWarning, onResolve,
         const warnings = driverWarnings[r.driver] || 0
         
         return (
-          <div key={r.id} style={{
-            background: '#121527',
-            borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
-            padding: '16px 20px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-          }}>
+          <div
+            key={r.id}
+            onClick={() => onViewComplaint(r)}
+            style={{
+              background: '#121527',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+              padding: '16px 20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              cursor: 'pointer',
+              transition: 'border-color 200ms'
+            }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'}
+          >
             <div style={{display:'flex',alignItems:'flex-start',gap:'12px'}}>
               <div style={{width:'36px',height:'36px',borderRadius:'10px',background:'rgba(255,77,106,0.07)',border:'1px solid rgba(255,77,106,0.15)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                 <AlertTriangle size={15} style={{color:'#FF4D6A'}}/>
@@ -2674,11 +3067,17 @@ function CompanyReports({ reports, driverWarnings = {}, onAddWarning, onResolve,
             
             <div style={{display:'flex',gap:'8px',marginTop:'4px',alignItems:'center'}}>
               {r.status==='pending' && (
-                <button onClick={()=>onResolve(r.id)} style={{flex:2,padding:'8px',borderRadius:'8px',background:'rgba(34,211,160,0.08)',border:'1px solid rgba(34,211,160,0.2)',color:'#22D3A0',fontSize:'12px',fontWeight:600,cursor:'pointer'}}>
+                <button
+                  onClick={(e)=>{ e.stopPropagation(); onResolve(r.id); }}
+                  style={{flex:2,padding:'8px',borderRadius:'8px',background:'rgba(34,211,160,0.08)',border:'1px solid rgba(34,211,160,0.2)',color:'#22D3A0',fontSize:'12px',fontWeight:600,cursor:'pointer'}}
+                >
                   Marcar resuelto
                 </button>
               )}
-              <button onClick={()=>onAddWarning(r.driver)} style={{flex:1,padding:'8px 12px',borderRadius:'8px',background:'rgba(255,77,106,0.08)',border:'1px solid rgba(255,77,106,0.25)',color:'#FF4D6A',fontSize:'11px',fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'5px'}}>
+              <button
+                onClick={(e)=>{ e.stopPropagation(); onAddWarning(r.driver); }}
+                style={{flex:1,padding:'8px 12px',borderRadius:'8px',background:'rgba(255,77,106,0.08)',border:'1px solid rgba(255,77,106,0.25)',color:'#FF4D6A',fontSize:'11px',fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'5px'}}
+              >
                 <AlertTriangle size={12}/> Penalizar (+1 Punto)
               </button>
             </div>
