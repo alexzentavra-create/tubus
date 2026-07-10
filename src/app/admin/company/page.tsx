@@ -133,6 +133,25 @@ export default function CompanyDashboard() {
   // Inactive QR Code warnings state
   const [qrWarnings, setQrWarnings] = useState<any[]>([])
 
+  // Todo Drag-and-drop state & handlers
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index)
+  }
+  const handleDragOver = (e: any) => {
+    e.preventDefault()
+  }
+  const handleDrop = (index: number) => {
+    if (draggedIndex === null || draggedIndex === index) return
+    setTodos(prev => {
+      const copy = [...prev]
+      const [moved] = copy.splice(draggedIndex, 1)
+      copy.splice(index, 0, moved)
+      return copy
+    })
+    setDraggedIndex(null)
+  }
+
   // Load QR warnings from localStorage
   useEffect(() => {
     const loadQRWarnings = () => {
@@ -899,7 +918,17 @@ export default function CompanyDashboard() {
     setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t))
   }
   const toggleFlag = (id: string) => {
-    setTodos(prev => prev.map(t => t.id === id ? { ...t, flagged: !t.flagged } : t))
+    setTodos(prev => prev.map(t => {
+      if (t.id === id) {
+        const nextFlagged = !t.flagged
+        return {
+          ...t,
+          flagged: nextFlagged,
+          badge: nextFlagged ? 'Urgente' : (t.badge === 'Urgente' ? 'Pendiente' : t.badge)
+        }
+      }
+      return t
+    }))
   }
   const deleteTodo = (id: string) => {
     setTodos(prev => prev.filter(t => t.id !== id))
@@ -1840,36 +1869,43 @@ export default function CompanyDashboard() {
               {/* SVG progress rings row - 3 columns */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
                 {/* Ring 1 - Ocupación */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center' }}>
-                  <div style={{ position: 'relative', width: '48px', height: '48px' }}>
-                    <svg width="48" height="48" viewBox="0 0 36 36">
-                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
-                      <circle cx="18" cy="18" r="15.915" fill="none" stroke={themeColor} strokeWidth="3"
-                        strokeDasharray="48 52" strokeDashoffset="25" strokeLinecap="round" />
-                    </svg>
-                    <div style={{
-                      position: 'absolute',
-                      top: '50%',
-                      left: '50%',
-                      transform: 'translate(-50%, -50%)',
-                      fontSize: '9px',
-                      fontWeight: 700,
-                      color: '#fff',
-                    }}>
-                      48%
+                {(() => {
+                  const activeSessCount = activeSessions.length
+                  const totalPassengers = activeSessions.reduce((acc: number, s: any) => acc + (s.total_passengers || 0), 0)
+                  const capacity = activeSessCount * 60 || 1
+                  const occupationPct = activeSessCount > 0 ? Math.min(100, Math.round((totalPassengers / capacity) * 100)) : 0
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center' }}>
+                      <div style={{ position: 'relative', width: '48px', height: '48px' }}>
+                        <svg width="48" height="48" viewBox="0 0 36 36">
+                          <circle cx="18" cy="18" r="15.915" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
+                          <circle cx="18" cy="18" r="15.915" fill="none" stroke={themeColor} strokeWidth="3"
+                            strokeDasharray={`${occupationPct} ${100 - occupationPct}`} strokeDashoffset="25" strokeLinecap="round" />
+                        </svg>
+                        <div style={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          fontSize: '9px',
+                          fontWeight: 700,
+                          color: '#fff',
+                        }}>
+                          {occupationPct}%
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '10px', color: '#8f94a5', whiteSpace: 'nowrap' }}>Ocupación</div>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#fff', marginTop: '2px' }}>{occupationPct}.0%</div>
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '10px', color: '#8f94a5', whiteSpace: 'nowrap' }}>Ocupación</div>
-                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#fff', marginTop: '2px' }}>48.2%</div>
-                  </div>
-                </div>
+                  )
+                })()}
 
                 {/* Ring 2 - Choferes */}
                 {(() => {
-                  const totalD = LINE_DRIVERS[activeLine.line_number]?.length || 5
                   const activeD = activeSessions.length
-                  const pct = Math.min(100, Math.round((activeD / totalD) * 100))
+                  const pct = Math.min(100, activeD * 20)
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center' }}>
                       <div style={{ position: 'relative', width: '48px', height: '48px' }}>
@@ -1892,37 +1928,46 @@ export default function CompanyDashboard() {
                       </div>
                       <div>
                         <div style={{ fontSize: '10px', color: '#8f94a5', whiteSpace: 'nowrap' }}>Choferes</div>
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#fff', marginTop: '2px' }}>{activeD}/{totalD}</div>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#fff', marginTop: '2px' }}>{activeD}</div>
                       </div>
                     </div>
                   )
                 })()}
 
-                {/* Ring 3 - Eco-Driving */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center' }}>
-                  <div style={{ position: 'relative', width: '48px', height: '48px' }}>
-                    <svg width="48" height="48" viewBox="0 0 36 36">
-                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
-                      <circle cx="18" cy="18" r="15.915" fill="none" stroke="#22d3ee" strokeWidth="3"
-                        strokeDasharray="92 8" strokeDashoffset="25" strokeLinecap="round" />
-                    </svg>
-                    <div style={{
-                      position: 'absolute',
-                      top: '50%',
-                      left: '50%',
-                      transform: 'translate(-50%, -50%)',
-                      fontSize: '9px',
-                      fontWeight: 700,
-                      color: '#fff',
-                    }}>
-                      92%
+                {/* Ring 3 - Puntualidad */}
+                {(() => {
+                  const crossings = gpsPassageLogs || []
+                  const onTimeCount = crossings.filter((log: any) => log.status === 'A tiempo' || log.status === 'on-time' || log.status === 'On Time').length
+                  const totalCrossings = crossings.length
+                  const punctualityPct = totalCrossings > 0 ? Math.round((onTimeCount / totalCrossings) * 100) : 92
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center' }}>
+                      <div style={{ position: 'relative', width: '48px', height: '48px' }}>
+                        <svg width="48" height="48" viewBox="0 0 36 36">
+                          <circle cx="18" cy="18" r="15.915" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
+                          <circle cx="18" cy="18" r="15.915" fill="none" stroke="#22d3ee" strokeWidth="3"
+                            strokeDasharray={`${punctualityPct} ${100 - punctualityPct}`} strokeDashoffset="25" strokeLinecap="round" />
+                        </svg>
+                        <div style={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          fontSize: '9px',
+                          fontWeight: 700,
+                          color: '#fff',
+                        }}>
+                          {punctualityPct}%
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '10px', color: '#8f94a5', whiteSpace: 'nowrap' }}>Puntualidad</div>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: '#fff', marginTop: '2px' }}>{punctualityPct}.0%</div>
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '10px', color: '#8f94a5', whiteSpace: 'nowrap' }}>Eco-Conduc.</div>
-                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#fff', marginTop: '2px' }}>92.0%</div>
-                  </div>
-                </div>
+                  )
+                })()}
               </div>
             </div>
 
@@ -1996,19 +2041,24 @@ export default function CompanyDashboard() {
               )}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto' }}>
-                {todos.map((todo) => (
+                {todos.map((todo, i) => (
                   <div
                     key={todo.id}
+                    draggable
+                    onDragStart={() => handleDragStart(i)}
+                    onDragOver={handleDragOver}
+                    onDrop={() => handleDrop(i)}
                     style={{
                       display: 'flex',
                       alignItems: 'flex-start',
                       gap: '12px',
                       padding: '10px 12px',
                       borderRadius: '8px',
-                      background: todo.done ? 'rgba(255,255,255,0.01)' : 'rgba(255,255,255,0.02)',
-                      border: '1px solid rgba(255, 255, 255, 0.04)',
+                      background: draggedIndex === i ? 'rgba(255,255,255,0.05)' : (todo.done ? 'rgba(255,255,255,0.01)' : 'rgba(255,255,255,0.02)'),
+                      border: draggedIndex === i ? `1px dashed ${themeColor}` : '1px solid rgba(255, 255, 255, 0.04)',
                       opacity: todo.done ? 0.6 : 1,
                       transition: 'all 200ms',
+                      cursor: 'grab',
                     }}
                   >
                     <button
