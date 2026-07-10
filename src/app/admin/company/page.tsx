@@ -1485,7 +1485,7 @@ export default function CompanyDashboard() {
               </div>
             )}
 
-            {tab === 'buses' && <BusesTab buses={buses} themeColor={themeColor} />}
+            {tab === 'buses' && <BusesTab buses={buses} activeLine={activeLine} themeColor={themeColor} />}
             {tab === 'drivers' && (
               <CompanyDrivers
                 drivers={driversList}
@@ -2004,43 +2004,199 @@ export default function CompanyDashboard() {
   )
 }
 
-function BusesTab({ buses, themeColor }: { buses: any[]; themeColor: string }) {
+function getBusProgress(bus: any, stops: any[]) {
+  if (stops.length < 2) return 0;
+
+  let closestIdx = 0;
+  let minDistance = Infinity;
+  for (let i = 0; i < stops.length; i++) {
+    const dist = Math.hypot(stops[i].latitude - bus.latitude, stops[i].longitude - bus.longitude);
+    if (dist < minDistance) {
+      minDistance = dist;
+      closestIdx = i;
+    }
+  }
+
+  if (closestIdx === stops.length - 1) {
+    return 100;
+  }
+  if (closestIdx === 0) {
+    const nextStop = stops[1];
+    const distToCurrent = Math.hypot(stops[0].latitude - bus.latitude, stops[0].longitude - bus.longitude);
+    const distToNext = Math.hypot(nextStop.latitude - bus.latitude, nextStop.longitude - bus.longitude);
+    const totalDist = distToCurrent + distToNext;
+    const factor = totalDist > 0 ? distToCurrent / totalDist : 0;
+    return (factor / (stops.length - 1)) * 100;
+  }
+
+  const prevStop = stops[closestIdx - 1];
+  const currentStop = stops[closestIdx];
+  const nextStop = stops[closestIdx + 1];
+
+  const distToPrev = Math.hypot(prevStop.latitude - bus.latitude, prevStop.longitude - bus.longitude);
+  const distToNext = Math.hypot(nextStop.latitude - bus.latitude, nextStop.longitude - bus.longitude);
+
+  let percent = 0;
+  if (distToNext < distToPrev) {
+    const distToCurrent = Math.hypot(currentStop.latitude - bus.latitude, currentStop.longitude - bus.longitude);
+    const segmentDist = distToCurrent + distToNext;
+    const factor = segmentDist > 0 ? distToCurrent / segmentDist : 0;
+    percent = ((closestIdx + factor) / (stops.length - 1)) * 100;
+  } else {
+    const distToCurrent = Math.hypot(currentStop.latitude - bus.latitude, currentStop.longitude - bus.longitude);
+    const segmentDist = distToPrev + distToCurrent;
+    const factor = segmentDist > 0 ? distToPrev / segmentDist : 0;
+    percent = ((closestIdx - 1 + factor) / (stops.length - 1)) * 100;
+  }
+  return Math.min(100, Math.max(0, percent));
+}
+
+function BusesTab({ buses, activeLine, themeColor }: { buses: any[]; activeLine: any; themeColor: string }) {
   return (
-    <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+    <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
       {buses.length === 0 ? (
         <div style={{textAlign:'center',padding:'40px',color:'#8f94a5',fontFamily:'DM Mono',fontSize:'13px'}}>
           No hay colectivos activos en servicio para esta línea en este momento.
         </div>
       ) : (
-        buses.map((b, i) => (
-          <div key={i} style={{
-            background: '#121527',
-            borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
-            padding: '16px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-          }}>
-            <div style={{width:'42px',height:'42px',borderRadius:'12px',background:b.status==='moving'?'rgba(34,211,160,0.1)':'rgba(184,200,224,0.05)',border:`1px solid ${b.status==='moving'?'rgba(34,211,160,0.25)':'rgba(184,200,224,0.1)'}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-              <Bus size={18} style={{color:b.status==='moving'?'#22D3A0':'#8f94a5'}}/>
-            </div>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'3px'}}>
-                <span style={{color:'#fff',fontWeight:700,fontSize:'15px'}}>Unidad {b.bus_unit}</span>
-                <span style={{padding:'2px 8px',borderRadius:'999px',fontSize:'10px',fontFamily:'DM Mono',fontWeight:600,background:b.status==='moving'?'rgba(34,211,160,0.1)':'rgba(184,200,224,0.05)',color:b.status==='moving'?'#22D3A0':'#8f94a5',border:`1px solid ${b.status==='moving'?'rgba(34,211,160,0.2)':'rgba(184,200,224,0.1)'}`}}>
-                  {b.status==='moving'?'EN MOVIMIENTO':'DETENIDO'}
-                </span>
+        buses.map((b, i) => {
+          const busDirection = b.direction || 'ida'
+          const stops = getMockStopsForLine(activeLine, busDirection)
+          const progressPercent = getBusProgress(b, stops)
+
+          // Find current closest stop name
+          let closestIdx = 0;
+          let minDistance = Infinity;
+          for (let sIdx = 0; sIdx < stops.length; sIdx++) {
+            const dist = Math.hypot(stops[sIdx].latitude - b.latitude, stops[sIdx].longitude - b.longitude);
+            if (dist < minDistance) {
+              minDistance = dist;
+              closestIdx = sIdx;
+            }
+          }
+          const closestStopName = stops[closestIdx]?.name.replace('[BLOQUEADA] ', '') || 'Parada';
+
+          return (
+            <div key={i} style={{
+              background: '#121527',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+              padding: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px',
+            }}>
+              {/* Header Info */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{width:'42px',height:'42px',borderRadius:'12px',background:b.status==='moving'?'rgba(34,211,160,0.1)':'rgba(184,200,224,0.05)',border:`1px solid ${b.status==='moving'?'rgba(34,211,160,0.25)':'rgba(184,200,224,0.1)'}`,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                  <Bus size={18} style={{color:b.status==='moving'?'#22D3A0':'#8f94a5'}}/>
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'3px'}}>
+                    <span style={{color:'#fff',fontWeight:700,fontSize:'15px'}}>Unidad {b.bus_unit}</span>
+                    <span style={{padding:'2px 8px',borderRadius:'999px',fontSize:'10px',fontFamily:'DM Mono',fontWeight:600,background:b.status==='moving'?'rgba(34,211,160,0.1)':'rgba(184,200,224,0.05)',color:b.status==='moving'?'#22D3A0':'#8f94a5',border:`1px solid ${b.status==='moving'?'rgba(34,211,160,0.2)':'rgba(184,200,224,0.1)'}`}}>
+                      {b.status==='moving'?'EN MOVIMIENTO':'DETENIDO'}
+                    </span>
+                    <span style={{ fontSize: '10px', color: '#8f94a5', background: 'rgba(255,255,255,0.04)', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                      Sentido: {busDirection.toUpperCase()}
+                    </span>
+                  </div>
+                  <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono'}}>
+                    <strong style={{ color: '#fff' }}>{b.driver_name}</strong> · {b.passenger_count} pas · {b.speed_kmh} km/h · rumbo {b.heading}° · parada más cercana: <span style={{ color: themeColor }}>{closestStopName}</span>
+                  </div>
+                </div>
+                {b.status==='moving'&&<div style={{flexShrink:0,textAlign:'right'}}>
+                  <div style={{color:'#22D3A0',fontSize:'12px',fontFamily:'DM Mono',fontWeight:600}}>{b.eta_minutes} min ETA</div>
+                </div>}
               </div>
-              <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono'}}>
-                {b.driver_name} {b.status==='moving'?`· ${b.passenger_count} pas · ${b.speed_kmh} km/h · rumbo ${b.heading}°`:''}
-              </div>
+
+              {/* Straight Line Real-time Progression */}
+              {stops.length >= 2 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '0 8px' }}>
+                  <div style={{ position: 'relative', height: '24px', display: 'flex', alignItems: 'center' }}>
+                    
+                    {/* Background line */}
+                    <div style={{ position: 'absolute', left: 0, right: 0, height: '4px', background: '#1b1d2e', borderRadius: '2px', zIndex: 1 }}/>
+                    
+                    {/* Green/Theme fill progress */}
+                    <div style={{ position: 'absolute', left: 0, width: `${progressPercent}%`, height: '4px', background: '#10B981', borderRadius: '2px', zIndex: 2, transition: 'width 1s linear' }}/>
+                    
+                    {/* Render Stop Pins along the line */}
+                    {stops.map((stop, sIdx) => {
+                      const stopPercent = (sIdx / (stops.length - 1)) * 100
+                      const hasPassed = progressPercent >= stopPercent
+                      return (
+                        <div
+                          key={stop.id}
+                          title={stop.name}
+                          style={{
+                            position: 'absolute',
+                            left: `${stopPercent}%`,
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            background: hasPassed ? '#10B981' : 'rgba(255, 255, 255, 0.2)',
+                            border: `1.5px solid ${hasPassed ? '#fff' : '#1b1d2e'}`,
+                            transform: 'translate(-50%, -50%)',
+                            top: '50%',
+                            zIndex: 3,
+                            cursor: 'pointer'
+                          }}
+                        />
+                      )
+                    })}
+
+                    {/* Miniature animated bus indicator */}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: `${progressPercent}%`,
+                        transform: 'translate(-50%, -50%)',
+                        top: '50%',
+                        zIndex: 4,
+                        transition: 'left 1s linear',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <div style={{
+                        background: '#10B981',
+                        color: '#fff',
+                        padding: '3px 6px',
+                        borderRadius: '6px',
+                        fontSize: '9px',
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        boxShadow: '0 2px 8px rgba(16,185,129,0.4)',
+                        border: '1.5px solid #fff',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        <Bus size={10} style={{ transform: 'scaleX(-1)' }}/>
+                        <span>{b.speed_kmh} km/h</span>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* Stop Name Indicators under the line */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: '#8f94a5' }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '40%' }}>
+                      Inicio: <strong>{stops[0].name.replace('[BLOQUEADA] ', '')}</strong>
+                    </span>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '40%', textAlign: 'right' }}>
+                      Fin: <strong>{stops[stops.length - 1].name.replace('[BLOQUEADA] ', '')}</strong>
+                    </span>
+                  </div>
+
+                </div>
+              )}
+
             </div>
-            {b.status==='moving'&&<div style={{flexShrink:0,textAlign:'right'}}>
-              <div style={{color:'#22D3A0',fontSize:'12px',fontFamily:'DM Mono',fontWeight:600}}>{b.eta_minutes} min ETA</div>
-            </div>}
-          </div>
-        ))
+          )
+        })
       )}
     </div>
   )
