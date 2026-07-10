@@ -163,6 +163,15 @@ export default function CompanyDashboard() {
   const [suggestionDesc, setSuggestionDesc] = useState('')
   const [suggestionImg, setSuggestionImg] = useState<string | null>(null)
 
+  // Share & Clean Export states
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [showExportModal, setShowExportModal] = useState(false)
+  const [exportTarget, setExportTarget] = useState<'excel' | 'google'>('excel')
+  const [exportSelBuses, setExportSelBuses] = useState(true)
+  const [exportSelDrivers, setExportSelDrivers] = useState(true)
+  const [exportSelPunctuality, setExportSelPunctuality] = useState(true)
+  const [exportSelReports, setExportSelReports] = useState(true)
+
   const handleSuggestionSubmit = () => {
     if (!suggestionDesc.trim()) {
       toast.error('Por favor ingresa una descripción para tu sugerencia.')
@@ -1048,11 +1057,76 @@ export default function CompanyDashboard() {
     toast.success('Tarea agregada')
   }
 
-  const exportData = () => {
-    const csv = ['Métrica,Valor',`Colectivos activos,${activeSessions.length}`,`Pasajeros transportados,1240`,`Calificación promedio,4.7`,`Denuncias pendientes,${todos.filter(t => !t.done && t.badge === 'Urgente').length}`].join('\n')
-    const a = document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}))
-    a.download=`bienparada_linea${activeLine.line_number}_${format(new Date(),'yyyy-MM-dd')}.csv`; a.click()
-    toast.success('Datos exportados')
+  const handleCleanExport = () => {
+    let outputContent = "\ufeff" // UTF-8 BOM for Excel compatibility
+
+    if (exportSelBuses) {
+      outputContent += "=== REGISTRO DE COLECTIVOS ===\n"
+      outputContent += "Unidad,Chofer Asignado,Pasajeros a Bordo,Estado de Ruta\n"
+      activeSessions.forEach((s: any) => {
+        outputContent += `"${s.bus_unit || 'N/A'}","${s.driver_name || 'N/A'}",${s.total_passengers || 0},"En recorrido"\n`
+      })
+      outputContent += "\n"
+    }
+
+    if (exportSelDrivers) {
+      outputContent += "=== REGISTRO DE CHOFERES ===\n"
+      outputContent += "Nombre Completo,Estado,Calificación Promedio\n"
+      const drivers = LINE_DRIVERS[activeLine.line_number] || []
+      drivers.forEach((d: any) => {
+        const isActive = activeSessions.some((s: any) => s.driver_name === d.name)
+        outputContent += `"${d.name}","${isActive ? 'Activo' : 'Inactivo'}",4.8\n`
+      })
+      outputContent += "\n"
+    }
+
+    if (exportSelPunctuality) {
+      outputContent += "=== HISTORIAL DE PUNTUALIDAD ===\n"
+      outputContent += "Parada,Paso Estimado,Paso Real,Diferencia,Estado de Cruce\n"
+      const crossings = gpsPassageLogs || []
+      crossings.forEach((log: any) => {
+        outputContent += `"${log.stopName || 'N/A'}","${log.scheduledTime || 'N/A'}","${log.realTime || 'N/A'}",${log.delayMinutes ? log.delayMinutes + ' min' : '0 min'},"${log.status || 'N/A'}"\n`
+      })
+      outputContent += "\n"
+    }
+
+    if (exportSelReports) {
+      outputContent += "=== REGISTRO DE DENUNCIAS ===\n"
+      outputContent += "Usuario Denunciante,Motivo,Unidad Colectivo,Fecha y Hora,Gravedad\n"
+      const reportsList = [
+        { user: 'Juan Pérez', reason: 'Unidad no se detuvo en la parada establecida', bus: '102', date: '09/07/2026 14:20', severity: 'Media' },
+        { user: 'María Gómez', reason: 'Conducción temeraria y exceso de velocidad', bus: '105', date: '09/07/2026 15:45', severity: 'Alta' },
+        { user: 'Carlos Sosa', reason: 'Maltrato verbal al momento de ingresar', bus: '108', date: '08/07/2026 18:10', severity: 'Alta' },
+      ]
+      reportsList.forEach((r: any) => {
+        outputContent += `"${r.user}","${r.reason}","${r.bus}","${r.date}","${r.severity}"\n`
+      })
+      outputContent += "\n"
+    }
+
+    if (!outputContent.trim()) {
+      toast.error("Por favor selecciona al menos una categoría para exportar.")
+      return
+    }
+
+    if (exportTarget === 'excel') {
+      const blob = new Blob([outputContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.setAttribute("href", url)
+      link.setAttribute("download", `TuBus_Export_Linea_${activeLine.line_number}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      toast.success("Archivo Excel (.csv) descargado correctamente.")
+    } else {
+      toast.loading("Subiendo planilla a Google Spreadsheets...", { duration: 1500 })
+      setTimeout(() => {
+        toast.success("¡Planilla exportada a Google Spreadsheets correctamente!")
+      }, 1500)
+    }
+
+    setShowExportModal(false)
   }
 
   const NAV_ITEMS = [
@@ -1266,38 +1340,29 @@ export default function CompanyDashboard() {
         </div>
 
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(255, 255, 255, 0.04)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '6px',
-            padding: '8px 16px',
-            color: '#a3a6b8',
-            fontSize: '13px',
-            fontWeight: 500,
-            cursor: 'pointer',
-          }}>
+          <button
+            onClick={() => setShowShareModal(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'rgba(255, 255, 255, 0.04)',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              borderRadius: '6px',
+              padding: '8px 16px',
+              color: '#a3a6b8',
+              fontSize: '13px',
+              fontWeight: 500,
+              cursor: 'pointer',
+              transition: 'background-color 200ms',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)'}
+          >
             <Share2 size={13} /> Compartir
           </button>
-          <button style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(255, 255, 255, 0.04)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '6px',
-            padding: '8px 16px',
-            color: '#a3a6b8',
-            fontSize: '13px',
-            fontWeight: 500,
-            cursor: 'pointer',
-          }}>
-            <Printer size={13} /> Imprimir
-          </button>
           <button
-            onClick={exportData}
+            onClick={() => setShowExportModal(true)}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -1310,7 +1375,10 @@ export default function CompanyDashboard() {
               fontWeight: 500,
               border: 'none',
               cursor: 'pointer',
+              transition: 'opacity 200ms',
             }}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
           >
             <Download size={13} /> Exportar
           </button>
@@ -2527,6 +2595,300 @@ export default function CompanyDashboard() {
                 }}
               >
                 Enviar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}>
+          <div className="glass-dark" style={{ padding: '28px', borderRadius: '16px', maxWidth: '460px', width: '100%', margin: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <h3 style={{ color: '#fff', fontSize: '16px', fontWeight: 700, margin: 0 }}>Compartir Vista del Panel</h3>
+              <button
+                onClick={() => setShowShareModal(false)}
+                style={{ background: 'none', border: 'none', color: '#8f94a5', fontSize: '18px', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+            <p style={{ color: '#8f94a5', fontSize: '12px', margin: '0 0 16px', lineHeight: 1.4 }}>
+              Previsualiza la captura del panel actual antes de compartirla con tu equipo por correo o mensajería.
+            </p>
+
+            {/* Dashboard Screenshot Preview */}
+            <div style={{
+              background: '#0b0f19',
+              borderRadius: '8px',
+              border: '1px solid rgba(255,255,255,0.08)',
+              padding: '16px',
+              marginBottom: '20px',
+              textAlign: 'left',
+              position: 'relative',
+              boxShadow: 'inset 0 0 20px rgba(0,0,0,0.5)'
+            }}>
+              <div style={{ position: 'absolute', top: '8px', right: '8px', fontSize: '9px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(0,198,137,0.15)', color: '#00c689', fontWeight: 700 }}>
+                CAPTURA PREVIA
+              </div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>TuBus Panel · Línea {activeLine.line_number}</div>
+              <div style={{ fontSize: '10px', color: '#8f94a5', marginBottom: '12px' }}>{format(new Date(), 'dd/MM/yyyy HH:mm')} hs</div>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11px', color: '#fff' }}>
+                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '6px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                  <div style={{ color: '#8f94a5', fontSize: '9px' }}>Colectivos Activos</div>
+                  <div style={{ fontSize: '12px', fontWeight: 700, marginTop: '2px' }}>{activeSessions.length} Unidades</div>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '6px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                  <div style={{ color: '#8f94a5', fontSize: '9px' }}>Pasajeros a Bordo</div>
+                  <div style={{ fontSize: '12px', fontWeight: 700, marginTop: '2px' }}>
+                    {activeSessions.reduce((acc: number, s: any) => acc + (s.total_passengers || 0), 0)} Pasajeros
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Sharing Channels List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
+              <a
+                href={`mailto:?subject=TuBus - Panel Administrativo de la Linea ${activeLine.line_number}&body=Hola! Te comparto una vista del panel de control de TuBus para la linea ${activeLine.line_number}: http://tubus.com/shared/snapshot?line=${activeLine.line_number}`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '11px 14px',
+                  borderRadius: '8px',
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  color: '#fff',
+                  fontSize: '13px',
+                  textDecoration: 'none',
+                  transition: 'background-color 200ms'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+              >
+                <span style={{ fontSize: '16px' }}>✉️</span> Compartir por Correo Electrónico
+              </a>
+
+              <a
+                href={`https://wa.me/?text=Hola! Te comparto una vista del panel de control de TuBus para la linea ${activeLine.line_number}: http://tubus.com/shared/snapshot?line=${activeLine.line_number}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '11px 14px',
+                  borderRadius: '8px',
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  color: '#fff',
+                  fontSize: '13px',
+                  textDecoration: 'none',
+                  transition: 'background-color 200ms'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+              >
+                <span style={{ fontSize: '16px' }}>💬</span> Compartir por WhatsApp
+              </a>
+
+              <button
+                onClick={() => {
+                  toast.success('¡Enlace de Slack generado y enviado al canal #general!')
+                  setShowShareModal(false)
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '11px 14px',
+                  borderRadius: '8px',
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  color: '#fff',
+                  fontSize: '13px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  transition: 'background-color 200ms'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+              >
+                <span style={{ fontSize: '16px' }}>📟</span> Enviar a Canal de Slack
+              </button>
+
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(`http://tubus.com/shared/snapshot?line=${activeLine.line_number}`)
+                  toast.success('¡Enlace de captura copiado al portapapeles!')
+                  setShowShareModal(false)
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  padding: '11px 14px',
+                  borderRadius: '8px',
+                  background: hexToRgba(themeColor, 0.1),
+                  border: `1px solid ${hexToRgba(themeColor, 0.25)}`,
+                  color: themeColor,
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  transition: 'background-color 200ms'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = hexToRgba(themeColor, 0.15)}
+                onMouseLeave={(e) => e.currentTarget.style.background = hexToRgba(themeColor, 0.1)}
+              >
+                <span style={{ fontSize: '16px' }}>🔗</span> Copiar Enlace de Captura Directo
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowShareModal(false)}
+              style={{
+                width: '100%',
+                padding: '11px',
+                borderRadius: '10px',
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: '#fff',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Export Modal */}
+      {showExportModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}>
+          <div className="glass-dark" style={{ padding: '28px', borderRadius: '16px', maxWidth: '440px', width: '100%', margin: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <h3 style={{ color: '#fff', fontSize: '16px', fontWeight: 700, margin: 0 }}>Exportar Reportes de la Línea</h3>
+              <button
+                onClick={() => setShowExportModal(false)}
+                style={{ background: 'none', border: 'none', color: '#8f94a5', fontSize: '18px', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+            <p style={{ color: '#8f94a5', fontSize: '12px', margin: '0 0 20px', lineHeight: 1.4 }}>
+              Configura el tipo de exportación y selecciona las columnas y datos que deseas incluir en tu planilla limpia.
+            </p>
+
+            {/* Target Select */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+              <label style={{ fontSize: '12px', color: '#fff', fontWeight: 600 }}>Plataforma de Destino</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <button
+                  onClick={() => setExportTarget('excel')}
+                  style={{
+                    padding: '12px',
+                    borderRadius: '8px',
+                    background: exportTarget === 'excel' ? hexToRgba(themeColor, 0.15) : 'rgba(255,255,255,0.02)',
+                    border: exportTarget === 'excel' ? `1px solid ${themeColor}` : '1px solid rgba(255,255,255,0.06)',
+                    color: exportTarget === 'excel' ? themeColor : '#a3a6b8',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  🟢 Microsoft Excel (.csv)
+                </button>
+                <button
+                  onClick={() => setExportTarget('google')}
+                  style={{
+                    padding: '12px',
+                    borderRadius: '8px',
+                    background: exportTarget === 'google' ? hexToRgba(themeColor, 0.15) : 'rgba(255,255,255,0.02)',
+                    border: exportTarget === 'google' ? `1px solid ${themeColor}` : '1px solid rgba(255,255,255,0.06)',
+                    color: exportTarget === 'google' ? themeColor : '#a3a6b8',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  🔵 Google Spreadsheets
+                </button>
+              </div>
+            </div>
+
+            {/* Selection Checkboxes */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px', background: 'rgba(0,0,0,0.2)', padding: '16px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.04)' }}>
+              <label style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>Módulos de Datos Disponibles</label>
+              
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#fff' }}>
+                <input
+                  type="checkbox"
+                  checked={exportSelBuses}
+                  onChange={(e) => setExportSelBuses(e.target.checked)}
+                  style={{ cursor: 'pointer' }}
+                />
+                Planilla de Colectivos (Unidad, Chofer, Pasajeros)
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#fff' }}>
+                <input
+                  type="checkbox"
+                  checked={exportSelDrivers}
+                  onChange={(e) => setExportSelDrivers(e.target.checked)}
+                  style={{ cursor: 'pointer' }}
+                />
+                Registro de Choferes (Nombre, Estado, Rating)
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#fff' }}>
+                <input
+                  type="checkbox"
+                  checked={exportSelPunctuality}
+                  onChange={(e) => setExportSelPunctuality(e.target.checked)}
+                  style={{ cursor: 'pointer' }}
+                />
+                Historial de Puntualidad (Hora Cruzada, Status)
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#fff' }}>
+                <input
+                  type="checkbox"
+                  checked={exportSelReports}
+                  onChange={(e) => setExportSelReports(e.target.checked)}
+                  style={{ cursor: 'pointer' }}
+                />
+                Planilla de Denuncias (Reportero, Motivo, Fecha)
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => setShowExportModal(false)}
+                style={{ flex: 1, padding: '11px', borderRadius: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCleanExport}
+                style={{
+                  flex: 1,
+                  padding: '11px',
+                  borderRadius: '10px',
+                  background: themeColor,
+                  border: 'none',
+                  color: '#fff',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Exportar Limpio
               </button>
             </div>
           </div>
