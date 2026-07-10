@@ -5,7 +5,7 @@ import {
   Download, LogOut, RefreshCw, Plus, Calendar, Clock,
   ChevronRight, Star, Wifi, WifiOff, CheckCircle, XCircle,
   TrendingUp, BarChart2, Share2, Printer, Trash2, ChevronDown, CheckCircle2,
-  Circle, Flag, Info
+  Circle, Flag, Info, Bell, MessageSquarePlus
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { MOCK_LINES, getMockStopsForLine, getMockRoutePathForLine, getMockRoutePathsForLine } from '@/lib/mockData'
@@ -156,6 +156,47 @@ export default function CompanyDashboard() {
   const [showSupportModal, setShowSupportModal] = useState(false)
   const [supportMessages, setSupportMessages] = useState<any[]>([])
   const [supportInput, setSupportInput] = useState('')
+
+  // Platform updates & suggestions states
+  const [showUpdatesModal, setShowUpdatesModal] = useState(false)
+  const [showSuggestionsModal, setShowSuggestionsModal] = useState(false)
+  const [suggestionDesc, setSuggestionDesc] = useState('')
+  const [suggestionImg, setSuggestionImg] = useState<string | null>(null)
+
+  const handleSuggestionSubmit = () => {
+    if (!suggestionDesc.trim()) {
+      toast.error('Por favor ingresa una descripción para tu sugerencia.')
+      return
+    }
+    const newSuggestion = {
+      id: `sug-${Date.now()}`,
+      description: suggestionDesc,
+      image: suggestionImg,
+      timestamp: new Date().toISOString()
+    }
+    try {
+      const prev = JSON.parse(localStorage.getItem('mock_suggestions') || '[]')
+      localStorage.setItem('mock_suggestions', JSON.stringify([...prev, newSuggestion]))
+    } catch (e) {
+      console.error(e)
+    }
+    
+    toast.success('¡Muchas gracias! Tu sugerencia fue enviada al equipo de desarrollo.')
+    setSuggestionDesc('')
+    setSuggestionImg(null)
+    setShowSuggestionsModal(false)
+  }
+
+  const handleImgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setSuggestionImg(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
 
   useEffect(() => {
     const defaultMsgs = [
@@ -1135,21 +1176,34 @@ export default function CompanyDashboard() {
           </div>
 
           {/* Action Icons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', color: '#a3a6b8' }}>
-            <Activity size={16} style={{ cursor: 'pointer' }} />
-            <div style={{ position: 'relative', cursor: 'pointer' }}>
-              <AlertTriangle size={16} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', color: '#a3a6b8' }}>
+            {/* Updates Bell Icon */}
+            <div
+              onClick={() => setShowUpdatesModal(true)}
+              style={{ position: 'relative', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              title="Actualizaciones de la plataforma"
+            >
+              <Bell size={16} />
               <span style={{
                 position: 'absolute',
                 top: '-2px',
                 right: '-2px',
-                width: '6px',
-                height: '6px',
-                background: themeColor,
+                width: '7px',
+                height: '7px',
+                background: '#FF4D6A',
                 borderRadius: '50%',
+                boxShadow: '0 0 4px #FF4D6A'
               }} />
             </div>
-            <Users size={16} style={{ cursor: 'pointer' }} />
+
+            {/* Suggestions Icon */}
+            <div
+              onClick={() => setShowSuggestionsModal(true)}
+              style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              title="Sugerir mejoras o reportar fallas"
+            >
+              <MessageSquarePlus size={16} />
+            </div>
           </div>
 
           {/* Company Title */}
@@ -2285,6 +2339,191 @@ export default function CompanyDashboard() {
                   fontWeight: 700,
                   cursor: supportInput.trim() ? 'pointer' : 'not-allowed',
                   transition: 'all 200ms'
+                }}
+              >
+                Enviar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Platform Updates Modal */}
+      {showUpdatesModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}>
+          <div className="glass-dark" style={{ padding: '28px', borderRadius: '16px', maxWidth: '480px', width: '100%', margin: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+              <h3 style={{ color: '#fff', fontSize: '16px', fontWeight: 700, margin: 0 }}>Actualizaciones de la Plataforma</h3>
+              <button
+                onClick={() => setShowUpdatesModal(false)}
+                style={{ background: 'none', border: 'none', color: '#8f94a5', fontSize: '18px', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Notification Banner */}
+            <div style={{
+              background: 'rgba(240,180,41,0.08)',
+              border: '1px solid rgba(240,180,41,0.25)',
+              borderRadius: '8px',
+              padding: '12px 16px',
+              color: '#F0B429',
+              fontSize: '12px',
+              marginBottom: '20px',
+              lineHeight: 1.5
+            }}>
+              ⚠️ <strong>¡Nueva actualización disponible!</strong> Por favor, recarga tu navegador para aplicar los últimos parches y optimizaciones en la sincronización de mapas en tiempo real (Versión 1.3.0).
+            </div>
+
+            {/* Change Log List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '240px', overflowY: 'auto', paddingRight: '4px', marginBottom: '24px' }}>
+              <div style={{ fontSize: '12px' }}>
+                <strong style={{ color: '#fff' }}>🚀 Control de Puntualidad en Tiempo Real</strong>
+                <p style={{ color: '#8f94a5', margin: '3px 0 0' }}>El panel de choferes ahora está sincronizado para notificar el arribo exacto de las paradas a los administradores.</p>
+              </div>
+              <div style={{ fontSize: '12px' }}>
+                <strong style={{ color: '#fff' }}>📊 Resumen de Flota Compacto</strong>
+                <p style={{ color: '#8f94a5', margin: '3px 0 0' }}>Reemplazado el listado individual del panel de resumen por una tarjeta interactiva con accesos directos.</p>
+              </div>
+              <div style={{ fontSize: '12px' }}>
+                <strong style={{ color: '#fff' }}>📋 Tareas con Ordenamiento por Arrastre</strong>
+                <p style={{ color: '#8f94a5', margin: '3px 0 0' }}>Ahora puedes priorizar tu lista de tareas arrastrándolas libremente hacia arriba o abajo en la barra lateral.</p>
+              </div>
+              <div style={{ fontSize: '12px' }}>
+                <strong style={{ color: '#fff' }}>💬 Soporte Directo (Super Admin)</strong>
+                <p style={{ color: '#8f94a5', margin: '3px 0 0' }}>Módulo de chat directo con los super administradores integrado en el menú de navegación.</p>
+              </div>
+              <div style={{ fontSize: '12px' }}>
+                <strong style={{ color: '#fff' }}>🛡️ Alertas de Códigos QR Inactivos</strong>
+                <p style={{ color: '#8f94a5', margin: '3px 0 0' }}>Bloqueo para escaneos inactivos con alertas de seguridad en tiempo real para el panel de administración.</p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowUpdatesModal(false)}
+              style={{
+                width: '100%',
+                padding: '11px',
+                borderRadius: '10px',
+                background: themeColor,
+                border: 'none',
+                color: '#fff',
+                fontSize: '13px',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Suggest Changes Modal */}
+      {showSuggestionsModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}>
+          <div className="glass-dark" style={{ padding: '28px', borderRadius: '16px', maxWidth: '440px', width: '100%', margin: '16px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <h3 style={{ color: '#fff', fontSize: '16px', fontWeight: 700, margin: 0 }}>Sugerir Cambios o Mejoras</h3>
+              <button
+                onClick={() => { setShowSuggestionsModal(false); setSuggestionDesc(''); setSuggestionImg(null); }}
+                style={{ background: 'none', border: 'none', color: '#8f94a5', fontSize: '18px', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+            <p style={{ color: '#8f94a5', fontSize: '12px', margin: '0 0 20px', lineHeight: 1.4 }}>
+              Envía sugerencias o reporta problemas de diseño o funcionamiento directamente a nuestro equipo de desarrollo.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+              {/* Description Input */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '12px', color: '#fff', fontWeight: 600 }}>Descripción de la Sugerencia</label>
+                <textarea
+                  className="input-dark"
+                  placeholder="Describe detalladamente el cambio o la falla encontrada..."
+                  value={suggestionDesc}
+                  onChange={(e) => setSuggestionDesc(e.target.value)}
+                  rows={4}
+                  style={{ resize: 'none', fontSize: '13px', padding: '10px 12px', borderRadius: '8px' }}
+                />
+              </div>
+
+              {/* Image Upload Input */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '12px', color: '#fff', fontWeight: 600 }}>Adjuntar Captura de Pantalla</label>
+                
+                {suggestionImg ? (
+                  <div style={{ position: 'relative', width: '100%', height: '140px', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <img src={suggestionImg} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <button
+                      onClick={() => setSuggestionImg(null)}
+                      style={{
+                        position: 'absolute',
+                        top: '8px',
+                        right: '8px',
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '50%',
+                        background: 'rgba(255, 77, 106, 0.9)',
+                        border: 'none',
+                        color: '#fff',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{
+                    border: '1.5px dashed rgba(255,255,255,0.15)',
+                    borderRadius: '8px',
+                    padding: '24px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    background: 'rgba(255,255,255,0.01)'
+                  }}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImgUpload}
+                      style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }}
+                    />
+                    <div style={{ fontSize: '20px', marginBottom: '6px' }}>📸</div>
+                    <div style={{ fontSize: '12px', color: themeColor, fontWeight: 600 }}>Subir Imagen</div>
+                    <div style={{ fontSize: '10px', color: '#8f94a5', marginTop: '2px' }}>Formatos soportados: JPG, PNG (Max 5MB)</div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => { setShowSuggestionsModal(false); setSuggestionDesc(''); setSuggestionImg(null); }}
+                style={{ flex: 1, padding: '11px', borderRadius: '10px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSuggestionSubmit}
+                style={{
+                  flex: 1,
+                  padding: '11px',
+                  borderRadius: '10px',
+                  background: themeColor,
+                  border: 'none',
+                  color: '#fff',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
                 }}
               >
                 Enviar
