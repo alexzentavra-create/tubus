@@ -699,7 +699,12 @@ export default function CompanyDashboard() {
         stop: stopsList[0]?.name || 'Esquina Principal',
         status: 'pending',
         time: 'Hace 20 min',
-        desc: 'El colectivo no paró a pesar de que había espacio y se le hizo la señal correspondiente.'
+        desc: 'El colectivo no paró a pesar de que había espacio y se le hizo la señal correspondiente.',
+        reporter: {
+          name: 'Alejandro Pérez',
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80',
+          count: 3
+        }
       },
       {
         id: 'rep-2',
@@ -709,7 +714,12 @@ export default function CompanyDashboard() {
         stop: stopsList[1]?.name || 'Avenida Central',
         status: 'resolved',
         time: 'Hace 2h',
-        desc: 'El chofer fue agresivo al responder una consulta sobre el recorrido.'
+        desc: 'El chofer fue agresivo al responder una consulta sobre el recorrido.',
+        reporter: {
+          name: 'Sofía Rodríguez',
+          avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80',
+          count: 14
+        }
       }
     ])
   }, [activeLine])
@@ -3298,6 +3308,57 @@ function CompanyReports({ reports, driverWarnings = {}, onAddWarning, onResolve,
                 </div>
               </div>
             </div>
+
+            {/* Reporter Profile Details */}
+            {r.reporter && (
+              <div style={{
+                marginTop: '4px',
+                paddingTop: '10px',
+                borderTop: '1px solid rgba(255,255,255,0.04)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                background: 'rgba(255,255,255,0.01)',
+                padding: '6px 12px',
+                borderRadius: '8px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {r.reporter.avatar ? (
+                    <img
+                      src={r.reporter.avatar}
+                      alt={r.reporter.name}
+                      style={{ width: '22px', height: '22px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }}
+                    />
+                  ) : (
+                    <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: '#4A5568', color: '#fff', fontSize: '9px', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {r.reporter.name.charAt(0)}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span style={{ fontSize: '11px', color: '#fff', fontWeight: 600 }}>{r.reporter.name}</span>
+                    <span style={{ fontSize: '9px', color: '#8f94a5' }}>Denunciante registrado</span>
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{
+                    fontSize: '10px',
+                    color: r.reporter.count > 10 ? '#FF4D6A' : '#22D3A0',
+                    background: r.reporter.count > 10 ? 'rgba(255,77,106,0.1)' : 'rgba(34,211,160,0.1)',
+                    padding: '2px 8px',
+                    borderRadius: '999px',
+                    fontWeight: 700,
+                    fontFamily: 'DM Mono'
+                  }}>
+                    {r.reporter.count} denuncias en esta línea
+                  </span>
+                  {r.reporter.count > 10 && (
+                    <div style={{ fontSize: '8px', color: '#FF4D6A', marginTop: '2px', fontWeight: 600 }}>⚠️ Actividad inusualmente alta (Posible Spam)</div>
+                  )}
+                </div>
+              </div>
+            )}
             
             <div style={{display:'flex',gap:'8px',marginTop:'4px',alignItems:'center'}}>
               {r.status==='pending' && (
