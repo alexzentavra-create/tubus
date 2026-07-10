@@ -152,6 +152,64 @@ export default function CompanyDashboard() {
     setDraggedIndex(null)
   }
 
+  // Support chat states & effect
+  const [showSupportModal, setShowSupportModal] = useState(false)
+  const [supportMessages, setSupportMessages] = useState<any[]>([])
+  const [supportInput, setSupportInput] = useState('')
+
+  useEffect(() => {
+    const defaultMsgs = [
+      { id: 'msg-1', sender: 'superadmin', text: '¡Hola! Bienvenido al canal de soporte oficial de TuBus. ¿En qué podemos ayudarte hoy con el panel de tu línea?', time: '09:00' }
+    ]
+    const stored = localStorage.getItem('mock_support_messages')
+    if (stored) {
+      setSupportMessages(JSON.parse(stored))
+    } else {
+      setSupportMessages(defaultMsgs)
+      localStorage.setItem('mock_support_messages', JSON.stringify(defaultMsgs))
+    }
+  }, [])
+
+  const sendSupportMessage = () => {
+    if (!supportInput.trim()) return
+    const text = supportInput.trim()
+    const userMsg = {
+      id: `msg-u-${Date.now()}`,
+      sender: 'user',
+      text: text,
+      time: format(new Date(), 'HH:mm')
+    }
+    
+    setSupportMessages(prev => {
+      const next = [...prev, userMsg]
+      localStorage.setItem('mock_support_messages', JSON.stringify(next))
+      return next
+    })
+    setSupportInput('')
+
+    // Mock response from Super Admin
+    setTimeout(() => {
+      const replies = [
+        "Entendido. Hemos recibido tu consulta. Un de los Super Administradores la revisará a la brevedad.",
+        "Gracias por contactarnos. ¿Podrías indicarnos el número de coche o chofer afectado para investigar?",
+        "Hola, registramos tu solicitud sobre los datos del recorrido. Ya lo estamos revisando con el equipo técnico.",
+        "Perfecto, procesando tu reporte. Te avisaremos por este canal cuando esté resuelto."
+      ]
+      const randomReply = replies[Math.floor(Math.random() * replies.length)]
+      const reply = {
+        id: `msg-s-${Date.now()}`,
+        sender: 'superadmin',
+        text: randomReply,
+        time: format(new Date(), 'HH:mm')
+      }
+      setSupportMessages(prev => {
+        const next = [...prev, reply]
+        localStorage.setItem('mock_support_messages', JSON.stringify(next))
+        return next
+      })
+    }, 1500)
+  }
+
   // Load QR warnings from localStorage
   useEffect(() => {
     const loadQRWarnings = () => {
@@ -1040,21 +1098,25 @@ export default function CompanyDashboard() {
 
         {/* Right Options */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <select style={{
-            background: '#1b1d2e',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: '6px',
-            padding: '6px 12px',
-            color: '#a3a6b8',
-            fontSize: '13px',
-            outline: 'none',
-            cursor: 'pointer',
-          }}>
-            <option>Seleccionar Categoría</option>
-            <option>Colectivos en Servicio</option>
-            <option>Denuncias Recientes</option>
-            <option>Alertas de Paradas</option>
-          </select>
+          <button
+            onClick={() => setShowSupportModal(true)}
+            style={{
+              background: hexToRgba(themeColor, 0.15),
+              border: `1px solid ${hexToRgba(themeColor, 0.35)}`,
+              borderRadius: '6px',
+              padding: '6px 14px',
+              color: themeColor,
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 200ms'
+            }}
+          >
+            <span style={{ fontSize: '13px' }}>💬</span> Contactar Super Admin
+          </button>
 
           {/* Date display */}
           <div style={{
@@ -2147,6 +2209,85 @@ export default function CompanyDashboard() {
               </button>
               <button onClick={()=>setShowQRModal(false)} style={{flex:1,padding:'11px',borderRadius:'10px',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.1)',color:'#fff',fontSize:'13px',fontWeight:600,cursor:'pointer'}}>
                 Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Support Chat Modal */}
+      {showSupportModal && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)' }}>
+          <div className="glass-dark" style={{ padding: '24px', borderRadius: '16px', maxWidth: '440px', width: '100%', margin: '16px', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', height: '520px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10B981', boxShadow: '0 0 8px #10B981' }} />
+                <div>
+                  <h3 style={{ color: '#fff', fontSize: '15px', fontWeight: 700, margin: 0 }}>Canal de Soporte (Super Admin)</h3>
+                  <span style={{ color: '#8f94a5', fontSize: '10px' }}>Soporte técnico centralizado · En línea</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSupportModal(false)}
+                style={{ background: 'none', border: 'none', color: '#8f94a5', fontSize: '18px', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Message Area */}
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '4px', marginBottom: '16px' }}>
+              {supportMessages.map((msg) => {
+                const isSuper = msg.sender === 'superadmin'
+                return (
+                  <div key={msg.id} style={{
+                    alignSelf: isSuper ? 'flex-start' : 'flex-end',
+                    maxWidth: '80%',
+                    background: isSuper ? 'rgba(255,255,255,0.05)' : hexToRgba(themeColor, 0.2),
+                    border: isSuper ? '1px solid rgba(255,255,255,0.08)' : `1px solid ${hexToRgba(themeColor, 0.3)}`,
+                    borderRadius: isSuper ? '12px 12px 12px 2px' : '12px 12px 2px 12px',
+                    padding: '10px 14px',
+                  }}>
+                    <div style={{ color: isSuper ? '#8f94a5' : themeColor, fontSize: '9px', fontWeight: 700, textTransform: 'uppercase', marginBottom: '4px' }}>
+                      {isSuper ? 'Super Admin' : 'Tu Canal'}
+                    </div>
+                    <div style={{ color: '#fff', fontSize: '13px', lineHeight: '1.4' }}>
+                      {msg.text}
+                    </div>
+                    <div style={{ color: '#8f94a5', fontSize: '9px', textAlign: 'right', marginTop: '4px', fontFamily: 'DM Mono' }}>
+                      {msg.time} hs
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Input Bar */}
+            <div style={{ display: 'flex', gap: '10px', marginTop: 'auto' }}>
+              <input
+                className="input-dark"
+                placeholder="Escribe tu consulta al Super Admin..."
+                value={supportInput}
+                onChange={(e) => setSupportInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && sendSupportMessage()}
+                style={{ flex: 1, fontSize: '13px' }}
+              />
+              <button
+                onClick={sendSupportMessage}
+                disabled={!supportInput.trim()}
+                style={{
+                  padding: '10px 16px',
+                  borderRadius: '10px',
+                  background: supportInput.trim() ? themeColor : 'rgba(255,255,255,0.04)',
+                  color: supportInput.trim() ? '#fff' : '#8f94a5',
+                  border: 'none',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: supportInput.trim() ? 'pointer' : 'not-allowed',
+                  transition: 'all 200ms'
+                }}
+              >
+                Enviar
               </button>
             </div>
           </div>
