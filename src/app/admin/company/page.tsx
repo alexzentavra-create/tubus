@@ -1543,29 +1543,67 @@ export default function CompanyDashboard() {
                       </div>
                     </div>
 
-                    {/* Active fleet */}
-                    {activeSessions.length > 0 && (
-                      <div style={{
+                    {/* Active fleet summary */}
+                    <button
+                      onClick={() => { setTab('buses'); setShowPuntualidadTimeline(false); }}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
                         background: '#121527',
                         borderRadius: '12px',
                         border: '1px solid rgba(255, 255, 255, 0.06)',
                         padding: '24px',
-                      }}>
-                        <div style={{ color: '#8f94a5', fontSize: '12px', fontWeight: 500, textTransform: 'uppercase', marginBottom: '14px', letterSpacing: '0.05em' }}>Colectivos en servicio ahora</div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          {activeSessions.map((s:any, i:number)=>(
-                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '8px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
-                              <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22D3A0' }} />
-                              <div style={{ flex: 1 }}>
-                                <div style={{ color: '#fff', fontWeight: 600, fontSize: '13px' }}>Unidad {s.bus_unit}</div>
-                                <div style={{ color: '#8f94a5', fontSize: '11px' }}>{s.profiles?.name||'Chofer'} · desde {format(new Date(s.started_at), 'HH:mm')}</div>
-                              </div>
-                              <div style={{ color: '#fff', fontSize: '12px', fontWeight: 600 }}>{s.total_passengers} pasajeros</div>
-                            </div>
-                          ))}
-                        </div>
+                        cursor: 'pointer',
+                        transition: 'all 200ms ease-out',
+                        outline: 'none',
+                        display: 'block'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                        <div style={{ color: '#8f94a5', fontSize: '12px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Colectivos en servicio ahora</div>
+                        <span style={{ fontSize: '11px', color: themeColor, fontWeight: 700 }}>Ver Detalle Flota →</span>
                       </div>
-                    )}
+
+                      {(() => {
+                        const activeCount = activeSessions.length
+                        const totalBuses = qrCodes.length || 5
+                        const inactiveCount = Math.max(0, totalBuses - activeCount)
+                        const totalPassengers = activeSessions.reduce((acc: number, s: any) => acc + (s.total_passengers || 0), 0)
+                        const activeDrivers = activeSessions.map((s: any) => s.profiles?.name || 'Chofer').filter(Boolean)
+
+                        return (
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '16px' }}>
+                            {/* Active buses */}
+                            <div style={{ background: 'rgba(34,211,160,0.06)', border: '1px solid rgba(34,211,160,0.15)', borderRadius: '8px', padding: '12px 14px' }}>
+                              <div style={{ fontSize: '10px', color: '#22D3A0', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Activos</div>
+                              <div style={{ fontSize: '22px', fontWeight: 800, color: '#fff', marginTop: '4px' }}>{activeCount}</div>
+                              <div style={{ fontSize: '10px', color: '#8f94a5', marginTop: '2px' }}>{activeCount === 1 ? 'colectivo en servicio' : 'colectivos en servicio'}</div>
+                            </div>
+
+                            {/* Inactive buses */}
+                            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '12px 14px' }}>
+                              <div style={{ fontSize: '10px', color: '#8f94a5', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Inactivos</div>
+                              <div style={{ fontSize: '22px', fontWeight: 800, color: '#fff', marginTop: '4px' }}>{inactiveCount}</div>
+                              <div style={{ fontSize: '10px', color: '#8f94a5', marginTop: '2px' }}>{inactiveCount === 1 ? 'colectivo fuera de servicio' : 'colectivos fuera de servicio'}</div>
+                            </div>
+
+                            {/* Passenger count */}
+                            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '12px 14px' }}>
+                              <div style={{ fontSize: '10px', color: '#8f94a5', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Pasajeros</div>
+                              <div style={{ fontSize: '22px', fontWeight: 800, color: '#fff', marginTop: '4px' }}>{totalPassengers}</div>
+                              <div style={{ fontSize: '10px', color: '#8f94a5', marginTop: '2px' }}>usuarios a bordo</div>
+                            </div>
+
+                            {/* Active drivers */}
+                            <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '12px 14px' }}>
+                              <div style={{ fontSize: '10px', color: '#8f94a5', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>Choferes</div>
+                              <div style={{ fontSize: '22px', fontWeight: 800, color: '#fff', marginTop: '4px' }}>{activeDrivers.length}</div>
+                              <div style={{ fontSize: '10px', color: '#8f94a5', marginTop: '2px' }}>{activeDrivers.length === 1 ? 'conductor activo' : 'conductores activos'}</div>
+                            </div>
+                          </div>
+                        )
+                      })()}
+                    </button>
                   </>
                 )}
               </div>
