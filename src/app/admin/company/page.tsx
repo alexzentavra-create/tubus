@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Bus, Users, QrCode, MapPin, AlertTriangle, Activity,
   Download, LogOut, RefreshCw, Plus, Calendar, Clock,
@@ -1507,7 +1507,7 @@ export default function CompanyDashboard() {
                 themeColor={themeColor}
               />
             )}
-            {tab === 'stops' && <StopsTab topStops={topStops} hourlyData={HOURLY} themeColor={themeColor} />}
+            {tab === 'stops' && <StopsTab activeLine={activeLine} themeColor={themeColor} />}
             {tab === 'reports' && <CompanyReports reports={reports} driverWarnings={driverWarnings} onAddWarning={addWarning} onResolve={(id) => setReports(rs => rs.map(x => x.id === id ? { ...x, status: 'resolved' } : x))} themeColor={themeColor} />}
             {tab === 'calendar' && <CalendarTab themeColor={themeColor} activeStats={activeStats} />}
             {tab === 'map' && (
@@ -2324,49 +2324,158 @@ function QRTab({qrCodes,newBusUnit,setNewBusUnit,onGenerate,onDownload,onDelete,
   )
 }
 
-function StopsTab({ topStops, hourlyData, themeColor }: { topStops: any[]; hourlyData: any[]; themeColor: string }) {
-  const barFill = hexToRgba(themeColor, 0.15)
+function StopsTab({ activeLine, themeColor }: { activeLine: any; themeColor: string }) {
+  const [stopsList, setStopsList] = useState<any[]>([])
+  const [selectedStopId, setSelectedStopId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const baseStops = getMockStopsForLine(activeLine, 'all')
+    const mapped = baseStops.map((stop, idx) => {
+      const seed = stop.name.charCodeAt(0) + stop.name.charCodeAt(stop.name.length - 1) + idx
+      const subidas = Math.round(((seed % 60) + 40) * 1.8)
+      const bajadas = Math.round(((seed % 50) + 30) * 1.8)
+      const espera = (seed % 6) + 3
+      return {
+        ...stop,
+        subidas,
+        bajadas,
+        espera
+      }
+    })
+    setStopsList(mapped)
+    if (mapped.length > 0) {
+      setSelectedStopId(mapped[0].id)
+    }
+  }, [activeLine])
+
+  const selectedStop = stopsList.find(s => s.id === selectedStopId)
+
+  const hourlyData = useMemo(() => {
+    if (!selectedStop) return []
+    const seed = selectedStop.name.charCodeAt(0) + selectedStop.name.charCodeAt(selectedStop.name.length - 1)
+    return Array.from({ length: 24 }, (_, h) => {
+      const isPeak = (h >= 7 && h <= 9) || (h >= 17 && h <= 19)
+      const multiplier = isPeak ? 3.2 : 1
+      const subidas = Math.round(((seed + h) % 12 + 4) * multiplier)
+      const bajadas = Math.round(((seed * h + 7) % 10 + 3) * multiplier)
+      return {
+        h: `${String(h).padStart(2, '0')}:00`,
+        subidas,
+        bajadas
+      }
+    })
+  }, [selectedStop])
+
+  const barFillSubidas = hexToRgba(themeColor, 0.15)
+  const barFillBajadas = 'rgba(143, 148, 165, 0.15)'
+
   return (
-    <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', minHeight: '560px' }}>
+      {/* Left Column: Stops List with Stats */}
       <div style={{
         background: '#121527',
         borderRadius: '12px',
         border: '1px solid rgba(255, 255, 255, 0.06)',
-        padding: '24px',
+        padding: '20px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px'
       }}>
-        <div style={{color:'#8f94a5',fontSize:'12px',fontWeight:500,textTransform:'uppercase',marginBottom:'16px',letterSpacing:'0.05em'}}>Paradas más activas hoy</div>
-        {topStops.map((s,i)=>(
-          <div key={i} style={{display:'flex',alignItems:'center',gap:'14px',marginBottom:i<topStops.length-1?'14px':'0'}}>
-            <div style={{width: '26px', color: '#8f94a5', fontWeight: 700, fontSize: '13px', textAlign: 'right', flexShrink: 0}}>{i+1}</div>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{display:'flex',justifyContent:'space-between',marginBottom:'5px'}}>
-                <span style={{color:'#fff',fontSize:'13px',fontWeight:500,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{s.name}</span>
-                <span style={{color:'#fff',fontSize:'12px',fontFamily:'DM Mono',fontWeight:600,flexShrink:0,marginLeft:'8px'}}>{s.subidas}</span>
+        <div>
+          <h4 style={{ color: '#fff', fontSize: '15px', fontWeight: 700, margin: 0 }}>Listado de Paradas</h4>
+          <p style={{ color: '#8f94a5', fontSize: '11px', margin: '2px 0 10px' }}>Selecciona una parada para ver su análisis por hora</p>
+        </div>
+        
+        <div style={{ flex: 1, overflowY: 'auto', maxHeight: '520px', paddingRight: '6px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {stopsList.map((s) => {
+            const isSelected = s.id === selectedStopId
+            return (
+              <div
+                key={s.id}
+                onClick={() => setSelectedStopId(s.id)}
+                style={{
+                  background: isSelected ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.005)',
+                  borderRadius: '10px',
+                  border: `1.5px solid ${isSelected ? themeColor : 'rgba(255, 255, 255, 0.04)'}`,
+                  padding: '12px 14px',
+                  cursor: 'pointer',
+                  transition: 'all 200ms',
+                  boxShadow: isSelected ? `0 0 12px ${hexToRgba(themeColor, 0.1)}` : 'none'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ color: isSelected ? '#fff' : '#d1d5db', fontSize: '13px', fontWeight: 600 }}>{s.name.replace('[BLOQUEADA] ', '')}</span>
+                  {s.name.includes('[BLOQUEADA]') && (
+                    <span style={{ fontSize: '9px', color: '#FF4D6A', background: 'rgba(255,77,106,0.1)', padding: '1px 5px', borderRadius: '4px', fontWeight: 700 }}>BLOQUEADA</span>
+                  )}
+                </div>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#8f94a5' }}>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <span>📥 <strong style={{ color: themeColor }}>{s.subidas}</strong> subieron</span>
+                    <span>📤 <strong style={{ color: '#9ca3af' }}>{s.bajadas}</strong> bajaron</span>
+                  </div>
+                  <span style={{ fontFamily: 'DM Mono' }}>Espera: {s.espera}m</span>
+                </div>
               </div>
-              <div style={{height:'4px',background:'rgba(255, 255, 255, 0.04)',borderRadius:'2px'}}>
-                <div style={{height:'4px',borderRadius:'2px',background:themeColor,width:`${topStops[0]?.subidas ? (s.subidas/topStops[0].subidas)*100 : 0}%`}}/>
-              </div>
-              <div style={{color:'#8f94a5',fontSize:'10px',fontFamily:'DM Mono',marginTop:'3px'}}>espera promedio: {s.espera} min</div>
-            </div>
-          </div>
-        ))}
+            )
+          })}
+        </div>
       </div>
-      <div style={{
-        background: '#121527',
-        borderRadius: '12px',
-        border: '1px solid rgba(255, 255, 255, 0.06)',
-        padding: '24px',
-      }}>
-        <div style={{color:'#8f94a5',fontSize:'12px',fontWeight:500,textTransform:'uppercase',marginBottom:'12px',letterSpacing:'0.05em'}}>Subidas por hora</div>
-        <ResponsiveContainer width="100%" height={180}>
-          <BarChart data={hourlyData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false}/>
-            <XAxis dataKey="h" tick={{fill:'#8f94a5',fontSize:10}} interval={3}/>
-            <YAxis tick={{fill:'#8f94a5',fontSize:10}}/>
-            <Tooltip contentStyle={{ background: '#121527', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px' }}/>
-            <Bar dataKey="subidas" name="Subidas" fill={barFill} stroke={themeColor} strokeWidth={1} radius={[3,3,0,0]}/>
-          </BarChart>
-        </ResponsiveContainer>
+
+      {/* Right Column: Hourly charts */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        
+        {/* Subidas Chart */}
+        <div style={{
+          background: '#121527',
+          borderRadius: '12px',
+          border: '1px solid rgba(255, 255, 255, 0.06)',
+          padding: '20px 24px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px'
+        }}>
+          <div>
+            <h4 style={{ color: '#fff', fontSize: '14px', fontWeight: 700, margin: 0 }}>Subidas por Hora</h4>
+            <p style={{ color: '#8f94a5', fontSize: '11px', margin: '2px 0 0' }}>Parada: {selectedStop ? selectedStop.name.replace('[BLOQUEADA] ', '') : '---'}</p>
+          </div>
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={hourlyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false}/>
+              <XAxis dataKey="h" tick={{fill:'#8f94a5',fontSize:10}} interval={3}/>
+              <YAxis tick={{fill:'#8f94a5',fontSize:10}}/>
+              <Tooltip contentStyle={{ background: '#121527', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px' }}/>
+              <Bar dataKey="subidas" name="Subieron" fill={barFillSubidas} stroke={themeColor} strokeWidth={1.5} radius={[3,3,0,0]}/>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Bajadas Chart */}
+        <div style={{
+          background: '#121527',
+          borderRadius: '12px',
+          border: '1px solid rgba(255, 255, 255, 0.06)',
+          padding: '20px 24px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '12px'
+        }}>
+          <div>
+            <h4 style={{ color: '#fff', fontSize: '14px', fontWeight: 700, margin: 0 }}>Bajadas por Hora</h4>
+            <p style={{ color: '#8f94a5', fontSize: '11px', margin: '2px 0 0' }}>Parada: {selectedStop ? selectedStop.name.replace('[BLOQUEADA] ', '') : '---'}</p>
+          </div>
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={hourlyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false}/>
+              <XAxis dataKey="h" tick={{fill:'#8f94a5',fontSize:10}} interval={3}/>
+              <YAxis tick={{fill:'#8f94a5',fontSize:10}}/>
+              <Tooltip contentStyle={{ background: '#121527', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px' }}/>
+              <Bar dataKey="bajadas" name="Bajaron" fill={barFillBajadas} stroke="#8f94a5" strokeWidth={1.5} radius={[3,3,0,0]}/>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
       </div>
     </div>
   )
