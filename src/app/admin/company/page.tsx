@@ -4720,6 +4720,21 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
   const [detourStartStopId, setDetourStartStopId] = useState('')
   const [detourEndStopId, setDetourEndStopId] = useState('')
 
+  // Manual detour states
+  const [isEditingDetourManually, setIsEditingDetourManually] = useState(false)
+  const [manualDetourPoints, setManualDetourPoints] = useState<any[]>([])
+  const [savedCustomDetours, setSavedCustomDetours] = useState<any[]>([])
+
+  // Load saved custom detours on mount
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('mock_saved_custom_detours') || '[]')
+      setSavedCustomDetours(stored)
+    } catch (e) {
+      console.error(e)
+    }
+  }, [])
+
   // Add stop states
   const [mapClickMode, setMapClickMode] = useState<'none' | 'add_stop'>('none')
   const [newStopName, setNewStopName] = useState('')
@@ -4826,18 +4841,10 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
       return
     }
 
-    // Generate smooth detour points (curving north/east)
-    const midLat = (startStop.latitude + endStop.latitude) / 2
-    const midLng = (startStop.longitude + endStop.longitude) / 2
-    
-    // Smooth offset for detour visual curve
-    const latOffset = 0.005
-    const lngOffset = 0.005
-
+    // Generate rectangular detour points that follow street grid instead of diagonals
     const detourPoints = [
       { lat: startStop.latitude, lng: startStop.longitude },
-      { lat: midLat + latOffset, lng: midLng - lngOffset },
-      { lat: midLat + latOffset * 1.3, lng: midLng + lngOffset * 0.4 },
+      { lat: endStop.latitude, lng: startStop.longitude },
       { lat: endStop.latitude, lng: endStop.longitude }
     ]
 
@@ -4864,11 +4871,115 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
     toast.success("Desvío aplicado temporalmente en el mapa")
   }
 
+  // Apply manual detour
+  const applyManualDetour = () => {
+    if (manualDetourPoints.length === 0) {
+      toast.error("Por favor selecciona al menos una esquina para trazar la ruta de desvío")
+      return
+    }
+    const startStop = stops.find(s => s.id === detourStartStopId)
+    const endStop = stops.find(s => s.id === detourEndStopId)
+    if (!startStop || !endStop) return
+
+    const fullDetourPoints = [
+      { lat: startStop.latitude, lng: startStop.longitude },
+      ...manualDetourPoints,
+      { lat: endStop.latitude, lng: endStop.longitude }
+    ]
+
+    const pathStartIdx = findClosestPathIndex(routePath, startStop.latitude, startStop.longitude)
+    const pathEndIdx = findClosestPathIndex(routePath, endStop.latitude, endStop.longitude)
+
+    let newPath = [...routePath]
+    if (pathStartIdx !== -1 && pathEndIdx !== -1 && pathStartIdx < pathEndIdx) {
+      newPath = [
+        ...routePath.slice(0, pathStartIdx + 1),
+        ...fullDetourPoints,
+        ...routePath.slice(pathEndIdx)
+      ]
+    }
+
+    setRoutePath(newPath)
+    setActiveDetour({
+      reason: detourReason,
+      startId: detourStartStopId,
+      endId: detourEndStopId,
+      points: fullDetourPoints,
+      isManual: true
+    })
+    setIsEditingDetourManually(false)
+    setIsDirty(true)
+    toast.success("Desvío manual aplicado correctamente en el mapa")
+  }
+
+  // Save detour to favorites
+  const saveDetourToFavorites = () => {
+    if (!activeDetour) {
+      toast.error("No hay ningún desvío activo para guardar")
+      return
+    }
+    const name = prompt("Introduce un nombre para este desvío favorito:", `Desvío ${detourReason === 'accident' ? 'Accidente' : detourReason === 'protest' ? 'Corte' : 'Obras'} L${activeLine.line_number}`)
+    if (!name) return
+
+    const newFavorite = {
+      id: `fav-${Date.now()}`,
+      name: name,
+      line_number: activeLine.line_number,
+      reason: activeDetour.reason,
+      startId: activeDetour.startId,
+      endId: activeDetour.endId,
+      points: activeDetour.points
+    }
+
+    setSavedCustomDetours(prev => {
+      const next = [...prev, newFavorite]
+      localStorage.setItem('mock_saved_custom_detours', JSON.stringify(next))
+      return next
+    })
+    toast.success("¡Desvío guardado en favoritos (⭐) con éxito!")
+  }
+
+  // Load favorite detour
+  const loadFavoriteDetour = (fav: any) => {
+    setDetourReason(fav.reason)
+    setDetourStartStopId(fav.startId)
+    setDetourEndStopId(fav.endId)
+    
+    const startStop = stops.find(s => s.id === fav.startId)
+    const endStop = stops.find(s => s.id === fav.endId)
+    if (!startStop || !endStop) return
+
+    const pathStartIdx = findClosestPathIndex(routePath, startStop.latitude, startStop.longitude)
+    const pathEndIdx = findClosestPathIndex(routePath, endStop.latitude, endStop.longitude)
+
+    let newPath = [...routePath]
+    if (pathStartIdx !== -1 && pathEndIdx !== -1 && pathStartIdx < pathEndIdx) {
+      newPath = [
+        ...routePath.slice(0, pathStartIdx + 1),
+        ...fav.points,
+        ...routePath.slice(pathEndIdx)
+      ]
+    }
+
+    setRoutePath(newPath)
+    setActiveDetour({
+      reason: fav.reason,
+      startId: fav.startId,
+      endId: fav.endId,
+      points: fav.points,
+      isManual: true
+    })
+    setIsDirty(true)
+    toast.success(`Desvío favorito "${fav.name}" cargado con éxito`)
+  }
+
   // Clear detour
   const clearDetour = () => {
     setActiveDetour(null)
     setDetourStartStopId('')
     setDetourEndStopId('')
+    setManualDetourPoints([])
+    setIsEditingDetourManually(false)
     
     // Reload original path
     const loadedPath = getMockRoutePathForLine(activeLine, direction)
@@ -4975,7 +5086,7 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
   }
 
   // Format Detour GeoJSON bypass
-  const detourGeoJson = activeDetour ? {
+  const detourGeoJson = (activeDetour && !isEditingDetourManually) ? {
     type: 'FeatureCollection',
     features: [
       {
@@ -4988,6 +5099,54 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
       }
     ]
   } : null
+
+  // Format Manual Detour GeoJSON
+  const manualDetourGeoJson = (isEditingDetourManually && (detourStartStopId || manualDetourPoints.length > 0)) ? (() => {
+    const startStop = stops.find(s => s.id === detourStartStopId)
+    if (!startStop) return null
+    const pts = [
+      [startStop.longitude, startStop.latitude],
+      ...manualDetourPoints.map((p: any) => [p.lng, p.lat])
+    ]
+    if (pts.length < 2) return null
+    return {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: pts
+          },
+          properties: {}
+        }
+      ]
+    }
+  })() : null
+
+  // Generate interactive corners grid for manual detour mapping
+  const interactiveCorners = useMemo(() => {
+    if (!isEditingDetourManually || !detourStartStopId || !detourEndStopId) return []
+    const startStop = stops.find(s => s.id === detourStartStopId)
+    const endStop = stops.find(s => s.id === detourEndStopId)
+    if (!startStop || !endStop) return []
+
+    const corners: { id: string; lat: number; lng: number }[] = []
+    const centerLat = (startStop.latitude + endStop.latitude) / 2
+    const centerLng = (startStop.longitude + endStop.longitude) / 2
+
+    // 9x9 grid of intersections around center
+    for (let i = -4; i <= 4; i++) {
+      for (let j = -4; j <= 4; j++) {
+        corners.push({
+          id: `corner-${i}-${j}`,
+          lat: centerLat + i * 0.0012,
+          lng: centerLng + j * 0.0015
+        })
+      }
+    }
+    return corners
+  }, [isEditingDetourManually, detourStartStopId, detourEndStopId, stops])
 
   return (
     <div style={{ display: 'flex', gap: '20px', height: '620px', background: '#0b0f19', borderRadius: '16px', overflow: 'hidden' }}>
@@ -5039,9 +5198,55 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
             </Source>
           )}
 
+          {/* Manual Detour path line */}
+          {manualDetourGeoJson && (
+            <Source id="manual-detour-path" type="geojson" data={manualDetourGeoJson as any}>
+              <Layer
+                id="manual-detour-line"
+                type="line"
+                paint={{ 'line-color': '#FF8A00', 'line-width': 4, 'line-opacity': 0.9 }}
+              />
+            </Source>
+          )}
+
+          {/* Render Interactive Corners for manual detour editing */}
+          {interactiveCorners.map(c => (
+            <Marker key={c.id} latitude={c.lat} longitude={c.lng} anchor="center">
+              <div
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setManualDetourPoints(prev => [...prev, { lat: c.lat, lng: c.lng }])
+                }}
+                style={{
+                  width: '10px',
+                  height: '10px',
+                  borderRadius: '50%',
+                  background: '#a3a6b8',
+                  border: '2px solid #fff',
+                  cursor: 'pointer',
+                  boxShadow: '0 0 6px rgba(0,0,0,0.5)',
+                  transform: 'scale(1)',
+                  transition: 'all 150ms'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.4)'
+                  e.currentTarget.style.background = '#FF8A00'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)'
+                  e.currentTarget.style.background = '#a3a6b8'
+                }}
+              />
+            </Marker>
+          ))}
+
           {/* Render Stops */}
           {stops.map(s => {
             const isBlocked = blockedStops.includes(s.id)
+            const isStartDetour = s.id === detourStartStopId
+            const isEndDetour = s.id === detourEndStopId
+            const shouldGlow = isEditingDetourManually && (isStartDetour || isEndDetour)
+
             return (
               <Marker key={s.id} latitude={s.latitude} longitude={s.longitude} anchor="center">
                 <div
@@ -5051,12 +5256,12 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
                     setSelectedBus(null)
                   }}
                   style={{
-                    width: isBlocked ? '16px' : '11px',
-                    height: isBlocked ? '16px' : '11px',
+                    width: shouldGlow ? '20px' : (isBlocked ? '16px' : '11px'),
+                    height: shouldGlow ? '20px' : (isBlocked ? '16px' : '11px'),
                     borderRadius: '50%',
-                    background: isBlocked ? '#FF4D6A' : 'rgba(255,255,255,0.85)',
-                    border: `2px solid ${isBlocked ? '#fff' : themeColor}`,
-                    boxShadow: isBlocked ? '0 0 10px #FF4D6A' : `0 0 6px ${themeColor}`,
+                    background: shouldGlow ? '#F59E0B' : (isBlocked ? '#FF4D6A' : 'rgba(255,255,255,0.85)'),
+                    border: `2px solid ${shouldGlow ? '#fff' : (isBlocked ? '#fff' : themeColor)}`,
+                    boxShadow: shouldGlow ? '0 0 20px 4px #F59E0B' : (isBlocked ? '0 0 10px #FF4D6A' : `0 0 6px ${themeColor}`),
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -5064,6 +5269,7 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
                     color: '#fff',
                     fontSize: '9px',
                     fontWeight: 700,
+                    transform: shouldGlow ? 'scale(1.3)' : 'scale(1)',
                     transition: 'all 200ms'
                   }}
                 >
@@ -5306,14 +5512,71 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
                 </select>
               </div>
 
+              {detourStartStopId && detourEndStopId && !activeDetour && !isEditingDetourManually && (
+                <button
+                  onClick={() => {
+                    setIsEditingDetourManually(true)
+                    setManualDetourPoints([])
+                    toast("Haz clic en las esquinas grises del mapa para trazar tu desvío personalizado", { icon: 'ℹ️' })
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    background: 'rgba(245,158,11,0.15)',
+                    border: '1px solid #F59E0B',
+                    color: '#F59E0B',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    marginTop: '4px'
+                  }}
+                >
+                  ✍️ Editar manualmente
+                </button>
+              )}
+
               <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                {activeDetour ? (
-                  <button
-                    onClick={clearDetour}
-                    style={{ flex: 1, padding: '6px', borderRadius: '6px', background: 'rgba(255,77,106,0.1)', border: '1px solid rgba(255,77,106,0.2)', color: '#FF4D6A', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    Quitar Desvío
-                  </button>
+                {isEditingDetourManually ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                    <div style={{ fontSize: '10px', color: '#8f94a5', textAlign: 'left' }}>
+                      Esquinas seleccionadas: <strong style={{ color: '#fff' }}>{manualDetourPoints.length}</strong>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => {
+                          setIsEditingDetourManually(false)
+                          setManualDetourPoints([])
+                        }}
+                        style={{ flex: 1, padding: '6px', borderRadius: '6px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: '#a3a6b8', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={applyManualDetour}
+                        style={{ flex: 2, padding: '6px', borderRadius: '6px', background: '#00c689', color: '#fff', border: 'none', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        Guardar
+                      </button>
+                    </div>
+                  </div>
+                ) : activeDetour ? (
+                  <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                    <button
+                      onClick={clearDetour}
+                      style={{ flex: 2, padding: '6px', borderRadius: '6px', background: 'rgba(255,77,106,0.1)', border: '1px solid rgba(255,77,106,0.2)', color: '#FF4D6A', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      Quitar Desvío
+                    </button>
+                    <button
+                      onClick={saveDetourToFavorites}
+                      style={{ flex: 1, padding: '6px 10px', borderRadius: '6px', background: 'rgba(245,158,11,0.15)', border: '1px solid #F59E0B', color: '#F59E0B', fontSize: '11px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}
+                      title="Guardar desvío como favorito"
+                    >
+                      ⭐ Guardar
+                    </button>
+                  </div>
                 ) : (
                   <>
                     <button
@@ -5331,6 +5594,61 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
                   </>
                 )}
               </div>
+
+              {/* Saved custom detours list */}
+              {savedCustomDetours.length > 0 && (
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px', marginTop: '6px' }}>
+                  <label style={{ display: 'block', color: '#8f94a5', fontSize: '9px', textTransform: 'uppercase', marginBottom: '6px', fontWeight: 700 }}>Desvíos Favoritos (⭐)</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '100px', overflowY: 'auto' }}>
+                    {savedCustomDetours.map(fav => (
+                      <div key={fav.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '5px 8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                        <span
+                          onClick={() => loadFavoriteDetour(fav)}
+                          style={{ fontSize: '11px', color: '#fff', cursor: 'pointer', fontWeight: 500, flex: 1 }}
+                        >
+                          {fav.name}
+                        </span>
+                        <button
+                          onClick={() => {
+                            setSavedCustomDetours(prev => {
+                              const next = prev.filter(f => f.id !== fav.id)
+                              localStorage.setItem('mock_saved_custom_detours', JSON.stringify(next))
+                              return next
+                            })
+                            toast.success("Desvío favorito eliminado")
+                          }}
+                          style={{ background: 'none', border: 'none', color: '#ff4d6a', fontSize: '11px', cursor: 'pointer' }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Reset to Original Route path */}
+              <button
+                onClick={() => {
+                  const loadedPath = getMockRoutePathForLine(activeLine, direction)
+                  setRoutePath(loadedPath)
+                  toast.success("Mostrando recorrido original")
+                }}
+                style={{
+                  width: '100%',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  color: '#a3a6b8',
+                  fontSize: '11px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  marginTop: '4px'
+                }}
+              >
+                🔄 Ver Recorrido Original
+              </button>
             </div>
           )}
         </div>

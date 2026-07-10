@@ -356,6 +356,16 @@ export default function DriverPage() {
   const simIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const [mounted, setMounted]           = useState(false)
+  const [routeUpdateTick, setRouteUpdateTick] = useState(0)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key && (e.key.startsWith('mock_route_path_') || e.key.startsWith('mock_custom_stops_') || e.key.startsWith('mock_blocked_stops_'))) {
+        setRouteUpdateTick(prev => prev + 1)
+      }
+    }
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
   const [driverName, setDriverName]     = useState('')
   const [driverId,   setDriverId]       = useState('')
   const [session,    setSession]        = useState<ActiveSession | null>(null)

@@ -21312,6 +21312,17 @@ export default function UserMapPage() {
   const [lines, setLines]                   = useState<BusLine[]>([])
   const [selectedLines, setSelectedLines]   = useState<BusLine[]>([])
   
+  const [routeUpdateTick, setRouteUpdateTick] = useState(0)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key && (e.key.startsWith('mock_route_path_') || e.key.startsWith('mock_custom_stops_') || e.key.startsWith('mock_blocked_stops_'))) {
+        setRouteUpdateTick(prev => prev + 1)
+      }
+    }
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
+  
   // Mobile, Onboarding and Desktop-Preview states
   const [isMobile, setIsMobile]             = useState(false)
   const [forceMobilePreview, setForceMobilePreview] = useState(false)

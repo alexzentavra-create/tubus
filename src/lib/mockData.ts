@@ -141,7 +141,7 @@ export function getIntersectionForStopName(stopName: string, lat: number, lng: n
   }
 
   if (street.includes('ENTRE RIOS')) {
-    if (height >= 0 && height < 200) return 'Av. Entre Ríos y Alsina';
+    if (height >= 0 && height < 200) return 'Av. Entre Ríos e Hipólito Yrigoyen';
     if (height >= 200 && height < 400) return 'Av. Entre Ríos y Av. Belgrano';
     if (height >= 400 && height < 600) return 'Av. Entre Ríos y México';
     if (height >= 600 && height < 800) return 'Av. Entre Ríos y Av. Independencia';
