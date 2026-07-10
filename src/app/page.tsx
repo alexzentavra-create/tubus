@@ -25379,6 +25379,25 @@ export default function UserMapPage() {
                                 zoom: 16,
                                 transitionDuration: 1000
                               }))
+                              
+                              try {
+                                const activeUserStr = localStorage.getItem('active_user')
+                                const activeUser = activeUserStr ? JSON.parse(activeUserStr) : null
+                                const userAge = activeUser?.age ? parseInt(activeUser.age) : 25
+                                const lineNum = activeTravelRoute?.line_number || '12'
+                                const boardingsKey = `mock_boardings_line_${lineNum}`
+                                const boardings = JSON.parse(localStorage.getItem(boardingsKey) || '[]')
+                                boardings.push({
+                                  date: new Date().toISOString().split('T')[0],
+                                  age: userAge,
+                                  bus_unit: upcoming.bus_unit,
+                                  timestamp: new Date().toISOString()
+                                })
+                                localStorage.setItem(boardingsKey, JSON.stringify(boardings))
+                              } catch (e) {
+                                console.error('Error logging boarding:', e)
+                              }
+
                               toast.success(`🚶‍♂️ ¡Viaje iniciado! Siguiendo tu recorrido a bordo del Interno ${upcoming.bus_unit}`)
                             }}
                             style={{

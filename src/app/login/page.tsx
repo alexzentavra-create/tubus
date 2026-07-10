@@ -376,24 +376,41 @@ export default function LoginPage() {
 
         localStorage.setItem('selected_city', city)
 
-        if (lowerEmail === 'admin@admin.com' && pass === 'admin') {
-          window.location.href = '/admin/super'
-        } else if (lowerEmail === 'nestor@nestor.ar' && pass === 'nestor') {
-          window.location.href = '/driver'
-        } else if (lowerEmail === 'linea12@bienparada.ar' && pass === 'bienparada') {
-          window.location.href = '/admin/company'
-        } else if (lowerEmail === 'usuario@usuario.com' && pass === 'usuario') {
+        // Set default active user profile if it's the standard user
+        if (lowerEmail === 'usuario@usuario.com' && pass === 'usuario') {
+          localStorage.setItem('active_user', JSON.stringify({ name: 'Usuario Prueba', age: 24, email: 'usuario@usuario.com' }))
           window.location.href = `/?city=${city}`
         } else {
-          // Fallback matching for other mock strings
-          if (lowerEmail.includes('superadmin') || lowerEmail.includes('admin')) {
+          // Check for custom registered mock users
+          try {
+            const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
+            const found = mockUsers.find((u: any) => u.email.toLowerCase() === lowerEmail && u.password === pass)
+            if (found) {
+              localStorage.setItem('active_user', JSON.stringify(found))
+            } else {
+              // Fallback default mock profile
+              localStorage.setItem('active_user', JSON.stringify({ name: lowerEmail.split('@')[0], age: 28, email: lowerEmail }))
+            }
+          } catch (e) {
+            console.error(e)
+          }
+
+          if (lowerEmail === 'admin@admin.com' && pass === 'admin') {
             window.location.href = '/admin/super'
-          } else if (lowerEmail.includes('driver') || lowerEmail.includes('chofer')) {
+          } else if (lowerEmail === 'nestor@nestor.ar' && pass === 'nestor') {
             window.location.href = '/driver'
-          } else if (lowerEmail.includes('company') || lowerEmail.includes('linea') || lowerEmail.includes('lineas') || lowerEmail.includes('empresa') || lowerEmail.includes('line')) {
+          } else if (lowerEmail === 'linea12@bienparada.ar' && pass === 'bienparada') {
             window.location.href = '/admin/company'
           } else {
-            window.location.href = `/?city=${city}`
+            if (lowerEmail.includes('superadmin') || lowerEmail.includes('admin')) {
+              window.location.href = '/admin/super'
+            } else if (lowerEmail.includes('driver') || lowerEmail.includes('chofer')) {
+              window.location.href = '/driver'
+            } else if (lowerEmail.includes('company') || lowerEmail.includes('linea') || lowerEmail.includes('lineas') || lowerEmail.includes('empresa') || lowerEmail.includes('line')) {
+              window.location.href = '/admin/company'
+            } else {
+              window.location.href = `/?city=${city}`
+            }
           }
         }
         setLoading(false)
@@ -433,20 +450,39 @@ export default function LoginPage() {
       else window.location.href = `/?city=${city}`
 
     } else {
-      const { data, error } = await supabase.auth.signUp({
-        email: form.email, password: form.password,
-        options: { data: { name: form.name, role: 'user' } },
-      })
-      if (error) { toast.error(error.message); setLoading(false); return }
-      if (data.user) {
-        await supabase.from('user_profiles').insert({
-          id: data.user.id,
-          age: parseInt(form.age) || 0,
-          weekly_trips: parseInt(form.weeklyTrips) || 0,
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+      if (url.includes('placeholder.supabase.co')) {
+        try {
+          const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
+          mockUsers.push({
+            name: form.name,
+            email: form.email,
+            password: form.password,
+            age: parseInt(form.age) || 25,
+            weeklyTrips: parseInt(form.weeklyTrips) || 0
+          })
+          localStorage.setItem('mock_users', JSON.stringify(mockUsers))
+        } catch (e) {
+          console.error(e)
+        }
+        toast.success('¡Cuenta de prueba creada! Ya podés ingresar.')
+        setMode('login')
+      } else {
+        const { data, error } = await supabase.auth.signUp({
+          email: form.email, password: form.password,
+          options: { data: { name: form.name, role: 'user' } },
         })
+        if (error) { toast.error(error.message); setLoading(false); return }
+        if (data.user) {
+          await supabase.from('user_profiles').insert({
+            id: data.user.id,
+            age: parseInt(form.age) || 0,
+            weekly_trips: parseInt(form.weeklyTrips) || 0,
+          })
+        }
+        toast.success('¡Cuenta creada! Revisá tu email para confirmar.')
+        setMode('login')
       }
-      toast.success('¡Cuenta creada! Revisá tu email para confirmar.')
-      setMode('login')
     }
     setLoading(false)
   }

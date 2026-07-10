@@ -396,6 +396,19 @@ export default function CompanyDashboard() {
         .then(json => {
           if (json.data) {
             setBuses(json.data)
+
+            try {
+              if (json.data.length > 0) {
+                const todayStr = new Date().toISOString().split('T')[0]
+                const key = `mock_active_buses_line_${activeLine.line_number}_${todayStr}`
+                const storedBuses = JSON.parse(localStorage.getItem(key) || '[]')
+                const currentUnits = json.data.map((b: any) => `Coche ${b.bus_unit}`)
+                const merged = Array.from(new Set([...storedBuses, ...currentUnits]))
+                localStorage.setItem(key, JSON.stringify(merged))
+              }
+            } catch (e) {
+              console.error('Error logging active buses:', e)
+            }
             
             // Map live simulated buses to activeSessions so the rest of the dashboard updates dynamically
             const sessions = json.data.map((bus: any) => ({
@@ -1535,7 +1548,7 @@ export default function CompanyDashboard() {
                 themeColor={themeColor}
               />
             )}
-            {tab === 'calendar' && <CalendarTab themeColor={themeColor} activeStats={activeStats} />}
+            {tab === 'calendar' && <CalendarTab themeColor={themeColor} activeLine={activeLine} activeStats={activeStats} />}
             {tab === 'map' && (
               <MapTab
                 activeLine={activeLine}
@@ -3113,7 +3126,7 @@ function getColorConfig(val: number, avg: number) {
   }
 }
 
-function CalendarTab({ themeColor, activeStats }: { themeColor: string; activeStats: { rating: string; punctuality: string; dailyPas: number } }) {
+function CalendarTab({ themeColor, activeLine, activeStats }: { themeColor: string; activeLine: any; activeStats: { rating: string; punctuality: string; dailyPas: number } }) {
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day')
   const [selected, setSelected] = useState<any>(null)
   const [historyBaseMonth, setHistoryBaseMonth] = useState<string>(format(new Date(), 'yyyy-MM'))
@@ -3126,17 +3139,64 @@ function CalendarTab({ themeColor, activeStats }: { themeColor: string; activeSt
       { name: 'Estación Palermo', flow: Math.round(seed * 0.22) },
       { name: 'Barrancas de Belgrano', flow: Math.round(seed * 0.18) }
     ];
-    const activeBuses = item.type === 'day'
-      ? [`Coche ${item.bus}`, `Coche 30${(seed % 4) + 1}`, `Coche 305`]
-      : [`Coche 301`, `Coche 302`, `Coche 304`, `Coche 305`].slice(0, item.busesCount || 4);
+    
+    let activeBuses = [];
+    try {
+      const targetDateStr = format(item.date, 'yyyy-MM-dd')
+      const key = `mock_active_buses_line_${activeLine.line_number}_${targetDateStr}`
+      const recordedBuses = JSON.parse(localStorage.getItem(key) || '[]')
+      activeBuses = recordedBuses.length > 0
+        ? recordedBuses
+        : (item.type === 'day'
+           ? [`Coche ${item.bus}`, `Coche 30${(seed % 4) + 1}`, `Coche 305`]
+           : [`Coche 301`, `Coche 302`, `Coche 304`, `Coche 305`].slice(0, item.busesCount || 4));
+    } catch (e) {
+      activeBuses = [`Coche 301`, `Coche 302`, `Coche 305`]
+    }
+
     const peakHour = (seed % 2 === 0) ? '08:00 - 09:30 (Pico Mañana)' : '17:30 - 19:00 (Pico Tarde)';
-    const subeGeneralPct = 70 + (seed % 10);
-    const studentPct = 15 - (seed % 5);
-    const retiredPct = 100 - subeGeneralPct - studentPct;
-    return { stopsList, activeBuses, peakHour, ticketStats: { subeGeneralPct, studentPct, retiredPct } };
+    
+    let ageGroup10_18 = 0;
+    let ageGroup19_30 = 0;
+    let ageGroup31_50 = 0;
+    let ageGroup51_70 = 0;
+
+    try {
+      const boardingsKey = `mock_boardings_line_${activeLine.line_number}`
+      const liveBoardings = JSON.parse(localStorage.getItem(boardingsKey) || '[]')
+      
+      let matching = liveBoardings
+      if (item.type === 'day') {
+        const targetDateStr = format(item.date, 'yyyy-MM-dd')
+        matching = liveBoardings.filter((b: any) => b.date === targetDateStr)
+      }
+      
+      if (matching.length > 0) {
+        let c1 = 0, c2 = 0, c3 = 0, c4 = 0
+        matching.forEach((b: any) => {
+          if (b.age >= 10 && b.age <= 18) c1++
+          else if (b.age >= 19 && b.age <= 30) c2++
+          else if (b.age >= 31 && b.age <= 50) c3++
+          else if (b.age >= 51 && b.age <= 70) c4++
+        })
+        const tot = matching.length
+        ageGroup10_18 = Math.round((c1 / tot) * 100)
+        ageGroup19_30 = Math.round((c2 / tot) * 100)
+        ageGroup31_50 = Math.round((c3 / tot) * 100)
+        ageGroup51_70 = 100 - ageGroup10_18 - ageGroup19_30 - ageGroup31_50
+      } else {
+        ageGroup10_18 = 15 + (seed % 8)
+        ageGroup19_30 = 35 + (seed % 12)
+        ageGroup31_50 = 30 + (seed % 10)
+        ageGroup51_70 = 100 - ageGroup10_18 - ageGroup19_30 - ageGroup31_50
+      }
+    } catch (e) {
+      console.error(e)
+    }
+
+    return { stopsList, activeBuses, peakHour, ageStats: { ageGroup10_18, ageGroup19_30, ageGroup31_50, ageGroup51_70 } };
   };
 
-  // Parse custom month base date in local timezone securely
   const [yearStr, monthStr] = historyBaseMonth.split('-')
   const year = parseInt(yearStr, 10)
   const month = parseInt(monthStr, 10)
@@ -3158,7 +3218,7 @@ function CalendarTab({ themeColor, activeStats }: { themeColor: string; activeSt
       label: format(d, 'd'),
       dayName: format(d, 'EEE', { locale: es }),
       passengers,
-      bus: ['001', '003', '005', '002', '004'][i % 5],
+      bus: ['301', '303', '305', '302', '304'][i % 5],
       hours: `${6 + (i % 4)}:00 - ${14 + (i % 4)}:00`
     })
   }
@@ -3166,18 +3226,32 @@ function CalendarTab({ themeColor, activeStats }: { themeColor: string; activeSt
   for (const d of days) totalDayPas += d.passengers
   const dayAvg = Math.round(totalDayPas / 30)
 
-  // 2. Week Data (last 12 weeks)
+  // Calculate unique months to display name if changed
+  const uniqueMonths = new Set(days.map(x => x.date.getMonth()))
+  const hasMonthChange = uniqueMonths.size > 1
+
+  // 2. Week Data (weeks of the selected month ONLY)
   const weeks = []
-  for (let i = 0; i < 12; i++) {
-    const d = subDays(targetEnd, (11 - i) * 7)
-    const seed = i * 11.2
+  const daysInMonth = monthEnd.getDate()
+  const numWeeks = Math.ceil(daysInMonth / 7)
+  
+  for (let i = 0; i < numWeeks; i++) {
+    const startDay = i * 7 + 1
+    const endDay = Math.min((i + 1) * 7, daysInMonth)
+    
+    const startD = new Date(year, month - 1, startDay)
+    const endD = new Date(year, month - 1, endDay)
+    
+    const seed = i * 14.5
     const pct = 0.8 + ((seed * 23) % 40) / 100
-    const passengers = Math.round(activeStats.dailyPas * 7 * pct)
+    const numDaysInThisWeek = endDay - startDay + 1
+    const passengers = Math.round(activeStats.dailyPas * numDaysInThisWeek * pct)
+    
     weeks.push({
       type: 'week',
-      date: d,
-      label: `S${i + 1}`,
-      dateRange: `${format(subDays(d, 6), 'd MMM', { locale: es })} - ${format(d, 'd MMM', { locale: es })}`,
+      date: endD,
+      label: `${i + 1}`,
+      dateRange: `${format(startD, 'd MMM', { locale: es })} - ${format(endD, 'd MMM', { locale: es })}`,
       passengers,
       busesCount: 5 + (i % 4),
       busiestDayName: ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][i % 6]
@@ -3185,7 +3259,7 @@ function CalendarTab({ themeColor, activeStats }: { themeColor: string; activeSt
   }
   let totalWeekPas = 0
   for (const w of weeks) totalWeekPas += w.passengers
-  const weekAvg = Math.round(totalWeekPas / 12)
+  const weekAvg = Math.round(totalWeekPas / weeks.length)
 
   // 3. Month Data (last 6 months)
   const months = []
@@ -3304,7 +3378,14 @@ function CalendarTab({ themeColor, activeStats }: { themeColor: string; activeSt
                   }}
                 >
                   <span style={{color: colors.text, fontSize: '13px', fontWeight: 700, fontFamily: 'DM Mono'}}>{d.label}</span>
-                  <span style={{color: '#8f94a5', fontSize: '8px', fontFamily: 'DM Mono', textTransform: 'uppercase'}}>{d.dayName}</span>
+                  <span style={{color: '#8f94a5', fontSize: '8px', fontFamily: 'DM Mono', textTransform: 'uppercase', display: 'flex', flexDirection: 'column', alignItems: 'center'}}>
+                    <span>{d.dayName}</span>
+                    {hasMonthChange && (
+                      <span style={{ fontSize: '7px', opacity: 0.8, marginTop: '1px' }}>
+                        {format(d.date, 'MMM', { locale: es }).toUpperCase()}
+                      </span>
+                    )}
+                  </span>
                   <span style={{color: '#fff', fontSize: '7.5px', fontFamily: 'DM Mono', opacity: 0.65}}>{(d.passengers / 1000).toFixed(1)}k</span>
                 </button>
               )
@@ -3335,7 +3416,7 @@ function CalendarTab({ themeColor, activeStats }: { themeColor: string; activeSt
                     padding: '12px 6px'
                   }}
                 >
-                  <span style={{color: colors.text, fontSize: '14px', fontWeight: 700}}>{w.label}</span>
+                  <span style={{color: colors.text, fontSize: '14px', fontWeight: 700}}>Semana {w.label}</span>
                   <span style={{color: '#8f94a5', fontSize: '9px', fontFamily: 'DM Mono'}}>{w.dateRange}</span>
                   <span style={{color: '#fff', fontSize: '11px', fontFamily: 'DM Mono', fontWeight: 600, marginTop: '2px'}}>{w.passengers.toLocaleString('es-ES')} pas</span>
                 </button>
@@ -3439,7 +3520,7 @@ function CalendarTab({ themeColor, activeStats }: { themeColor: string; activeSt
             <div style={{ background: 'rgba(6,8,16,0.3)', borderRadius: '10px', padding: '16px' }}>
               <div style={{ color: '#8f94a5', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Flota Asignada</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {getRichDetails(selected)?.activeBuses.map((bus, idx) => (
+                {(getRichDetails(selected)?.activeBuses || []).map((bus: any, idx: number) => (
                   <span key={idx} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '11px', padding: '4px 8px', borderRadius: '6px' }}>
                     {bus}
                   </span>
@@ -3450,35 +3531,44 @@ function CalendarTab({ themeColor, activeStats }: { themeColor: string; activeSt
               </div>
             </div>
 
-            {/* Box 4: Medios de Pago (SUBE) */}
+            {/* Box 4: Distribución por Edad */}
             <div style={{ background: 'rgba(6,8,16,0.3)', borderRadius: '10px', padding: '16px' }}>
-              <div style={{ color: '#8f94a5', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Medios de Pago (SUBE)</div>
+              <div style={{ color: '#8f94a5', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Distribución por Edad</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px', color: '#fff' }}>
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                    <span>General</span>
-                    <span style={{ fontFamily: 'DM Mono' }}>{getRichDetails(selected)?.ticketStats.subeGeneralPct}%</span>
+                    <span>10-18 años</span>
+                    <span style={{ fontFamily: 'DM Mono' }}>{getRichDetails(selected)?.ageStats.ageGroup10_18}%</span>
                   </div>
                   <div style={{ background: 'rgba(255,255,255,0.1)', height: '4px', borderRadius: '2px' }}>
-                    <div style={{ background: themeColor, height: '100%', borderRadius: '2px', width: `${getRichDetails(selected)?.ticketStats.subeGeneralPct}%` }} />
+                    <div style={{ background: '#22d3ee', height: '100%', borderRadius: '2px', width: `${getRichDetails(selected)?.ageStats.ageGroup10_18}%` }} />
                   </div>
                 </div>
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                    <span>Estudiantil</span>
-                    <span style={{ fontFamily: 'DM Mono' }}>{getRichDetails(selected)?.ticketStats.studentPct}%</span>
+                    <span>19-30 años</span>
+                    <span style={{ fontFamily: 'DM Mono' }}>{getRichDetails(selected)?.ageStats.ageGroup19_30}%</span>
                   </div>
                   <div style={{ background: 'rgba(255,255,255,0.1)', height: '4px', borderRadius: '2px' }}>
-                    <div style={{ background: '#22d3ee', height: '100%', borderRadius: '2px', width: `${getRichDetails(selected)?.ticketStats.studentPct}%` }} />
+                    <div style={{ background: themeColor, height: '100%', borderRadius: '2px', width: `${getRichDetails(selected)?.ageStats.ageGroup19_30}%` }} />
                   </div>
                 </div>
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                    <span>Jubilados</span>
-                    <span style={{ fontFamily: 'DM Mono' }}>{getRichDetails(selected)?.ticketStats.retiredPct}%</span>
+                    <span>31-50 años</span>
+                    <span style={{ fontFamily: 'DM Mono' }}>{getRichDetails(selected)?.ageStats.ageGroup31_50}%</span>
                   </div>
                   <div style={{ background: 'rgba(255,255,255,0.1)', height: '4px', borderRadius: '2px' }}>
-                    <div style={{ background: '#00c689', height: '100%', borderRadius: '2px', width: `${getRichDetails(selected)?.ticketStats.retiredPct}%` }} />
+                    <div style={{ background: '#00c689', height: '100%', borderRadius: '2px', width: `${getRichDetails(selected)?.ageStats.ageGroup31_50}%` }} />
+                  </div>
+                </div>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                    <span>51-70 años</span>
+                    <span style={{ fontFamily: 'DM Mono' }}>{getRichDetails(selected)?.ageStats.ageGroup51_70}%</span>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.1)', height: '4px', borderRadius: '2px' }}>
+                    <div style={{ background: '#f59e0b', height: '100%', borderRadius: '2px', width: `${getRichDetails(selected)?.ageStats.ageGroup51_70}%` }} />
                   </div>
                 </div>
               </div>
