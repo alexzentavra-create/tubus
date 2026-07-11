@@ -5033,8 +5033,8 @@ function unrotatePoint(x: number, y: number, angleRad: number) {
 }
 
 function getDetourOption(p1: any, p2: any, optionIndex: number) {
-  // -29 degrees rotation aligns with the NW-SE / SW-NE grid of Buenos Aires
-  const angleRad = -29 * Math.PI / 180;
+  // Use positive 29 degrees for forward rotation to align streets with vertical
+  const angleRad = 29 * Math.PI / 180;
   
   // Extract coordinate values robustly
   const lat1 = p1.lat !== undefined ? p1.lat : p1.latitude;
@@ -5057,9 +5057,12 @@ function getDetourOption(p1: any, p2: any, optionIndex: number) {
   
   let path: {lat: number, lng: number}[] = [];
   
+  // Backward rotation uses the opposite angle (-angleRad)
+  const angleBack = -angleRad;
+  
   if (optionIndex === 0) {
     // Option 1: Rotated L-shape (Turn X first)
-    const c1Local = unrotatePoint(r2.x, r1.y, angleRad);
+    const c1Local = unrotatePoint(r2.x, r1.y, angleBack);
     path = [
       { lat: lat1, lng: lng1 },
       { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
@@ -5067,7 +5070,7 @@ function getDetourOption(p1: any, p2: any, optionIndex: number) {
     ];
   } else if (optionIndex === 1) {
     // Option 2: Rotated L-shape (Turn Y first)
-    const c1Local = unrotatePoint(r1.x, r2.y, angleRad);
+    const c1Local = unrotatePoint(r1.x, r2.y, angleBack);
     path = [
       { lat: lat1, lng: lng1 },
       { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
@@ -5075,8 +5078,8 @@ function getDetourOption(p1: any, p2: any, optionIndex: number) {
     ];
   } else if (optionIndex === 2) {
     // Option 3: U-shape offset by +1 block
-    const c1Local = unrotatePoint(r1.x, r1.y + blockOffset, angleRad);
-    const c2Local = unrotatePoint(r2.x, r1.y + blockOffset, angleRad);
+    const c1Local = unrotatePoint(r1.x, r1.y + blockOffset, angleBack);
+    const c2Local = unrotatePoint(r2.x, r1.y + blockOffset, angleBack);
     path = [
       { lat: lat1, lng: lng1 },
       { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
@@ -5085,8 +5088,8 @@ function getDetourOption(p1: any, p2: any, optionIndex: number) {
     ];
   } else if (optionIndex === 3) {
     // Option 4: U-shape offset by -1 block
-    const c1Local = unrotatePoint(r1.x, r1.y - blockOffset, angleRad);
-    const c2Local = unrotatePoint(r2.x, r1.y - blockOffset, angleRad);
+    const c1Local = unrotatePoint(r1.x, r1.y - blockOffset, angleBack);
+    const c2Local = unrotatePoint(r2.x, r1.y - blockOffset, angleBack);
     path = [
       { lat: lat1, lng: lng1 },
       { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
@@ -5096,8 +5099,8 @@ function getDetourOption(p1: any, p2: any, optionIndex: number) {
   } else {
     // Option 5: Zig-zag (Step shape turning halfway)
     const midX = (r1.x + r2.x) / 2;
-    const c1Local = unrotatePoint(midX, r1.y, angleRad);
-    const c2Local = unrotatePoint(midX, r2.y, angleRad);
+    const c1Local = unrotatePoint(midX, r1.y, angleBack);
+    const c2Local = unrotatePoint(midX, r2.y, angleBack);
     path = [
       { lat: lat1, lng: lng1 },
       { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
