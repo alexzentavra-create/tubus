@@ -5033,80 +5033,94 @@ function unrotatePoint(x: number, y: number, angleRad: number) {
 }
 
 function getDetourOption(p1: any, p2: any, optionIndex: number) {
-  // Use positive 29 degrees for forward rotation to align streets with vertical
-  const angleRad = 29 * Math.PI / 180;
-  
   // Extract coordinate values robustly
   const lat1 = p1.lat !== undefined ? p1.lat : p1.latitude;
   const lng1 = p1.lng !== undefined ? p1.lng : p1.longitude;
   const lat2 = p2.lat !== undefined ? p2.lat : p2.latitude;
   const lng2 = p2.lng !== undefined ? p2.lng : p2.longitude;
   
-  // Use p1 as local origin to avoid coordinate distortion
-  const originLat = lat1;
-  const originLng = lng1;
+  const scaleX = 0.823;
+  const dx = (lng2 - lng1) * scaleX;
+  const dy = lat2 - lat1;
   
-  const localP1 = { lat: 0, lng: 0 };
-  const localP2 = { lat: lat2 - originLat, lng: lng2 - originLng };
-  
-  const r1 = rotatePoint(localP1, angleRad);
-  const r2 = rotatePoint(localP2, angleRad);
-  
-  // Approx 1 block spacing (0.0012 lat/lng degrees)
-  const blockOffset = 0.0012;
+  const isVertical = Math.abs(dy) > Math.abs(dx);
+  const blockOffset = 0.0012; // Approx 1 block spacing
   
   let path: {lat: number, lng: number}[] = [];
   
-  // Backward rotation uses the opposite angle (-angleRad)
-  const angleBack = -angleRad;
-  
   if (optionIndex === 0) {
-    // Option 1: Rotated L-shape (Turn X first)
-    const c1Local = unrotatePoint(r2.x, r1.y, angleBack);
+    // Option 1: Turn at (lng2, lat1)
     path = [
       { lat: lat1, lng: lng1 },
-      { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
+      { lat: lat1, lng: lng2 },
       { lat: lat2, lng: lng2 }
     ];
   } else if (optionIndex === 1) {
-    // Option 2: Rotated L-shape (Turn Y first)
-    const c1Local = unrotatePoint(r1.x, r2.y, angleBack);
+    // Option 2: Turn at (lng1, lat2)
     path = [
       { lat: lat1, lng: lng1 },
-      { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
+      { lat: lat2, lng: lng1 },
       { lat: lat2, lng: lng2 }
     ];
   } else if (optionIndex === 2) {
-    // Option 3: U-shape offset by +1 block
-    const c1Local = unrotatePoint(r1.x, r1.y + blockOffset, angleBack);
-    const c2Local = unrotatePoint(r2.x, r1.y + blockOffset, angleBack);
-    path = [
-      { lat: lat1, lng: lng1 },
-      { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
-      { lat: c2Local.lat + originLat, lng: c2Local.lng + originLng },
-      { lat: lat2, lng: lng2 }
-    ];
+    // Option 3: U-shape bypass (offset parallel to main direction)
+    if (isVertical) {
+      // Shift X by +blockOffset
+      path = [
+        { lat: lat1, lng: lng1 },
+        { lat: lat1, lng: lng1 + blockOffset / scaleX },
+        { lat: lat2, lng: lng1 + blockOffset / scaleX },
+        { lat: lat2, lng: lng2 }
+      ];
+    } else {
+      // Shift Y by +blockOffset
+      path = [
+        { lat: lat1, lng: lng1 },
+        { lat: lat1 + blockOffset, lng: lng1 },
+        { lat: lat1 + blockOffset, lng: lng2 },
+        { lat: lat2, lng: lng2 }
+      ];
+    }
   } else if (optionIndex === 3) {
-    // Option 4: U-shape offset by -1 block
-    const c1Local = unrotatePoint(r1.x, r1.y - blockOffset, angleBack);
-    const c2Local = unrotatePoint(r2.x, r1.y - blockOffset, angleBack);
-    path = [
-      { lat: lat1, lng: lng1 },
-      { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
-      { lat: c2Local.lat + originLat, lng: c2Local.lng + originLng },
-      { lat: lat2, lng: lng2 }
-    ];
+    // Option 4: U-shape bypass (offset opposite parallel to main direction)
+    if (isVertical) {
+      // Shift X by -blockOffset
+      path = [
+        { lat: lat1, lng: lng1 },
+        { lat: lat1, lng: lng1 - blockOffset / scaleX },
+        { lat: lat2, lng: lng1 - blockOffset / scaleX },
+        { lat: lat2, lng: lng2 }
+      ];
+    } else {
+      // Shift Y by -blockOffset
+      path = [
+        { lat: lat1, lng: lng1 },
+        { lat: lat1 - blockOffset, lng: lng1 },
+        { lat: lat1 - blockOffset, lng: lng2 },
+        { lat: lat2, lng: lng2 }
+      ];
+    }
   } else {
-    // Option 5: Zig-zag (Step shape turning halfway)
-    const midX = (r1.x + r2.x) / 2;
-    const c1Local = unrotatePoint(midX, r1.y, angleBack);
-    const c2Local = unrotatePoint(midX, r2.y, angleBack);
-    path = [
-      { lat: lat1, lng: lng1 },
-      { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
-      { lat: c2Local.lat + originLat, lng: c2Local.lng + originLng },
-      { lat: lat2, lng: lng2 }
-    ];
+    // Option 5: Zig-zag (halfway turn)
+    if (isVertical) {
+      // Go halfway vertical, turn, go rest vertical
+      const midLat = (lat1 + lat2) / 2;
+      path = [
+        { lat: lat1, lng: lng1 },
+        { lat: midLat, lng: lng1 },
+        { lat: midLat, lng: lng2 },
+        { lat: lat2, lng: lng2 }
+      ];
+    } else {
+      // Go halfway horizontal, turn, go rest horizontal
+      const midLng = (lng1 + lng2) / 2;
+      path = [
+        { lat: lat1, lng: lng1 },
+        { lat: lat1, lng: midLng },
+        { lat: lat2, lng: midLng },
+        { lat: lat2, lng: lng2 }
+      ];
+    }
   }
   
   return path;
