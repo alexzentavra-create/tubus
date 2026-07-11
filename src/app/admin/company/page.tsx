@@ -5004,15 +5004,17 @@ const CARTODB_DARK = {
 }
 
 // ─── Buenos Aires Street Grid Rotation Routing ─────────────────────────────
-function rotatePoint(p: {lat: number, lng: number}, angleRad: number) {
+function rotatePoint(p: any, angleRad: number) {
   const cosVal = Math.cos(angleRad);
   const sinVal = Math.sin(angleRad);
   // Scale longitude by cos(-34.6) to make coordinates isotropic
   const scaleX = 0.823;
-  const lngScaled = p.lng * scaleX;
+  const lat = p.lat !== undefined ? p.lat : p.latitude;
+  const lng = p.lng !== undefined ? p.lng : p.longitude;
+  const lngScaled = lng * scaleX;
   return {
-    x: lngScaled * cosVal - p.lat * sinVal,
-    y: lngScaled * sinVal + p.lat * cosVal
+    x: lngScaled * cosVal - lat * sinVal,
+    y: lngScaled * sinVal + lat * cosVal
   };
 }
 
@@ -5030,16 +5032,22 @@ function unrotatePoint(x: number, y: number, angleRad: number) {
   };
 }
 
-function getDetourOption(p1: {lat: number, lng: number}, p2: {lat: number, lng: number}, optionIndex: number) {
+function getDetourOption(p1: any, p2: any, optionIndex: number) {
   // -29 degrees rotation aligns with the NW-SE / SW-NE grid of Buenos Aires
   const angleRad = -29 * Math.PI / 180;
   
+  // Extract coordinate values robustly
+  const lat1 = p1.lat !== undefined ? p1.lat : p1.latitude;
+  const lng1 = p1.lng !== undefined ? p1.lng : p1.longitude;
+  const lat2 = p2.lat !== undefined ? p2.lat : p2.latitude;
+  const lng2 = p2.lng !== undefined ? p2.lng : p2.longitude;
+  
   // Use p1 as local origin to avoid coordinate distortion
-  const originLat = p1.lat;
-  const originLng = p1.lng;
+  const originLat = lat1;
+  const originLng = lng1;
   
   const localP1 = { lat: 0, lng: 0 };
-  const localP2 = { lat: p2.lat - originLat, lng: p2.lng - originLng };
+  const localP2 = { lat: lat2 - originLat, lng: lng2 - originLng };
   
   const r1 = rotatePoint(localP1, angleRad);
   const r2 = rotatePoint(localP2, angleRad);
@@ -5053,37 +5061,37 @@ function getDetourOption(p1: {lat: number, lng: number}, p2: {lat: number, lng: 
     // Option 1: Rotated L-shape (Turn X first)
     const c1Local = unrotatePoint(r2.x, r1.y, angleRad);
     path = [
-      p1,
+      { lat: lat1, lng: lng1 },
       { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
-      p2
+      { lat: lat2, lng: lng2 }
     ];
   } else if (optionIndex === 1) {
     // Option 2: Rotated L-shape (Turn Y first)
     const c1Local = unrotatePoint(r1.x, r2.y, angleRad);
     path = [
-      p1,
+      { lat: lat1, lng: lng1 },
       { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
-      p2
+      { lat: lat2, lng: lng2 }
     ];
   } else if (optionIndex === 2) {
     // Option 3: U-shape offset by +1 block
     const c1Local = unrotatePoint(r1.x, r1.y + blockOffset, angleRad);
     const c2Local = unrotatePoint(r2.x, r1.y + blockOffset, angleRad);
     path = [
-      p1,
+      { lat: lat1, lng: lng1 },
       { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
       { lat: c2Local.lat + originLat, lng: c2Local.lng + originLng },
-      p2
+      { lat: lat2, lng: lng2 }
     ];
   } else if (optionIndex === 3) {
     // Option 4: U-shape offset by -1 block
     const c1Local = unrotatePoint(r1.x, r1.y - blockOffset, angleRad);
     const c2Local = unrotatePoint(r2.x, r1.y - blockOffset, angleRad);
     path = [
-      p1,
+      { lat: lat1, lng: lng1 },
       { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
       { lat: c2Local.lat + originLat, lng: c2Local.lng + originLng },
-      p2
+      { lat: lat2, lng: lng2 }
     ];
   } else {
     // Option 5: Zig-zag (Step shape turning halfway)
@@ -5091,10 +5099,10 @@ function getDetourOption(p1: {lat: number, lng: number}, p2: {lat: number, lng: 
     const c1Local = unrotatePoint(midX, r1.y, angleRad);
     const c2Local = unrotatePoint(midX, r2.y, angleRad);
     path = [
-      p1,
+      { lat: lat1, lng: lng1 },
       { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
       { lat: c2Local.lat + originLat, lng: c2Local.lng + originLng },
-      p2
+      { lat: lat2, lng: lng2 }
     ];
   }
   
