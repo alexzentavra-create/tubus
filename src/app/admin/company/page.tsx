@@ -5007,18 +5007,26 @@ const CARTODB_DARK = {
 function rotatePoint(p: {lat: number, lng: number}, angleRad: number) {
   const cosVal = Math.cos(angleRad);
   const sinVal = Math.sin(angleRad);
+  // Scale longitude by cos(-34.6) to make coordinates isotropic
+  const scaleX = 0.823;
+  const lngScaled = p.lng * scaleX;
   return {
-    x: p.lng * cosVal - p.lat * sinVal,
-    y: p.lng * sinVal + p.lat * cosVal
+    x: lngScaled * cosVal - p.lat * sinVal,
+    y: lngScaled * sinVal + p.lat * cosVal
   };
 }
 
 function unrotatePoint(x: number, y: number, angleRad: number) {
   const cosVal = Math.cos(angleRad);
   const sinVal = Math.sin(angleRad);
+  const scaleX = 0.823;
+  
+  const lngScaled = x * cosVal + y * sinVal;
+  const lat = -x * sinVal + y * cosVal;
+  
   return {
-    lat: -x * sinVal + y * cosVal,
-    lng: x * cosVal + y * sinVal
+    lat: lat,
+    lng: lngScaled / scaleX
   };
 }
 
@@ -5026,8 +5034,15 @@ function getDetourOption(p1: {lat: number, lng: number}, p2: {lat: number, lng: 
   // -29 degrees rotation aligns with the NW-SE / SW-NE grid of Buenos Aires
   const angleRad = -29 * Math.PI / 180;
   
-  const r1 = rotatePoint(p1, angleRad);
-  const r2 = rotatePoint(p2, angleRad);
+  // Use p1 as local origin to avoid coordinate distortion
+  const originLat = p1.lat;
+  const originLng = p1.lng;
+  
+  const localP1 = { lat: 0, lng: 0 };
+  const localP2 = { lat: p2.lat - originLat, lng: p2.lng - originLng };
+  
+  const r1 = rotatePoint(localP1, angleRad);
+  const r2 = rotatePoint(localP2, angleRad);
   
   // Approx 1 block spacing (0.0012 lat/lng degrees)
   const blockOffset = 0.0012;
@@ -5036,28 +5051,51 @@ function getDetourOption(p1: {lat: number, lng: number}, p2: {lat: number, lng: 
   
   if (optionIndex === 0) {
     // Option 1: Rotated L-shape (Turn X first)
-    const c1 = unrotatePoint(r2.x, r1.y, angleRad);
-    path = [p1, c1, p2];
+    const c1Local = unrotatePoint(r2.x, r1.y, angleRad);
+    path = [
+      p1,
+      { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
+      p2
+    ];
   } else if (optionIndex === 1) {
     // Option 2: Rotated L-shape (Turn Y first)
-    const c1 = unrotatePoint(r1.x, r2.y, angleRad);
-    path = [p1, c1, p2];
+    const c1Local = unrotatePoint(r1.x, r2.y, angleRad);
+    path = [
+      p1,
+      { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
+      p2
+    ];
   } else if (optionIndex === 2) {
     // Option 3: U-shape offset by +1 block
-    const c1 = unrotatePoint(r1.x, r1.y + blockOffset, angleRad);
-    const c2 = unrotatePoint(r2.x, r1.y + blockOffset, angleRad);
-    path = [p1, c1, c2, p2];
+    const c1Local = unrotatePoint(r1.x, r1.y + blockOffset, angleRad);
+    const c2Local = unrotatePoint(r2.x, r1.y + blockOffset, angleRad);
+    path = [
+      p1,
+      { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
+      { lat: c2Local.lat + originLat, lng: c2Local.lng + originLng },
+      p2
+    ];
   } else if (optionIndex === 3) {
     // Option 4: U-shape offset by -1 block
-    const c1 = unrotatePoint(r1.x, r1.y - blockOffset, angleRad);
-    const c2 = unrotatePoint(r2.x, r1.y - blockOffset, angleRad);
-    path = [p1, c1, c2, p2];
+    const c1Local = unrotatePoint(r1.x, r1.y - blockOffset, angleRad);
+    const c2Local = unrotatePoint(r2.x, r1.y - blockOffset, angleRad);
+    path = [
+      p1,
+      { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
+      { lat: c2Local.lat + originLat, lng: c2Local.lng + originLng },
+      p2
+    ];
   } else {
     // Option 5: Zig-zag (Step shape turning halfway)
     const midX = (r1.x + r2.x) / 2;
-    const c1 = unrotatePoint(midX, r1.y, angleRad);
-    const c2 = unrotatePoint(midX, r2.y, angleRad);
-    path = [p1, c1, c2, p2];
+    const c1Local = unrotatePoint(midX, r1.y, angleRad);
+    const c2Local = unrotatePoint(midX, r2.y, angleRad);
+    path = [
+      p1,
+      { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
+      { lat: c2Local.lat + originLat, lng: c2Local.lng + originLng },
+      p2
+    ];
   }
   
   return path;
@@ -5234,6 +5272,39 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
     toast.success("Desvío aplicado temporalmente en el mapa")
   }
 
+  // Select dynamic detour option index
+  const selectDetourOption = (idx: number) => {
+    setSelectedDetourOptionIndex(idx)
+    const startStop = stops.find(s => s.id === detourStartStopId)
+    const endStop = stops.find(s => s.id === detourEndStopId)
+    if (!startStop || !endStop) return
+
+    const detourPoints = getDetourOption(startStop, endStop, idx)
+    const pathStartIdx = findClosestPathIndex(routePath, startStop.latitude, startStop.longitude)
+    const pathEndIdx = findClosestPathIndex(routePath, endStop.latitude, endStop.longitude)
+
+    const originalPath = getMockRoutePathForLine(activeLine, direction)
+    let newPath = [...originalPath]
+    if (pathStartIdx !== -1 && pathEndIdx !== -1 && pathStartIdx < pathEndIdx) {
+      newPath = [
+        ...originalPath.slice(0, pathStartIdx + 1),
+        ...detourPoints,
+        ...originalPath.slice(pathEndIdx)
+      ]
+    }
+
+    setRoutePath(newPath)
+    setActiveDetour((prev: any) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        points: detourPoints
+      };
+    })
+    setIsDirty(true)
+    toast.success(`Recorrido alternativo: Opción ${idx + 1} seleccionada`)
+  }
+
   // Apply manual detour
   const applyManualDetour = () => {
     if (manualDetourPoints.length === 0) {
@@ -5341,6 +5412,7 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
     setActiveDetour(null)
     setDetourStartStopId('')
     setDetourEndStopId('')
+    setSelectedDetourOptionIndex(0)
     setManualDetourPoints([])
     setIsEditingDetourManually(false)
     
@@ -5902,17 +5974,14 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
                 </select>
               </div>
 
-              {detourStartStopId && detourEndStopId && !activeDetour && !isEditingDetourManually && (
+              {detourStartStopId && detourEndStopId && activeDetour && !isEditingDetourManually && (
                 <div>
                   <label style={{ display: 'block', color: '#8f94a5', fontSize: '10px', marginBottom: '6px' }}>Opciones de Recorrido Alternativo</label>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px' }}>
                     {[0, 1, 2, 3, 4].map((idx) => (
                       <button
                         key={idx}
-                        onClick={() => {
-                          setSelectedDetourOptionIndex(idx)
-                          toast(`Previsualizando Opción ${idx + 1}`, { icon: '🗺️' })
-                        }}
+                        onClick={() => selectDetourOption(idx)}
                         style={{
                           padding: '6px 4px',
                           borderRadius: '6px',
@@ -5933,7 +6002,7 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
                 </div>
               )}
 
-              {detourStartStopId && detourEndStopId && !activeDetour && !isEditingDetourManually && (
+              {detourStartStopId && detourEndStopId && activeDetour && !isEditingDetourManually && (
                 <button
                   onClick={() => {
                     setIsEditingDetourManually(true)
