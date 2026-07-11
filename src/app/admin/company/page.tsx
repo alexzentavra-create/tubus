@@ -5003,6 +5003,66 @@ const CARTODB_DARK = {
   ]
 }
 
+// ─── Buenos Aires Street Grid Rotation Routing ─────────────────────────────
+function rotatePoint(p: {lat: number, lng: number}, angleRad: number) {
+  const cosVal = Math.cos(angleRad);
+  const sinVal = Math.sin(angleRad);
+  return {
+    x: p.lng * cosVal - p.lat * sinVal,
+    y: p.lng * sinVal + p.lat * cosVal
+  };
+}
+
+function unrotatePoint(x: number, y: number, angleRad: number) {
+  const cosVal = Math.cos(angleRad);
+  const sinVal = Math.sin(angleRad);
+  return {
+    lat: -x * sinVal + y * cosVal,
+    lng: x * cosVal + y * sinVal
+  };
+}
+
+function getDetourOption(p1: {lat: number, lng: number}, p2: {lat: number, lng: number}, optionIndex: number) {
+  // -29 degrees rotation aligns with the NW-SE / SW-NE grid of Buenos Aires
+  const angleRad = -29 * Math.PI / 180;
+  
+  const r1 = rotatePoint(p1, angleRad);
+  const r2 = rotatePoint(p2, angleRad);
+  
+  // Approx 1 block spacing (0.0012 lat/lng degrees)
+  const blockOffset = 0.0012;
+  
+  let path: {lat: number, lng: number}[] = [];
+  
+  if (optionIndex === 0) {
+    // Option 1: Rotated L-shape (Turn X first)
+    const c1 = unrotatePoint(r2.x, r1.y, angleRad);
+    path = [p1, c1, p2];
+  } else if (optionIndex === 1) {
+    // Option 2: Rotated L-shape (Turn Y first)
+    const c1 = unrotatePoint(r1.x, r2.y, angleRad);
+    path = [p1, c1, p2];
+  } else if (optionIndex === 2) {
+    // Option 3: U-shape offset by +1 block
+    const c1 = unrotatePoint(r1.x, r1.y + blockOffset, angleRad);
+    const c2 = unrotatePoint(r2.x, r1.y + blockOffset, angleRad);
+    path = [p1, c1, c2, p2];
+  } else if (optionIndex === 3) {
+    // Option 4: U-shape offset by -1 block
+    const c1 = unrotatePoint(r1.x, r1.y - blockOffset, angleRad);
+    const c2 = unrotatePoint(r2.x, r1.y - blockOffset, angleRad);
+    path = [p1, c1, c2, p2];
+  } else {
+    // Option 5: Zig-zag (Step shape turning halfway)
+    const midX = (r1.x + r2.x) / 2;
+    const c1 = unrotatePoint(midX, r1.y, angleRad);
+    const c2 = unrotatePoint(midX, r2.y, angleRad);
+    path = [p1, c1, c2, p2];
+  }
+  
+  return path;
+}
+
 function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor }: { activeLine: any; activeSessions?: any[]; driversList?: any[]; themeColor: string }) {
   const [direction, setDirection] = useState<'ida' | 'vuelta'>('ida')
   const [stops, setStops] = useState<any[]>([])
@@ -5025,6 +5085,7 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
   const [detourReason, setDetourReason] = useState<'accident' | 'protest' | 'construction' | 'traffic'>('accident')
   const [detourStartStopId, setDetourStartStopId] = useState('')
   const [detourEndStopId, setDetourEndStopId] = useState('')
+  const [selectedDetourOptionIndex, setSelectedDetourOptionIndex] = useState(0)
 
   // Manual detour states
   const [isEditingDetourManually, setIsEditingDetourManually] = useState(false)
@@ -5147,12 +5208,8 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
       return
     }
 
-    // Generate rectangular detour points that follow street grid instead of diagonals
-    const detourPoints = [
-      { lat: startStop.latitude, lng: startStop.longitude },
-      { lat: endStop.latitude, lng: startStop.longitude },
-      { lat: endStop.latitude, lng: endStop.longitude }
-    ]
+    // Generate detour points based on the selected option index
+    const detourPoints = getDetourOption(startStop, endStop, selectedDetourOptionIndex)
 
     const pathStartIdx = findClosestPathIndex(routePath, startStop.latitude, startStop.longitude)
     const pathEndIdx = findClosestPathIndex(routePath, endStop.latitude, endStop.longitude)
@@ -5391,20 +5448,47 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
     ]
   }
 
-  // Format Detour GeoJSON bypass
-  const detourGeoJson = (activeDetour && !isEditingDetourManually) ? {
-    type: 'FeatureCollection',
-    features: [
-      {
-        type: 'Feature',
-        geometry: {
-          type: 'LineString',
-          coordinates: activeDetour.points.map((p: any) => [p.lng, p.lat])
-        },
-        properties: {}
+  // Format Detour GeoJSON bypass or preview
+  const detourGeoJson = (() => {
+    if (isEditingDetourManually) return null;
+    if (activeDetour) {
+      return {
+        type: 'FeatureCollection',
+        features: [
+          {
+            type: 'Feature',
+            geometry: {
+              type: 'LineString',
+              coordinates: activeDetour.points.map((p: any) => [p.lng, p.lat])
+            },
+            properties: {}
+          }
+        ]
+      };
+    }
+    // Preview mode
+    if (detourStartStopId && detourEndStopId) {
+      const startStop = stops.find(s => s.id === detourStartStopId)
+      const endStop = stops.find(s => s.id === detourEndStopId)
+      if (startStop && endStop) {
+        const previewPts = getDetourOption(startStop, endStop, selectedDetourOptionIndex)
+        return {
+          type: 'FeatureCollection',
+          features: [
+            {
+              type: 'Feature',
+              geometry: {
+                type: 'LineString',
+                coordinates: previewPts.map((p: any) => [p.lng, p.lat])
+              },
+              properties: {}
+            }
+          ]
+        };
       }
-    ]
-  } : null
+    }
+    return null;
+  })()
 
   // Format Manual Detour GeoJSON
   const manualDetourGeoJson = (isEditingDetourManually && (detourStartStopId || manualDetourPoints.length > 0)) ? (() => {
@@ -5817,6 +5901,37 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
                   ))}
                 </select>
               </div>
+
+              {detourStartStopId && detourEndStopId && !activeDetour && !isEditingDetourManually && (
+                <div>
+                  <label style={{ display: 'block', color: '#8f94a5', fontSize: '10px', marginBottom: '6px' }}>Opciones de Recorrido Alternativo</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px' }}>
+                    {[0, 1, 2, 3, 4].map((idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          setSelectedDetourOptionIndex(idx)
+                          toast(`Previsualizando Opción ${idx + 1}`, { icon: '🗺️' })
+                        }}
+                        style={{
+                          padding: '6px 4px',
+                          borderRadius: '6px',
+                          background: selectedDetourOptionIndex === idx ? themeColor : 'rgba(255,255,255,0.03)',
+                          border: `1px solid ${selectedDetourOptionIndex === idx ? themeColor : 'rgba(255,255,255,0.08)'}`,
+                          color: '#fff',
+                          fontSize: '11px',
+                          fontWeight: selectedDetourOptionIndex === idx ? 700 : 500,
+                          cursor: 'pointer',
+                          textAlign: 'center',
+                          transition: 'all 150ms'
+                        }}
+                      >
+                        Op {idx + 1}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {detourStartStopId && detourEndStopId && !activeDetour && !isEditingDetourManually && (
                 <button
