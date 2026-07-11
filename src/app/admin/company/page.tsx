@@ -5274,15 +5274,16 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
     // Generate detour points based on the selected option index
     const detourPoints = getDetourOption(startStop, endStop, selectedDetourOptionIndex)
 
-    const pathStartIdx = findClosestPathIndex(routePath, startStop.latitude, startStop.longitude)
-    const pathEndIdx = findClosestPathIndex(routePath, endStop.latitude, endStop.longitude)
+    const originalPath = getMockRoutePathForLine(activeLine, direction)
+    const pathStartIdx = findClosestPathIndex(originalPath, startStop.latitude, startStop.longitude)
+    const pathEndIdx = findClosestPathIndex(originalPath, endStop.latitude, endStop.longitude)
 
-    let newPath = [...routePath]
+    let newPath = [...originalPath]
     if (pathStartIdx !== -1 && pathEndIdx !== -1 && pathStartIdx < pathEndIdx) {
       newPath = [
-        ...routePath.slice(0, pathStartIdx + 1),
+        ...originalPath.slice(0, pathStartIdx + 1),
         ...detourPoints,
-        ...routePath.slice(pathEndIdx)
+        ...originalPath.slice(pathEndIdx)
       ]
     }
 
@@ -5305,10 +5306,10 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
     if (!startStop || !endStop) return
 
     const detourPoints = getDetourOption(startStop, endStop, idx)
-    const pathStartIdx = findClosestPathIndex(routePath, startStop.latitude, startStop.longitude)
-    const pathEndIdx = findClosestPathIndex(routePath, endStop.latitude, endStop.longitude)
-
     const originalPath = getMockRoutePathForLine(activeLine, direction)
+    const pathStartIdx = findClosestPathIndex(originalPath, startStop.latitude, startStop.longitude)
+    const pathEndIdx = findClosestPathIndex(originalPath, endStop.latitude, endStop.longitude)
+
     let newPath = [...originalPath]
     if (pathStartIdx !== -1 && pathEndIdx !== -1 && pathStartIdx < pathEndIdx) {
       newPath = [
@@ -5346,15 +5347,16 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
       { lat: endStop.latitude, lng: endStop.longitude }
     ]
 
-    const pathStartIdx = findClosestPathIndex(routePath, startStop.latitude, startStop.longitude)
-    const pathEndIdx = findClosestPathIndex(routePath, endStop.latitude, endStop.longitude)
+    const originalPath = getMockRoutePathForLine(activeLine, direction)
+    const pathStartIdx = findClosestPathIndex(originalPath, startStop.latitude, startStop.longitude)
+    const pathEndIdx = findClosestPathIndex(originalPath, endStop.latitude, endStop.longitude)
 
-    let newPath = [...routePath]
+    let newPath = [...originalPath]
     if (pathStartIdx !== -1 && pathEndIdx !== -1 && pathStartIdx < pathEndIdx) {
       newPath = [
-        ...routePath.slice(0, pathStartIdx + 1),
+        ...originalPath.slice(0, pathStartIdx + 1),
         ...fullDetourPoints,
-        ...routePath.slice(pathEndIdx)
+        ...originalPath.slice(pathEndIdx)
       ]
     }
 
@@ -5408,15 +5410,16 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
     const endStop = stops.find(s => s.id === fav.endId)
     if (!startStop || !endStop) return
 
-    const pathStartIdx = findClosestPathIndex(routePath, startStop.latitude, startStop.longitude)
-    const pathEndIdx = findClosestPathIndex(routePath, endStop.latitude, endStop.longitude)
+    const originalPath = getMockRoutePathForLine(activeLine, direction)
+    const pathStartIdx = findClosestPathIndex(originalPath, startStop.latitude, startStop.longitude)
+    const pathEndIdx = findClosestPathIndex(originalPath, endStop.latitude, endStop.longitude)
 
-    let newPath = [...routePath]
+    let newPath = [...originalPath]
     if (pathStartIdx !== -1 && pathEndIdx !== -1 && pathStartIdx < pathEndIdx) {
       newPath = [
-        ...routePath.slice(0, pathStartIdx + 1),
+        ...originalPath.slice(0, pathStartIdx + 1),
         ...fav.points,
-        ...routePath.slice(pathEndIdx)
+        ...originalPath.slice(pathEndIdx)
       ]
     }
 
@@ -5530,20 +5533,53 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
       }
     })
 
-  // Format GeoJSON path
-  const routeGeoJson = {
-    type: 'FeatureCollection',
-    features: [
-      {
-        type: 'Feature',
-        geometry: {
-          type: 'LineString',
-          coordinates: routePath.map(p => [p.lng, p.lat])
-        },
-        properties: {}
+  // Format GeoJSON path (dynamically splits with a gap if detour is active or previewed)
+  const routeGeoJson = (() => {
+    const activeStartId = activeDetour?.startId || detourStartStopId;
+    const activeEndId = activeDetour?.endId || detourEndStopId;
+    
+    if (activeStartId && activeEndId) {
+      const originalPath = getMockRoutePathForLine(activeLine, direction)
+      const startStop = stops.find(s => s.id === activeStartId)
+      const endStop = stops.find(s => s.id === activeEndId)
+      if (startStop && endStop) {
+        const pathStartIdx = findClosestPathIndex(originalPath, startStop.latitude, startStop.longitude)
+        const pathEndIdx = findClosestPathIndex(originalPath, endStop.latitude, endStop.longitude)
+        if (pathStartIdx !== -1 && pathEndIdx !== -1 && pathStartIdx < pathEndIdx) {
+          const seg1 = originalPath.slice(0, pathStartIdx + 1).map(p => [p.lng, p.lat])
+          const seg2 = originalPath.slice(pathEndIdx).map(p => [p.lng, p.lat])
+          
+          return {
+            type: 'FeatureCollection',
+            features: [
+              {
+                type: 'Feature',
+                geometry: {
+                  type: 'MultiLineString',
+                  coordinates: [seg1, seg2]
+                },
+                properties: {}
+              }
+            ]
+          };
+        }
       }
-    ]
-  }
+    }
+    
+    return {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'LineString',
+            coordinates: routePath.map(p => [p.lng, p.lat])
+          },
+          properties: {}
+        }
+      ]
+    };
+  })();
 
   // Format Detour GeoJSON bypass or preview
   const detourGeoJson = (() => {
@@ -5728,7 +5764,20 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
           ))}
 
           {/* Render Stops */}
-          {stops.map(s => {
+          {(() => {
+            const activeStartId = activeDetour?.startId || detourStartStopId;
+            const activeEndId = activeDetour?.endId || detourEndStopId;
+            
+            if (activeStartId && activeEndId) {
+              const startIndex = stops.findIndex(s => s.id === activeStartId)
+              const endIndex = stops.findIndex(s => s.id === activeEndId)
+              if (startIndex !== -1 && endIndex !== -1 && startIndex < endIndex) {
+                // Keep start/end stops, filter out all stops in between
+                return stops.filter((s, idx) => idx <= startIndex || idx >= endIndex);
+              }
+            }
+            return stops;
+          })().map(s => {
             const isBlocked = blockedStops.includes(s.id)
             const isStartDetour = s.id === detourStartStopId
             const isEndDetour = s.id === detourEndStopId
