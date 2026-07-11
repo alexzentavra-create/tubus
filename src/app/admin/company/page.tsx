@@ -5040,84 +5040,128 @@ function getDetourOption(p1: any, p2: any, optionIndex: number) {
   const lng2 = p2.lng !== undefined ? p2.lng : p2.longitude;
   
   const scaleX = 0.823;
-  const dx = (lng2 - lng1) * scaleX;
-  const dy = lat2 - lat1;
   
-  const isVertical = Math.abs(dy) > Math.abs(dx);
+  // Street angles in radians matching the map grid:
+  // - Vertical streets (Entre Ríos/Callao) run at -3.7 degrees
+  // - Horizontal streets (Santa Fe/Ayacucho/Alsina) run at -19.1 degrees
+  const thetaV = -3.7 * Math.PI / 180;
+  const thetaH = -19.1 * Math.PI / 180;
+  
+  // Projection matrix components
+  const m11 = -Math.cos(thetaH);
+  const m12 = Math.sin(thetaV);
+  const m21 = -Math.sin(thetaH);
+  const m22 = Math.cos(thetaV);
+  
+  const det = m11 * m22 - m12 * m21;
+  
+  // Forward transform: skewed grid coordinates (u, v) -> local lat/lng deltas
+  function gridToLocal(u: number, v: number) {
+    const dxScaled = u * m11 + v * m12;
+    const dy = u * m21 + v * m22;
+    return {
+      lat: dy,
+      lng: dxScaled / scaleX
+    };
+  }
+  
+  // Inverse transform: local lat/lng deltas -> skewed grid coordinates (u, v)
+  function localToGrid(dx: number, dy: number) {
+    const dxScaled = dx * scaleX;
+    const u = (m22 * dxScaled - m12 * dy) / det;
+    const v = (-m21 * dxScaled + m11 * dy) / det;
+    return { u, v };
+  }
+  
+  const originLat = lat1;
+  const originLng = lng1;
+  
+  const targetGrid = localToGrid(lng2 - originLng, lat2 - originLat);
   const blockOffset = 0.0012; // Approx 1 block spacing
   
   let path: {lat: number, lng: number}[] = [];
   
   if (optionIndex === 0) {
-    // Option 1: Turn at (lng2, lat1)
+    // Option 1: Turn at u = targetGrid.u, v = 0
+    const c1Local = gridToLocal(targetGrid.u, 0);
     path = [
       { lat: lat1, lng: lng1 },
-      { lat: lat1, lng: lng2 },
+      { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
       { lat: lat2, lng: lng2 }
     ];
   } else if (optionIndex === 1) {
-    // Option 2: Turn at (lng1, lat2)
+    // Option 2: Turn at u = 0, v = targetGrid.v
+    const c1Local = gridToLocal(0, targetGrid.v);
     path = [
       { lat: lat1, lng: lng1 },
-      { lat: lat2, lng: lng1 },
+      { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
       { lat: lat2, lng: lng2 }
     ];
   } else if (optionIndex === 2) {
-    // Option 3: U-shape bypass (offset parallel to main direction)
+    // Option 3: U-shape bypass offset parallel to main direction
+    const isVertical = Math.abs(targetGrid.v) > Math.abs(targetGrid.u);
     if (isVertical) {
-      // Shift X by +blockOffset
+      // Shift horizontally (u-axis)
+      const c1Local = gridToLocal(blockOffset, 0);
+      const c2Local = gridToLocal(blockOffset, targetGrid.v);
       path = [
         { lat: lat1, lng: lng1 },
-        { lat: lat1, lng: lng1 + blockOffset / scaleX },
-        { lat: lat2, lng: lng1 + blockOffset / scaleX },
+        { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
+        { lat: c2Local.lat + originLat, lng: c2Local.lng + originLng },
         { lat: lat2, lng: lng2 }
       ];
     } else {
-      // Shift Y by +blockOffset
+      // Shift vertically (v-axis)
+      const c1Local = gridToLocal(0, blockOffset);
+      const c2Local = gridToLocal(targetGrid.u, blockOffset);
       path = [
         { lat: lat1, lng: lng1 },
-        { lat: lat1 + blockOffset, lng: lng1 },
-        { lat: lat1 + blockOffset, lng: lng2 },
+        { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
+        { lat: c2Local.lat + originLat, lng: c2Local.lng + originLng },
         { lat: lat2, lng: lng2 }
       ];
     }
   } else if (optionIndex === 3) {
-    // Option 4: U-shape bypass (offset opposite parallel to main direction)
+    // Option 4: U-shape bypass offset opposite direction
+    const isVertical = Math.abs(targetGrid.v) > Math.abs(targetGrid.u);
     if (isVertical) {
-      // Shift X by -blockOffset
+      const c1Local = gridToLocal(-blockOffset, 0);
+      const c2Local = gridToLocal(-blockOffset, targetGrid.v);
       path = [
         { lat: lat1, lng: lng1 },
-        { lat: lat1, lng: lng1 - blockOffset / scaleX },
-        { lat: lat2, lng: lng1 - blockOffset / scaleX },
+        { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
+        { lat: c2Local.lat + originLat, lng: c2Local.lng + originLng },
         { lat: lat2, lng: lng2 }
       ];
     } else {
-      // Shift Y by -blockOffset
+      const c1Local = gridToLocal(0, -blockOffset);
+      const c2Local = gridToLocal(targetGrid.u, -blockOffset);
       path = [
         { lat: lat1, lng: lng1 },
-        { lat: lat1 - blockOffset, lng: lng1 },
-        { lat: lat1 - blockOffset, lng: lng2 },
+        { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
+        { lat: c2Local.lat + originLat, lng: c2Local.lng + originLng },
         { lat: lat2, lng: lng2 }
       ];
     }
   } else {
     // Option 5: Zig-zag (halfway turn)
+    const isVertical = Math.abs(targetGrid.v) > Math.abs(targetGrid.u);
     if (isVertical) {
-      // Go halfway vertical, turn, go rest vertical
-      const midLat = (lat1 + lat2) / 2;
+      const c1Local = gridToLocal(0, targetGrid.v / 2);
+      const c2Local = gridToLocal(targetGrid.u, targetGrid.v / 2);
       path = [
         { lat: lat1, lng: lng1 },
-        { lat: midLat, lng: lng1 },
-        { lat: midLat, lng: lng2 },
+        { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
+        { lat: c2Local.lat + originLat, lng: c2Local.lng + originLng },
         { lat: lat2, lng: lng2 }
       ];
     } else {
-      // Go halfway horizontal, turn, go rest horizontal
-      const midLng = (lng1 + lng2) / 2;
+      const c1Local = gridToLocal(targetGrid.u / 2, 0);
+      const c2Local = gridToLocal(targetGrid.u / 2, targetGrid.v);
       path = [
         { lat: lat1, lng: lng1 },
-        { lat: lat1, lng: midLng },
-        { lat: lat2, lng: midLng },
+        { lat: c1Local.lat + originLat, lng: c1Local.lng + originLng },
+        { lat: c2Local.lat + originLat, lng: c2Local.lng + originLng },
         { lat: lat2, lng: lng2 }
       ];
     }
