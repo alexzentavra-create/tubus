@@ -5611,7 +5611,7 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
   }, [isEditingDetourManually, detourStartStopId, detourEndStopId, stops])
 
   return (
-    <div style={{ display: 'flex', gap: '20px', height: '620px', background: '#0b0f19', borderRadius: '16px', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', gap: '20px', height: '700px', background: '#0b0f19', borderRadius: '16px', overflow: 'hidden' }}>
       
       {/* MAP VIEW */}
       <div style={{ flex: 1, position: 'relative', background: '#121527', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden' }}>
@@ -5860,7 +5860,7 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
       </div>
 
       {/* CONTROL SIDEBAR */}
-      <div style={{ width: '320px', background: '#121527', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div style={{ width: '320px', background: '#121527', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto', maxHeight: '100%' }}>
         <div>
           <h4 style={{ color: '#fff', fontSize: '15px', fontWeight: 700, margin: 0 }}>Control de Ruta</h4>
           <p style={{ color: '#8f94a5', fontSize: '11px', margin: '2px 0 0' }}>Administre desvíos, bloqueos y paradas</p>
