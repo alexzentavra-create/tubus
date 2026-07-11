@@ -5042,10 +5042,10 @@ function getDetourOption(p1: any, p2: any, optionIndex: number) {
   const scaleX = 0.823;
   
   // Street angles in radians matching the map grid:
-  // - Vertical streets (Entre Ríos/Callao) run at -3.7 degrees
-  // - Horizontal streets (Santa Fe/Ayacucho/Alsina) run at -19.1 degrees
-  const thetaV = -3.7 * Math.PI / 180;
-  const thetaH = -19.1 * Math.PI / 180;
+  // - Vertical streets (Entre Ríos/Callao) run at -3.4 degrees (up-left)
+  // - Horizontal streets (Santa Fe/Ayacucho/Alsina) run at +2.8 degrees (up-right)
+  const thetaV = -3.4 * Math.PI / 180;
+  const thetaH = 2.8 * Math.PI / 180;
   
   // Projection matrix components
   const m11 = -Math.cos(thetaH);
