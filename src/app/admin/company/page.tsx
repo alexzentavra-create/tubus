@@ -5198,60 +5198,84 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
   const [isEditingDetourManually, setIsEditingDetourManually] = useState(false)
   const [manualDetourPoints, setManualDetourPoints] = useState<any[]>([])
   const [savedCustomDetours, setSavedCustomDetours] = useState<any[]>([])
-  const [osrmDetourOptions, setOsrmDetourOptions] = useState<any[]>([])
+  const [osrmRoutesCache, setOsrmRoutesCache] = useState<{[key: string]: any[]}>({})
 
-  // Query OSRM routing API to fetch real street-matched detour alternative routes
+  // Query OSRM routing API to fetch real street-matched detour alternative routes using waypoints
   useEffect(() => {
-    if (!detourStartStopId || !detourEndStopId) {
-      setOsrmDetourOptions([])
-      return
-    }
+    if (!detourStartStopId || !detourEndStopId) return
     const startStop = stops.find(s => s.id === detourStartStopId)
     const endStop = stops.find(s => s.id === detourEndStopId)
     if (!startStop || !endStop) return
-    
-    const lng1 = startStop.longitude;
-    const lat1 = startStop.latitude;
-    const lng2 = endStop.longitude;
-    const lat2 = endStop.latitude;
-    
-    const url = `https://router.project-osrm.org/route/v1/driving/${lng1},${lat1};${lng2},${lat2}?overview=full&geometries=geojson&alternatives=true`
+
+    const key = `${detourStartStopId}_${detourEndStopId}_${selectedDetourOptionIndex}`
+    if (osrmRoutesCache[key]) {
+      // Already cached, hot-reload active path/detour if applicable
+      const coords = osrmRoutesCache[key]
+      if (activeDetour && !isEditingDetourManually) {
+        const originalPath = getMockRoutePathForLine(activeLine, direction)
+        const pathStartIdx = findClosestPathIndex(originalPath, startStop.latitude, startStop.longitude)
+        const pathEndIdx = findClosestPathIndex(originalPath, endStop.latitude, endStop.longitude)
+        if (pathStartIdx !== -1 && pathEndIdx !== -1 && pathStartIdx < pathEndIdx) {
+          const newPath = [
+            ...originalPath.slice(0, pathStartIdx + 1),
+            ...coords,
+            ...originalPath.slice(pathEndIdx)
+          ]
+          setRoutePath(newPath)
+          setActiveDetour((prev: any) => {
+            if (!prev) return null
+            if (prev.startId === detourStartStopId && prev.endId === detourEndStopId) {
+              return { ...prev, points: coords }
+            }
+            return prev
+          })
+        }
+      }
+      return
+    }
+
+    const pts = getDetourOption(startStop, endStop, selectedDetourOptionIndex)
+    const coordsString = pts.map((p: any) => {
+      const lat = p.lat !== undefined ? p.lat : p.latitude
+      const lng = p.lng !== undefined ? p.lng : p.longitude
+      return `${lng},${lat}`
+    }).join(';')
+
+    const url = `https://router.project-osrm.org/route/v1/driving/${coordsString}?overview=full&geometries=geojson`
     fetch(url)
       .then(res => res.json())
       .then(data => {
-        if (data.routes && data.routes.length > 0) {
-          const parsedRoutes = data.routes.map((route: any) => {
-            return route.geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] }))
-          })
-          setOsrmDetourOptions(parsedRoutes)
-          
-          // If a detour is active and we are not in manual edit mode, automatically hot-reload the OSRM path!
-          if (activeDetour && !isEditingDetourManually) {
-            const detourPoints = parsedRoutes[selectedDetourOptionIndex] || getDetourOption(startStop, endStop, selectedDetourOptionIndex)
+        if (data.routes && data.routes[0] && data.routes[0].geometry) {
+          const coords = data.routes[0].geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] }))
+          setOsrmRoutesCache(prev => ({ ...prev, [key]: coords }))
+
+          // Hot-reload active path/detour with snapped points
+          if (!isEditingDetourManually) {
             const originalPath = getMockRoutePathForLine(activeLine, direction)
             const pathStartIdx = findClosestPathIndex(originalPath, startStop.latitude, startStop.longitude)
             const pathEndIdx = findClosestPathIndex(originalPath, endStop.latitude, endStop.longitude)
             if (pathStartIdx !== -1 && pathEndIdx !== -1 && pathStartIdx < pathEndIdx) {
               const newPath = [
                 ...originalPath.slice(0, pathStartIdx + 1),
-                ...detourPoints,
+                ...coords,
                 ...originalPath.slice(pathEndIdx)
               ]
               setRoutePath(newPath)
               setActiveDetour((prev: any) => {
-                if (!prev) return null;
-                return { ...prev, points: detourPoints };
+                if (!prev) return null
+                if (prev.startId === detourStartStopId && prev.endId === detourEndStopId) {
+                  return { ...prev, points: coords }
+                }
+                return prev
               })
             }
           }
-        } else {
-          setOsrmDetourOptions([])
         }
       })
-      .catch(() => {
-        setOsrmDetourOptions([])
+      .catch(err => {
+        console.error("OSRM fetch error:", err)
       })
-  }, [detourStartStopId, detourEndStopId, stops, activeLine, direction])
+  }, [detourStartStopId, detourEndStopId, selectedDetourOptionIndex, stops, activeLine, direction, osrmRoutesCache, activeDetour, isEditingDetourManually])
 
   // Load saved custom detours on mount
   useEffect(() => {
@@ -5370,7 +5394,8 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
     }
 
     // Generate detour points based on the selected option index (utilize OSRM route if available)
-    const detourPoints = osrmDetourOptions[selectedDetourOptionIndex] || getDetourOption(startStop, endStop, selectedDetourOptionIndex)
+    const cacheKey = `${detourStartStopId}_${detourEndStopId}_${selectedDetourOptionIndex}`
+    const detourPoints = osrmRoutesCache[cacheKey] || getDetourOption(startStop, endStop, selectedDetourOptionIndex)
 
     const originalPath = getMockRoutePathForLine(activeLine, direction)
     const pathStartIdx = findClosestPathIndex(originalPath, startStop.latitude, startStop.longitude)
@@ -5403,7 +5428,8 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
     const endStop = stops.find(s => s.id === detourEndStopId)
     if (!startStop || !endStop) return
 
-    const detourPoints = osrmDetourOptions[idx] || getDetourOption(startStop, endStop, idx)
+    const selectCacheKey = `${detourStartStopId}_${detourEndStopId}_${idx}`
+    const detourPoints = osrmRoutesCache[selectCacheKey] || getDetourOption(startStop, endStop, idx)
     const originalPath = getMockRoutePathForLine(activeLine, direction)
     const pathStartIdx = findClosestPathIndex(originalPath, startStop.latitude, startStop.longitude)
     const pathEndIdx = findClosestPathIndex(originalPath, endStop.latitude, endStop.longitude)
@@ -5702,7 +5728,8 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
       const startStop = stops.find(s => s.id === detourStartStopId)
       const endStop = stops.find(s => s.id === detourEndStopId)
       if (startStop && endStop) {
-        const previewPts = osrmDetourOptions[selectedDetourOptionIndex] || getDetourOption(startStop, endStop, selectedDetourOptionIndex)
+        const previewCacheKey = `${detourStartStopId}_${detourEndStopId}_${selectedDetourOptionIndex}`
+        const previewPts = osrmRoutesCache[previewCacheKey] || getDetourOption(startStop, endStop, selectedDetourOptionIndex)
         return {
           type: 'FeatureCollection',
           features: [
