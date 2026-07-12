@@ -5780,19 +5780,63 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
     if (!startStop || !endStop) return []
 
     const corners: { id: string; lat: number; lng: number }[] = []
+    
+    const scaleX = 0.823
+    const thetaV = -3.4 * Math.PI / 180
+    const wV = 0.000915
+    const wU = 0.00108
+
+    const originLat = startStop.latitude
+    const originLng = startStop.longitude
+    
+    // Find grid coordinates of the center
     const centerLat = (startStop.latitude + endStop.latitude) / 2
     const centerLng = (startStop.longitude + endStop.longitude) / 2
-
-    // 9x9 grid of intersections around center
-    for (let i = -4; i <= 4; i++) {
-      for (let j = -4; j <= 4; j++) {
+    
+    // Decompose center relative to startStop to find its grid indices
+    const thetaH_center = 2.8 * Math.PI / 180 // average horizontal angle for center projection
+    const m11 = -Math.cos(thetaH_center)
+    const m12 = Math.sin(thetaV)
+    const m21 = -Math.sin(thetaH_center)
+    const m22 = Math.cos(thetaV)
+    const det = m11 * m22 - m12 * m21
+    
+    const dx = centerLng - originLng
+    const dy = centerLat - originLat
+    const dxScaled = dx * scaleX
+    const centerU = (m22 * dxScaled - m12 * dy) / (det * wU)
+    const centerV = (-m21 * dxScaled + m11 * dy) / (det * wV)
+    
+    const midU = Math.round(centerU)
+    const midV = Math.round(centerV)
+    
+    // Generate 21x21 grid (20-block diameter centered on detour)
+    for (let i = midU - 10; i <= midU + 10; i++) {
+      for (let j = midV - 10; j <= midV + 10; j++) {
+        // Calculate point on vertical axis (j steps)
+        const rowDy = j * wV * Math.cos(thetaV)
+        const rowDxScaled = j * wV * Math.sin(thetaV)
+        const rowLat = originLat + rowDy
+        const rowLng = originLng + rowDxScaled / scaleX
+        
+        // Interpolate horizontal street angle at rowLat
+        const denom = endStop.latitude - originLat
+        const ratio = Math.abs(denom) > 0.0001 ? Math.max(0, Math.min(1, (rowLat - originLat) / denom)) : 0
+        const thetaH_deg = 2.8 - 21.9 * ratio
+        const thetaH = thetaH_deg * Math.PI / 180
+        
+        // Move i steps horizontally
+        const lat = rowLat + i * wU * Math.sin(thetaH)
+        const lng = rowLng + i * wU * Math.cos(thetaH) / scaleX
+        
         corners.push({
           id: `corner-${i}-${j}`,
-          lat: centerLat + i * 0.0012,
-          lng: centerLng + j * 0.0015
+          lat,
+          lng
         })
       }
     }
+    
     return corners
   }, [isEditingDetourManually, detourStartStopId, detourEndStopId, stops])
 
@@ -5866,11 +5910,11 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
                   setManualDetourPoints(prev => [...prev, { lat: c.lat, lng: c.lng }])
                 }}
                 style={{
-                  width: '10px',
-                  height: '10px',
+                  width: '8px',
+                  height: '8px',
                   borderRadius: '50%',
                   background: '#a3a6b8',
-                  border: '2px solid #fff',
+                  border: '1.5px solid #fff',
                   cursor: 'pointer',
                   boxShadow: '0 0 6px rgba(0,0,0,0.5)',
                   transform: 'scale(1)',
