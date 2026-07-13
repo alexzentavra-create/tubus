@@ -1786,17 +1786,18 @@ export default function DriverPage() {
             {mockLine && stops.map((stop) => {
               const isBlocked = (stop as any).isBlocked || stop.name.includes('[BLOQUEADA]')
               const isUpcoming = upcomingStops.some(u => u.stop.id === stop.id)
+              const isOnCurrentTrip = !stop.direction || stop.direction === 'ida'
               return (
                 <Marker key={stop.id} longitude={stop.longitude} latitude={stop.latitude} pitchAlignment="map" rotationAlignment="map" anchor="center">
                   <div
                     title={stop.name}
                     style={{
-                      width: isBlocked ? '14px' : (isUpcoming ? '11px' : '9px'),
-                      height: isBlocked ? '14px' : (isUpcoming ? '11px' : '9px'),
+                      width: isBlocked ? '14px' : (isUpcoming ? '11px' : (isOnCurrentTrip ? '9px' : '7px')),
+                      height: isBlocked ? '14px' : (isUpcoming ? '11px' : (isOnCurrentTrip ? '9px' : '7px')),
                       borderRadius: '50%',
-                      background: isBlocked ? '#FF4D6A' : accentColor,
-                      border: '1.5px solid #ffffff',
-                      boxShadow: isBlocked ? '0 0 8px #FF4D6A' : (isUpcoming ? `0 0 10px ${accentColor}` : `0 0 4px ${accentColor}80`),
+                      background: isBlocked ? '#FF4D6A' : (isOnCurrentTrip ? accentColor : 'rgba(148, 163, 184, 0.3)'),
+                      border: `1.5px solid ${isOnCurrentTrip ? '#ffffff' : 'rgba(148, 163, 184, 0.15)'}`,
+                      boxShadow: isBlocked ? '0 0 8px #FF4D6A' : (isOnCurrentTrip ? (isUpcoming ? `0 0 10px ${accentColor}` : `0 0 4px ${accentColor}80`) : 'none'),
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
