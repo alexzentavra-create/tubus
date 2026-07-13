@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback, useRef, Fragment } from 'react'
+import { useState, useEffect, useCallback, useRef, Fragment, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import Map, { Marker, Popup, NavigationControl, GeolocateControl, Source, Layer } from 'react-map-gl/maplibre'
 import { toast } from 'react-hot-toast'
@@ -23107,6 +23107,25 @@ export default function UserMapPage() {
     return { ida: 'Ida (Salida)', vuelta: 'Vuelta (Regreso)' }
   }
   const dirLabels = getDirectionLabels()
+  const activeDetours = useMemo(() => {
+    if (typeof window === 'undefined') return []
+    return selectedLines.map(line => {
+      const activeDir = activeTravelRoute && activeTravelRoute.line_id === line.id
+        ? activeTravelRoute.direction
+        : directionFilter
+      const detourKey = `mock_detour_${line.line_number}_${activeDir}`
+      const stored = localStorage.getItem(detourKey)
+      if (stored) {
+        try {
+          return { lineId: line.id, ...JSON.parse(stored) }
+        } catch (e) {
+          return null
+        }
+      }
+      return null
+    }).filter(Boolean) as any[]
+  }, [selectedLines, directionFilter, activeTravelRoute, routeUpdateTick])
+
   const linesToDraw = (showOnlyFocusedLine && focusedLineId)
     ? selectedLines.filter(l => l.id === focusedLineId)
     : (activeTravelRoute
@@ -24362,6 +24381,46 @@ export default function UserMapPage() {
             )
           })}
 
+          {/* Render detour waypoints on the passenger map */}
+          {activeDetours.map(detour => (
+            detour.waypoints?.map((p: any, idx: number) => (
+              <Marker
+                key={`detour-wp-${detour.lineId}-${idx}`}
+                latitude={p.lat}
+                longitude={p.lng}
+                anchor="center"
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none' }}>
+                  <div
+                    style={{
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      background: '#FF8A00',
+                      border: '1.5px solid #fff',
+                      boxShadow: '0 0 6px rgba(0,0,0,0.5)'
+                    }}
+                  />
+                  <div
+                    style={{
+                      background: 'rgba(11,15,25,0.9)',
+                      color: '#fff',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontSize: '9px',
+                      fontWeight: 600,
+                      marginTop: '4px',
+                      whiteSpace: 'nowrap',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                    }}
+                  >
+                    {p.name || `Esquina ${idx + 1}`}
+                  </div>
+                </div>
+              </Marker>
+            ))
+          ))}
 
           {/* Render Clubbing & Shopping Custom Markers */}
           {(activeMode === 'clubbing' || activeMode === 'shopping') && MOCK_PLACES

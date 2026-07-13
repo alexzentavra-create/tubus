@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bus, Navigation, Wifi, WifiOff, Users, Power, AlertCircle, Gauge, Clock, QrCode, CheckCircle, LogOut, Zap, MapPin, Sun, Moon } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
@@ -1082,6 +1082,21 @@ export default function DriverPage() {
   // Map route geometries
   const routePath = mockLine ? getMockRoutePathForLine(mockLine) : []
   const stops = mockLine ? getMockStopsForLine(mockLine) : []
+
+  // Load active detour for driver
+  const activeDetour = useMemo(() => {
+    if (typeof window === 'undefined' || !mockLine) return null
+    const stored = localStorage.getItem(`mock_detour_${mockLine.line_number}_ida`)
+    if (stored) {
+      try {
+        return JSON.parse(stored)
+      } catch (e) {
+        return null
+      }
+    }
+    return null
+  }, [mockLine, routeUpdateTick])
+
   const upcomingStops = getUpcomingStops()
 
   const nextStop = stops[nextStopIndex]
@@ -1749,6 +1764,45 @@ export default function DriverPage() {
                 </Marker>
               )
             })}
+
+            {/* Render detour waypoints on the driver map */}
+            {activeDetour?.waypoints?.map((p: any, idx: number) => (
+              <Marker
+                key={`detour-wp-${idx}`}
+                latitude={p.lat}
+                longitude={p.lng}
+                anchor="center"
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none' }}>
+                  <div
+                    style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      background: '#FF8A00',
+                      border: '1.5px solid #fff',
+                      boxShadow: '0 0 6px rgba(0,0,0,0.5)'
+                    }}
+                  />
+                  <div
+                    style={{
+                      background: 'rgba(11,15,25,0.9)',
+                      color: '#fff',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontSize: '9px',
+                      fontWeight: 600,
+                      marginTop: '4px',
+                      whiteSpace: 'nowrap',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                    }}
+                  >
+                    {p.name || `Esquina ${idx + 1}`}
+                  </div>
+                </div>
+              </Marker>
+            ))}
 
             {/* Marker for current bus position with 3D perspective shift correction */}
             {pos && (() => {
