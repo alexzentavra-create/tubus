@@ -1,14 +1,17 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   Bus, Users, Building2, Activity, TrendingUp, AlertTriangle,
   Clock, MapPin, BarChart2, Download, LogOut, RefreshCw,
   ChevronRight, Star, Wifi, Search, Bell, Mail, Calendar,
   Share2, Printer, Plus, Trash2, ChevronDown, CheckCircle2,
-  Circle, Flag, Info, Megaphone, MessageSquare
+  Circle, Flag, Info, Megaphone, MessageSquare, Eye, EyeOff,
+  BookOpen, Globe, Award, ListChecks
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre'
+import { MOCK_LINES, getMockStopsForLine, getMockRoutePathForLine } from '@/lib/mockData'
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell
@@ -17,19 +20,68 @@ import { format, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 
-// Mock data for charts
-const HOURLY = Array.from({length:24},(_,h)=>{
-  const v1 = Math.round(Math.random()*400+(h>=7&&h<=9||h>=17&&h<=19?700:80))
-  const v2 = Math.round(v1 * (0.75 + Math.random()*0.3))
-  return { h:`${String(h).padStart(2,'0')}:00`, v1, v2 }
-})
-const WEEKLY = Array.from({length:7},(_,i)=>({d:format(subDays(new Date(),6-i),'EEE',{locale:es}),users:Math.round(Math.random()*1500+2500),drivers:Math.round(Math.random()*20+40)}))
+// Map style
+const CARTODB_DARK = {
+  version: 8,
+  sources: {
+    "cartodb-dark-tiles": {
+      type: "raster",
+      tiles: [
+        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png"
+      ],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors, © CartoDB"
+    }
+  },
+  layers: [
+    {
+      id: "cartodb-dark-layer",
+      type: "raster",
+      source: "cartodb-dark-tiles",
+      minzoom: 0,
+      maxzoom: 20
+    }
+  ]
+}
+
+// Visual graphs mock data
+const METRICS_BY_PERIOD = {
+  day: [
+    { label: '06:00', pasajeros: 120, colectivos: 18, choferes: 15 },
+    { label: '09:00', pasajeros: 450, colectivos: 23, choferes: 22 },
+    { label: '12:00', pasajeros: 310, colectivos: 21, choferes: 20 },
+    { label: '15:00', pasajeros: 280, colectivos: 20, choferes: 19 },
+    { label: '18:00', pasajeros: 520, colectivos: 23, choferes: 23 },
+    { label: '21:00', pasajeros: 190, colectivos: 15, choferes: 15 }
+  ],
+  week: [
+    { label: 'Lunes', pasajeros: 2450, colectivos: 23, choferes: 45 },
+    { label: 'Martes', pasajeros: 2600, colectivos: 23, choferes: 46 },
+    { label: 'Miércoles', pasajeros: 2550, colectivos: 23, choferes: 44 },
+    { label: 'Jueves', pasajeros: 2700, colectivos: 23, choferes: 47 },
+    { label: 'Viernes', pasajeros: 2950, colectivos: 23, choferes: 48 },
+    { label: 'Sábado', pasajeros: 1400, colectivos: 15, choferes: 25 },
+    { label: 'Domingo', pasajeros: 950, colectivos: 12, choferes: 18 }
+  ],
+  month: [
+    { label: 'Semana 1', pasajeros: 12400, colectivos: 23, choferes: 52 },
+    { label: 'Semana 2', pasajeros: 13150, colectivos: 23, choferes: 54 },
+    { label: 'Semana 3', pasajeros: 12900, colectivos: 23, choferes: 53 },
+    { label: 'Semana 4', pasajeros: 14200, colectivos: 23, choferes: 55 }
+  ]
+}
+
 const LINES_DATA = [
-  {id:'line-1',   name:'Línea 12',  users:1240, trips:89,  complaints:3},
-  {id:'line-28',  name:'Línea 28',  users:1650, trips:112, complaints:1},
-  {id:'line-3',   name:'Línea 37',  users:920,  trips:67,  complaints:1},
-  {id:'line-60',  name:'Línea 60',  users:2100, trips:134, complaints:7},
-  {id:'line-152', name:'Línea 152', users:1450, trips:98,  complaints:2},
+  { id: 'line-1',   name: 'Línea 12',  users: 1240, trips: 89,  complaints: 3 },
+  { id: 'line-28',  name: 'Línea 28',  users: 1650, trips: 112, complaints: 1 },
+  { id: 'line-3',   name: 'Línea 37',  users: 920,  trips: 67,  complaints: 1 },
+  { id: 'line-39',  name: 'Línea 39',  users: 840,  trips: 58,  complaints: 0 },
+  { id: 'line-59',  name: 'Línea 59',  users: 1310, trips: 92,  complaints: 2 },
+  { id: 'line-60',  name: 'Línea 60',  users: 2100, trips: 134, complaints: 7 },
+  { id: 'line-152', name: 'Línea 152', users: 1450, trips: 98,  complaints: 2 },
 ]
 
 const LINE_DETAILS: Record<string, {
@@ -37,47 +89,23 @@ const LINE_DETAILS: Record<string, {
   activeDrivers: number
   totalPassengers: number
   avgRating: number
-  dailyDriversHistory: { day: string; count: number }[]
-  hourlyFlow: { h: string; passengers: number }[]
-  driversList: { name: string; email: string; unit: string; rating: number; online: boolean }[]
+  driversList: { name: string; email: string; pass: string; unit: string; rating: number; online: boolean }[]
   complaintsList: { type: string; driver: string; bus: string; status: 'pending'|'resolved'; time: string; desc: string }[]
-  topStops: { name: string; count: number; wait: number }[]
 }> = {
   'line-1': {
     companyName: 'Transportes Callao S.A.',
     activeDrivers: 5,
     totalPassengers: 1240,
     avgRating: 4.8,
-    dailyDriversHistory: [
-      { day: 'Lun', count: 6 },
-      { day: 'Mar', count: 6 },
-      { day: 'Mié', count: 5 },
-      { day: 'Jue', count: 7 },
-      { day: 'Vie', count: 8 },
-      { day: 'Sáb', count: 4 },
-      { day: 'Dom', count: 3 }
-    ],
-    hourlyFlow: Array.from({length:12}, (_, i) => {
-      const h = 7 + i
-      return {
-        h: `${String(h).padStart(2, '0')}:00`,
-        passengers: Math.round(50 + Math.sin((i / 11) * Math.PI) * 120 + Math.random() * 20)
-      }
-    }),
     driversList: [
-      { name: 'Néstor García', email: 'nestor@nestor.ar', unit: '001', rating: 4.8, online: true },
-      { name: 'Roberto Sánchez', email: 'roberto@demo.ar', unit: '003', rating: 4.9, online: true },
-      { name: 'Carlos Martínez', email: 'carlos@demo.ar', unit: '002', rating: 4.6, online: false },
-      { name: 'Juan Gómez', email: 'juan@demo.ar', unit: '005', rating: 4.5, online: true }
+      { name: 'Néstor García', email: 'nestor@nestor.ar', pass: 'Nestor123!', unit: '1201', rating: 4.8, online: true },
+      { name: 'Roberto Sánchez', email: 'roberto@demo.ar', pass: 'RobSanch99', unit: '1203', rating: 4.9, online: true },
+      { name: 'Carlos Martínez', email: 'carlos@demo.ar', pass: 'CarMar8877', unit: '1202', rating: 4.6, online: false },
+      { name: 'Juan Gómez', email: 'juan@demo.ar', pass: 'JuanitoGo!', unit: '1205', rating: 4.5, online: true }
     ],
     complaintsList: [
-      { type: 'No paró', driver: 'Carlos Martínez', bus: '002', status: 'pending', time: 'Hace 15 min', desc: 'El chofer no se detuvo a pesar de haber pasajeros esperando y hacer señas.' },
-      { type: 'Mal trato', driver: 'Juan Gómez', bus: '005', status: 'resolved', time: 'Ayer', desc: 'Se negó a abrir la puerta trasera al solicitar la parada.' }
-    ],
-    topStops: [
-      { name: 'Av. Pueyrredón y Corrientes', count: 380, wait: 6 },
-      { name: 'Av. Corrientes y Callao', count: 290, wait: 5 },
-      { name: 'Av. Santa Fe y Pueyrredón', count: 260, wait: 5 }
+      { type: 'No paró', driver: 'Carlos Martínez', bus: '1202', status: 'pending', time: 'Hace 15 min', desc: 'El chofer no se detuvo a pesar de haber pasajeros esperando y hacer señas.' },
+      { type: 'Mal trato', driver: 'Juan Gómez', bus: '1205', status: 'resolved', time: 'Ayer', desc: 'Se negó a abrir la puerta trasera al solicitar la parada.' }
     ]
   },
   'line-28': {
@@ -85,34 +113,13 @@ const LINE_DETAILS: Record<string, {
     activeDrivers: 4,
     totalPassengers: 1650,
     avgRating: 4.7,
-    dailyDriversHistory: [
-      { day: 'Lun', count: 5 },
-      { day: 'Mar', count: 6 },
-      { day: 'Mié', count: 6 },
-      { day: 'Jue', count: 5 },
-      { day: 'Vie', count: 6 },
-      { day: 'Sáb', count: 3 },
-      { day: 'Dom', count: 2 }
-    ],
-    hourlyFlow: Array.from({length:12}, (_, i) => {
-      const h = 7 + i
-      return {
-        h: `${String(h).padStart(2, '0')}:00`,
-        passengers: Math.round(40 + Math.sin((i / 11) * Math.PI) * 150 + Math.random() * 25)
-      }
-    }),
     driversList: [
-      { name: 'Carlos M.', email: 'carlos@demo.ar', unit: '002', rating: 4.6, online: true },
-      { name: 'Pablo García', email: 'pablo@demo.ar', unit: '006', rating: 4.9, online: false },
-      { name: 'Jorge Rodríguez', email: 'jorge@demo.ar', unit: '004', rating: 4.7, online: true }
+      { name: 'Carlos M.', email: 'carlos28@demo.ar', pass: 'PassDota28', unit: '2802', rating: 4.6, online: true },
+      { name: 'Pablo García', email: 'pablo28@demo.ar', pass: 'PabloGarc7', unit: '2806', rating: 4.9, online: false },
+      { name: 'Jorge Rodríguez', email: 'jorge28@demo.ar', pass: 'Jorgito12', unit: '2804', rating: 4.7, online: true }
     ],
     complaintsList: [
-      { type: 'Peligrosa', driver: 'Carlos M.', bus: '002', status: 'pending', time: 'Hace 1h', desc: 'Conducía a exceso de velocidad en zona residencial.' }
-    ],
-    topStops: [
-      { name: 'Obelisco', count: 450, wait: 4 },
-      { name: 'Santa Fe y Callao', count: 370, wait: 5 },
-      { name: 'Palermo - Santa Fe', count: 310, wait: 5 }
+      { type: 'Peligrosa', driver: 'Carlos M.', bus: '2802', status: 'pending', time: 'Hace 1h', desc: 'Conducía a exceso de velocidad en zona residencial.' }
     ]
   },
   'line-3': {
@@ -120,70 +127,50 @@ const LINE_DETAILS: Record<string, {
     activeDrivers: 3,
     totalPassengers: 920,
     avgRating: 4.5,
-    dailyDriversHistory: [
-      { day: 'Lun', count: 4 },
-      { day: 'Mar', count: 4 },
-      { day: 'Mié', count: 3 },
-      { day: 'Jue', count: 4 },
-      { day: 'Vie', count: 5 },
-      { day: 'Sáb', count: 2 },
-      { day: 'Dom', count: 1 }
-    ],
-    hourlyFlow: Array.from({length:12}, (_, i) => {
-      const h = 7 + i
-      return {
-        h: `${String(h).padStart(2, '0')}:00`,
-        passengers: Math.round(30 + Math.sin((i / 11) * Math.PI) * 90 + Math.random() * 15)
-      }
-    }),
     driversList: [
-      { name: 'Roberto S.', email: 'roberto@demo.ar', unit: '003', rating: 4.9, online: true },
-      { name: 'Ana Martínez', email: 'ana@demo.ar', unit: '008', rating: 4.5, online: false }
+      { name: 'Roberto S.', email: 'roberto37@demo.ar', pass: 'Sanch37Rob', unit: '3703', rating: 4.9, online: true },
+      { name: 'Ana Martínez', email: 'ana37@demo.ar', pass: 'AnaMart37', unit: '3708', rating: 4.5, online: false }
     ],
     complaintsList: [
-      { type: 'Defecto', driver: 'Ana Martínez', bus: '008', status: 'resolved', time: 'Hace 3h', desc: 'El timbre de solicitud de parada no funcionaba.' }
-    ],
-    topStops: [
-      { name: 'Aeroparque', count: 200, wait: 12 },
-      { name: 'Callao y Corrientes', count: 280, wait: 5 },
-      { name: 'Diagonal Norte', count: 340, wait: 4 }
+      { type: 'Defecto', driver: 'Ana Martínez', bus: '3708', status: 'resolved', time: 'Hace 3h', desc: 'El timbre de solicitud de parada no funcionaba.' }
     ]
+  },
+  'line-39': {
+    companyName: 'Transportes Santa Fe S.A.C.I.',
+    activeDrivers: 3,
+    totalPassengers: 840,
+    avgRating: 4.6,
+    driversList: [
+      { name: 'Esteban Ortiz', email: 'esteban39@demo.ar', pass: 'EstebanOrtiz39', unit: '3901', rating: 4.6, online: true },
+      { name: 'Lucas Domínguez', email: 'lucas39@demo.ar', pass: 'LucasDom39', unit: '3902', rating: 4.7, online: true }
+    ],
+    complaintsList: []
+  },
+  'line-59': {
+    companyName: 'M. C. B. A. S.A.T.C.I.',
+    activeDrivers: 3,
+    totalPassengers: 1310,
+    avgRating: 4.7,
+    driversList: [
+      { name: 'Hugo Bianchi', email: 'hugo59@demo.ar', pass: 'HugoBianchi59', unit: '5903', rating: 4.7, online: true },
+      { name: 'Nicolás Silva', email: 'nico59@demo.ar', pass: 'NicoSilva59', unit: '5905', rating: 4.8, online: false }
+    ],
+    complaintsList: []
   },
   'line-60': {
     companyName: 'MONSA S.A.',
     activeDrivers: 8,
     totalPassengers: 2100,
     avgRating: 4.6,
-    dailyDriversHistory: [
-      { day: 'Lun', count: 9 },
-      { day: 'Mar', count: 9 },
-      { day: 'Mié', count: 8 },
-      { day: 'Jue', count: 10 },
-      { day: 'Vie', count: 11 },
-      { day: 'Sáb', count: 6 },
-      { day: 'Dom', count: 4 }
-    ],
-    hourlyFlow: Array.from({length:12}, (_, i) => {
-      const h = 7 + i
-      return {
-        h: `${String(h).padStart(2, '0')}:00`,
-        passengers: Math.round(70 + Math.sin((i / 11) * Math.PI) * 220 + Math.random() * 30)
-      }
-    }),
     driversList: [
-      { name: 'Carlos Martínez', email: 'carlos@demo.ar', unit: '020', rating: 4.6, online: true },
-      { name: 'Diego Rodríguez', email: 'diego@demo.ar', unit: '022', rating: 4.2, online: false },
-      { name: 'Pablo García', email: 'pablo@demo.ar', unit: '024', rating: 5.0, online: true },
-      { name: 'Luis Fernández', email: 'luis@demo.ar', unit: '026', rating: 4.7, online: true }
+      { name: 'Carlos Martínez', email: 'carlos60@demo.ar', pass: 'Carlos6060', unit: '6020', rating: 4.6, online: true },
+      { name: 'Diego Rodríguez', email: 'diego60@demo.ar', pass: 'DiegoRod60', unit: '6022', rating: 4.2, online: false },
+      { name: 'Pablo García', email: 'pablo60@demo.ar', pass: 'PabloGarc60', unit: '6024', rating: 5.0, online: true },
+      { name: 'Luis Fernández', email: 'luis60@demo.ar', pass: 'LuisFer60', unit: '6026', rating: 4.7, online: true }
     ],
     complaintsList: [
-      { type: 'No paró', driver: 'Diego Rodríguez', bus: '022', status: 'pending', time: 'Hace 30 min', desc: 'No se detuvo en Plaza Italia.' },
-      { type: 'Mal trato', driver: 'Luis Fernández', bus: '026', status: 'pending', time: 'Hace 2h', desc: 'Cerró la puerta antes de terminar de subir.' }
-    ],
-    topStops: [
-      { name: 'Constitución', count: 520, wait: 5 },
-      { name: 'Plaza Italia', count: 430, wait: 6 },
-      { name: 'Tigre Terminal', count: 280, wait: 10 }
+      { type: 'No paró', driver: 'Diego Rodríguez', bus: '6022', status: 'pending', time: 'Hace 30 min', desc: 'No se detuvo en Plaza Italia.' },
+      { type: 'Mal trato', driver: 'Luis Fernández', bus: '6026', status: 'pending', time: 'Hace 2h', desc: 'Cerró la puerta antes de terminar de subir.' }
     ]
   },
   'line-152': {
@@ -191,43 +178,137 @@ const LINE_DETAILS: Record<string, {
     activeDrivers: 6,
     totalPassengers: 1450,
     avgRating: 4.7,
-    dailyDriversHistory: [
-      { day: 'Lun', count: 7 },
-      { day: 'Mar', count: 7 },
-      { day: 'Mié', count: 6 },
-      { day: 'Jue', count: 8 },
-      { day: 'Vie', count: 9 },
-      { day: 'Sáb', count: 5 },
-      { day: 'Dom', count: 3 }
-    ],
-    hourlyFlow: Array.from({length:12}, (_, i) => {
-      const h = 7 + i
-      return {
-        h: `${String(h).padStart(2, '0')}:00`,
-        passengers: Math.round(60 + Math.sin((i / 11) * Math.PI) * 160 + Math.random() * 20)
-      }
-    }),
     driversList: [
-      { name: 'Roberto S.', email: 'roberto@demo.ar', unit: '010', rating: 4.9, online: true },
-      { name: 'Jorge R.', email: 'jorge@demo.ar', unit: '012', rating: 4.7, online: false },
-      { name: 'Ana C.', email: 'ana@demo.ar', unit: '014', rating: 4.8, online: true }
+      { name: 'Roberto S.', email: 'roberto152@demo.ar', pass: 'RobSanch152', unit: '15210', rating: 4.9, online: true },
+      { name: 'Jorge R.', email: 'jorge152@demo.ar', pass: 'JorgeR152', unit: '15212', rating: 4.7, online: false },
+      { name: 'Ana C.', email: 'ana152@demo.ar', pass: 'AnaC152!!', unit: '15214', rating: 4.8, online: true }
     ],
     complaintsList: [
-      { type: 'Peligrosa', driver: 'Jorge R.', bus: '012', status: 'resolved', time: 'Ayer', desc: 'Realizó maniobras bruscas al cambiar de carril.' }
-    ],
-    topStops: [
-      { name: 'La Boca', count: 250, wait: 8 },
-      { name: 'Plaza de Mayo', count: 480, wait: 4 },
-      { name: 'Olivos Terminal', count: 180, wait: 12 }
+      { type: 'Peligrosa', driver: 'Jorge R.', bus: '15212', status: 'resolved', time: 'Ayer', desc: 'Realizó maniobras bruscas al cambiar de carril.' }
     ]
   }
 }
 
-const COMPLAINT_TYPES=[{n:'No paró',v:38,c:'#FF4D6A'},{n:'Mal trato',v:22,c:'#F0B429'},{n:'Peligrosa',v:18,c:'#8B5CF6'},{n:'Defecto',v:14,c:'#3B82F6'},{n:'Otro',v:8,c:'#22D3A0'}]
+// News tips mock data
+const INITIAL_NEWS = [
+  {
+    id: 'n1',
+    title: 'Aumento del boleto de colectivo en el AMBA',
+    desc: 'El Ministerio de Transporte anunció un nuevo esquema tarifario para ajustar el costo del boleto mínimo en línea con la inflación y la quita de subsidios.',
+    source: 'Clarín',
+    date: 'Hace 2 días (11 de Julio, 2026)',
+    starred: false
+  },
+  {
+    id: 'n2',
+    title: 'Subte porteño: la tarifa del boleto sube a $757',
+    desc: 'Comienza a regir el último tramo de la actualización tarifaria acordada para el subterráneo de Buenos Aires. Descuentos vigentes con SUBE registrada.',
+    source: 'Infobae',
+    date: 'Hace 4 días (9 de Julio, 2026)',
+    starred: true
+  },
+  {
+    id: 'n3',
+    title: 'Nuevos carriles exclusivos en el Metrobús del Bajo',
+    desc: 'El Gobierno de la Ciudad inauguró la extensión del Metrobús sobre Av. Paseo Colón para agilizar la circulación de más de 30 líneas de colectivos.',
+    source: 'La Nación',
+    date: 'Hace 6 días (7 de Julio, 2026)',
+    starred: false
+  },
+  {
+    id: 'n4',
+    title: 'Uber, Cabify y Didi enfrentan nuevas normativas de registro',
+    desc: 'La legislatura debate un proyecto de ley para endurecer los requisitos técnicos, de seguro y de habilitación para vehículos de aplicaciones de movilidad.',
+    source: 'Ámbito Financiero',
+    date: 'Hace 8 días (5 de Julio, 2026)',
+    starred: false
+  }
+]
 
-const TTP={contentStyle:{background:'rgba(10,14,20,0.97)',border:'1px solid rgba(184,200,224,0.12)',borderRadius:'10px',fontSize:'12px',fontFamily:'DM Mono'},labelStyle:{color:'#C2C8D4'},itemStyle:{color:'#8A95A8'}}
+// Province and demography mock data
+const PROVINCES_DATA: Record<string, {
+  name: string
+  users: number
+  neighborhoods: { name: string; count: number }[]
+  habits: string[]
+}> = {
+  'buenos-aires': {
+    name: 'Provincia de Buenos Aires & CABA',
+    users: 3420,
+    neighborhoods: [
+      { name: 'Palermo', count: 890 },
+      { name: 'Caballito', count: 750 },
+      { name: 'Belgrano', count: 640 },
+      { name: 'Recoleta', count: 580 },
+      { name: 'Flores', count: 560 }
+    ],
+    habits: [
+      '📍 84% de los usuarios regresan a su misma ubicación nocturna, detectando con precisión su vecindario residencial.',
+      '🚌 Parada Clave: Av. Santa Fe y Coronel Díaz es la estación con mayor índice de inicio de viaje laboral temprano.',
+      '🏢 El 72% de los viajes matutinos se dirigen hacia el microcentro, denotando patrones de trabajo diario.'
+    ]
+  },
+  'cordoba': {
+    name: 'Córdoba',
+    users: 680,
+    neighborhoods: [
+      { name: 'Nueva Córdoba', count: 280 },
+      { name: 'Centro', count: 190 },
+      { name: 'Alberdi', count: 120 },
+      { name: 'General Paz', count: 90 }
+    ],
+    habits: [
+      '🎓 El 62% del volumen de pasajeros son estudiantes universitarios en la zona de Ciudad Universitaria.',
+      '📍 Movilidad recurrente identificada en Barrio Alberdi los fines de semana hacia el centro.'
+    ]
+  },
+  'santa-fe': {
+    name: 'Santa Fe',
+    users: 490,
+    neighborhoods: [
+      { name: 'Rosario Centro', count: 210 },
+      { name: 'Pichincha', count: 130 },
+      { name: 'Echesortu', count: 80 },
+      { name: 'Martin', count: 70 }
+    ],
+    habits: [
+      '📍 Algoritmo detectó patrones de retorno diario hacia Pichincha de 18:00 a 20:00.',
+      '🚢 Alto tráfico en las paradas del corredor de la Costanera en Rosario.'
+    ]
+  },
+  'mendoza': {
+    name: 'Mendoza',
+    users: 310,
+    neighborhoods: [
+      { name: 'Capital Centro', count: 140 },
+      { name: 'Godoy Cruz', count: 90 },
+      { name: 'Guaymallén', count: 50 },
+      { name: 'Chacras de Coria', count: 30 }
+    ],
+    habits: [
+      '🍇 55% de usuarios utilizan abonos multiviaje recurrentes para transporte interurbano.',
+      '📍 Godoy Cruz registrado como el principal barrio de origen de viajes comerciales.'
+    ]
+  }
+}
 
-type Tab = 'overview'|'companies'|'drivers'|'users'|'reports'|'analytics'|'ads'|'chat'
+// Messenger chats mock data
+const DEFAULT_CHATS = [
+  { id: 'c-admin-12', name: 'Admin Línea 12 (Néstor)', role: 'lineadmin', avatar: 'L12', starred: true, lastMsg: 'Hola superadmin, modificamos el desvío en Callao.', history: [
+    { id: 'm1', sender: 'user', text: 'Hola Néstor, ¿todo listo para la modificación del recorrido?', timestamp: '10:15' },
+    { id: 'm2', sender: 'admin', text: 'Hola superadmin, modificamos el desvío en Callao.', timestamp: '10:20' }
+  ]},
+  { id: 'c-user-ale', name: 'Alejandro Zentavra', role: 'user', avatar: 'AZ', starred: false, lastMsg: '¿El desvío de la línea 60 ya está cargado?', history: [
+    { id: 'm3', sender: 'user', text: 'Hola, ¿dónde puedo ver las paradas de la Línea 37?', timestamp: 'Ayer' },
+    { id: 'm4', sender: 'admin', text: 'Hola Sofía, puedes ver las paradas seleccionando la Línea 37 en la pestaña de Colectivos.', timestamp: 'Ayer' }
+  ]},
+  { id: 'c-admin-60', name: 'Admin Línea 60 (Carlos)', role: 'lineadmin', avatar: 'L60', starred: true, lastMsg: 'Coche 304 ya está en línea.', history: [
+    { id: 'm5', sender: 'user', text: 'Carlos, ¿las unidades 302 y 304 tienen el nuevo QR?', timestamp: 'Ayer' },
+    { id: 'm6', sender: 'admin', text: 'Coche 304 ya está en línea.', timestamp: 'Ayer' }
+  ]}
+]
+
+type Tab = 'overview' | 'linemaps' | 'drivers' | 'ads' | 'chat' | 'reports' | 'provincemap' | 'todos' | 'news'
 
 interface Todo {
   id: string
@@ -242,141 +323,139 @@ export default function SuperAdminDashboard() {
   const supabase = createClient()
   const [tab, setTab] = useState<Tab>('overview')
   const [loading, setLoading] = useState(true)
-  const [selectedLineId, setSelectedLineId] = useState<string | null>(null)
   const [stats, setStats] = useState({
-    totalUsers: 0, totalDrivers: 0, totalCompanies: 0,
-    activeBuses: 0, pendingReports: 0, todayLogins: 0,
+    totalUsers: 4820, totalDrivers: 24, totalCompanies: 7,
+    activeBuses: 18, pendingReports: 3, todayLogins: 142,
   })
 
-  const [ads, setAds] = useState<any[]>([])
-  const [chats, setChats] = useState<any[]>([])
+  // Graph mode (day, week, month)
+  const [graphPeriod, setGraphPeriod] = useState<'day' | 'week' | 'month'>('week')
 
-  useEffect(() => {
-    // Load from localStorage on client side mount
-    setAds(JSON.parse(localStorage.getItem('bu_submitted_ads') || '[]'))
-    setChats(JSON.parse(localStorage.getItem('bu_support_chat') || '[]'))
+  // News and starred items
+  const [news, setNews] = useState<any[]>(INITIAL_NEWS)
 
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'bu_submitted_ads') {
-        setAds(JSON.parse(localStorage.getItem('bu_submitted_ads') || '[]'))
-      } else if (e.key === 'bu_support_chat') {
-        setChats(JSON.parse(localStorage.getItem('bu_support_chat') || '[]'))
-      }
-    }
-    window.addEventListener('storage', handleStorage)
-    return () => window.removeEventListener('storage', handleStorage)
-  }, [])
+  // Submitted ads
+  const [ads, setAds] = useState<any[]>([
+    { id: 'ad-1', title: 'Coca Cola Sin Azúcar', desc: 'Promoción de lata 350ml en quioscos.', stop: 'Plaza Italia', route: 'Línea 12', budget: 120000, duration: '30 días', status: 'approved', timestamp: 'Hace 1 día' },
+    { id: 'ad-2', title: 'Hamburguesería Mostaza', desc: 'Descuento 20% en Combo Mega Deluxe.', stop: 'Av. Corrientes y Callao', route: 'Línea 37', budget: 85000, duration: '15 días', status: 'pending', timestamp: 'Hace 3 horas' },
+    { id: 'ad-3', title: 'Gimnasio Megatlon', desc: 'Matrícula gratis en pase anual.', stop: 'Obelisco', route: 'Línea 152', budget: 195000, duration: '45 días', status: 'approved', timestamp: 'Hace 5 días' }
+  ])
 
-  // Todo List State
+  // Support messenger chats
+  const [chats, setChats] = useState<any[]>(DEFAULT_CHATS)
+  const [selectedChatId, setSelectedChatId] = useState<string>('c-admin-12')
+  const [chatSearch, setChatSearch] = useState('')
+  const [chatInput, setChatInput] = useState('')
+  const [showAddChatModal, setShowAddChatModal] = useState(false)
+  const [newChatName, setNewChatName] = useState('')
+  const [newChatRole, setNewChatRole] = useState<'lineadmin' | 'user'>('user')
+
+  // Todo list state
   const [todos, setTodos] = useState<Todo[]>([
-    { id: 't1', text: 'Revisar denuncias en Línea 60', done: false, date: '28 de Mayo', badge: 'Urgente', flagged: true },
-    { id: 't2', text: 'Aprobar nuevo chofer Néstor García', done: true, date: '27 de Mayo', badge: 'Resuelto', flagged: false },
-    { id: 't3', text: 'Exportar reporte mensual de viajes', done: false, date: '30 de Mayo', badge: 'Esta semana', flagged: false },
-    { id: 't4', text: 'Verificar coordenadas de parada en Callao', done: false, date: '02 de Junio', badge: 'Pendiente', flagged: true },
+    { id: 't1', text: 'Revisar desvíos temporales en Línea 12', done: false, date: 'Hoy', badge: 'Urgente', flagged: true },
+    { id: 't2', text: 'Aprobar chofer Néstor García', done: true, date: 'Ayer', badge: 'Completado', flagged: false },
+    { id: 't3', text: 'Verificar cobros publicitarios en pesos (ARS)', done: false, date: 'Mañana', badge: 'Administrativo', flagged: false },
+    { id: 't4', text: 'Auditar quejas de velocidad en Línea 60', done: false, date: 'Esta semana', badge: 'Seguridad', flagged: true },
   ])
   const [newTodoText, setNewTodoText] = useState('')
-  const [showAddTodo, setShowAddTodo] = useState(false)
 
-  const toggleTodo = (id: string) => {
-    setTodos(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t))
-  }
-  const toggleFlag = (id: string) => {
-    setTodos(prev => prev.map(t => t.id === id ? { ...t, flagged: !t.flagged } : t))
-  }
-  const deleteTodo = (id: string) => {
-    setTodos(prev => prev.filter(t => t.id !== id))
-  }
-  const addTodo = () => {
-    if (!newTodoText.trim()) return
-    const item: Todo = {
-      id: `t-${Date.now()}`,
-      text: newTodoText,
-      done: false,
-      date: format(new Date(), 'dd de MMMM', { locale: es }),
-      badge: 'Nuevo',
-      flagged: false,
-    }
-    setTodos(prev => [...prev, item])
-    setNewTodoText('')
-    setShowAddTodo(false)
-    toast.success('Tarea agregada')
-  }
-
-  const handleTabChange = (t: Tab) => {
-    setTab(t)
-    setSelectedLineId(null)
-  }
+  // Selected province for demography popup
+  const [selectedProvinceKey, setSelectedProvinceKey] = useState<string | null>(null)
 
   useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
-    if (url.includes('placeholder.supabase.co')) {
-      setStats({
-        totalUsers: 4821,
-        totalDrivers: 3,
-        totalCompanies: 1,
-        activeBuses: 23,
-        pendingReports: 1,
-        todayLogins: 142,
-      })
-      setLoading(false)
-      return
-    }
+    // Sync with localStorage
+    const savedTodos = localStorage.getItem('mock_super_todos')
+    if (savedTodos) setTodos(JSON.parse(savedTodos))
 
-    supabase.auth.getUser().then(async ({data:{user}}) => {
-      if (!user) { window.location.href='/login'; return }
-      const {data:p} = await supabase.from('profiles').select('role').eq('id',user.id).single()
-      if (p?.role !== 'superadmin') { window.location.href='/'; return }
+    const savedAds = localStorage.getItem('mock_super_ads')
+    if (savedAds) setAds(JSON.parse(savedAds))
 
-      // Fetch real stats
-      const [users, drivers, companies, reports] = await Promise.all([
-        supabase.from('user_profiles').select('*',{count:'exact',head:true}),
-        supabase.from('driver_profiles').select('*',{count:'exact',head:true}),
-        supabase.from('bus_companies').select('*',{count:'exact',head:true}),
-        supabase.from('reports').select('*',{count:'exact',head:true}).eq('status','pending'),
-      ])
-      setStats({
-        totalUsers: users.count||0,
-        totalDrivers: drivers.count||0,
-        totalCompanies: companies.count||0,
-        activeBuses: 23, // from live positions
-        pendingReports: reports.count||0,
-        todayLogins: 142,
-      })
-      setLoading(false)
-    })
+    const savedChats = localStorage.getItem('mock_super_chats')
+    if (savedChats) setChats(JSON.parse(savedChats))
+
+    const savedNews = localStorage.getItem('mock_super_news')
+    if (savedNews) setNews(JSON.parse(savedNews))
+
+    setLoading(false)
   }, [])
+
+  const saveTodos = (newTodos: Todo[]) => {
+    setTodos(newTodos)
+    localStorage.setItem('mock_super_todos', JSON.stringify(newTodos))
+  }
+
+  const saveAds = (newAds: any[]) => {
+    setAds(newAds)
+    localStorage.setItem('mock_super_ads', JSON.stringify(newAds))
+  }
+
+  const saveChats = (newChats: any[]) => {
+    setChats(newChats)
+    localStorage.setItem('mock_super_chats', JSON.stringify(newChats))
+  }
+
+  const saveNews = (newNews: any[]) => {
+    setNews(newNews)
+    localStorage.setItem('mock_super_news', JSON.stringify(newNews))
+  }
+
+  const toggleTodo = (id: string) => {
+    saveTodos(todos.map(t => t.id === id ? { ...t, done: !t.done } : t))
+  }
+
+  const toggleFlag = (id: string) => {
+    saveTodos(todos.map(t => t.id === id ? { ...t, flagged: !t.flagged } : t))
+  }
+
+  const deleteTodo = (id: string) => {
+    saveTodos(todos.filter(t => t.id !== id))
+    toast.success('Tarea eliminada')
+  }
+
+  const addTodo = () => {
+    if (!newTodoText.trim()) return
+    const newItem: Todo = {
+      id: `t-${Date.now()}`,
+      text: newTodoText.trim(),
+      done: false,
+      date: 'Hoy',
+      badge: 'Normal',
+      flagged: false
+    }
+    saveTodos([...todos, newItem])
+    setNewTodoText('')
+    toast.success('Tarea agregada')
+  }
 
   const logout = async () => {
     await supabase.auth.signOut()
     window.location.href = '/login'
   }
 
-  const exportData = () => {
-    const csv = ['Métrica,Valor',`Usuarios totales,${stats.totalUsers}`,`Choferes,${stats.totalDrivers}`,`Empresas,${stats.totalCompanies}`,`Colectivos activos,${stats.activeBuses}`,`Denuncias pendientes,${stats.pendingReports}`].join('\n')
-    const a = document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}))
-    a.download=`bienparada_superadmin_${format(new Date(),'yyyy-MM-dd')}.csv`; a.click()
-    toast.success('Datos exportados')
-  }
-
   const NAV_ITEMS = [
-    { id: 'overview', label: 'Panel Control', icon: BarChart2, hasChevron: false },
-    { id: 'reports', label: 'Denuncias', icon: AlertTriangle, hasChevron: false },
-    { id: 'ads', label: 'Publicidad', icon: Megaphone, hasChevron: false },
-    { id: 'chat', label: 'Soporte Chat', icon: MessageSquare, hasChevron: false },
-    { id: 'companies', label: 'Empresas', icon: Building2, hasChevron: true },
-    { id: 'analytics', label: 'Estadísticas', icon: TrendingUp, hasChevron: true },
-    { id: 'users', label: 'Usuarios', icon: Users, hasChevron: true },
-    { id: 'drivers', label: 'Choferes', icon: Bus, hasChevron: true },
-    { id: 'apps', label: 'Apps', icon: Star, hasChevron: true },
-    { id: 'documentation', label: 'Cerrar Sesión', icon: LogOut, hasChevron: false },
+    { id: 'overview', label: 'Panel Control', icon: BarChart2 },
+    { id: 'linemaps', label: 'Mapas de Línea', icon: Bus },
+    { id: 'drivers', label: 'Choferes y QR', icon: Users },
+    { id: 'ads', label: 'Publicidad', icon: Megaphone },
+    { id: 'chat', label: 'Mensajería', icon: MessageSquare },
+    { id: 'reports', label: 'Denuncias', icon: AlertTriangle },
+    { id: 'provincemap', label: 'Mapa Argentina', icon: Globe },
+    { id: 'todos', label: 'Tareas', icon: ListChecks },
+    { id: 'news', label: 'Noticias', icon: BookOpen },
   ]
 
-  if (loading) return (
-    <div style={{minHeight:'100vh',background:'#0b0f19',display:'flex',alignItems:'center',justifyContent:'center'}}>
-      <div style={{color:'#8f94a5',fontFamily:'DM Mono',fontSize:'13px'}}>Cargando panel...</div>
-    </div>
-    
-  )
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0b0f19', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: '#8f94a5', fontFamily: 'DM Mono', fontSize: '13px' }}>Cargando panel de Super Administrador...</div>
+      </div>
+    )
+  }
+
+  // Calculate total money made from Ads in ARS
+  const totalAdsEarnings = ads
+    .filter(a => a.status === 'approved')
+    .reduce((sum, a) => sum + a.budget, 0)
 
   return (
     <div style={{
@@ -400,7 +479,6 @@ export default function SuperAdminDashboard() {
         top: 0,
         zIndex: 50,
       }}>
-        {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.15)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <img src="/images/logo.jpg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -410,40 +488,21 @@ export default function SuperAdminDashboard() {
               Bien<span style={{ color: '#8f94a5', fontWeight: 400 }}>Parada</span>
             </span>
             <span style={{
-              fontSize: '9px',
-              color: '#4b49ac',
-              background: 'rgba(75, 73, 172, 0.15)',
+              fontSize: '8px',
+              color: '#10B981',
+              background: 'rgba(16, 185, 129, 0.15)',
               padding: '2px 6px',
               borderRadius: '4px',
               textTransform: 'uppercase',
               fontWeight: 700,
               letterSpacing: '0.05em',
             }}>
-              Admin
+              SUPER ADMIN
             </span>
           </div>
         </div>
 
-        {/* Right Options */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          {/* Dropdown */}
-          <select style={{
-            background: '#1b1d2e',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: '6px',
-            padding: '6px 12px',
-            color: '#a3a6b8',
-            fontSize: '13px',
-            outline: 'none',
-            cursor: 'pointer',
-          }}>
-            <option>Seleccionar Categoría</option>
-            <option>Líneas de Colectivo</option>
-            <option>Choferes Activos</option>
-            <option>Denuncias Pendientes</option>
-          </select>
-
-          {/* Date Picker */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -459,38 +518,27 @@ export default function SuperAdminDashboard() {
             <span style={{ fontSize: '12px', color: '#a3a6b8' }}>{format(new Date(), 'dd/MM/yyyy')}</span>
           </div>
 
-          {/* Action Icons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', color: '#a3a6b8' }}>
-            <Search size={16} style={{ cursor: 'pointer' }} />
-            <div style={{ position: 'relative', cursor: 'pointer' }}>
-              <Bell size={16} />
-              <span style={{
-                position: 'absolute',
-                top: '-2px',
-                right: '-2px',
-                width: '6px',
-                height: '6px',
-                background: '#ff4d6a',
-                borderRadius: '50%',
-              }} />
-            </div>
-            <Mail size={16} style={{ cursor: 'pointer' }} />
-          </div>
-
-          {/* User Profile */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderLeft: '1px solid rgba(255, 255, 255, 0.1)', paddingLeft: '16px' }}>
-            <img
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80"
-              alt="Admin Profile"
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                border: '1.5px solid #4b49ac',
-                objectFit: 'cover',
-              }}
-            />
-          </div>
+          <button
+            onClick={logout}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.25)',
+              borderRadius: '6px',
+              padding: '6px 14px',
+              color: '#ef4444',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 200ms'
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)'}
+          >
+            <LogOut size={13} /> Salir
+          </button>
         </div>
       </header>
 
@@ -504,17 +552,11 @@ export default function SuperAdminDashboard() {
         overflowX: 'auto',
       }}>
         {NAV_ITEMS.map((item) => {
-          const active = tab === item.id || (item.id === 'overview' && tab === 'overview')
+          const active = tab === item.id
           return (
             <button
               key={item.id}
-              onClick={() => {
-                if (item.id !== 'apps' && item.id !== 'documentation') {
-                  handleTabChange(item.id as Tab)
-                } else if (item.id === 'documentation') {
-                  logout()
-                }
-              }}
+              onClick={() => setTab(item.id as Tab)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -525,886 +567,514 @@ export default function SuperAdminDashboard() {
                 fontWeight: active ? 600 : 500,
                 background: 'none',
                 border: 'none',
-                borderBottom: `2.5px solid ${active ? '#4b49ac' : 'transparent'}`,
+                borderBottom: `2.5px solid ${active ? '#10B981' : 'transparent'}`,
                 cursor: 'pointer',
                 transition: 'all 200ms',
                 whiteSpace: 'nowrap',
               }}
             >
-              <item.icon size={14} style={{ color: active ? '#4b49ac' : '#a3a6b8' }} />
+              <item.icon size={14} style={{ color: active ? '#10B981' : '#a3a6b8' }} />
               <span>{item.label}</span>
-              {item.hasChevron && <ChevronDown size={11} style={{ opacity: 0.5 }} />}
             </button>
           )
         })}
       </nav>
 
-      {/* Secondary Sub-header and Actions */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '24px 24px 12px',
-        flexWrap: 'wrap',
-        gap: '16px',
-      }}>
-        <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
-          {['Resumen', 'Audiencias', 'Demografía', 'Más'].map((sub, idx) => (
-            <span
-              key={sub}
-              style={{
-                fontSize: '14px',
-                fontWeight: idx === 0 ? 600 : 500,
-                color: idx === 0 ? '#fff' : '#8f94a5',
-                borderBottom: idx === 0 ? '2px solid #ff8f5d' : 'none',
-                paddingBottom: '4px',
-                cursor: 'pointer',
-              }}
-            >
-              {sub}
-            </span>
-          ))}
-        </div>
-
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(255, 255, 255, 0.04)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '6px',
-            padding: '8px 16px',
-            color: '#a3a6b8',
-            fontSize: '13px',
-            fontWeight: 500,
-            cursor: 'pointer',
-          }}>
-            <Share2 size={13} /> Compartir
-          </button>
-          <button style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(255, 255, 255, 0.04)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '6px',
-            padding: '8px 16px',
-            color: '#a3a6b8',
-            fontSize: '13px',
-            fontWeight: 500,
-            cursor: 'pointer',
-          }}>
-            <Printer size={13} /> Imprimir
-          </button>
-          <button
-            onClick={exportData}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: '#4b49ac',
-              borderRadius: '6px',
-              padding: '8px 16px',
-              color: '#fff',
-              fontSize: '13px',
-              fontWeight: 500,
-              border: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            <Download size={13} /> Exportar
-          </button>
-        </div>
-      </div>
-
-      {/* KPI Row (6 elements) */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-        gap: '24px',
-        padding: '12px 24px 24px',
-      }}>
-        {/* Bounce Rate */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Tasa de Rebote</span>
-          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>32.53%</span>
-          <span style={{ fontSize: '11px', color: '#ff4d6a', fontWeight: 600 }}>▼ -0.5%</span>
-        </div>
-        {/* Page Views (Usuarios App) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Usuarios App</span>
-          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{stats.totalUsers.toLocaleString()}</span>
-          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +0.1%</span>
-        </div>
-        {/* Colectivos Activos (New Sessions) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Colectivos Activos</span>
-          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{stats.activeBuses}</span>
-          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +0.8%</span>
-        </div>
-        {/* Tiempo en App (Avg. Time on Site) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Tiempo en App</span>
-          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>2m:35s</span>
-          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +0.8%</span>
-        </div>
-        {/* Denuncias Pendientes */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Denuncias Pendientes</span>
-          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{stats.pendingReports}</span>
-          <span style={{ fontSize: '11px', color: '#ff4d6a', fontWeight: 600 }}>▼ -15.0%</span>
-        </div>
-        {/* Logins Hoy */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Logins Hoy</span>
-          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{stats.todayLogins}</span>
-          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +2.4%</span>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <main style={{ flex: 1, padding: '0 24px 24px' }}>
+      {/* Main Content Area */}
+      <main style={{ flex: 1, padding: '24px' }}>
         {tab === 'overview' && (
-          <OverviewTab
-            stats={stats}
-            selectedLineId={selectedLineId}
-            setSelectedLineId={setSelectedLineId}
-            todos={todos}
-            toggleTodo={toggleTodo}
-            toggleFlag={toggleFlag}
-            deleteTodo={deleteTodo}
-            addTodo={addTodo}
-            newTodoText={newTodoText}
-            setNewTodoText={setNewTodoText}
-            showAddTodo={showAddTodo}
-            setShowAddTodo={setShowAddTodo}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            {/* Quick Metrics */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px' }}>
+              <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px' }}>
+                <span style={{ fontSize: '11px', color: '#8f94a5', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Usuarios de la App</span>
+                <div style={{ fontSize: '28px', fontWeight: 800, marginTop: '8px', color: '#fff' }}>{stats.totalUsers.toLocaleString()}</div>
+                <div style={{ fontSize: '11px', color: '#10B981', marginTop: '4px' }}>▲ +4.2% esta semana</div>
+              </div>
+              <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px' }}>
+                <span style={{ fontSize: '11px', color: '#8f94a5', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Colectivos en Ruta</span>
+                <div style={{ fontSize: '28px', fontWeight: 800, marginTop: '8px', color: '#fff' }}>{stats.activeBuses}</div>
+                <div style={{ fontSize: '11px', color: '#10B981', marginTop: '4px' }}>En servicio en tiempo real</div>
+              </div>
+              <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px' }}>
+                <span style={{ fontSize: '11px', color: '#8f94a5', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Choferes Activos</span>
+                <div style={{ fontSize: '28px', fontWeight: 800, marginTop: '8px', color: '#fff' }}>{stats.totalDrivers}</div>
+                <div style={{ fontSize: '11px', color: '#8f94a5', marginTop: '4px' }}>7 líneas registradas</div>
+              </div>
+              <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px' }}>
+                <span style={{ fontSize: '11px', color: '#8f94a5', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Recaudado Publicidad</span>
+                <div style={{ fontSize: '28px', fontWeight: 800, marginTop: '8px', color: '#10B981' }}>${totalAdsEarnings.toLocaleString()} ARS</div>
+                <div style={{ fontSize: '11px', color: '#8f94a5', marginTop: '4px' }}>Facturado en pesos</div>
+              </div>
+            </div>
+
+            {/* Performance Visual Graph Selector */}
+            <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+                <div>
+                  <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Gráfico de Rendimiento General</h3>
+                  <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Análisis de afluencia de pasajeros, colectivos operativos y choferes de turno</p>
+                </div>
+                <div style={{ display: 'flex', background: '#1b1d2e', borderRadius: '8px', padding: '4px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <button onClick={() => setGraphPeriod('day')} style={{ padding: '6px 12px', border: 'none', background: graphPeriod === 'day' ? '#10B981' : 'transparent', color: '#fff', fontSize: '12px', fontWeight: 600, borderRadius: '6px', cursor: 'pointer' }}>Día</button>
+                  <button onClick={() => setGraphPeriod('week')} style={{ padding: '6px 12px', border: 'none', background: graphPeriod === 'week' ? '#10B981' : 'transparent', color: '#fff', fontSize: '12px', fontWeight: 600, borderRadius: '6px', cursor: 'pointer' }}>Semana</button>
+                  <button onClick={() => setGraphPeriod('month')} style={{ padding: '6px 12px', border: 'none', background: graphPeriod === 'month' ? '#10B981' : 'transparent', color: '#fff', fontSize: '12px', fontWeight: 600, borderRadius: '6px', cursor: 'pointer' }}>Mes</button>
+                </div>
+              </div>
+
+              <div style={{ height: '300px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={METRICS_BY_PERIOD[graphPeriod]} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorPasajeros" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+                    <XAxis dataKey="label" stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 11 }} />
+                    <YAxis stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 11 }} />
+                    <Tooltip contentStyle={{ background: '#121527', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px' }} />
+                    <Area type="monotone" dataKey="pasajeros" name="Pasajeros" stroke="#10B981" fill="url(#colorPasajeros)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="colectivos" name="Colectivos" stroke="#3b82f6" fill="none" strokeWidth={1.5} strokeDasharray="4 4" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Todo reminders */}
+            <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Recordatorios del Super Administrador</h3>
+                <span style={{ fontSize: '11px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{todos.filter(t=>!t.done).length} pendientes</span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                <input
+                  type="text"
+                  placeholder="Nuevo recordatorio técnico o administrativo..."
+                  value={newTodoText}
+                  onChange={e => setNewTodoText(e.target.value)}
+                  style={{
+                    flex: 1,
+                    background: '#1b1d2e',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: '8px',
+                    padding: '10px 14px',
+                    color: '#fff',
+                    outline: 'none',
+                    fontSize: '13px'
+                  }}
+                  onKeyDown={e => e.key === 'Enter' && addTodo()}
+                />
+                <button
+                  onClick={addTodo}
+                  style={{
+                    padding: '0 16px',
+                    background: '#10B981',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#fff',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontSize: '13px'
+                  }}
+                >
+                  Agregar
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {todos.map(t => (
+                  <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <input type="checkbox" checked={t.done} onChange={() => toggleTodo(t.id)} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
+                    <span style={{ flex: 1, fontSize: '13px', textDecoration: t.done ? 'line-through' : 'none', color: t.done ? '#8f94a5' : '#fff' }}>{t.text}</span>
+                    <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.05)', color: '#8f94a5', padding: '2px 6px', borderRadius: '4px' }}>{t.date}</span>
+                    <button onClick={() => toggleFlag(t.id)} style={{ background: 'none', border: 'none', color: t.flagged ? '#eab308' : '#8f94a5', cursor: 'pointer' }}>
+                      <Star size={14} fill={t.flagged ? '#eab308' : 'none'} />
+                    </button>
+                    <button onClick={() => deleteTodo(t.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 1. LineMapsTab */}
+        {tab === 'linemaps' && <LineMapsTab />}
+
+        {/* 2. Drivers and QR Code Directory */}
+        {tab === 'drivers' && <DriversTab />}
+
+        {/* 3. Ads Tab with ARS stats */}
+        {tab === 'ads' && <AdsTab ads={ads} onApprove={(id) => {
+          const updated = ads.map(a => a.id === id ? { ...a, status: 'approved' } : a)
+          saveAds(updated)
+          toast.success('Campaña publicitaria aprobada')
+        }} onReject={(id) => {
+          const updated = ads.map(a => a.id === id ? { ...a, status: 'rejected' } : a)
+          saveAds(updated)
+          toast.error('Campaña rechazada')
+        }} />}
+
+        {/* 4. Chat support messenger layout */}
+        {tab === 'chat' && (
+          <ChatTab
+            chats={chats}
+            selectedChatId={selectedChatId}
+            onSelectChat={setSelectedChatId}
+            chatSearch={chatSearch}
+            setChatSearch={setChatSearch}
+            chatInput={chatInput}
+            setChatInput={setChatInput}
+            onSend={(text: string) => {
+              const chat = chats.find(c => c.id === selectedChatId)
+              if (!chat) return
+              const newMsg = { id: `m-${Date.now()}`, sender: 'admin', text, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
+              const updatedHistory = [...chat.history, newMsg]
+              const updatedChats = chats.map(c => c.id === selectedChatId ? { ...c, lastMsg: text, history: updatedHistory } : c)
+              saveChats(updatedChats)
+            }}
+            onToggleStar={(id: string) => {
+              const updatedChats = chats.map(c => c.id === id ? { ...c, starred: !c.starred } : c)
+              saveChats(updatedChats)
+              toast.success('Favoritos actualizados')
+            }}
+            onDeleteChat={(id: string) => {
+              const updatedChats = chats.filter(c => c.id !== id)
+              saveChats(updatedChats)
+              if (selectedChatId === id && updatedChats.length > 0) {
+                setSelectedChatId(updatedChats[0].id)
+              }
+              toast.success('Chat de soporte eliminado')
+            }}
+            onAddChat={(name: string, role: 'lineadmin' | 'user') => {
+              const newChat = {
+                id: `c-${Date.now()}`,
+                name,
+                role,
+                avatar: name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase(),
+                starred: false,
+                lastMsg: 'Chat iniciado.',
+                history: [
+                  { id: 'init', sender: 'admin', text: `Conversación de soporte iniciada con ${name}.`, timestamp: 'Reciente' }
+                ]
+              }
+              saveChats([...chats, newChat])
+              setSelectedChatId(newChat.id)
+              toast.success('Nueva conversación creada')
+            }}
+            showAddChatModal={showAddChatModal}
+            setShowAddChatModal={setShowAddChatModal}
+            newChatName={newChatName}
+            setNewChatName={setNewChatName}
+            newChatRole={newChatRole}
+            setNewChatRole={setNewChatRole}
           />
         )}
-        {tab === 'companies' && <CompaniesTab />}
-        {tab === 'drivers' && <DriversTab />}
-        {tab === 'users' && <UsersTab stats={stats} />}
+
+        {/* 5. Complaints Reports Tab */}
         {tab === 'reports' && <ReportsTab />}
-        {tab === 'analytics' && <AnalyticsTab />}
-        {tab === 'ads' && <AdsTab ads={ads} setAds={setAds} />}
-        {tab === 'chat' && <ChatTab chats={chats} setChats={setChats} />}
+
+        {/* 6. Provinces Demography Map */}
+        {tab === 'provincemap' && (
+          <ProvinceMapTab
+            selectedProvinceKey={selectedProvinceKey}
+            onSelectProvince={setSelectedProvinceKey}
+          />
+        )}
+
+        {/* 7. Dedicated Todos/Reminders */}
+        {tab === 'todos' && (
+          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '24px' }}>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '20px' }}>Remitentes, Recordatorios y Tareas Críticas</h3>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+              <input
+                type="text"
+                placeholder="Nueva tarea del centro de operaciones..."
+                value={newTodoText}
+                onChange={e => setNewTodoText(e.target.value)}
+                style={{
+                  flex: 1,
+                  background: '#1b1d2e',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '8px',
+                  padding: '10px 14px',
+                  color: '#fff',
+                  outline: 'none',
+                  fontSize: '13px'
+                }}
+                onKeyDown={e => e.key === 'Enter' && addTodo()}
+              />
+              <button onClick={addTodo} style={{ padding: '0 24px', background: '#10B981', border: 'none', borderRadius: '8px', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '13px' }}>Agregar</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {todos.map(t => (
+                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '14px', background: 'rgba(255,255,255,0.02)', padding: '14px 20px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                  <input type="checkbox" checked={t.done} onChange={() => toggleTodo(t.id)} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '14px', textDecoration: t.done ? 'line-through' : 'none', color: t.done ? '#8f94a5' : '#fff', fontWeight: 600 }}>{t.text}</div>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                      <span style={{ fontSize: '9px', background: t.badge === 'Urgente' ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.05)', color: t.badge === 'Urgente' ? '#ef4444' : '#8f94a5', padding: '1px 5px', borderRadius: '3px', fontWeight: 600 }}>{t.badge}</span>
+                      <span style={{ fontSize: '9px', color: '#8f94a5' }}>Fecha: {t.date}</span>
+                    </div>
+                  </div>
+                  <button onClick={() => toggleFlag(t.id)} style={{ background: 'none', border: 'none', color: t.flagged ? '#eab308' : '#8f94a5', cursor: 'pointer' }}>
+                    <Star size={16} fill={t.flagged ? '#eab308' : 'none'} />
+                  </button>
+                  <button onClick={() => deleteTodo(t.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 8. Transport Industry News */}
+        {tab === 'news' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Noticias y Tips del Transporte Argentino</h3>
+                <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Información reciente (antigüedad menor a 10 días) de colectivos, taxis, aplicaciones y subtes</p>
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+              {news.map(item => (
+                <div key={item.id} style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '14px' }}>
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'flex-start' }}>
+                      <span style={{ fontSize: '10px', background: 'rgba(16,185,129,0.15)', color: '#10B981', padding: '3px 8px', borderRadius: '4px', fontWeight: 700, fontFamily: 'DM Mono' }}>{item.source}</span>
+                      <button onClick={() => {
+                        const updated = news.map(n => n.id === item.id ? { ...n, starred: !n.starred } : n)
+                        saveNews(updated)
+                        toast.success(item.starred ? 'Destacado removido' : 'Noticia guardada en favoritos')
+                      }} style={{ background: 'none', border: 'none', color: item.starred ? '#eab308' : '#8f94a5', cursor: 'pointer' }}>
+                        <Star size={18} fill={item.starred ? '#eab308' : 'none'} />
+                      </button>
+                    </div>
+                    <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#fff', margin: '12px 0 6px', lineHeight: 1.3 }}>{item.title}</h4>
+                    <p style={{ fontSize: '12px', color: '#8f94a5', margin: 0, lineHeight: 1.4 }}>{item.desc}</p>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#8f94a5', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Fecha: {item.date}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   )
 }
 
-// ─── KPI Card ────────────────────────────────────────────────────────────────
-function KPI({icon:Icon,label,value,sub,color}:{icon:any;label:string;value:string|number;sub?:string;color:string}) {
+// ─── Map grid component for 7 maps ──────────────────────────────────────────
+function LineMapsTab() {
+  const activeLines = MOCK_LINES.filter(l => !l.is_tourist).slice(0, 7)
+
   return (
-    <div style={{
-      background: '#121527',
-      borderRadius: '12px',
-      border: '1px solid rgba(255, 255, 255, 0.06)',
-      padding: '20px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '16px',
-    }}>
-      <div style={{
-        width: '40px',
-        height: '40px',
-        borderRadius: '8px',
-        background: `${color}15`,
-        border: `1.5px solid ${color}40`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexShrink: 0,
-        color: color,
-      }}>
-        <Icon size={18} />
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div>
-        <div style={{ color: '#8f94a5', fontSize: '11px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>
-        <div style={{ color: '#fff', fontWeight: 700, fontSize: '22px', marginTop: '4px', fontFamily: 'DM Sans, sans-serif' }}>{value}</div>
-        {sub && <div style={{ color: '#8f94a5', fontSize: '10px', marginTop: '2px' }}>{sub}</div>}
+        <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Mapas de Trayectorias en Tiempo Real</h3>
+        <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Monitoreo independiente de trayectos y unidades móviles de colectivos para cada una de las 7 líneas principales</p>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+        {activeLines.map(line => (
+          <SingleLineMap key={line.id} line={line} />
+        ))}
       </div>
     </div>
   )
 }
 
-function OverviewTab({
-  stats,
-  selectedLineId,
-  setSelectedLineId,
-  todos,
-  toggleTodo,
-  toggleFlag,
-  deleteTodo,
-  addTodo,
-  newTodoText,
-  setNewTodoText,
-  showAddTodo,
-  setShowAddTodo
-}: {
-  stats: any
-  selectedLineId: string | null
-  setSelectedLineId: (id: string | null) => void
-  todos: Todo[]
-  toggleTodo: (id: string) => void
-  toggleFlag: (id: string) => void
-  deleteTodo: (id: string) => void
-  addTodo: () => void
-  newTodoText: string
-  setNewTodoText: (t: string) => void
-  showAddTodo: boolean
-  setShowAddTodo: (s: boolean) => void
-}) {
-  if (selectedLineId) {
-    return <LineDetailView lineId={selectedLineId} onBack={() => setSelectedLineId(null)} />
+function SingleLineMap({ line }: { line: any }) {
+  const path = getMockRoutePathForLine(line) || []
+  const [time, setTime] = useState(Date.now())
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(Date.now()), 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const [viewport, setViewport] = useState({
+    latitude: path[0]?.lat || -34.6037,
+    longitude: path[0]?.lng || -58.3816,
+    zoom: 11.5
+  })
+
+  const pathLen = path.length
+  if (pathLen < 2) return null
+
+  // Calculate simulated bus coordinates along the path line
+  const busIndex1 = Math.floor((time / 1500) % pathLen)
+  const busIndex2 = Math.floor((time / 1500 + pathLen / 2) % pathLen)
+  const bus1 = path[busIndex1]
+  const bus2 = path[busIndex2]
+
+  const geojson: any = {
+    type: 'Feature',
+    properties: {},
+    geometry: {
+      type: 'LineString',
+      coordinates: path.map(p => [p.lng, p.lat])
+    }
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '24px' }}>
-        {/* Left Column - 8/12 width */}
-      <div style={{ gridColumn: 'span 8', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        {/* Performance Line Chart Card */}
-        <div style={{
-          background: '#121527',
-          borderRadius: '12px',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          padding: '24px',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <div>
-              <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#fff', margin: 0 }}>Rendimiento de Usuarios</h3>
-              <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Uso de la aplicación y flujo de viajes activos</p>
-            </div>
-            {/* Legend */}
-            <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#a3a6b8' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ff8f5d' }} />
-                <span>Esta semana</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#8f94a5' }} />
-                <span>Semana anterior</span>
-              </div>
-            </div>
-          </div>
-
-          <ResponsiveContainer width="100%" height={260}>
-            <AreaChart data={HOURLY} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorOrange" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#ff8f5d" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#ff8f5d" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-              <XAxis dataKey="h" stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} interval={3} />
-              <YAxis stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} />
-              <Tooltip contentStyle={{ background: '#121527', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px' }} />
-              {/* Last week line (grey) */}
-              <Area type="monotone" dataKey="v2" name="Semana anterior" stroke="#8f94a5" fill="none" strokeWidth={2} dot={false} />
-              {/* This week area (orange) */}
-              <Area type="monotone" dataKey="v1" name="Esta semana" stroke="#ff8f5d" fill="url(#colorOrange)" strokeWidth={2.5} dot={false} />
-            </AreaChart>
-          </ResponsiveContainer>
+    <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: line.color }} />
+          <span style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>{line.name}</span>
         </div>
-
-        {/* Market Overview / Busiest Lines Card */}
-        <div style={{
-          background: '#121527',
-          borderRadius: '12px',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          padding: '24px',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <div>
-              <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#fff', margin: 0 }}>Vista General</h3>
-              <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Resumen general de líneas y afluencia de pasajeros</p>
-            </div>
-            <select style={{
-              background: '#1b1d2e',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '4px',
-              padding: '4px 10px',
-              color: '#8f94a5',
-              fontSize: '12px',
-              outline: 'none',
-              cursor: 'pointer',
-            }}>
-              <option>Este mes</option>
-              <option>Mes anterior</option>
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginBottom: '24px' }}>
-            <span style={{ fontSize: '32px', fontWeight: 700, color: '#fff' }}>$36,2531.00</span>
-            <span style={{ fontSize: '14px', color: '#8f94a5' }}>USD</span>
-            <span style={{ fontSize: '12px', color: '#00c689', fontWeight: 600, marginLeft: '4px' }}>(+1.37%)</span>
-          </div>
-
-          {/* List of Bus Lines */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {LINES_DATA.map((l, i) => (
-              <div
-                key={i}
-                onClick={() => setSelectedLineId(l.id)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '14px',
-                  padding: '12px 16px',
-                  borderRadius: '8px',
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid rgba(255, 255, 255, 0.04)',
-                  cursor: 'pointer',
-                  transition: 'all 200ms',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
-                  e.currentTarget.style.borderColor = 'rgba(75, 73, 172, 0.3)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)'
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.04)'
-                }}
-              >
-                <div style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '8px',
-                  background: 'rgba(75, 73, 172, 0.15)',
-                  border: '1px solid rgba(75, 73, 172, 0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#4b49ac',
-                }}>
-                  <Bus size={18} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ color: '#fff', fontWeight: 600, fontSize: '14px' }}>{l.name}</div>
-                  <div style={{ color: '#8f94a5', fontSize: '12px', marginTop: '2px' }}>
-                    {l.users.toLocaleString()} usuarios · {l.trips} viajes hoy
-                  </div>
-                </div>
-                {l.complaints > 0 && (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '3px 8px',
-                    borderRadius: '12px',
-                    background: 'rgba(255, 77, 106, 0.12)',
-                    border: '1px solid rgba(255, 77, 106, 0.25)',
-                    color: '#ff4d6a',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                  }}>
-                    <AlertTriangle size={11} />
-                    <span>{l.complaints}</span>
-                  </div>
-                )}
-                <ChevronRight size={16} style={{ color: '#8f94a5' }} />
-              </div>
-            ))}
-          </div>
-        </div>
+        <span style={{ fontSize: '10px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{line.company}</span>
       </div>
 
-      {/* Right Column - 4/12 width */}
-      <div style={{ gridColumn: 'span 4', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-        {/* Status Summary Card */}
-        <div style={{
-          background: '#121527',
-          borderRadius: '12px',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          padding: '24px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '24px',
-        }}>
-          <div>
-            <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#fff', margin: 0 }}>Resumen de Estado</h3>
-          </div>
-
-          {/* Mini sparkline segment */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <span style={{ fontSize: '12px', color: '#8f94a5' }}>Casos Resueltos</span>
-              <div style={{ fontSize: '28px', fontWeight: 700, color: '#00c689', marginTop: '4px' }}>357</div>
-            </div>
-            {/* Sparkline wave */}
-            <div style={{ width: '100px', height: '40px' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={[
-                  { v: 10 }, { v: 15 }, { v: 12 }, { v: 22 }, { v: 18 }, { v: 30 }, { v: 26 }, { v: 40 }
-                ]}>
-                  <Line type="monotone" dataKey="v" stroke="#00c689" strokeWidth={2.5} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <hr style={{ border: 'none', borderTop: '1px solid rgba(255, 255, 255, 0.06)', margin: 0 }} />
-
-          {/* SVG progress rings row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            {/* Ring 1 */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center' }}>
-              <div style={{ position: 'relative', width: '56px', height: '56px' }}>
-                <svg width="56" height="56" viewBox="0 0 36 36">
-                  <circle cx="18" cy="18" r="15.915" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
-                  <circle cx="18" cy="18" r="15.915" fill="none" stroke="#4b49ac" strokeWidth="3"
-                    strokeDasharray="26.8 73.2" strokeDashoffset="25" strokeLinecap="round" />
-                </svg>
-                <div style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  color: '#fff',
-                }}>
-                  26.8%
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: '11px', color: '#8f94a5' }}>Visitantes Totales</div>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff', marginTop: '2px' }}>26.80%</div>
-              </div>
-            </div>
-
-            {/* Ring 2 */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center' }}>
-              <div style={{ position: 'relative', width: '56px', height: '56px' }}>
-                <svg width="56" height="56" viewBox="0 0 36 36">
-                  <circle cx="18" cy="18" r="15.915" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="3" />
-                  <circle cx="18" cy="18" r="15.915" fill="none" stroke="#00c689" strokeWidth="3"
-                    strokeDasharray="75 25" strokeDashoffset="25" strokeLinecap="round" />
-                </svg>
-                <div style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  fontSize: '9px',
-                  fontWeight: 700,
-                  color: '#fff',
-                }}>
-                  9K+
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: '11px', color: '#8f94a5' }}>Visitas por Día</div>
-                <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff', marginTop: '2px' }}>9065</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Todo List Card */}
-        <div style={{
-          background: '#121527',
-          borderRadius: '12px',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          padding: '24px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#fff', margin: 0 }}>Lista de Tareas</h3>
-            <button
-              onClick={() => setShowAddTodo(!showAddTodo)}
-              style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: '50%',
-                background: '#4b49ac',
-                border: 'none',
-                color: '#fff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'all 200ms',
+      <div style={{ height: '200px', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <Map
+          {...viewport}
+          onMove={evt => setViewport(evt.viewState)}
+          mapStyle={CARTODB_DARK as any}
+          attributionControl={false}
+        >
+          <Source id={`route-${line.id}`} type="geojson" data={geojson}>
+            <Layer
+              id={`route-line-${line.id}`}
+              type="line"
+              paint={{
+                'line-color': line.color,
+                'line-width': 3,
+                'line-opacity': 0.75
               }}
-              onMouseEnter={(e) => e.currentTarget.style.background = '#3f3d8c'}
-              onMouseLeave={(e) => e.currentTarget.style.background = '#4b49ac'}
-            >
-              <Plus size={16} />
-            </button>
-          </div>
+            />
+          </Source>
 
-          {/* Add Todo inline input */}
-          {showAddTodo && (
-            <div style={{ display: 'flex', gap: '8px', background: '#1b1d2e', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
-              <input
-                type="text"
-                placeholder="Nueva tarea..."
-                value={newTodoText}
-                onChange={(e) => setNewTodoText(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addTodo()}
-                style={{
-                  flex: 1,
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#fff',
-                  fontSize: '13px',
-                  outline: 'none',
-                }}
-              />
-              <button
-                onClick={addTodo}
-                style={{
-                  background: '#4b49ac',
-                  border: 'none',
-                  borderRadius: '4px',
-                  padding: '4px 8px',
-                  color: '#fff',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
-              >
-                Agregar
-              </button>
-            </div>
+          {/* Simulated buses markers */}
+          {bus1 && (
+            <Marker latitude={bus1.lat} longitude={bus1.lng}>
+              <div style={{ background: '#10B981', border: '2px solid #fff', width: '12px', height: '12px', borderRadius: '50%', boxShadow: '0 0 10px rgba(16,185,129,0.8)' }} />
+            </Marker>
           )}
+          {bus2 && (
+            <Marker latitude={bus2.lat} longitude={bus2.lng}>
+              <div style={{ background: '#3b82f6', border: '2px solid #fff', width: '12px', height: '12px', borderRadius: '50%', boxShadow: '0 0 10px rgba(59,130,246,0.8)' }} />
+            </Marker>
+          )}
+        </Map>
+      </div>
 
-          {/* Todos container */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto' }}>
-            {todos.map((todo) => (
-              <div
-                key={todo.id}
-                style={{
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '12px',
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  background: todo.done ? 'rgba(255,255,255,0.01)' : 'rgba(255,255,255,0.02)',
-                  border: '1px solid rgba(255, 255, 255, 0.04)',
-                  opacity: todo.done ? 0.6 : 1,
-                  transition: 'all 200ms',
-                }}
-              >
-                {/* Checkbox circle */}
-                <button
-                  onClick={() => toggleTodo(todo.id)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    padding: 0,
-                    color: todo.done ? '#00c689' : '#8f94a5',
-                    cursor: 'pointer',
-                    marginTop: '2px',
-                    display: 'flex',
-                    alignItems: 'center',
-                  }}
-                >
-                  {todo.done ? <CheckCircle2 size={16} /> : <Circle size={16} />}
-                </button>
-
-                {/* Content text */}
-                <div style={{ flex: 1 }}>
-                  <div style={{
-                    color: '#fff',
-                    fontSize: '13px',
-                    textDecoration: todo.done ? 'line-through' : 'none',
-                    fontWeight: todo.done ? 400 : 500,
-                  }}>
-                    {todo.text}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
-                    <span style={{ fontSize: '10px', color: '#8f94a5' }}>{todo.date}</span>
-                    {todo.badge && (
-                      <span style={{
-                        fontSize: '9px',
-                        padding: '1px 6px',
-                        borderRadius: '4px',
-                        background: todo.badge === 'Urgente' ? 'rgba(255,77,106,0.15)' :
-                                    todo.badge === 'Nuevo' ? 'rgba(75,73,172,0.15)' :
-                                    todo.badge === 'Resuelto' ? 'rgba(0,198,137,0.15)' :
-                                    'rgba(255,255,255,0.08)',
-                        color: todo.badge === 'Urgente' ? '#ff4d6a' :
-                               todo.badge === 'Nuevo' ? '#4b49ac' :
-                               todo.badge === 'Resuelto' ? '#00c689' :
-                               '#8f94a5',
-                        fontWeight: 600,
-                      }}>
-                        {todo.badge}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#8f94a5' }}>
-                  <Flag
-                    size={13}
-                    onClick={() => toggleFlag(todo.id)}
-                    style={{
-                      cursor: 'pointer',
-                      fill: todo.flagged ? '#ff8f5d' : 'none',
-                      stroke: todo.flagged ? '#ff8f5d' : 'currentColor',
-                    }}
-                  />
-                  <Trash2
-                    size={13}
-                    onClick={() => deleteTodo(todo.id)}
-                    style={{ cursor: 'pointer' }}
-                    onMouseEnter={(e) => e.currentTarget.style.color = '#ff4d6a'}
-                    onMouseLeave={(e) => e.currentTarget.style.color = '#8f94a5'}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#8f94a5', fontFamily: 'DM Mono' }}>
+        <span>2 Colectivos Activos</span>
+        <span>Velocidad promedio: 22 km/h</span>
       </div>
     </div>
-  </div>
   )
 }
 
-interface LineDetailViewProps {
-  lineId: string
-  onBack: () => void
-}
+// ─── Drivers credentials and QR view component ──────────────────────────────
+function DriversTab() {
+  const [showPasswordMap, setShowPasswordMap] = useState<Record<string, boolean>>({})
 
-function LineDetailView({ lineId, onBack }: LineDetailViewProps) {
-  const details = LINE_DETAILS[lineId] || LINE_DETAILS['line-1']
-  const lineInfo = LINES_DATA.find(l => l.id === lineId) || { name: 'Línea Desconocida' }
+  const togglePasswordVisibility = (driverName: string) => {
+    setShowPasswordMap(prev => ({
+      ...prev,
+      [driverName]: !prev[driverName]
+    }))
+  }
+
+  const allDrivers = Object.entries(LINE_DETAILS).flatMap(([lineId, details]) => {
+    const lineInfo = LINES_DATA.find(l => l.id === lineId) || { name: `Línea` }
+    return details.driversList.map(d => ({
+      name: d.name,
+      email: d.email,
+      pass: d.pass,
+      unit: d.unit,
+      line: lineInfo.name,
+      online: d.online,
+      rating: d.rating,
+    }))
+  })
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* Back button & Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <button
-          onClick={onBack}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: '#121527',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            padding: '8px 16px',
-            borderRadius: '6px',
-            color: '#fff',
-            fontSize: '13px',
-            fontWeight: 500,
-            cursor: 'pointer',
-            transition: 'all 200ms',
-          }}
-        >
-          ← Volver al Resumen
-        </button>
-        <div style={{ textAlign: 'right' }}>
-          <span style={{
-            color: '#00c689',
-            fontSize: '10px',
-            fontWeight: 700,
-            padding: '4px 10px',
-            borderRadius: '12px',
-            background: 'rgba(0, 198, 137, 0.12)',
-            border: '1px solid rgba(0, 198, 137, 0.25)',
-          }}>
-            MONITOREADA
-          </span>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Registro de Choferes y Credenciales</h3>
+          <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Administre accesos, correos y contraseñas de choferes registrados en el sistema</p>
         </div>
       </div>
 
-      {/* Line Title Header Card */}
-      <div style={{
-        background: '#121527',
-        borderRadius: '12px',
-        border: '1px solid rgba(255, 255, 255, 0.06)',
-        padding: '24px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '4px',
-      }}>
-        <h2 style={{ color: '#fff', fontWeight: 700, fontSize: '24px', margin: 0, letterSpacing: '-0.02em' }}>{lineInfo.name}</h2>
-        <p style={{ color: '#8f94a5', fontSize: '13px', margin: 0 }}>{details.companyName}</p>
+      <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+          <thead>
+            <tr style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+              <th style={{ padding: '14px 20px', color: '#8f94a5', fontWeight: 600 }}>Nombre</th>
+              <th style={{ padding: '14px 20px', color: '#8f94a5', fontWeight: 600 }}>Línea</th>
+              <th style={{ padding: '14px 20px', color: '#8f94a5', fontWeight: 600 }}>Unidad</th>
+              <th style={{ padding: '14px 20px', color: '#8f94a5', fontWeight: 600 }}>Correo Electrónico</th>
+              <th style={{ padding: '14px 20px', color: '#8f94a5', fontWeight: 600 }}>Contraseña</th>
+              <th style={{ padding: '14px 20px', color: '#8f94a5', fontWeight: 600 }}>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allDrivers.map((d, idx) => {
+              const isVisible = showPasswordMap[d.name] || false
+              return (
+                <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                  <td style={{ padding: '12px 20px', fontWeight: 600, color: '#fff' }}>{d.name}</td>
+                  <td style={{ padding: '12px 20px', color: '#a3a6b8' }}>{d.line}</td>
+                  <td style={{ padding: '12px 20px', color: '#fff', fontFamily: 'DM Mono' }}>{d.unit}</td>
+                  <td style={{ padding: '12px 20px', color: '#a3a6b8', fontFamily: 'DM Mono' }}>{d.email}</td>
+                  <td style={{ padding: '12px 20px', color: '#fff', fontFamily: 'DM Mono' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span>{isVisible ? d.pass : '••••••••'}</span>
+                      <button
+                        onClick={() => togglePasswordVisibility(d.name)}
+                        style={{ background: 'none', border: 'none', color: '#8f94a5', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                      >
+                        {isVisible ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </td>
+                  <td style={{ padding: '12px 20px' }}>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '10px',
+                      background: d.online ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)',
+                      color: d.online ? '#10B981' : '#8f94a5',
+                      padding: '3px 8px',
+                      borderRadius: '999px',
+                      fontWeight: 600
+                    }}>
+                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: d.online ? '#10B981' : '#8f94a5' }} />
+                      {d.online ? 'En servicio' : 'Inactivo'}
+                    </span>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
       </div>
 
-      {/* Line Specific KPIs */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-        <KPI icon={Bus} label="Choferes Activos" value={details.activeDrivers} color="#4b49ac" sub="en servicio hoy" />
-        <KPI icon={Users} label="Pasajeros Hoy" value={details.totalPassengers.toLocaleString()} color="#3b82f6" sub="boletos emitidos" />
-        <KPI icon={Star} label="Calificación Prom." value={details.avgRating} color="#ff8f5d" sub="promedio de usuarios" />
-        <KPI icon={AlertTriangle} label="Denuncias Recibidas" value={details.complaintsList.length} color="#ff4d6a" sub="últimas 24 horas" />
-      </div>
-
-      {/* Charts Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', flexWrap: 'wrap' }}>
-        {/* Service drivers history (BarChart) */}
-        <div style={{
-          background: '#121527',
-          borderRadius: '12px',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          padding: '24px',
-        }}>
-          <div style={{ color: '#8f94a5', fontSize: '12px', fontWeight: 500, textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.05em' }}>
-            Choferes en servicio por día
-          </div>
-          <ResponsiveContainer width="100%" height={180}>
-            <BarChart data={details.dailyDriversHistory} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-              <XAxis dataKey="day" stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} />
-              <YAxis stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} />
-              <Tooltip contentStyle={{ background: '#121527', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px' }} />
-              <Bar dataKey="count" name="Choferes" fill="#4b49ac" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Hourly Flow (AreaChart) */}
-        <div style={{
-          background: '#121527',
-          borderRadius: '12px',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          padding: '24px',
-        }}>
-          <div style={{ color: '#8f94a5', fontSize: '12px', fontWeight: 500, textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.05em' }}>
-            Flujo de Pasajeros por Hora
-          </div>
-          <ResponsiveContainer width="100%" height={180}>
-            <AreaChart data={details.hourlyFlow} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
-              <defs>
-                <linearGradient id="gLine" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-              <XAxis dataKey="h" stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} />
-              <YAxis stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} />
-              <Tooltip contentStyle={{ background: '#121527', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px' }} />
-              <Area type="monotone" dataKey="passengers" name="Pasajeros" stroke="#3b82f6" fill="url(#gLine)" strokeWidth={2} dot={false} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Lists Section: Drivers & Complaints */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', flexWrap: 'wrap' }}>
-        {/* Drivers list */}
-        <div style={{
-          background: '#121527',
-          borderRadius: '12px',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          padding: '24px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
-        }}>
-          <div style={{ color: '#8f94a5', fontSize: '12px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Personal Activo / Reciente
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {details.driversList.map((d, i) => (
-              <div
-                key={i}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  background: 'rgba(255,255,255,0.02)',
-                  border: '1px solid rgba(255,255,255,0.04)',
-                }}
-              >
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: d.online ? '#00c689' : '#8f94a5' }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ color: '#fff', fontWeight: 600, fontSize: '13px' }}>{d.name}</div>
-                  <div style={{ color: '#8f94a5', fontSize: '11px', marginTop: '2px' }}>
-                    Interno {d.unit} · {d.email}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Star size={11} style={{ color: '#ff8f5d', fill: '#ff8f5d' }} />
-                  <span style={{ color: '#fff', fontSize: '12px', fontWeight: 700 }}>{d.rating}</span>
-                </div>
+      {/* QR Code Directory section */}
+      <div style={{ marginTop: '12px' }}>
+        <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '12px' }}>Directorio de Códigos QR Activos</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+          {allDrivers.map((d, idx) => (
+            <div key={idx} style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>Unidad {d.unit}</span>
+                <span style={{ fontSize: '9px', background: 'rgba(59,130,246,0.15)', color: '#3b82f6', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>{d.line}</span>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Complaints list */}
-        <div style={{
-          background: '#121527',
-          borderRadius: '12px',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          padding: '24px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '16px',
-        }}>
-          <div style={{ color: '#8f94a5', fontSize: '12px', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Denuncias de Usuarios
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {details.complaintsList.map((c, i) => (
-              <div
-                key={i}
-                style={{
-                  padding: '12px 14px',
-                  borderRadius: '8px',
-                  background: 'rgba(255, 77, 106, 0.03)',
-                  border: '1px solid rgba(255, 77, 106, 0.1)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                  <span style={{ color: '#ff4d6a', fontWeight: 700, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-                    {c.type}
-                  </span>
-                  <span style={{ color: '#8f94a5', fontSize: '11px' }}>{c.time}</span>
-                </div>
-                <div style={{ color: '#e3e4e8', fontSize: '12px', lineHeight: 1.4 }}>{c.desc}</div>
-                <div style={{ color: '#8f94a5', fontSize: '10px', marginTop: '2px' }}>
-                  Acusado: {c.driver} (Interno {c.bus})
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Busiest Stops */}
-      <div style={{
-        background: '#121527',
-        borderRadius: '12px',
-        border: '1px solid rgba(255, 255, 255, 0.06)',
-        padding: '24px',
-      }}>
-        <div style={{ color: '#8f94a5', fontSize: '12px', fontWeight: 500, textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.05em' }}>
-          Paradas con mayor afluencia
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
-          {details.topStops.map((stop, i) => (
-            <div
-              key={i}
-              style={{
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid rgba(255,255,255,0.04)',
-                borderRadius: '8px',
-                padding: '16px',
-                textAlign: 'center',
-              }}
-            >
-              <div style={{ color: '#fff', fontWeight: 600, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: '6px' }}>
-                {stop.name}
-              </div>
-              <div style={{ color: '#00c689', fontWeight: 700, fontSize: '20px' }}>{stop.count}</div>
-              <div style={{ color: '#8f94a5', fontSize: '11px', marginTop: '4px' }}>
-                usuarios/día · {stop.wait} min esp.
+              <div style={{ fontSize: '11px', color: '#8f94a5' }}>Chofer: <strong style={{ color: '#fff' }}>{d.name}</strong></div>
+              <div style={{ fontSize: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: '6px 8px', borderRadius: '6px', fontFamily: 'DM Mono', color: '#3b82f6', wordBreak: 'break-all', textAlign: 'center', marginTop: '4px' }}>
+                DEMO-QR-L{d.unit.slice(0,2)}-{d.unit.slice(2)}
               </div>
             </div>
           ))}
@@ -1414,906 +1084,326 @@ function LineDetailView({ lineId, onBack }: LineDetailViewProps) {
   )
 }
 
-function CompaniesTab() {
-  const supabase = createClient()
-  const [companies, setCompanies] = useState<any[]>([])
-  useEffect(() => {
-    supabase.from('bus_companies').select('*').then(({ data }) => { if (data) setCompanies(data) })
-  }, [])
-
+// ─── Ads Management Component with ARS currency ──────────────────────────────
+function AdsTab({ ads, onApprove, onReject }: { ads: any[]; onApprove: (id: string) => void; onReject: (id: string) => void }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {companies.length === 0 && (
-        <div style={{
-          background: '#121527',
-          borderRadius: '12px',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          padding: '40px',
-          textAlign: 'center',
-          color: '#8f94a5',
-        }}>
-          No hay empresas registradas aún
-        </div>
-      )}
-      {companies.map(c => (
-        <div
-          key={c.id}
-          style={{
-            background: '#121527',
-            borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
-            padding: '16px 20px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{
-              width: '44px',
-              height: '44px',
-              borderRadius: '10px',
-              background: 'rgba(75, 73, 172, 0.15)',
-              border: '1.5px solid rgba(75, 73, 172, 0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#4b49ac',
-              flexShrink: 0,
-            }}>
-              <Building2 size={20} />
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ color: '#fff', fontWeight: 700, fontSize: '15px' }}>{c.company_name}</div>
-              <div style={{ color: '#8f94a5', fontSize: '12px', marginTop: '2px' }}>
-                @{c.username} · {c.is_active ? 'Activa' : 'Inactiva'}
-              </div>
-            </div>
-            <div style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: c.is_active ? '#00c689' : '#8f94a5',
-            }} />
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function DriversTab() {
-  const drivers = Object.entries(LINE_DETAILS).flatMap(([lineId, details]) => {
-    const lineInfo = LINES_DATA.find(l => l.id === lineId) || { name: `Línea` }
-    return details.driversList.map(d => ({
-      name: d.name,
-      email: d.email,
-      unit: d.unit,
-      line: lineInfo.name,
-      online: d.online,
-      rating: d.rating,
-      reports: details.complaintsList.filter(c => c.driver === d.name).length,
-      sessions: Math.floor(d.rating * 35 + (d.online ? 15 : 2)),
-    }))
-  })
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {drivers.map((d, i) => (
-        <div
-          key={i}
-          style={{
-            background: '#121527',
-            borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
-            padding: '16px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '16px',
-          }}
-        >
-          <div style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '10px',
-            background: 'rgba(255, 255, 255, 0.02)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#a3a6b8',
-            flexShrink: 0,
-          }}>
-            <Bus size={18} />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ color: '#fff', fontWeight: 600, fontSize: '14px' }}>{d.name}</span>
-              <div style={{
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                background: d.online ? '#00c689' : '#8f94a5',
-                flexShrink: 0,
-              }} />
-            </div>
-            <div style={{ color: '#8f94a5', fontSize: '12px', marginTop: '3px' }}>
-              {d.email} · Unidad {d.unit} · {d.line}
-            </div>
-          </div>
-          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
-              <Star size={12} style={{ color: '#ff8f5d', fill: '#ff8f5d' }} />
-              <span style={{ color: '#fff', fontWeight: 700, fontSize: '13px' }}>{d.rating}</span>
-            </div>
-            <div style={{ color: '#8f94a5', fontSize: '11px', marginTop: '3px' }}>{d.sessions} sesiones</div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function UsersTab({ stats }: { stats: any }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-        <KPI icon={Users} label="Total usuarios" value={stats.totalUsers || '4,821'} color="#00c689" />
-        <KPI icon={Activity} label="Activos hoy" value="1,240" color="#ff8f5d" />
-        <KPI icon={Clock} label="Promedio sesión" value="18 min" color="#4b49ac" />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div>
+        <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Panel de Anuncios y Patrocinios</h3>
+        <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Monitoreo de ingresos recaudados en Pesos Argentinos (ARS) y control de campañas en paradas</p>
       </div>
-      <div style={{
-        background: '#121527',
-        borderRadius: '12px',
-        border: '1px solid rgba(255, 255, 255, 0.06)',
-        padding: '24px',
-      }}>
-        <div style={{ color: '#8f94a5', fontSize: '12px', fontWeight: 500, textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.05em' }}>
-          Nuevos usuarios por semana
-        </div>
-        <ResponsiveContainer width="100%" height={220}>
-          <LineChart data={WEEKLY} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-            <XAxis dataKey="d" stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} />
-            <YAxis stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} />
-            <Tooltip contentStyle={{ background: '#121527', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px' }} />
-            <Line type="monotone" dataKey="users" name="Usuarios" stroke="#00c689" strokeWidth={2.5} dot={false} />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  )
-}
 
-function ReportsTab() {
-  const [reports, setReports] = useState<any[]>(() => {
-    return Object.entries(LINE_DETAILS).flatMap(([lineId, details]) => {
-      const lineInfo = LINES_DATA.find(l => l.id === lineId) || { name: `Línea` }
-      return details.complaintsList.map((c, idx) => ({
-        id: `${lineId}-complaint-${idx}`,
-        reporter: `Usuario ${Math.floor(Math.random() * 90 + 10)}`,
-        type: c.type,
-        driver: c.driver,
-        bus: c.bus,
-        line: lineInfo.name,
-        status: c.status,
-        time: c.time,
-        desc: c.desc,
-      }))
-    })
-  })
-
-  const statusStyle: Record<string, any> = {
-    pending: { background: 'rgba(240,180,41,0.12)', color: '#F0B429', border: '1px solid rgba(240,180,41,0.25)' },
-    reviewing: { background: 'rgba(75,73,172,0.12)', color: '#4b49ac', border: '1px solid rgba(75,73,172,0.25)' },
-    resolved: { background: 'rgba(0,198,137,0.12)', color: '#00c689', border: '1px solid rgba(0,198,137,0.25)' }
-  }
-  const sLabel: Record<string, string> = { pending: 'Pendiente', reviewing: 'Revisando', resolved: 'Resuelto' }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {reports.map((r) => (
-        <div
-          key={r.id}
-          style={{
-            background: '#121527',
-            borderRadius: '12px',
-            border: '1px solid rgba(255, 255, 255, 0.06)',
-            padding: '16px 20px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: 'rgba(255, 77, 106, 0.12)',
-              border: '1px solid rgba(255, 77, 106, 0.25)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ff4d6a',
-              flexShrink: 0,
-            }}>
-              <AlertTriangle size={18} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                <span style={{ color: '#fff', fontWeight: 600, fontSize: '14px' }}>{r.type}</span>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+        {ads.map(ad => (
+          <div key={ad.id} style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '16px' }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '11px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{ad.timestamp}</span>
                 <span style={{
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  fontSize: '10px',
-                  fontWeight: 600,
-                  ...statusStyle[r.status],
-                }}>
-                  {sLabel[r.status]}
-                </span>
+                  fontSize: '9px',
+                  background: ad.status === 'approved' ? 'rgba(16,185,129,0.15)' : ad.status === 'pending' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
+                  color: ad.status === 'approved' ? '#10B981' : ad.status === 'pending' ? '#f59e0b' : '#ef4444',
+                  padding: '3px 8px',
+                  borderRadius: '6px',
+                  fontWeight: 700,
+                  textTransform: 'uppercase'
+                }}>{ad.status === 'approved' ? 'Aprobado' : ad.status === 'pending' ? 'Pendiente' : 'Rechazado'}</span>
               </div>
-              <div style={{ color: '#8f94a5', fontSize: '12px' }}>
-                {r.reporter} · Chofer: {r.driver} · Interno: {r.bus} · {r.line} · {r.time}
+              <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: '12px 0 4px' }}>{ad.title}</h4>
+              <p style={{ fontSize: '12px', color: '#8f94a5', margin: 0, lineHeight: 1.4 }}>{ad.desc}</p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '12px', background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                <div style={{ fontSize: '11px', color: '#8f94a5' }}>Parada asignada: <strong style={{ color: '#fff' }}>{ad.stop} ({ad.route})</strong></div>
+                <div style={{ fontSize: '11px', color: '#8f94a5' }}>Vigencia contratada: <strong style={{ color: '#fff' }}>{ad.duration}</strong></div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              {r.status === 'pending' && (
-                <button
-                  onClick={() => {
-                    setReports(prev => prev.map(x => x.id === r.id ? { ...x, status: 'resolved' } : x))
-                    toast.success('Denuncia resuelta')
-                  }}
-                  style={{
-                    fontSize: '11px',
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    background: 'rgba(0, 198, 137, 0.1)',
-                    border: '1px solid rgba(0, 198, 137, 0.2)',
-                    color: '#00c689',
-                    cursor: 'pointer',
-                    fontWeight: 500,
-                  }}
-                >
-                  Resolver
-                </button>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
+              <div>
+                <span style={{ fontSize: '10px', color: '#8f94a5' }}>Presupuesto total</span>
+                <div style={{ fontSize: '16px', fontWeight: 800, color: '#10B981' }}>${ad.budget.toLocaleString()} ARS</div>
+              </div>
+              {ad.status === 'pending' && (
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button onClick={() => onApprove(ad.id)} style={{ padding: '6px 12px', background: '#10B981', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>Aprobar</button>
+                  <button onClick={() => onReject(ad.id)} style={{ padding: '6px 12px', background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>Rechazar</button>
+                </div>
               )}
             </div>
           </div>
-          <div style={{
-            background: 'rgba(0,0,0,0.15)',
-            padding: '10px 14px',
-            borderRadius: '8px',
-            fontSize: '12px',
-            color: '#d1d5db',
-            lineHeight: 1.4,
-            borderLeft: '3px solid #ff4d6a',
-          }}>
-            {r.desc}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-function AnalyticsTab() {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div style={{
-        background: '#121527',
-        borderRadius: '12px',
-        border: '1px solid rgba(255, 255, 255, 0.06)',
-        padding: '24px',
-      }}>
-        <div style={{ color: '#8f94a5', fontSize: '12px', fontWeight: 500, textTransform: 'uppercase', marginBottom: '16px', letterSpacing: '0.05em' }}>
-          Pasajeros por hora — promedio semanal
-        </div>
-        <ResponsiveContainer width="100%" height={240}>
-          <AreaChart data={HOURLY} margin={{ top: 0, right: 0, left: -25, bottom: 0 }}>
-            <defs>
-              <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#4b49ac" stopOpacity={0.25} />
-                <stop offset="95%" stopColor="#4b49ac" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-            <XAxis dataKey="h" stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} interval={3} />
-            <YAxis stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} />
-            <Tooltip contentStyle={{ background: '#121527', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px' }} />
-            <Area type="monotone" dataKey="v1" name="Pasajeros" stroke="#4b49ac" fill="url(#g2)" strokeWidth={2} dot={false} />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', flexWrap: 'wrap' }}>
-        <div style={{
-          background: '#121527',
-          borderRadius: '12px',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          padding: '24px',
-        }}>
-          <div style={{ color: '#8f94a5', fontSize: '12px', fontWeight: 500, textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.05em' }}>
-            Hora pico promedio
-          </div>
-          <div style={{ color: '#fff', fontWeight: 700, fontSize: '36px', fontFamily: 'DM Sans, sans-serif' }}>08:00</div>
-          <div style={{ color: '#8f94a5', fontSize: '13px', marginTop: '4px' }}>Mañana (7-9h) y tarde (17-19h)</div>
-        </div>
-
-        <div style={{
-          background: '#121527',
-          borderRadius: '12px',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          padding: '24px',
-        }}>
-          <div style={{ color: '#8f94a5', fontSize: '12px', fontWeight: 500, textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.05em' }}>
-            Línea más usada
-          </div>
-          <div style={{ color: '#fff', fontWeight: 700, fontSize: '32px', fontFamily: 'DM Sans, sans-serif' }}>Línea 60</div>
-          <div style={{ color: '#8f94a5', fontSize: '13px', marginTop: '4px' }}>2,100 usuarios activos</div>
-        </div>
+        ))}
       </div>
     </div>
   )
 }
 
-// ─── AdsTab Component ─────────────────────────────────────────────────────────
-function AdsTab({ ads, setAds }: { ads: any[]; setAds: (val: any[]) => void }) {
-  const [commentInputs, setCommentInputs] = useState<Record<string, string>>({})
-  const [costPerMinuteInput, setCostPerMinuteInput] = useState('5')
+// ─── Messenger Chat support component ────────────────────────────────────────
+function ChatTab({
+  chats, selectedChatId, onSelectChat, chatSearch, setChatSearch,
+  chatInput, setChatInput, onSend, onToggleStar, onDeleteChat,
+  onAddChat, showAddChatModal, setShowAddChatModal, newChatName,
+  setNewChatName, newChatRole, setNewChatRole
+}: any) {
+  const currentChat = chats.find((c: any) => c.id === selectedChatId) || chats[0]
 
-  useEffect(() => {
-    const saved = localStorage.getItem('ad_cost_per_minute')
-    if (saved) {
-      setCostPerMinuteInput(saved)
-    }
-  }, [])
-
-  const saveCostPerMinute = () => {
-    localStorage.setItem('ad_cost_per_minute', costPerMinuteInput)
-    window.dispatchEvent(new StorageEvent('storage', {
-      key: 'ad_cost_per_minute',
-      newValue: costPerMinuteInput
-    }))
-    toast.success('Costo por minuto de anuncios actualizado')
-  }
-
-  const updateAdStatus = (id: string, status: 'approved' | 'rejected') => {
-    const updated = ads.map(ad => ad.id === id ? { ...ad, status } : ad)
-    setAds(updated)
-    localStorage.setItem('bu_submitted_ads', JSON.stringify(updated))
-    window.dispatchEvent(new StorageEvent('storage', {
-      key: 'bu_submitted_ads',
-      newValue: JSON.stringify(updated)
-    }))
-    toast.success(status === 'approved' ? 'Anuncio aprobado con éxito' : 'Anuncio rechazado')
-  }
-
-  const saveComment = (id: string) => {
-    const comment = commentInputs[id] || ''
-    const updated = ads.map(ad => ad.id === id ? { ...ad, adminComment: comment } : ad)
-    setAds(updated)
-    localStorage.setItem('bu_submitted_ads', JSON.stringify(updated))
-    window.dispatchEvent(new StorageEvent('storage', {
-      key: 'bu_submitted_ads',
-      newValue: JSON.stringify(updated)
-    }))
-    toast.success('Comentario guardado')
-  }
+  const filteredChats = chats.filter((c: any) =>
+    c.name.toLowerCase().includes(chatSearch.toLowerCase())
+  ).sort((a: any, b: any) => (b.starred ? 1 : 0) - (a.starred ? 1 : 0))
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* Configuration Card */}
-      <div style={{
-        background: '#121527',
-        borderRadius: '12px',
-        border: '1px solid rgba(255, 255, 255, 0.06)',
-        padding: '20px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '16px'
-      }}>
-        <div>
-          <h3 style={{ fontSize: '15px', fontWeight: 700, margin: '0 0 4px 0', color: '#fff' }}>Tarifas de Publicidad</h3>
-          <p style={{ fontSize: '12px', color: '#8f94a5', margin: 0 }}>Define el costo por minuto de exhibición de anuncios en la red TuBus.</p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#0b0f19', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '8px', padding: '6px 12px' }}>
-            <span style={{ color: '#8f94a5', fontSize: '13px' }}>$</span>
-            <input
-              type="number"
-              value={costPerMinuteInput}
-              onChange={e => setCostPerMinuteInput(e.target.value)}
-              style={{ width: '60px', background: 'transparent', border: 'none', color: '#fff', fontSize: '14px', outline: 'none', fontWeight: 600 }}
-            />
-            <span style={{ color: '#8f94a5', fontSize: '12px' }}>/ min</span>
+    <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', display: 'flex', height: '560px', overflow: 'hidden' }}>
+      {/* Search and chat list sidebar */}
+      <div style={{ width: '280px', borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.15)' }}>
+        <div style={{ padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '14px', fontWeight: 700 }}>Canal de Soporte</span>
+            <button onClick={() => setShowAddChatModal(true)} style={{ background: '#10B981', border: 'none', color: '#fff', borderRadius: '4px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>+</button>
           </div>
-          <button
-            onClick={saveCostPerMinute}
+          <input
+            type="text"
+            placeholder="Buscar conversación..."
+            value={chatSearch}
+            onChange={e => setChatSearch(e.target.value)}
             style={{
-              background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s'
+              background: '#1b1d2e',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: '6px',
+              padding: '6px 10px',
+              color: '#fff',
+              fontSize: '12px',
+              outline: 'none'
             }}
-          >
-            Guardar Tarifa
-          </button>
-        </div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
-        <KPI icon={Megaphone} label="Anuncios Totales" value={ads.length} color="#3b82f6" />
-        <KPI icon={CheckCircle2} label="Aprobados" value={ads.filter(a => a.status === 'approved').length} color="#00c689" />
-        <KPI icon={Clock} label="Pendientes" value={ads.filter(a => a.status === 'pending').length} color="#f59e0b" />
-      </div>
-
-      <div style={{
-        background: '#121527',
-        borderRadius: '12px',
-        border: '1px solid rgba(255, 255, 255, 0.06)',
-        padding: '24px',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Moderación de Publicidades</h2>
-        </div>
-
-        {ads.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '40px', color: '#8f94a5' }}>
-            No hay anuncios registrados en el sistema.
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {ads.map(ad => (
-              <div key={ad.id} style={{
-                background: '#0b0f19',
-                borderRadius: '8px',
-                border: '1px solid rgba(255,255,255,0.06)',
-                padding: '18px',
-                display: 'flex',
-                gap: '20px',
-                flexWrap: 'wrap'
-              }}>
-                {ad.imageUrl && (
-                  <div style={{ width: '120px', height: '80px', borderRadius: '6px', overflow: 'hidden', flexShrink: 0, border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <img src={ad.imageUrl} alt={ad.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  </div>
-                )}
-                
-                <div style={{ flex: 1, minWidth: '250px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#fff' }}>{ad.title}</h3>
-                      <span style={{ fontSize: '11px', color: '#8f94a5' }}>Enviado por: {ad.userName || 'Alejandro'} ({ad.userEmail || 'usuario@bienparada.com.ar'})</span>
-                    </div>
-                    <span style={{
-                      fontSize: '10px',
-                      fontWeight: 700,
-                      padding: '3px 8px',
-                      borderRadius: '999px',
-                      textTransform: 'uppercase',
-                      background: ad.status === 'approved' ? 'rgba(16,185,129,0.15)' : ad.status === 'rejected' ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)',
-                      color: ad.status === 'approved' ? '#34D399' : ad.status === 'rejected' ? '#F87171' : '#FBBF24',
-                      border: `1px solid ${ad.status === 'approved' ? 'rgba(16,185,129,0.3)' : ad.status === 'rejected' ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.3)'}`
-                    }}>
-                      {ad.status === 'approved' ? 'Aprobado' : ad.status === 'rejected' ? 'Rechazado' : 'Pendiente'}
-                    </span>
-                  </div>
-
-                  <p style={{ fontSize: '13px', color: '#b8c0d0', margin: '4px 0 8px 0', lineHeight: '1.4' }}>{ad.description}</p>
-                  
-                  <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#8f94a5', flexWrap: 'wrap' }}>
-                    <span>Presupuesto: <strong style={{ color: '#fff' }}>${ad.budget}</strong></span>
-                    <span>Link: <a href={ad.targetUrl || ad.link} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'none' }}>{ad.targetUrl || ad.link} ↗</a></span>
-                    {ad.selectedAdSchedule && (
-                      <div style={{ width: '100%', marginTop: '6px', display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                        <span style={{ color: '#8f94a5' }}>Horarios:</span>
-                        {ad.selectedAdSchedule.split(',').map((slotId: string) => {
-                          const slotNames: Record<string, string> = {
-                            todos: 'Todo el día',
-                            morning: 'Mañana',
-                            afternoon: 'Tarde',
-                            night: 'Noche'
-                          };
-                          const maxSlotMins = slotId === 'todos' ? 1440 : slotId === 'morning' ? 360 : slotId === 'afternoon' ? 480 : 600;
-                          const totalSlots = ad.selectedAdSchedule.split(',').length;
-                          const allocatedBudget = totalSlots > 0 ? (ad.budget / totalSlots) : 0;
-                          const costPerMin = Number(localStorage.getItem('ad_cost_per_minute') || '5') || 5;
-                          const slotDuration = costPerMin > 0 ? allocatedBudget / costPerMin : 0;
-                          
-                          const detail = ad.adScheduleDetails?.[slotId] || { splits: 1, startTimes: [0] };
-                          const splitsCount = detail.splits || 1;
-                          const splitDuration = splitsCount > 0 ? slotDuration / splitsCount : 0;
-                          
-                          const formatOffsetToTime = (sid: string, offsetMins: number) => {
-                            let startHour = 0;
-                            if (sid === 'morning') startHour = 6;
-                            else if (sid === 'afternoon') startHour = 12;
-                            else if (sid === 'night') startHour = 20;
-
-                            const totalMins = startHour * 60 + offsetMins;
-                            const wrappedMins = totalMins % 1440;
-                            const hours = Math.floor(wrappedMins / 60);
-                            const mins = Math.floor(wrappedMins % 60);
-                            return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
-                          };
-
-                          const intervals = (detail.startTimes || [0]).slice(0, splitsCount).map((startTime: number) => {
-                            const startStr = formatOffsetToTime(slotId, startTime);
-                            const endStr = formatOffsetToTime(slotId, startTime + splitDuration);
-                            return `${startStr} a ${endStr}`;
-                          });
-
-                          const daysStr = detail.days ? detail.days.map((d: string) => d.toUpperCase()).join(',') : 'L,M,M,J,V,S,D';
-                          const freqStr = detail.frequency === 0 || detail.frequency === undefined ? 'Continuo' : `Cada ${detail.frequency}m`;
-                          return (
-                            <span key={slotId} style={{ background: 'rgba(59,130,246,0.1)', color: '#60a5fa', padding: '6px 8px', borderRadius: '6px', fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                              <div>
-                                <strong>{slotNames[slotId] || slotId}</strong>: <span style={{ color: '#fff' }}>{intervals.join(', ')}</span>
-                              </div>
-                              <div style={{ fontSize: '9px', color: '#a3a3a3', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                                <div style={{ display: 'flex', gap: '8px' }}>
-                                  <span>Días: <strong style={{ color: '#fff' }}>{daysStr}</strong></span>
-                                  <span>Freq: <strong style={{ color: '#fff' }}>{freqStr}</strong></span>
-                                </div>
-                                <div style={{ color: '#10B981', fontWeight: 600 }}>
-                                  {(() => {
-                                    const placements = detail.placements || ['portada'];
-                                    const budgetPerPlacement = placements.length > 0 ? allocatedBudget / placements.length : 0;
-                                    
-                                    const formatMins = (mins: number) => {
-                                      const m = Math.floor(mins);
-                                      const s = Math.round((mins - m) * 60);
-                                      return s === 0 ? `${m}m` : `${m}m ${s}s`;
-                                    };
-
-                                    const parts: string[] = [];
-                                    if (placements.includes('portada')) {
-                                      const mins = costPerMin > 0 ? budgetPerPlacement / costPerMin : 0;
-                                      parts.push(`Portada: ${formatMins(mins)}`);
-                                    }
-                                    if (placements.includes('mapa')) {
-                                      const mins = (costPerMin + 120) > 0 ? budgetPerPlacement / (costPerMin + 120) : 0;
-                                      parts.push(`Mapa: ${formatMins(mins)}`);
-                                    }
-                                    if (placements.includes('notificaciones')) {
-                                      const count = budgetPerPlacement / 100;
-                                      parts.push(`Notif: ${count.toFixed(1)}/día`);
-                                    }
-                                    return `Canales: ` + parts.join(', ');
-                                  })()}
-                                </div>
-                              </div>
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-
-                  <div style={{ marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
-                    <div style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 600, marginBottom: '6px', textTransform: 'uppercase' }}>Comentario de Moderación</div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <input
-                        type="text"
-                        placeholder="Escribe comentarios, motivos de rechazo, etc..."
-                        value={commentInputs[ad.id] ?? ad.adminComment ?? ''}
-                        onChange={e => setCommentInputs(prev => ({ ...prev, [ad.id]: e.target.value }))}
-                        style={{
-                          flex: 1,
-                          padding: '6px 12px',
-                          background: 'rgba(0,0,0,0.2)',
-                          border: '1px solid rgba(255,255,255,0.1)',
-                          borderRadius: '6px',
-                          color: '#fff',
-                          fontSize: '12px',
-                          outline: 'none'
-                        }}
-                      />
-                      <button
-                        onClick={() => saveComment(ad.id)}
-                        style={{
-                          padding: '6px 12px',
-                          background: '#4b49ac',
-                          border: 'none',
-                          borderRadius: '6px',
-                          color: '#fff',
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Guardar
-                      </button>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '14px' }}>
-                    <button
-                      onClick={() => updateAdStatus(ad.id, 'approved')}
-                      disabled={ad.status === 'approved'}
-                      style={{
-                        padding: '8px 16px',
-                        background: ad.status === 'approved' ? 'rgba(16,185,129,0.2)' : '#00c689',
-                        color: ad.status === 'approved' ? '#8f94a5' : '#fff',
-                        border: 'none',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: 700,
-                        cursor: ad.status === 'approved' ? 'not-allowed' : 'pointer'
-                      }}
-                    >
-                      Aprobar
-                    </button>
-                    <button
-                      onClick={() => updateAdStatus(ad.id, 'rejected')}
-                      disabled={ad.status === 'rejected'}
-                      style={{
-                        padding: '8px 16px',
-                        background: ad.status === 'rejected' ? 'rgba(239,68,68,0.2)' : '#ff4d6a',
-                        color: ad.status === 'rejected' ? '#8f94a5' : '#fff',
-                        border: 'none',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: 700,
-                        cursor: ad.status === 'rejected' ? 'not-allowed' : 'pointer'
-                      }}
-                    >
-                      Rechazar
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ─── ChatTab Component ────────────────────────────────────────────────────────
-function ChatTab({ chats, setChats }: { chats: any[]; setChats: (val: any[]) => void }) {
-  const [activeUser, setActiveUser] = useState<'alejandro' | 'sofia' | 'mateo'>('alejandro')
-  const [inputText, setInputText] = useState('')
-  const chatEndRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [chats])
-
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!inputText.trim()) return
-
-    const newMsg = {
-      id: `m-${Date.now()}`,
-      sender: 'admin',
-      text: inputText.trim(),
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }
-
-    const updated = [...chats, newMsg]
-    setChats(updated)
-    localStorage.setItem('bu_support_chat', JSON.stringify(updated))
-    window.dispatchEvent(new StorageEvent('storage', {
-      key: 'bu_support_chat',
-      newValue: JSON.stringify(updated)
-    }))
-    setInputText('')
-  }
-
-  const mockSofiaChat = [
-    { id: 'ms1', sender: 'user', text: 'Hola, ¿dónde puedo ver las paradas de la Línea 37?', timestamp: 'Ayer' },
-    { id: 'ms2', sender: 'admin', text: 'Hola Sofía, puedes ver las paradas seleccionando la Línea 37 en la pestaña de Colectivos.', timestamp: 'Ayer' }
-  ]
-
-  const mockMateoChat = [
-    { id: 'mm1', sender: 'user', text: 'El colectivo 12 no está reportando su ubicación real.', timestamp: 'Hace 2 días' },
-    { id: 'mm2', sender: 'admin', text: 'Gracias por reportarlo Mateo, ya notificamos a la empresa prestataria.', timestamp: 'Hace 2 días' }
-  ]
-
-  const currentChats = activeUser === 'alejandro' ? chats : activeUser === 'sofia' ? mockSofiaChat : mockMateoChat
-
-  return (
-    <div style={{
-      background: '#121527',
-      borderRadius: '12px',
-      border: '1px solid rgba(255, 255, 255, 0.06)',
-      display: 'flex',
-      height: '550px',
-      overflow: 'hidden'
-    }}>
-      {/* Sidebar: Users list */}
-      <div style={{
-        width: '240px',
-        borderRight: '1px solid rgba(255,255,255,0.06)',
-        display: 'flex',
-        flexDirection: 'column',
-        background: 'rgba(0,0,0,0.1)'
-      }}>
-        <div style={{ padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.06)', fontSize: '13px', fontWeight: 700, color: '#fff' }}>
-          Chats de Soporte
+          />
         </div>
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-          {/* Alejandro */}
-          <div
-            onClick={() => setActiveUser('alejandro')}
-            style={{
-              padding: '14px 16px',
-              borderBottom: '1px solid rgba(255,255,255,0.03)',
-              cursor: 'pointer',
-              background: activeUser === 'alejandro' ? 'rgba(255,255,255,0.04)' : 'transparent',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              transition: 'background 200ms'
-            }}
-          >
-            <div style={{ position: 'relative' }}>
-              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '13px' }}>A</div>
-              <div style={{ position: 'absolute', bottom: 0, right: 0, width: '10px', height: '10px', borderRadius: '50%', background: '#10B981', border: '2px solid #121527' }} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Alejandro</div>
-              <div style={{ fontSize: '11px', color: '#8f94a5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {chats.length > 0 ? chats[chats.length - 1].text : 'Sin mensajes'}
-              </div>
-            </div>
-          </div>
-
-          {/* Sofia */}
-          <div
-            onClick={() => setActiveUser('sofia')}
-            style={{
-              padding: '14px 16px',
-              borderBottom: '1px solid rgba(255,255,255,0.03)',
-              cursor: 'pointer',
-              background: activeUser === 'sofia' ? 'rgba(255,255,255,0.04)' : 'transparent',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              transition: 'background 200ms'
-            }}
-          >
-            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '13px' }}>S</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Sofía G.</div>
-              <div style={{ fontSize: '11px', color: '#8f94a5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Puedes ver las paradas...</div>
-            </div>
-          </div>
-
-          {/* Mateo */}
-          <div
-            onClick={() => setActiveUser('mateo')}
-            style={{
-              padding: '14px 16px',
-              borderBottom: '1px solid rgba(255,255,255,0.03)',
-              cursor: 'pointer',
-              background: activeUser === 'mateo' ? 'rgba(255,255,255,0.04)' : 'transparent',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              transition: 'background 200ms'
-            }}
-          >
-            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#ec4899', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '13px' }}>M</div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Mateo L.</div>
-              <div style={{ fontSize: '11px', color: '#8f94a5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Gracias por reportarlo...</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Conversation panel */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.15)' }}>
-        {/* Header */}
-        <div style={{
-          padding: '16px 20px',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          background: 'rgba(0,0,0,0.05)'
-        }}>
-          <div>
-            <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>
-              {activeUser === 'alejandro' ? 'Alejandro' : activeUser === 'sofia' ? 'Sofía G.' : 'Mateo L.'}
-            </div>
-            <div style={{ fontSize: '11px', color: activeUser === 'alejandro' ? '#10B981' : '#8f94a5', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: activeUser === 'alejandro' ? '#10B981' : '#8f94a5' }} />
-              {activeUser === 'alejandro' ? 'En línea' : 'Desconectado'}
-            </div>
-          </div>
-          <div style={{ fontSize: '11px', color: '#8f94a5' }}>
-            {activeUser === 'alejandro' ? 'usuario@bienparada.com.ar' : activeUser === 'sofia' ? 'sofia@gmail.com' : 'mateo@gmail.com'}
-          </div>
-        </div>
-
-        {/* Message area */}
-        <div style={{
-          flex: 1,
-          padding: '20px',
-          overflowY: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px'
-        }}>
-          {currentChats.map(msg => {
-            const isUser = msg.sender === 'user'
+          {filteredChats.map((c: any) => {
+            const active = c.id === selectedChatId
             return (
               <div
-                key={msg.id}
+                key={c.id}
+                onClick={() => onSelectChat(c.id)}
                 style={{
-                  alignSelf: isUser ? 'flex-start' : 'flex-end',
-                  maxWidth: '70%',
-                  background: isUser ? 'rgba(255,255,255,0.04)' : '#4b49ac',
-                  border: isUser ? '1px solid rgba(255,255,255,0.06)' : 'none',
-                  borderRadius: isUser ? '12px 12px 12px 2px' : '12px 12px 2px 12px',
-                  padding: '10px 14px',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.1)'
+                  padding: '12px 16px',
+                  borderBottom: '1px solid rgba(255,255,255,0.03)',
+                  cursor: 'pointer',
+                  background: active ? 'rgba(255,255,255,0.04)' : 'transparent',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  transition: 'background 200ms'
                 }}
               >
-                <div style={{ fontSize: '12px', color: '#fff', lineHeight: '1.4' }}>{msg.text}</div>
-                <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.5)', marginTop: '4px', textAlign: 'right' }}>
-                  {msg.timestamp}
+                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: c.role === 'lineadmin' ? '#ef4444' : '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '12px' }}>
+                  {c.avatar}
                 </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                    <button onClick={(e) => { e.stopPropagation(); onToggleStar(c.id) }} style={{ background: 'none', border: 'none', color: c.starred ? '#eab308' : '#8f94a5', cursor: 'pointer' }}>
+                      <Star size={11} fill={c.starred ? '#eab308' : 'none'} />
+                    </button>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#8f94a5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px' }}>{c.lastMsg}</div>
+                </div>
+                <button onClick={(e) => { e.stopPropagation(); onDeleteChat(c.id) }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', opacity: 0.6 }} onMouseEnter={e => e.currentTarget.style.opacity = '1'} onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}>
+                  <Trash2 size={12} />
+                </button>
               </div>
             )
           })}
-          <div ref={chatEndRef} />
+        </div>
+      </div>
+
+      {/* Main chat window */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {currentChat ? (
+          <>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: '14px', fontWeight: 700 }}>{currentChat.name}</span>
+                <span style={{ fontSize: '10px', background: currentChat.role === 'lineadmin' ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)', color: currentChat.role === 'lineadmin' ? '#ef4444' : '#10B981', padding: '2px 6px', borderRadius: '4px', marginLeft: '8px', fontWeight: 600 }}>{currentChat.role === 'lineadmin' ? 'ADMIN LÍNEA' : 'PASAJERO'}</span>
+              </div>
+            </div>
+            <div style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {currentChat.history.map((msg: any) => {
+                const isAdmin = msg.sender === 'admin'
+                return (
+                  <div key={msg.id} style={{ alignSelf: isAdmin ? 'flex-end' : 'flex-start', maxWidth: '70%', background: isAdmin ? '#10B981' : 'rgba(255,255,255,0.04)', borderRadius: '12px', padding: '10px 14px' }}>
+                    <div style={{ fontSize: '12px', color: '#fff', lineHeight: 1.4 }}>{msg.text}</div>
+                    <span style={{ display: 'block', fontSize: '9px', color: 'rgba(255,255,255,0.4)', marginTop: '4px', textAlign: 'right' }}>{msg.timestamp}</span>
+                  </div>
+                )
+              })}
+            </div>
+            <form onSubmit={e => { e.preventDefault(); if (!chatInput.trim()) return; onSend(chatInput); setChatInput('') }} style={{ padding: '16px 20px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'flex', gap: '10px' }}>
+              <input
+                type="text"
+                placeholder="Escriba un mensaje de soporte..."
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                style={{ flex: 1, background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '10px 14px', color: '#fff', fontSize: '13px', outline: 'none' }}
+              />
+              <button type="submit" style={{ padding: '0 20px', background: '#10B981', border: 'none', borderRadius: '8px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Enviar</button>
+            </form>
+          </>
+        ) : (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8f94a5' }}>Seleccione una conversación para iniciar el soporte técnico.</div>
+        )}
+      </div>
+
+      {/* Add support chat modal */}
+      {showAddChatModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '24px', width: '320px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Nueva Conversación</h3>
+            <div>
+              <label style={{ fontSize: '11px', color: '#8f94a5', display: 'block', marginBottom: '6px' }}>Nombre del Contacto</label>
+              <input type="text" value={newChatName} onChange={e => setNewChatName(e.target.value)} style={{ width: '100%', background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', color: '#fff', outline: 'none' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: '11px', color: '#8f94a5', display: 'block', marginBottom: '6px' }}>Rol</label>
+              <select value={newChatRole} onChange={e => setNewChatRole(e.target.value as any)} style={{ width: '100%', background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', color: '#fff', outline: 'none' }}>
+                <option value="user">Pasajero / Usuario</option>
+                <option value="lineadmin">Administrador de Línea</option>
+              </select>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+              <button onClick={() => setShowAddChatModal(false)} style={{ padding: '8px 14px', background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '6px', color: '#8f94a5', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={() => { if (!newChatName.trim()) return; onAddChat(newChatName.trim(), newChatRole); setNewChatName(''); setShowAddChatModal(false) }} style={{ padding: '8px 14px', background: '#10B981', border: 'none', borderRadius: '6px', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Crear</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Reports complaints view component ───────────────────────────────────────
+function ReportsTab() {
+  const [complaints, setComplaints] = useState<any[]>([])
+
+  useEffect(() => {
+    const list = Object.entries(LINE_DETAILS).flatMap(([lineId, details]) => {
+      const lineInfo = LINES_DATA.find(l => l.id === lineId) || { name: `Línea` }
+      return details.complaintsList.map(c => ({
+        ...c,
+        line: lineInfo.name
+      }))
+    })
+    setComplaints(list)
+  }, [])
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div>
+        <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Registro de Denuncias contra Choferes</h3>
+        <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Reportes recibidos en tiempo real a través de las aplicaciones móviles de pasajeros</p>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {complaints.map((c, i) => (
+          <div key={i} style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444', padding: '2px 8px', borderRadius: '6px' }}>{c.type}</span>
+                <span style={{ fontSize: '11px', color: '#8f94a5' }}>Chofer: <strong style={{ color: '#fff' }}>{c.driver}</strong> (Unidad {c.bus})</span>
+              </div>
+              <span style={{ fontSize: '11px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{c.time}</span>
+            </div>
+            <p style={{ fontSize: '12px', color: '#a3a6b8', margin: 0, lineHeight: 1.4 }}>{c.desc}</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '8px', marginTop: '4px' }}>
+              <span style={{ fontSize: '11px', color: '#8f94a5' }}>Línea asociada: <strong style={{ color: '#fff' }}>{c.line}</strong></span>
+              <span style={{ fontSize: '10px', background: c.status === 'resolved' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)', color: c.status === 'resolved' ? '#10B981' : '#f59e0b', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>{c.status.toUpperCase()}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Provinces map and Demography component ──────────────────────────────────
+function ProvinceMapTab({ selectedProvinceKey, onSelectProvince }: { selectedProvinceKey: string | null; onSelectProvince: (val: string | null) => void }) {
+  const currentProvinceData = selectedProvinceKey ? PROVINCES_DATA[selectedProvinceKey] : null
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div>
+        <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Mapa Demográfico de Argentina</h3>
+        <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Estadísticas de distribución y algoritmos de rastreo de hábitos y origen de vecindarios</p>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '24px' }}>
+        {/* Left: Argentina Province selection grid / SVG simulator */}
+        <div style={{ gridColumn: 'span 7', background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>Seleccione una Provincia</h4>
+          
+          {/* Interactive Argentina Provincias */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+            {Object.entries(PROVINCES_DATA).map(([key, data]) => {
+              const active = selectedProvinceKey === key
+              return (
+                <button
+                  key={key}
+                  onClick={() => onSelectProvince(key)}
+                  style={{
+                    background: active ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.02)',
+                    border: `1.5px solid ${active ? '#10B981' : 'rgba(255,255,255,0.06)'}`,
+                    borderRadius: '8px',
+                    padding: '16px',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'all 200ms',
+                    color: '#fff'
+                  }}
+                >
+                  <div style={{ fontSize: '14px', fontWeight: 700 }}>{data.name}</div>
+                  <div style={{ fontSize: '12px', color: '#8f94a5', marginTop: '4px' }}>{data.users.toLocaleString()} usuarios activos</div>
+                </button>
+              )
+            })}
+          </div>
+
+          <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)', padding: '14px', borderRadius: '8px', fontSize: '11px', color: '#8f94a5', lineHeight: 1.4 }}>
+            💡 El sistema analiza en segundo plano las paradas de inicio y fin de viaje frecuentes de los pasajeros para identificar su vecindario principal sin comprometer su privacidad.
+          </div>
         </div>
 
-        {/* Input area */}
-        {activeUser === 'alejandro' ? (
-          <form onSubmit={handleSendMessage} style={{
-            padding: '16px 20px',
-            borderTop: '1px solid rgba(255,255,255,0.06)',
-            display: 'flex',
-            gap: '10px',
-            background: 'rgba(0,0,0,0.1)'
-          }}>
-            <input
-              type="text"
-              placeholder="Escribe una respuesta para el pasajero..."
-              value={inputText}
-              onChange={e => setInputText(e.target.value)}
-              style={{
-                flex: 1,
-                padding: '10px 14px',
-                background: 'rgba(0,0,0,0.3)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '8px',
-                color: '#fff',
-                fontSize: '13px',
-                outline: 'none'
-              }}
-            />
-            <button
-              type="submit"
-              style={{
-                padding: '0 20px',
-                background: '#00c689',
-                border: 'none',
-                borderRadius: '8px',
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: '12px',
-                cursor: 'pointer',
-                boxShadow: '0 4px 10px rgba(0,198,137,0.2)'
-              }}
-            >
-              Enviar
-            </button>
-          </form>
-        ) : (
-          <div style={{
-            padding: '16px 20px',
-            borderTop: '1px solid rgba(255,255,255,0.06)',
-            textAlign: 'center',
-            fontSize: '12px',
-            color: '#8f94a5',
-            background: 'rgba(0,0,0,0.1)'
-          }}>
-            Esta conversación es histórica y se encuentra cerrada.
-          </div>
-        )}
+        {/* Right: Selected Province details and Neighborhood distribution */}
+        <div style={{ gridColumn: 'span 5', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {currentProvinceData ? (
+            <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
+                <h4 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#10B981' }}>{currentProvinceData.name}</h4>
+                <span style={{ fontSize: '12px', color: '#8f94a5' }}>Desglose por Barrio / Comuna</span>
+              </div>
+
+              {/* Neighborhood list */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {currentProvinceData.neighborhoods.map((n, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 500 }}>{n.name}</span>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff', fontFamily: 'DM Mono' }}>{n.count} usuarios</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Habits tracking log */}
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <span style={{ fontSize: '11px', color: '#8f94a5', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Hábitos de Movilidad Detectados</span>
+                {currentProvinceData.habits.map((habit, i) => (
+                  <div key={i} style={{ fontSize: '12px', color: '#a3a6b8', background: 'rgba(0,0,0,0.15)', padding: '10px 14px', borderRadius: '8px', lineHeight: 1.4 }}>
+                    {habit}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '40px 24px', textAlign: 'center', color: '#8f94a5' }}>
+              Seleccione una provincia de la lista para ver el reporte de distribución de usuarios y vecindarios.
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
