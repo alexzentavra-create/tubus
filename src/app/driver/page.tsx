@@ -366,6 +366,18 @@ export default function DriverPage() {
     window.addEventListener('storage', handleStorageChange)
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
+  const [currentTime, setCurrentTime] = useState<string>('')
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date()
+      const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })
+      setCurrentTime(timeStr)
+    }
+    updateTime()
+    const timer = setInterval(updateTime, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
   const [driverName, setDriverName]     = useState('')
   const [driverId,   setDriverId]       = useState('')
   const [session,    setSession]        = useState<ActiveSession | null>(null)
@@ -1172,6 +1184,24 @@ export default function DriverPage() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ color: '#fff', fontWeight: 600, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{driverName || 'Chofer Demo'}</div>
             <div style={{ color: '#a3a6b8', fontSize: '11px', fontFamily: 'DM Mono', marginTop: '1px' }}>ID: {driverId ? driverId.slice(0, 12) : 'mock-driver'}</div>
+          </div>
+          {/* Clock Widget */}
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'flex-end', 
+            background: 'rgba(255, 255, 255, 0.02)', 
+            border: '1px solid rgba(255, 255, 255, 0.05)', 
+            borderRadius: '6px', 
+            padding: '4px 8px',
+            fontFamily: 'DM Mono, monospace'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#3B82F6', fontSize: '8px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '2px' }}>
+              <Clock size={10} /> HORA
+            </div>
+            <div style={{ color: '#fff', fontSize: '13px', fontWeight: 600, letterSpacing: '0.02em' }}>
+              {currentTime || '00:00:00'}
+            </div>
           </div>
         </div>
 
