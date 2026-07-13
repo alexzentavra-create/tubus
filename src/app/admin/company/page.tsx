@@ -5647,6 +5647,44 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
     }
   }
 
+  // Handle dragging detour waypoints to a new position
+  const handleMarkerDragEnd = (idx: number, e: any) => {
+    const newLat = e.lngLat.lat
+    const newLng = e.lngLat.lng
+
+    const url = `https://router.project-osrm.org/nearest/v1/driving/${newLng},${newLat}?number=1`
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        if (data.waypoints && data.waypoints[0]) {
+          const wp = data.waypoints[0]
+          const snappedLng = wp.location[0]
+          const snappedLat = wp.location[1]
+          const name = wp.name || "Esquina sin nombre"
+          
+          setManualDetourPoints(prev => {
+            const next = [...prev]
+            next[idx] = { lat: snappedLat, lng: snappedLng, name }
+            return next
+          })
+          toast.success(`Esquina movida a: ${name}`)
+        } else {
+          setManualDetourPoints(prev => {
+            const next = [...prev]
+            next[idx] = { ...next[idx], lat: newLat, lng: newLng }
+            return next
+          })
+        }
+      })
+      .catch(() => {
+        setManualDetourPoints(prev => {
+          const next = [...prev]
+          next[idx] = { ...next[idx], lat: newLat, lng: newLng }
+          return next
+        })
+      })
+  }
+
   // Confirm new stop addition
   const confirmAddStop = () => {
     if (!newStopName.trim()) {
@@ -5959,15 +5997,38 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
 
           {/* Render selected points for manual detour */}
           {isEditingDetourManually && manualDetourPoints.map((p, idx) => (
-            <Marker key={`manual-pt-${idx}`} latitude={p.lat} longitude={p.lng} anchor="center">
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none' }}>
+            <Marker
+              key={`manual-pt-${idx}`}
+              latitude={p.lat}
+              longitude={p.lng}
+              anchor="center"
+              draggable={true}
+              onDragEnd={(e) => handleMarkerDragEnd(idx, e)}
+            >
+              <div
+                onClick={(e) => {
+                  e.stopPropagation() // Prevent adding new points on clicking existing marker
+                }}
+                onContextMenu={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setManualDetourPoints(prev => prev.filter((_, i) => i !== idx))
+                  toast.success("Esquina eliminada")
+                }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  cursor: 'grab'
+                }}
+              >
                 <div
                   style={{
-                    width: '10px',
-                    height: '10px',
+                    width: '12px',
+                    height: '12px',
                     borderRadius: '50%',
                     background: '#FF8A00',
-                    border: '1.5px solid #fff',
+                    border: '2px solid #fff',
                     boxShadow: '0 0 6px rgba(0,0,0,0.5)'
                   }}
                 />
@@ -5982,7 +6043,8 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
                     marginTop: '4px',
                     whiteSpace: 'nowrap',
                     border: '1px solid rgba(255,255,255,0.1)',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                    pointerEvents: 'none'
                   }}
                 >
                   {p.name || `Esquina ${idx + 1}`}
