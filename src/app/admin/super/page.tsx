@@ -460,7 +460,7 @@ export default function SuperAdminDashboard() {
   return (
     <div style={{
       height: '100vh',
-      overflowY: 'auto',
+      overflow: 'hidden',
       background: '#0b0f19',
       color: '#fff',
       display: 'flex',
@@ -475,9 +475,6 @@ export default function SuperAdminDashboard() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{ width: '32px', height: '32px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.15)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -543,16 +540,13 @@ export default function SuperAdminDashboard() {
       </header>
 
       {/* Main Horizontal Navigation */}
-      <nav style={{
+      <div style={{
         background: '#121527',
         borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
         padding: '0 24px',
         display: 'flex',
-        gap: '24px',
+        gap: '20px',
         overflowX: 'auto',
-        position: 'sticky',
-        top: '60px',
-        zIndex: 49,
       }}>
         {NAV_ITEMS.map((item) => {
           const active = tab === item.id
@@ -565,7 +559,7 @@ export default function SuperAdminDashboard() {
                 alignItems: 'center',
                 gap: '8px',
                 padding: '14px 4px',
-                color: active ? '#fff' : '#a3a6b8',
+                color: active ? '#fff' : '#8f94a5',
                 fontSize: '13px',
                 fontWeight: active ? 600 : 500,
                 background: 'none',
@@ -576,15 +570,15 @@ export default function SuperAdminDashboard() {
                 whiteSpace: 'nowrap',
               }}
             >
-              <item.icon size={14} style={{ color: active ? '#10B981' : '#a3a6b8' }} />
+              <item.icon size={14} style={{ color: active ? '#10B981' : '#8f94a5' }} />
               <span>{item.label}</span>
             </button>
           )
         })}
-      </nav>
+      </div>
 
       {/* Main Content Area */}
-      <main style={{ flex: 1, padding: '24px' }}>
+      <main style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
         {tab === 'overview' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {/* Quick Metrics */}
