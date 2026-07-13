@@ -5783,8 +5783,8 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
     
     const scaleX = 0.823
     const thetaV = -3.4 * Math.PI / 180
-    const wV = 0.000915
-    const wU = 0.00108
+    const wV = 0.00104
+    const wU = 0.00122
 
     const originLat = startStop.latitude
     const originLng = startStop.longitude
