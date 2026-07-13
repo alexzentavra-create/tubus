@@ -550,6 +550,9 @@ export default function SuperAdminDashboard() {
         display: 'flex',
         gap: '24px',
         overflowX: 'auto',
+        position: 'sticky',
+        top: '60px',
+        zIndex: 49,
       }}>
         {NAV_ITEMS.map((item) => {
           const active = tab === item.id
