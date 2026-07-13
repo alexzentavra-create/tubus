@@ -5627,12 +5627,45 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
     toast.success("¡Cambios operativos guardados y sincronizados con pasajeros y choferes!")
   }
 
-  // Handle click on map to add stop
+  // Handle click on map to add stop or detour waypoint
   const handleMapClick = (e: any) => {
-    if (mapClickMode !== 'add_stop') return
     const lat = e.lngLat.lat
     const lng = e.lngLat.lng
-    setNewStopCoords({ lat, lng })
+
+    if (isEditingDetourManually) {
+      const url = `https://router.project-osrm.org/nearest/v1/driving/${lng},${lat}?number=1`
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          if (data.waypoints && data.waypoints[0]) {
+            const wp = data.waypoints[0]
+            const snappedLng = wp.location[0]
+            const snappedLat = wp.location[1]
+            const name = wp.name || "Esquina sin nombre"
+            setManualDetourPoints(prev => [
+              ...prev,
+              { lat: snappedLat, lng: snappedLng, name }
+            ])
+            toast.success(`Esquina añadida: ${name}`)
+          } else {
+            setManualDetourPoints(prev => [
+              ...prev,
+              { lat, lng, name: "Punto manual" }
+            ])
+          }
+        })
+        .catch(() => {
+          setManualDetourPoints(prev => [
+            ...prev,
+            { lat, lng, name: "Punto manual" }
+          ])
+        })
+      return
+    }
+
+    if (mapClickMode === 'add_stop') {
+      setNewStopCoords({ lat, lng })
+    }
   }
 
   // Confirm new stop addition
@@ -5967,34 +6000,37 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
             </Source>
           )}
 
-          {/* Render Interactive Corners for manual detour editing */}
-          {interactiveCorners.map(c => (
-            <Marker key={c.id} latitude={c.lat} longitude={c.lng} anchor="center">
-              <div
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setManualDetourPoints(prev => [...prev, { lat: c.lat, lng: c.lng }])
-                }}
-                style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  background: '#a3a6b8',
-                  border: '1.5px solid #fff',
-                  cursor: 'pointer',
-                  boxShadow: '0 0 6px rgba(0,0,0,0.5)',
-                  transform: 'scale(1)',
-                  transition: 'all 150ms'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.4)'
-                  e.currentTarget.style.background = '#FF8A00'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)'
-                  e.currentTarget.style.background = '#a3a6b8'
-                }}
-              />
+          {/* Render selected points for manual detour */}
+          {isEditingDetourManually && manualDetourPoints.map((p, idx) => (
+            <Marker key={`manual-pt-${idx}`} latitude={p.lat} longitude={p.lng} anchor="center">
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none' }}>
+                <div
+                  style={{
+                    width: '10px',
+                    height: '10px',
+                    borderRadius: '50%',
+                    background: '#FF8A00',
+                    border: '1.5px solid #fff',
+                    boxShadow: '0 0 6px rgba(0,0,0,0.5)'
+                  }}
+                />
+                <div
+                  style={{
+                    background: 'rgba(11,15,25,0.9)',
+                    color: '#fff',
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    fontSize: '9px',
+                    fontWeight: 600,
+                    marginTop: '4px',
+                    whiteSpace: 'nowrap',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                  }}
+                >
+                  {p.name || `Esquina ${idx + 1}`}
+                </div>
+              </div>
             </Marker>
           ))}
 
