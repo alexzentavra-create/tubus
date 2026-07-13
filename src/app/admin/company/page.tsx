@@ -5780,55 +5780,80 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
     if (!startStop || !endStop) return []
 
     const corners: { id: string; lat: number; lng: number }[] = []
-    
     const scaleX = 0.823
-    const thetaV = -3.4 * Math.PI / 180
-    const wV = 0.00104
-    const wU = 0.00122
 
     const originLat = startStop.latitude
     const originLng = startStop.longitude
-    
-    // Find grid coordinates of the center
+
+    // Piecewise linear parameter provider for any latitude in CABA
+    const getLocalParams = (y: number) => {
+      const anchors = [
+        { lat: -34.613182, thetaV: -3.4, thetaH: 12.5, wU: 0.00122, wV: 0.00104 },
+        { lat: -34.604710, thetaV: -12.5, thetaH: -12.5, wU: 0.00135, wV: 0.00104 },
+        { lat: -34.595645, thetaV: -19.1, thetaH: -19.1, wU: 0.00135, wV: 0.00104 }
+      ]
+      if (y <= anchors[0].lat) return anchors[0]
+      if (y >= anchors[2].lat) return anchors[2]
+      let idx = 0
+      while (idx < anchors.length - 1 && y > anchors[idx + 1].lat) {
+        idx++
+      }
+      const a1 = anchors[idx]
+      const a2 = anchors[idx + 1]
+      const ratio = (y - a1.lat) / (a2.lat - a1.lat)
+      return {
+        thetaV: a1.thetaV + (a2.thetaV - a1.thetaV) * ratio,
+        thetaH: a1.thetaH + (a2.thetaH - a1.thetaH) * ratio,
+        wU: a1.wU + (a2.wU - a1.wU) * ratio,
+        wV: a1.wV + (a2.wV - a1.wV) * ratio
+      }
+    }
+
     const centerLat = (startStop.latitude + endStop.latitude) / 2
     const centerLng = (startStop.longitude + endStop.longitude) / 2
-    
-    // Decompose center relative to startStop to find its grid indices
-    const thetaH_center = -3.3 * Math.PI / 180 // average horizontal angle for center projection
-    const m11 = -Math.cos(thetaH_center)
-    const m12 = Math.sin(thetaV)
-    const m21 = -Math.sin(thetaH_center)
-    const m22 = Math.cos(thetaV)
+
+    const avgParams = getLocalParams(centerLat)
+    const thetaV_avg = avgParams.thetaV * Math.PI / 180
+    const thetaH_avg = avgParams.thetaH * Math.PI / 180
+
+    const m11 = -Math.cos(thetaH_avg)
+    const m12 = Math.sin(thetaV_avg)
+    const m21 = -Math.sin(thetaH_avg)
+    const m22 = Math.cos(thetaV_avg)
     const det = m11 * m22 - m12 * m21
-    
+
     const dx = centerLng - originLng
     const dy = centerLat - originLat
     const dxScaled = dx * scaleX
-    const centerU = (m22 * dxScaled - m12 * dy) / (det * wU)
-    const centerV = (-m21 * dxScaled + m11 * dy) / (det * wV)
-    
+    const centerU = (m22 * dxScaled - m12 * dy) / (det * avgParams.wU)
+    const centerV = (-m21 * dxScaled + m11 * dy) / (det * avgParams.wV)
+
     const midU = Math.round(centerU)
     const midV = Math.round(centerV)
-    
+
     // Generate 21x21 grid (20-block diameter centered on detour)
     for (let i = midU - 10; i <= midU + 10; i++) {
       for (let j = midV - 10; j <= midV + 10; j++) {
-        // Calculate point on vertical axis (j steps)
-        const rowDy = j * wV * Math.cos(thetaV)
-        const rowDxScaled = j * wV * Math.sin(thetaV)
-        const rowLat = originLat + rowDy
-        const rowLng = originLng + rowDxScaled / scaleX
-        
-        // Interpolate horizontal street angle at rowLat
-        const denom = endStop.latitude - originLat
-        const ratio = Math.abs(denom) > 0.0001 ? Math.max(0, Math.min(1, (rowLat - originLat) / denom)) : 0
-        const thetaH_deg = 12.5 - 31.6 * ratio
-        const thetaH = thetaH_deg * Math.PI / 180
-        
+        // Calculate point on vertical axis (j steps) row-by-row
+        let rowLat = originLat
+        let rowLng = originLng
+        const stepSign = Math.sign(j)
+        const steps = Math.abs(j)
+        for (let s = 0; s < steps; s++) {
+          const stepLat = originLat + stepSign * s * 0.00104
+          const params = getLocalParams(stepLat)
+          const tV = params.thetaV * Math.PI / 180
+          rowLat += stepSign * params.wV * Math.cos(tV)
+          rowLng += stepSign * params.wV * Math.sin(tV) / scaleX
+        }
+
+        const rowParams = getLocalParams(rowLat)
+        const tH = rowParams.thetaH * Math.PI / 180
+
         // Move i steps horizontally
-        const lat = rowLat + i * wU * Math.sin(thetaH)
-        const lng = rowLng + i * wU * Math.cos(thetaH) / scaleX
-        
+        const lat = rowLat + i * rowParams.wU * Math.sin(tH)
+        const lng = rowLng + i * rowParams.wU * Math.cos(tH) / scaleX
+
         corners.push({
           id: `corner-${i}-${j}`,
           lat,
@@ -5836,7 +5861,7 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
         })
       }
     }
-    
+
     return corners
   }, [isEditingDetourManually, detourStartStopId, detourEndStopId, stops])
 
