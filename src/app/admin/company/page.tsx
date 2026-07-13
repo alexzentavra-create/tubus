@@ -5513,6 +5513,9 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
     setManualDetourRouteCoords([])
     setIsEditingDetourManually(false)
     
+    // Remove custom detour path from localStorage
+    localStorage.removeItem(`mock_route_path_${activeLine.line_number}_${direction}`)
+    
     // Reload original path
     const loadedPath = getMockRoutePathForLine(activeLine, direction)
     setRoutePath(loadedPath)
@@ -5524,10 +5527,11 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
   const saveChanges = () => {
     localStorage.setItem(`mock_blocked_stops_${activeLine.line_number}`, JSON.stringify(blockedStops))
     localStorage.setItem(`mock_custom_stops_${activeLine.line_number}_${direction}`, JSON.stringify(stops))
-    localStorage.setItem(`mock_route_path_${activeLine.line_number}_${direction}`, JSON.stringify(routePath))
     if (activeDetour) {
+      localStorage.setItem(`mock_route_path_${activeLine.line_number}_${direction}`, JSON.stringify(routePath))
       localStorage.setItem(`mock_detour_${activeLine.line_number}_${direction}`, JSON.stringify(activeDetour))
     } else {
+      localStorage.removeItem(`mock_route_path_${activeLine.line_number}_${direction}`)
       localStorage.removeItem(`mock_detour_${activeLine.line_number}_${direction}`)
     }
     setIsDirty(false)
