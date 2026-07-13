@@ -960,6 +960,9 @@ export default function DriverPage() {
         updatedSessions.push({
           id: sess.sessionId,
           bus_unit: sess.busUnit,
+          line_id: sess.lineId,
+          line_number: sess.lineNumber,
+          qr_code: qrToken.trim(),
           started_at: new Date().toISOString(),
           total_passengers: 0,
           profiles: { name: sess.driverName },
@@ -1051,6 +1054,23 @@ export default function DriverPage() {
       companyName: mockLine.company,
     }
     localStorage.removeItem(`driver_passage_logs_${mockLine.line_number}_${sess.busUnit}`)
+    
+    // Save session to localStorage so admin page can retrieve it
+    const activeSessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+    const updatedSessions = activeSessions.filter((s: any) => s.profiles?.name !== sess.driverName)
+    updatedSessions.push({
+      id: sess.sessionId,
+      bus_unit: sess.busUnit,
+      line_id: sess.lineId,
+      line_number: sess.lineNumber,
+      qr_code: 'DEMO-QR-L12-001',
+      started_at: new Date().toISOString(),
+      total_passengers: 12,
+      profiles: { name: sess.driverName },
+      company_id: 'comp-1'
+    })
+    localStorage.setItem('mock_active_sessions', JSON.stringify(updatedSessions))
+
     setNextStopIndex(0)
     setLastCrossedStop(null)
     setSession(sess)

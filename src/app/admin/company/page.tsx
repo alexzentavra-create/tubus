@@ -671,14 +671,56 @@ export default function CompanyDashboard() {
         .then(res => res.json())
         .then(json => {
           if (json.data) {
-            setBuses(json.data)
+            // Load local mock active sessions from localStorage
+            const localSessions = typeof window !== 'undefined'
+              ? JSON.parse(localStorage.getItem('mock_active_sessions') || '[]').filter((s: any) => s.line_id === activeLine.id)
+              : []
+
+            const localBuses = localSessions.map((s: any) => ({
+              id: s.id,
+              driver_id: s.driver_id || `driver-${s.id}`,
+              line_id: s.line_id,
+              line_number: s.line_number || activeLine.line_number,
+              bus_unit: s.bus_unit,
+              driver_name: s.profiles?.name || 'Chofer Real',
+              latitude: Number(s.latitude || -34.6037),
+              longitude: Number(s.longitude || -58.3816),
+              heading: Number(s.heading || 0),
+              speed_kmh: Number(s.speed_kmh || 0),
+              next_stop_id: `stop-${activeLine.line_number}-active`,
+              next_stop_name: 'Recorrido Activo',
+              eta_minutes: 5,
+              status: s.status || 'stopped',
+              passenger_count: Number(s.total_passengers || 0),
+              timestamp: s.timestamp || new Date().toISOString(),
+              reports_count: 0,
+              direction: 'ida',
+              ramal: `${activeLine.line_number}-A`,
+              qr_code: s.qr_code
+            }))
+
+            const mergedBuses = [...json.data]
+            localBuses.forEach((lb: any) => {
+              const idx = mergedBuses.findIndex(mb => {
+                const lbUnit = (lb.bus_unit || '').replace(/\D/g, '')
+                const mbUnit = (mb.bus_unit || '').replace(/\D/g, '')
+                return lbUnit && mbUnit && lbUnit === mbUnit
+              })
+              if (idx !== -1) {
+                mergedBuses[idx] = lb
+              } else {
+                mergedBuses.push(lb)
+              }
+            })
+
+            setBuses(mergedBuses)
 
             try {
-              if (json.data.length > 0) {
+              if (mergedBuses.length > 0) {
                 const todayStr = new Date().toISOString().split('T')[0]
                 const key = `mock_active_buses_line_${activeLine.line_number}_${todayStr}`
                 const storedBuses = JSON.parse(localStorage.getItem(key) || '[]')
-                const currentUnits = json.data.map((b: any) => `Coche ${b.bus_unit}`)
+                const currentUnits = mergedBuses.map((b: any) => `Coche ${b.bus_unit}`)
                 const merged = Array.from(new Set([...storedBuses, ...currentUnits]))
                 localStorage.setItem(key, JSON.stringify(merged))
               }
@@ -686,15 +728,24 @@ export default function CompanyDashboard() {
               console.error('Error logging active buses:', e)
             }
             
-            // Map live simulated buses to activeSessions so the rest of the dashboard updates dynamically
-            const sessions = json.data.map((bus: any) => ({
+            // Map live simulated buses to activeSessions and merge local active sessions
+            const sessionsFromBuses = mergedBuses.map((bus: any) => ({
               id: bus.id,
               bus_unit: bus.bus_unit,
+              line_id: bus.line_id,
+              line_number: bus.line_number,
+              qr_code: bus.qr_code,
               started_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
               total_passengers: bus.passenger_count,
-              profiles: { name: bus.driver_name }
+              profiles: { name: bus.driver_name },
+              latitude: bus.latitude,
+              longitude: bus.longitude,
+              speed_kmh: bus.speed_kmh,
+              heading: bus.heading,
+              status: bus.status
             }))
-            setActiveSessions(sessions)
+
+            setActiveSessions(sessionsFromBuses)
           }
         })
         .catch(() => {})
@@ -3593,6 +3644,11 @@ function BusesTab({ buses, activeLine, themeColor }: { buses: any[]; activeLine:
                     <span style={{ fontSize: '10px', color: '#8f94a5', background: 'rgba(255,255,255,0.04)', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
                       Sentido: {busDirection.toUpperCase()}
                     </span>
+                    {b.qr_code && (
+                      <span style={{ fontSize: '10px', color: '#3B82F6', background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', padding: '2px 6px', borderRadius: '4px', fontWeight: 600, fontFamily: 'DM Mono' }}>
+                        QR: {b.qr_code}
+                      </span>
+                    )}
                   </div>
                   <div style={{color:'#8f94a5',fontSize:'11px',fontFamily:'DM Mono'}}>
                     <strong style={{ color: '#fff' }}>{b.driver_name}</strong> · {b.passenger_count} pas · {b.speed_kmh} km/h · rumbo {b.heading}° · parada más cercana: <span style={{ color: themeColor }}>{closestStopName}</span>
