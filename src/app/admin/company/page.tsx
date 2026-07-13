@@ -5794,7 +5794,7 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
     const centerLng = (startStop.longitude + endStop.longitude) / 2
     
     // Decompose center relative to startStop to find its grid indices
-    const thetaH_center = 2.8 * Math.PI / 180 // average horizontal angle for center projection
+    const thetaH_center = -3.3 * Math.PI / 180 // average horizontal angle for center projection
     const m11 = -Math.cos(thetaH_center)
     const m12 = Math.sin(thetaV)
     const m21 = -Math.sin(thetaH_center)
@@ -5822,7 +5822,7 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
         // Interpolate horizontal street angle at rowLat
         const denom = endStop.latitude - originLat
         const ratio = Math.abs(denom) > 0.0001 ? Math.max(0, Math.min(1, (rowLat - originLat) / denom)) : 0
-        const thetaH_deg = 2.8 - 21.9 * ratio
+        const thetaH_deg = 12.5 - 31.6 * ratio
         const thetaH = thetaH_deg * Math.PI / 180
         
         // Move i steps horizontally
