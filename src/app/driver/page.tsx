@@ -1404,105 +1404,103 @@ export default function DriverPage() {
             </AnimatePresence>
 
             {/* Map Options / Toggles */}
-            {!isMobile && (
-              <div className="glass" style={{ padding: '14px 16px', marginBottom: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>Mapa: Modo de Luz Diurna</span>
-                  <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '38px', height: '22px', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={dayMode} onChange={e => setDayMode(e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
-                    <span className="slider round" style={{ position: 'absolute', cursor: 'pointer', inset: 0, background: dayMode ? accentColor : '#334155', transition: 'all .3s ease', borderRadius: '34px' }}>
-                      <span style={{
-                        position: 'absolute',
-                        height: '14px',
-                        width: '14px',
-                        left: dayMode ? '20px' : '4px',
-                        bottom: '4px',
-                        backgroundColor: 'white',
-                        transition: 'all .3s ease',
-                        borderRadius: '50%',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.4)'
-                      }} />
-                    </span>
-                  </label>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>Vista de Conducción 3D (GPS)</span>
-                  <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '38px', height: '22px', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={firstPersonView}
-                      onChange={e => {
-                        const val = e.target.checked
-                        setFirstPersonView(val)
-                        if (val) {
-                          setAutoCenter(true)
-                        } else {
-                          // Smoothly return viewState to flat view
-                          setViewState(v => ({
-                            ...v,
-                            zoom: 14.5,
-                            pitch: 20,
-                            bearing: 0
-                          }))
-                        }
-                      }}
-                      style={{ opacity: 0, width: 0, height: 0 }}
-                    />
-                    <span className="slider round" style={{ position: 'absolute', cursor: 'pointer', inset: 0, background: firstPersonView ? accentColor : '#334155', transition: 'all .3s ease', borderRadius: '34px' }}>
-                      <span style={{
-                        position: 'absolute',
-                        height: '14px',
-                        width: '14px',
-                        left: firstPersonView ? '20px' : '4px',
-                        bottom: '4px',
-                        backgroundColor: 'white',
-                        transition: 'all .3s ease',
-                        borderRadius: '50%',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.4)'
-                      }} />
-                    </span>
-                  </label>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>Auto-centrar mapa en mi posición</span>
-                  <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '38px', height: '22px', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={autoCenter} onChange={e => setAutoCenter(e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
-                    <span className="slider round" style={{ position: 'absolute', cursor: 'pointer', inset: 0, background: autoCenter ? accentColor : '#334155', transition: 'all .3s ease', borderRadius: '34px' }}>
-                      <span style={{
-                        position: 'absolute',
-                        height: '14px',
-                        width: '14px',
-                        left: autoCenter ? '20px' : '4px',
-                        bottom: '4px',
-                        backgroundColor: 'white',
-                        transition: 'all .3s ease',
-                        borderRadius: '50%',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.4)'
-                      }} />
-                    </span>
-                  </label>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>Guía de navegación GPS (Brillo Neon)</span>
-                  <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '38px', height: '22px', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={gpsGuideActive} onChange={e => setGpsGuideActive(e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
-                    <span className="slider round" style={{ position: 'absolute', cursor: 'pointer', inset: 0, background: gpsGuideActive ? accentColor : '#334155', transition: 'all .3s ease', borderRadius: '34px' }}>
-                      <span style={{
-                        position: 'absolute',
-                        height: '14px',
-                        width: '14px',
-                        left: gpsGuideActive ? '20px' : '4px',
-                        bottom: '4px',
-                        backgroundColor: 'white',
-                        transition: 'all .3s ease',
-                        borderRadius: '50%',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.4)'
-                      }} />
-                    </span>
-                  </label>
-                </div>
+            <div className="glass" style={{ padding: isMobile ? '10px 12px' : '14px 16px', marginBottom: isMobile ? '8px' : '14px', display: 'flex', flexDirection: 'column', gap: isMobile ? '8px' : '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>Mapa: Modo de Luz Diurna</span>
+                <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '38px', height: '22px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={dayMode} onChange={e => setDayMode(e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
+                  <span className="slider round" style={{ position: 'absolute', cursor: 'pointer', inset: 0, background: dayMode ? accentColor : '#334155', transition: 'all .3s ease', borderRadius: '34px' }}>
+                    <span style={{
+                      position: 'absolute',
+                      height: '14px',
+                      width: '14px',
+                      left: dayMode ? '20px' : '4px',
+                      bottom: '4px',
+                      backgroundColor: 'white',
+                      transition: 'all .3s ease',
+                      borderRadius: '50%',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.4)'
+                    }} />
+                  </span>
+                </label>
               </div>
-            )}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>Vista de Conducción 3D (GPS)</span>
+                <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '38px', height: '22px', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={firstPersonView}
+                    onChange={e => {
+                      const val = e.target.checked
+                      setFirstPersonView(val)
+                      if (val) {
+                        setAutoCenter(true)
+                      } else {
+                        // Smoothly return viewState to flat view
+                        setViewState(v => ({
+                          ...v,
+                          zoom: 14.5,
+                          pitch: 20,
+                          bearing: 0
+                        }))
+                      }
+                    }}
+                    style={{ opacity: 0, width: 0, height: 0 }}
+                  />
+                  <span className="slider round" style={{ position: 'absolute', cursor: 'pointer', inset: 0, background: firstPersonView ? accentColor : '#334155', transition: 'all .3s ease', borderRadius: '34px' }}>
+                    <span style={{
+                      position: 'absolute',
+                      height: '14px',
+                      width: '14px',
+                      left: firstPersonView ? '20px' : '4px',
+                      bottom: '4px',
+                      backgroundColor: 'white',
+                      transition: 'all .3s ease',
+                      borderRadius: '50%',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.4)'
+                    }} />
+                  </span>
+                </label>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>Auto-centrar mapa en mi posición</span>
+                <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '38px', height: '22px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={autoCenter} onChange={e => setAutoCenter(e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
+                  <span className="slider round" style={{ position: 'absolute', cursor: 'pointer', inset: 0, background: autoCenter ? accentColor : '#334155', transition: 'all .3s ease', borderRadius: '34px' }}>
+                    <span style={{
+                      position: 'absolute',
+                      height: '14px',
+                      width: '14px',
+                      left: autoCenter ? '20px' : '4px',
+                      bottom: '4px',
+                      backgroundColor: 'white',
+                      transition: 'all .3s ease',
+                      borderRadius: '50%',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.4)'
+                    }} />
+                  </span>
+                </label>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-secondary)' }}>Guía de navegación GPS (Brillo Neon)</span>
+                <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '38px', height: '22px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={gpsGuideActive} onChange={e => setGpsGuideActive(e.target.checked)} style={{ opacity: 0, width: 0, height: 0 }} />
+                  <span className="slider round" style={{ position: 'absolute', cursor: 'pointer', inset: 0, background: gpsGuideActive ? accentColor : '#334155', transition: 'all .3s ease', borderRadius: '34px' }}>
+                    <span style={{
+                      position: 'absolute',
+                      height: '14px',
+                      width: '14px',
+                      left: gpsGuideActive ? '20px' : '4px',
+                      bottom: '4px',
+                      backgroundColor: 'white',
+                      transition: 'all .3s ease',
+                      borderRadius: '50%',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.4)'
+                    }} />
+                  </span>
+                </label>
+              </div>
+            </div>
 
             {/* Stats Row */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '14px' }}>
