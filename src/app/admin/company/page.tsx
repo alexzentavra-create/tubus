@@ -5197,8 +5197,43 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
   // Manual detour states
   const [isEditingDetourManually, setIsEditingDetourManually] = useState(false)
   const [manualDetourPoints, setManualDetourPoints] = useState<any[]>([])
+  const [manualDetourRouteCoords, setManualDetourRouteCoords] = useState<{ lat: number; lng: number }[]>([])
   const [savedCustomDetours, setSavedCustomDetours] = useState<any[]>([])
   const [osrmRoutesCache, setOsrmRoutesCache] = useState<{[key: string]: any[]}>({})
+
+  // Fetch street-aligned path for manual detour
+  useEffect(() => {
+    if (!isEditingDetourManually || !detourStartStopId || !detourEndStopId) {
+      setManualDetourRouteCoords([])
+      return
+    }
+    if (manualDetourPoints.length === 0) {
+      setManualDetourRouteCoords([])
+      return
+    }
+
+    const startStop = stops.find(s => s.id === detourStartStopId)
+    const endStop = stops.find(s => s.id === detourEndStopId)
+    if (!startStop || !endStop) return
+
+    const coords = [
+      { lat: startStop.latitude, lng: startStop.longitude },
+      ...manualDetourPoints.map(p => ({ lat: p.lat, lng: p.lng })),
+      { lat: endStop.latitude, lng: endStop.longitude }
+    ]
+    const waypoints = coords.map(c => `${c.lng},${c.lat}`).join(';')
+    const url = `https://router.project-osrm.org/route/v1/driving/${waypoints}?overview=full&geometries=geojson`
+    
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        if (data.routes && data.routes[0] && data.routes[0].geometry) {
+          const path = data.routes[0].geometry.coordinates.map((c: number[]) => ({ lat: c[1], lng: c[0] }))
+          setManualDetourRouteCoords(path)
+        }
+      })
+      .catch(err => console.error("OSRM manual detour error:", err))
+  }, [isEditingDetourManually, manualDetourPoints, detourStartStopId, detourEndStopId, stops])
 
   // Query OSRM routing API to fetch real street-matched detour alternative routes using waypoints
   useEffect(() => {
@@ -5465,11 +5500,13 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
     const endStop = stops.find(s => s.id === detourEndStopId)
     if (!startStop || !endStop) return
 
-    const fullDetourPoints = [
-      { lat: startStop.latitude, lng: startStop.longitude },
-      ...manualDetourPoints,
-      { lat: endStop.latitude, lng: endStop.longitude }
-    ]
+    const fullDetourPoints = manualDetourRouteCoords.length > 0
+      ? manualDetourRouteCoords
+      : [
+          { lat: startStop.latitude, lng: startStop.longitude },
+          ...manualDetourPoints,
+          { lat: endStop.latitude, lng: endStop.longitude }
+        ]
 
     const originalPath = getMockRoutePathForLine(activeLine, direction)
     const pathStartIdx = findClosestPathIndex(originalPath, startStop.latitude, startStop.longitude)
@@ -5566,6 +5603,7 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
     setDetourEndStopId('')
     setSelectedDetourOptionIndex(0)
     setManualDetourPoints([])
+    setManualDetourRouteCoords([])
     setIsEditingDetourManually(false)
     
     // Reload original path
@@ -5752,11 +5790,14 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
   const manualDetourGeoJson = (isEditingDetourManually && (detourStartStopId || manualDetourPoints.length > 0)) ? (() => {
     const startStop = stops.find(s => s.id === detourStartStopId)
     if (!startStop) return null
-    const pts = [
-      [startStop.longitude, startStop.latitude],
-      ...manualDetourPoints.map((p: any) => [p.lng, p.lat])
-    ]
-    if (pts.length < 2) return null
+    let coordinates = manualDetourRouteCoords.map(p => [p.lng, p.lat])
+    if (coordinates.length === 0) {
+      coordinates = [
+        [startStop.longitude, startStop.latitude],
+        ...manualDetourPoints.map((p: any) => [p.lng, p.lat])
+      ]
+    }
+    if (coordinates.length < 2) return null
     return {
       type: 'FeatureCollection',
       features: [
@@ -5764,7 +5805,7 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
           type: 'Feature',
           geometry: {
             type: 'LineString',
-            coordinates: pts
+            coordinates
           },
           properties: {}
         }
@@ -5782,7 +5823,7 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
     const corners: { id: string; lat: number; lng: number }[] = []
     const scaleX = 0.823
 
-    const originLat = startStop.latitude
+    const originLat = startStop.latitude - 0.00030
     const originLng = startStop.longitude
 
     // Piecewise linear parameter provider for any latitude in CABA
@@ -6275,6 +6316,7 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
                   onClick={() => {
                     setIsEditingDetourManually(true)
                     setManualDetourPoints([])
+                    setManualDetourRouteCoords([])
                     toast("Haz clic en las esquinas grises del mapa para trazar tu desvío personalizado", { icon: 'ℹ️' })
                   }}
                   style={{
@@ -6306,6 +6348,7 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
                         onClick={() => {
                           setIsEditingDetourManually(false)
                           setManualDetourPoints([])
+                          setManualDetourRouteCoords([])
                         }}
                         style={{ flex: 1, padding: '6px', borderRadius: '6px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: '#a3a6b8', fontSize: '11px', fontWeight: 500, cursor: 'pointer' }}
                       >
