@@ -5428,32 +5428,11 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
       return
     }
 
-    // Generate detour points based on the selected option index (utilize OSRM route if available)
-    const cacheKey = `${detourStartStopId}_${detourEndStopId}_${selectedDetourOptionIndex}`
-    const detourPoints = osrmRoutesCache[cacheKey] || getDetourOption(startStop, endStop, selectedDetourOptionIndex)
-
-    const originalPath = getMockRoutePathForLine(activeLine, direction)
-    const pathStartIdx = findClosestPathIndex(originalPath, startStop.latitude, startStop.longitude)
-    const pathEndIdx = findClosestPathIndex(originalPath, endStop.latitude, endStop.longitude)
-
-    let newPath = [...originalPath]
-    if (pathStartIdx !== -1 && pathEndIdx !== -1 && pathStartIdx < pathEndIdx) {
-      newPath = [
-        ...originalPath.slice(0, pathStartIdx + 1),
-        ...detourPoints,
-        ...originalPath.slice(pathEndIdx)
-      ]
-    }
-
-    setRoutePath(newPath)
-    setActiveDetour({
-      reason: detourReason,
-      startId: detourStartStopId,
-      endId: detourEndStopId,
-      points: detourPoints
-    })
-    setIsDirty(true)
-    toast.success("Desvío aplicado temporalmente en el mapa")
+    // Automatically jump into manual detour input
+    setIsEditingDetourManually(true)
+    setManualDetourPoints([])
+    setManualDetourRouteCoords([])
+    toast("Haz clic en el mapa para trazar tu desvío personalizado", { icon: '✍️' })
   }
 
   // Select dynamic detour option index
@@ -5793,28 +5772,6 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
           }
         ]
       };
-    }
-    // Preview mode
-    if (detourStartStopId && detourEndStopId) {
-      const startStop = stops.find(s => s.id === detourStartStopId)
-      const endStop = stops.find(s => s.id === detourEndStopId)
-      if (startStop && endStop) {
-        const previewCacheKey = `${detourStartStopId}_${detourEndStopId}_${selectedDetourOptionIndex}`
-        const previewPts = osrmRoutesCache[previewCacheKey] || getDetourOption(startStop, endStop, selectedDetourOptionIndex)
-        return {
-          type: 'FeatureCollection',
-          features: [
-            {
-              type: 'Feature',
-              geometry: {
-                type: 'LineString',
-                coordinates: previewPts.map((p: any) => [p.lng, p.lat])
-              },
-              properties: {}
-            }
-          ]
-        };
-      }
     }
     return null;
   })()
@@ -6319,59 +6276,7 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
                 </select>
               </div>
 
-              {detourStartStopId && detourEndStopId && activeDetour && !isEditingDetourManually && (
-                <div>
-                  <label style={{ display: 'block', color: '#8f94a5', fontSize: '10px', marginBottom: '6px' }}>Opciones de Recorrido Alternativo</label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px' }}>
-                    {[0, 1, 2, 3, 4].map((idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => selectDetourOption(idx)}
-                        style={{
-                          padding: '6px 4px',
-                          borderRadius: '6px',
-                          background: selectedDetourOptionIndex === idx ? themeColor : 'rgba(255,255,255,0.03)',
-                          border: `1px solid ${selectedDetourOptionIndex === idx ? themeColor : 'rgba(255,255,255,0.08)'}`,
-                          color: '#fff',
-                          fontSize: '11px',
-                          fontWeight: selectedDetourOptionIndex === idx ? 700 : 500,
-                          cursor: 'pointer',
-                          textAlign: 'center',
-                          transition: 'all 150ms'
-                        }}
-                      >
-                        Op {idx + 1}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
 
-              {detourStartStopId && detourEndStopId && activeDetour && !isEditingDetourManually && (
-                <button
-                  onClick={() => {
-                    setIsEditingDetourManually(true)
-                    setManualDetourPoints([])
-                    setManualDetourRouteCoords([])
-                    toast("Haz clic en las esquinas grises del mapa para trazar tu desvío personalizado", { icon: 'ℹ️' })
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '6px 12px',
-                    borderRadius: '6px',
-                    background: 'rgba(245,158,11,0.15)',
-                    border: '1px solid #F59E0B',
-                    color: '#F59E0B',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    textAlign: 'center',
-                    marginTop: '4px'
-                  }}
-                >
-                  ✍️ Editar manualmente
-                </button>
-              )}
 
               <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
                 {isEditingDetourManually ? (
