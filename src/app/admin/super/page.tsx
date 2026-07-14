@@ -487,6 +487,7 @@ export default function SuperAdminDashboard() {
 
   // Graph mode (day, week, month)
   const [graphPeriod, setGraphPeriod] = useState<'day' | 'week' | 'month'>('week')
+  const [adGraphPeriod, setAdGraphPeriod] = useState<'day' | 'week' | 'month'>('week')
 
   // News and starred items
   const [news, setNews] = useState<any[]>(INITIAL_NEWS)
@@ -911,8 +912,81 @@ export default function SuperAdminDashboard() {
   }
 
   const renderAdsDetail = () => {
+    const AD_EARNINGS_DATA = {
+      day: [
+        { label: '06:00', amount: 15000 },
+        { label: '09:00', amount: 25000 },
+        { label: '12:00', amount: 48000 },
+        { label: '15:00', amount: 32000 },
+        { label: '18:00', amount: 55000 },
+        { label: '21:00', amount: 40000 },
+        { label: '24:00', amount: 20000 }
+      ],
+      week: [
+        { label: 'Lunes', amount: 85000 },
+        { label: 'Martes', amount: 120000 },
+        { label: 'Miércoles', amount: 95000 },
+        { label: 'Jueves', amount: 140000 },
+        { label: 'Viernes', amount: 180000 },
+        { label: 'Sábado', amount: 110000 },
+        { label: 'Domingo', amount: 90000 }
+      ],
+      month: [
+        { label: 'Semana 1', amount: 450000 },
+        { label: 'Semana 2', amount: 620000 },
+        { label: 'Semana 3', amount: 580000 },
+        { label: 'Semana 4', amount: 750000 }
+      ]
+    }
+
+    const growthTrend = {
+      day: { pct: '+8.5%', growing: true, text: 'Incremento en horas pico de la tarde.' },
+      week: { pct: '+14.2%', growing: true, text: 'Crecimiento impulsado por la campaña de Mostaza S.A.' },
+      month: { pct: '+22.8%', growing: true, text: 'Mayor pauta publicitaria en paradas premium.' }
+    }
+
+    const currentTrend = growthTrend[adGraphPeriod]
+
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {/* Earnings Growth Graph Section */}
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: '#fff' }}>Gráfico de Ingresos Publicitarios</h4>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                <span style={{ fontSize: '12px', color: currentTrend.growing ? '#10B981' : '#ef4444', fontWeight: 700 }}>
+                  {currentTrend.growing ? '▲' : '▼'} {currentTrend.pct}
+                </span>
+                <span style={{ fontSize: '11px', color: '#8f94a5' }}>{currentTrend.text}</span>
+              </div>
+            </div>
+            <div style={{ display: 'flex', background: '#1b1d2e', borderRadius: '6px', padding: '3px', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <button onClick={() => setAdGraphPeriod('day')} style={{ padding: '4px 10px', border: 'none', background: adGraphPeriod === 'day' ? '#10B981' : 'transparent', color: '#fff', fontSize: '11px', fontWeight: 600, borderRadius: '4px', cursor: 'pointer' }}>Día</button>
+              <button onClick={() => setAdGraphPeriod('week')} style={{ padding: '4px 10px', border: 'none', background: adGraphPeriod === 'week' ? '#10B981' : 'transparent', color: '#fff', fontSize: '11px', fontWeight: 600, borderRadius: '4px', cursor: 'pointer' }}>Semana</button>
+              <button onClick={() => setAdGraphPeriod('month')} style={{ padding: '4px 10px', border: 'none', background: adGraphPeriod === 'month' ? '#10B981' : 'transparent', color: '#fff', fontSize: '11px', fontWeight: 600, borderRadius: '4px', cursor: 'pointer' }}>Mes</button>
+            </div>
+          </div>
+
+          <div style={{ height: '180px', marginTop: '10px' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={AD_EARNINGS_DATA[adGraphPeriod]} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="colorAdEarnings" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+                <XAxis dataKey="label" stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} />
+                <YAxis stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 10 }} tickFormatter={val => `$${val/1000}k`} />
+                <Tooltip formatter={(value: any) => [`$${value.toLocaleString()} ARS`, 'Ingresos']} contentStyle={{ background: '#121527', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px' }} />
+                <Area type="monotone" dataKey="amount" name="Ingresos" stroke="#10B981" fill="url(#colorAdEarnings)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
         <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
             <thead>
