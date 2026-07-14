@@ -351,6 +351,9 @@ export default function LoginPage() {
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [city, setCity] = useState('buenos_aires')
   const [form, setForm] = useState({ email:'', password:'', name:'', age:'', weeklyTrips:'' })
+  const [bannedEmail, setBannedEmail] = useState<string | null>(null)
+  const [showAppealForm, setShowAppealForm] = useState(false)
+  const [appealReason, setAppealReason] = useState('')
   const set = (k:keyof typeof form) => (e:React.ChangeEvent<HTMLInputElement>) => setForm(f=>({...f,[k]:e.target.value}))
 
   const loginWithGoogle = async () => supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:`${location.origin}/auth/callback`}})
@@ -373,6 +376,13 @@ export default function LoginPage() {
         toast.success('Modo de prueba: ingresando sin base de datos')
         const lowerEmail = email.trim().toLowerCase()
         const pass = form.password.trim().toLowerCase()
+
+        const bannedList = JSON.parse(localStorage.getItem('banned_users') || '[]')
+        if (bannedList.includes(lowerEmail)) {
+          setBannedEmail(lowerEmail)
+          setLoading(false)
+          return
+        }
 
         localStorage.setItem('selected_city', city)
 
@@ -433,6 +443,14 @@ export default function LoginPage() {
           .single()
         if (pErr || !prof) { toast.error('Error al obtener cuenta'); setLoading(false); return }
         email = prof.email
+      }
+
+      const lowerEmail = email.trim().toLowerCase()
+      const bannedList = JSON.parse(localStorage.getItem('banned_users') || '[]')
+      if (bannedList.includes(lowerEmail)) {
+        setBannedEmail(lowerEmail)
+        setLoading(false)
+        return
       }
 
       const { error } = await supabase.auth.signInWithPassword({ email, password: form.password })
@@ -653,9 +671,164 @@ export default function LoginPage() {
               </p>
             </motion.div>
           </AnimatePresence>
+      {bannedEmail && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(5, 8, 16, 0.9)',
+          backdropFilter: 'blur(10px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          padding: '20px'
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: '420px',
+            background: '#121527',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            borderTop: '4px solid #ef4444',
+            borderRadius: '16px',
+            padding: '28px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '16px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+            textAlign: 'center'
+          }}>
+            <div style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', width: '56px', height: '56px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px' }}>
+              🚫
+            </div>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#fff', margin: 0 }}>Acceso Restringido</h3>
+            <p style={{ fontSize: '13px', color: '#a3a6b8', lineHeight: 1.5, margin: 0 }}>
+              Tu cuenta (<strong style={{ color: '#fff' }}>{bannedEmail}</strong>) ha sido suspendida de forma permanente debido a infracciones graves a nuestros Términos y Condiciones de Servicio.
+            </p>
+            
+            {!showAppealForm ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowAppealForm(true)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '8px',
+                    color: '#fff',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 150ms'
+                  }}
+                >
+                  Apelar Decisión / Mensajear Soporte
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBannedEmail(null)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#8f94a5',
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                    marginTop: '4px'
+                  }}
+                >
+                  Volver al inicio
+                </button>
+              </>
+            ) : (
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  if (!appealReason.trim()) return
+                  
+                  // Load existing chats
+                  const currentChats = JSON.parse(localStorage.getItem('mock_super_chats') || '[]')
+                  const uniqueId = `c-appeal-${Date.now()}`
+                  const msgText = `Apelación de Ban: ${appealReason}`
+                  const newChat = {
+                    id: uniqueId,
+                    name: `Apelación: ${bannedEmail.split('@')[0]}`,
+                    role: 'support',
+                    avatar: 'AP',
+                    starred: false,
+                    lastMsg: msgText,
+                    history: [
+                      { id: `m-${Date.now()}`, sender: 'user', text: `Email: ${bannedEmail}\n\nMotivo de Apelación:\n${appealReason}`, timestamp: 'Ahora' }
+                    ]
+                  }
+                  
+                  localStorage.setItem('mock_super_chats', JSON.stringify([...currentChats, newChat]))
+                  toast.success('Tu apelación ha sido enviada al equipo de soporte.')
+                  setAppealReason('')
+                  setShowAppealForm(false)
+                  setBannedEmail(null)
+                }}
+                style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '4px' }}
+              >
+                <div style={{ textAlign: 'left' }}>
+                  <label style={{ fontSize: '11px', color: '#8f94a5', display: 'block', marginBottom: '6px' }}>Explicá por qué creés que tu cuenta debería ser reactivada:</label>
+                  <textarea
+                    required
+                    value={appealReason}
+                    onChange={e => setAppealReason(e.target.value)}
+                    placeholder="Escribí tu apelación detalladamente aquí..."
+                    style={{
+                      width: '100%',
+                      height: '100px',
+                      background: '#1b1d2e',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '8px',
+                      padding: '10px',
+                      color: '#fff',
+                      fontSize: '12px',
+                      outline: 'none',
+                      resize: 'none'
+                    }}
+                  />
+                </div>
+                <button
+                  type="submit"
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: '#ef4444',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(239, 68, 68, 0.2)'
+                  }}
+                >
+                  Enviar Formulario de Apelación
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAppealForm(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#8f94a5',
+                    fontSize: '11px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancelar
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
         </div>
       </motion.div>
     </div>
-    
   )
 }

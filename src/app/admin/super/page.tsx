@@ -578,6 +578,29 @@ export default function SuperAdminDashboard() {
 
   // Selected province for demography popup
   const [selectedProvinceKey, setSelectedProvinceKey] = useState<string | null>(null)
+  
+  const [bannedUsers, setBannedUsers] = useState<string[]>([])
+
+  useEffect(() => {
+    const stored = localStorage.getItem('banned_users')
+    if (stored) {
+      setBannedUsers(JSON.parse(stored))
+    }
+  }, [])
+
+  const handleToggleBanUser = (email: string) => {
+    let nextBanned: string[] = []
+    const lowerEmail = email.trim().toLowerCase()
+    if (bannedUsers.includes(lowerEmail)) {
+      nextBanned = bannedUsers.filter(e => e !== lowerEmail)
+      toast.success(`Usuario ${lowerEmail} desbloqueado con éxito`)
+    } else {
+      nextBanned = [...bannedUsers, lowerEmail]
+      toast.error(`Usuario ${lowerEmail} bloqueado con éxito`)
+    }
+    setBannedUsers(nextBanned)
+    localStorage.setItem('banned_users', JSON.stringify(nextBanned))
+  }
 
   useEffect(() => {
     // Sync with localStorage
@@ -1673,7 +1696,7 @@ export default function SuperAdminDashboard() {
         )}
 
         {/* 5. Complaints Reports Tab */}
-        {tab === 'reports' && <ReportsTab />}
+        {tab === 'reports' && <ReportsTab bannedUsers={bannedUsers} onToggleBan={handleToggleBanUser} />}
 
         {/* 6. Provinces Demography Map */}
         {tab === 'provincemap' && (
@@ -2839,7 +2862,7 @@ function ChatTab({
   onAddChat, showAddChatModal, setShowAddChatModal, newChatName,
   setNewChatName, newChatRole, setNewChatRole
 }: any) {
-  const [subTab, setSubTab] = useState<'users' | 'lineadmins' | 'advertisers'>('users')
+  const [subTab, setSubTab] = useState<'users' | 'lineadmins' | 'advertisers' | 'support'>('users')
   const currentChat = chats.find((c: any) => c.id === selectedChatId) || chats[0]
 
   // Filter chats by search query and subTab role
@@ -2850,6 +2873,7 @@ function ChatTab({
     if (subTab === 'users') return c.role === 'user'
     if (subTab === 'lineadmins') return c.role === 'lineadmin'
     if (subTab === 'advertisers') return c.role === 'advertiser'
+    if (subTab === 'support') return c.role === 'support'
     return true
   }).sort((a: any, b: any) => (b.starred ? 1 : 0) - (a.starred ? 1 : 0))
 
@@ -2871,7 +2895,7 @@ function ChatTab({
           </div>
 
           {/* Sub-tabs selector for chat categories */}
-          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.03)', padding: '2px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.03)', padding: '2px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)', gap: '2px' }}>
             <button
               onClick={() => setSubTab('users')}
               style={{
@@ -2881,7 +2905,7 @@ function ChatTab({
                 color: '#fff',
                 border: 'none',
                 borderRadius: '4px',
-                fontSize: '10px',
+                fontSize: '9px',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 150ms'
@@ -2898,7 +2922,7 @@ function ChatTab({
                 color: '#fff',
                 border: 'none',
                 borderRadius: '4px',
-                fontSize: '10px',
+                fontSize: '9px',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 150ms'
@@ -2915,13 +2939,30 @@ function ChatTab({
                 color: '#fff',
                 border: 'none',
                 borderRadius: '4px',
-                fontSize: '10px',
+                fontSize: '9px',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 150ms'
               }}
             >
               Publicidad
+            </button>
+            <button
+              onClick={() => setSubTab('support')}
+              style={{
+                flex: 1,
+                padding: '6px 0',
+                background: subTab === 'support' ? '#8b5cf6' : 'transparent',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '9px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 150ms'
+              }}
+            >
+              Soporte
             </button>
           </div>
 
@@ -2948,7 +2989,7 @@ function ChatTab({
             filteredChats.map((c: any) => {
               const active = c.id === selectedChatId
               const lastMsgIsFromUser = c.history && c.history[c.history.length - 1]?.sender === 'user'
-              const themeColor = c.role === 'lineadmin' ? '#ef4444' : c.role === 'advertiser' ? '#f59e0b' : '#10B981'
+              const themeColor = c.role === 'lineadmin' ? '#ef4444' : c.role === 'advertiser' ? '#f59e0b' : c.role === 'support' ? '#8b5cf6' : '#10B981'
               
               return (
                 <div
@@ -3014,14 +3055,14 @@ function ChatTab({
                 <span style={{ fontSize: '14px', fontWeight: 700 }}>{currentChat.name}</span>
                 <span style={{
                   fontSize: '10px',
-                  background: currentChat.role === 'lineadmin' ? 'rgba(239,68,68,0.15)' : currentChat.role === 'advertiser' ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)',
-                  color: currentChat.role === 'lineadmin' ? '#ef4444' : currentChat.role === 'advertiser' ? '#f59e0b' : '#10B981',
+                  background: currentChat.role === 'lineadmin' ? 'rgba(239,68,68,0.15)' : currentChat.role === 'advertiser' ? 'rgba(245,158,11,0.15)' : currentChat.role === 'support' ? 'rgba(139,92,246,0.15)' : 'rgba(16,185,129,0.15)',
+                  color: currentChat.role === 'lineadmin' ? '#ef4444' : currentChat.role === 'advertiser' ? '#f59e0b' : currentChat.role === 'support' ? '#8b5cf6' : '#10B981',
                   padding: '2px 6px',
                   borderRadius: '4px',
                   marginLeft: '8px',
                   fontWeight: 600
                 }}>
-                  {currentChat.role === 'lineadmin' ? 'ADMIN LÍNEA' : currentChat.role === 'advertiser' ? 'ANUNCIANTE' : 'PASAJERO'}
+                  {currentChat.role === 'lineadmin' ? 'ADMIN LÍNEA' : currentChat.role === 'advertiser' ? 'ANUNCIANTE' : currentChat.role === 'support' ? 'SOPORTE APELACIÓN' : 'PASAJERO'}
                 </span>
               </div>
             </div>
@@ -3043,7 +3084,7 @@ function ChatTab({
                       border: isAdmin ? 'none' : '1px solid rgba(255,255,255,0.04)'
                     }}
                   >
-                    <div style={{ fontSize: '12px', color: '#fff', lineHeight: 1.4 }}>{msg.text}</div>
+                    <div style={{ fontSize: '12px', color: '#fff', lineHeight: 1.4, whiteSpace: 'pre-line' }}>{msg.text}</div>
                     
                     {/* Timestamp and check marks indicators */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', marginTop: '4px' }}>
@@ -3091,7 +3132,7 @@ function ChatTab({
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {leftOnReadChats.length > 0 ? (
             leftOnReadChats.map((c: any) => {
-              const themeColor = c.role === 'lineadmin' ? '#ef4444' : c.role === 'advertiser' ? '#f59e0b' : '#10B981'
+              const themeColor = c.role === 'lineadmin' ? '#ef4444' : c.role === 'advertiser' ? '#f59e0b' : c.role === 'support' ? '#8b5cf6' : '#10B981'
               return (
                 <div
                   key={c.id}
@@ -3140,6 +3181,7 @@ function ChatTab({
                 <option value="user">Pasajero / Usuario</option>
                 <option value="lineadmin">Administrador de Línea</option>
                 <option value="advertiser">Anunciante / Publicidad</option>
+                <option value="support">Soporte / Apelación</option>
               </select>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
@@ -3154,16 +3196,30 @@ function ChatTab({
 }
 
 // ─── Reports complaints view component ───────────────────────────────────────
-function ReportsTab() {
+function ReportsTab({ bannedUsers, onToggleBan }: { bannedUsers: string[]; onToggleBan: (email: string) => void }) {
   const [complaints, setComplaints] = useState<any[]>([])
+  const [selectedReporter, setSelectedReporter] = useState<any | null>(null)
 
   useEffect(() => {
     const list = Object.entries(LINE_DETAILS).flatMap(([lineId, details]) => {
       const lineInfo = LINES_DATA.find(l => l.id === lineId) || { name: `Línea` }
-      return details.complaintsList.map(c => ({
-        ...c,
-        line: lineInfo.name
-      }))
+      return details.complaintsList.map((c, idx) => {
+        // Distribute mock reporters from MOCK_USERS
+        const reporter = MOCK_USERS[idx % MOCK_USERS.length]
+        return {
+          ...c,
+          line: lineInfo.name,
+          reporter: {
+            id: reporter.id,
+            name: reporter.name,
+            email: reporter.email,
+            avatar: reporter.avatar,
+            joinedDate: reporter.joinedDate,
+            pastReports: (idx % 2 === 0) ? 4 : 1, // mock reports frequency data
+            behavior: (idx % 2 === 0) ? 'Frecuente' : 'Ocasional'
+          }
+        }
+      })
     })
     setComplaints(list)
   }, [])
@@ -3185,7 +3241,34 @@ function ReportsTab() {
               </div>
               <span style={{ fontSize: '11px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{c.time}</span>
             </div>
+            
             <p style={{ fontSize: '12px', color: '#a3a6b8', margin: 0, lineHeight: 1.4 }}>{c.desc}</p>
+            
+            {/* Reporter details row */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
+              <span style={{ fontSize: '11px', color: '#8f94a5' }}>
+                Denunciante: <strong style={{ color: '#fff' }}>{c.reporter.name}</strong> ({c.reporter.email})
+              </span>
+              <button
+                onClick={() => setSelectedReporter(c.reporter)}
+                style={{
+                  background: 'rgba(59, 130, 246, 0.1)',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  color: '#3b82f6',
+                  borderRadius: '6px',
+                  padding: '4px 10px',
+                  cursor: 'pointer',
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  transition: 'all 150ms'
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)' }}
+              >
+                Ver Perfil
+              </button>
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '8px', marginTop: '4px' }}>
               <span style={{ fontSize: '11px', color: '#8f94a5' }}>Línea asociada: <strong style={{ color: '#fff' }}>{c.line}</strong></span>
               <span style={{ fontSize: '10px', background: c.status === 'resolved' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)', color: c.status === 'resolved' ? '#10B981' : '#f59e0b', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>{c.status.toUpperCase()}</span>
@@ -3193,6 +3276,107 @@ function ReportsTab() {
           </div>
         ))}
       </div>
+
+      {/* Reporter Profile Detail Modal & Banning Controls */}
+      {selectedReporter && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '24px', width: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Perfil del Denunciante</h3>
+              <button onClick={() => setSelectedReporter(null)} style={{ background: 'none', border: 'none', color: '#8f94a5', cursor: 'pointer', fontSize: '14px' }}>✕</button>
+            </div>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '16px' }}>
+                {selectedReporter.avatar}
+              </div>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>{selectedReporter.name}</div>
+                <div style={{ fontSize: '11px', color: '#8f94a5' }}>{selectedReporter.email}</div>
+              </div>
+            </div>
+
+            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                <span style={{ color: '#8f94a5' }}>Denuncias realizadas:</span>
+                <span style={{ color: '#fff', fontWeight: 600 }}>{selectedReporter.pastReports} reportes</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                <span style={{ color: '#8f94a5' }}>Frecuencia de quejas:</span>
+                <span style={{
+                  color: selectedReporter.behavior === 'Frecuente' ? '#ef4444' : '#10B981',
+                  fontWeight: 700
+                }}>
+                  {selectedReporter.behavior}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                <span style={{ color: '#8f94a5' }}>Estado de la Cuenta:</span>
+                <span style={{
+                  color: bannedUsers.includes(selectedReporter.email.toLowerCase()) ? '#ef4444' : '#10B981',
+                  fontWeight: 700
+                }}>
+                  {bannedUsers.includes(selectedReporter.email.toLowerCase()) ? 'BANEADO' : 'ACTIVO'}
+                </span>
+              </div>
+            </div>
+
+            {/* Banning actions layout */}
+            <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+              {bannedUsers.includes(selectedReporter.email.toLowerCase()) ? (
+                <button
+                  onClick={() => onToggleBan(selectedReporter.email.toLowerCase())}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    background: '#10B981',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#fff',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  Desbloquear (Unban)
+                </button>
+              ) : (
+                <button
+                  onClick={() => onToggleBan(selectedReporter.email.toLowerCase())}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    background: '#ef4444',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#fff',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  Bloquear (Ban)
+                </button>
+              )}
+              
+              <button
+                onClick={() => setSelectedReporter(null)}
+                style={{
+                  padding: '10px 16px',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#8f94a5',
+                  cursor: 'pointer',
+                  fontSize: '12px'
+                }}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
