@@ -1703,6 +1703,10 @@ export default function SuperAdminDashboard() {
           <ProvinceMapTab
             selectedProvinceKey={selectedProvinceKey}
             onSelectProvince={setSelectedProvinceKey}
+            setTab={setTab}
+            setSelectedChatId={setSelectedChatId}
+            chats={chats}
+            saveChats={saveChats}
           />
         )}
 
@@ -3382,84 +3386,639 @@ function ReportsTab({ bannedUsers, onToggleBan }: { bannedUsers: string[]; onTog
 }
 
 // ─── Provinces map and Demography component ──────────────────────────────────
-function ProvinceMapTab({ selectedProvinceKey, onSelectProvince }: { selectedProvinceKey: string | null; onSelectProvince: (val: string | null) => void }) {
-  const currentProvinceData = selectedProvinceKey ? PROVINCES_DATA[selectedProvinceKey] : null
+const DRILLDOWN_DATA: Record<string, {
+  cities: Record<string, {
+    name: string
+    neighborhoods: Record<string, {
+      name: string
+      inflow: number
+      outflow: number
+      busCount: number
+      lineCount: number
+      hourlyTraffic: number[]
+      stops: {
+        name: string
+        busLines: string[]
+        usage: number
+        ad?: {
+          title: string
+          tagline: string
+          image: string
+          budget: number
+          duration: string
+          userName: string
+          userEmail: string
+          userAvatar: string
+          bannerBg: string
+        }
+      }[]
+    }>
+  }>
+}> = {
+  'buenos-aires': {
+    cities: {
+      'caba': {
+        name: 'Ciudad Autónoma de Buenos Aires (CABA)',
+        neighborhoods: {
+          'palermo': {
+            name: 'Palermo',
+            inflow: 14500,
+            outflow: 12200,
+            busCount: 42,
+            lineCount: 8,
+            hourlyTraffic: [40, 80, 150, 320, 410, 290, 180, 220, 390, 480, 210, 90],
+            stops: [
+              {
+                name: 'Av. Santa Fe y Plaza Italia',
+                busLines: ['Línea 12', 'Línea 60', 'Línea 37', 'Línea 152'],
+                usage: 95,
+                ad: {
+                  title: 'Coca Cola Sin Azúcar',
+                  tagline: 'Sentí el sabor único. Disponible en todos los quioscos oficiales.',
+                  image: '🥤',
+                  budget: 150000,
+                  duration: '30 días',
+                  userName: 'Alejandro Zentavra',
+                  userEmail: 'ale.zentavra@demo.com.ar',
+                  userAvatar: 'AZ',
+                  bannerBg: 'linear-gradient(135deg, #111, #ef4444)'
+                }
+              },
+              {
+                name: 'Av. Las Heras y Coronel Díaz',
+                busLines: ['Línea 37', 'Línea 110', 'Línea 59'],
+                usage: 82,
+                ad: {
+                  title: 'Hamburguesería Mostaza',
+                  tagline: '20% OFF presentando tu boleto de TuBus en caja.',
+                  image: '🍔',
+                  budget: 85000,
+                  duration: '15 días',
+                  userName: 'Sofía Valenzuela',
+                  userEmail: 'sofia.v@demo.com.ar',
+                  userAvatar: 'SV',
+                  bannerBg: 'linear-gradient(135deg, #f59e0b, #b45309)'
+                }
+              },
+              {
+                name: 'Av. Juan B. Justo y Santa Fe',
+                busLines: ['Línea 34', 'Línea 166'],
+                usage: 74
+              }
+            ]
+          },
+          'recoleta': {
+            name: 'Recoleta',
+            inflow: 9800,
+            outflow: 8900,
+            busCount: 28,
+            lineCount: 5,
+            hourlyTraffic: [20, 45, 90, 180, 260, 190, 130, 150, 240, 310, 140, 60],
+            stops: [
+              {
+                name: 'Av. Las Heras y Pueyrredón',
+                busLines: ['Línea 37', 'Línea 110', 'Línea 59', 'Línea 41'],
+                usage: 88,
+                ad: {
+                  title: 'Gimnasio Megatlon',
+                  tagline: 'Entrená en cualquiera de nuestras sedes. Matrícula bonificada.',
+                  image: '💪',
+                  budget: 195000,
+                  duration: '45 días',
+                  userName: 'Néstor García',
+                  userEmail: 'nestor.g@callao.com.ar',
+                  userAvatar: 'NG',
+                  bannerBg: 'linear-gradient(135deg, #0f172a, #1d4ed8)'
+                }
+              },
+              {
+                name: 'Av. Callao y Quintana',
+                busLines: ['Línea 12', 'Línea 124'],
+                usage: 64
+              }
+            ]
+          },
+          'belgrano': {
+            name: 'Belgrano',
+            inflow: 11200,
+            outflow: 9600,
+            busCount: 31,
+            lineCount: 6,
+            hourlyTraffic: [30, 60, 110, 230, 340, 210, 140, 160, 280, 350, 160, 75],
+            stops: [
+              {
+                name: 'Cabildo y Juramento',
+                busLines: ['Línea 60', 'Línea 152', 'Línea 59', 'Línea 68'],
+                usage: 92
+              }
+            ]
+          }
+        }
+      },
+      'la-plata': {
+        name: 'La Plata',
+        neighborhoods: {
+          'centro-lp': {
+            name: 'La Plata Centro',
+            inflow: 5400,
+            outflow: 4800,
+            busCount: 16,
+            lineCount: 3,
+            hourlyTraffic: [15, 30, 65, 120, 180, 130, 80, 95, 160, 210, 90, 40],
+            stops: [
+              { name: 'Plaza Moreno', busLines: ['Línea Este', 'Línea Oeste'], usage: 78 }
+            ]
+          }
+        }
+      }
+    }
+  },
+  'cordoba': {
+    cities: {
+      'cordoba-cap': {
+        name: 'Córdoba Capital',
+        neighborhoods: {
+          'nueva-cordoba': {
+            name: 'Nueva Córdoba',
+            inflow: 8500,
+            outflow: 7200,
+            busCount: 22,
+            lineCount: 4,
+            hourlyTraffic: [10, 35, 80, 170, 250, 210, 150, 180, 220, 290, 130, 70],
+            stops: [
+              { name: 'Plaza España', busLines: ['Línea 20', 'Línea 80'], usage: 86 }
+            ]
+          }
+        }
+      }
+    }
+  },
+  'santa-fe': {
+    cities: {
+      'rosario': {
+        name: 'Rosario',
+        neighborhoods: {
+          'rosario-centro': {
+            name: 'Rosario Centro',
+            inflow: 7300,
+            outflow: 6400,
+            busCount: 19,
+            lineCount: 3,
+            hourlyTraffic: [12, 28, 60, 140, 220, 180, 120, 140, 190, 250, 110, 50],
+            stops: [
+              { name: 'Plaza Sarmiento', busLines: ['Línea 115', 'Línea 122'], usage: 80 }
+            ]
+          }
+        }
+      }
+    }
+  },
+  'mendoza': {
+    cities: {
+      'mza-cap': {
+        name: 'Mendoza Capital',
+        neighborhoods: {
+          'mendoza-centro': {
+            name: 'Mendoza Centro',
+            inflow: 4800,
+            outflow: 4100,
+            busCount: 12,
+            lineCount: 2,
+            hourlyTraffic: [8, 20, 45, 90, 150, 110, 75, 85, 130, 180, 80, 35],
+            stops: [
+              { name: 'Plaza Independencia', busLines: ['Línea 100', 'Línea 200'], usage: 72 }
+            ]
+          }
+        }
+      }
+    }
+  }
+}
+
+const ARG_PROVINCES = [
+  { id: 'buenos-aires', name: 'Provincia de Buenos Aires & CABA', path: 'M 160 220 L 195 240 L 225 285 L 170 345 L 130 300 Z', activeUsers: 3420 },
+  { id: 'cordoba', name: 'Córdoba', path: 'M 120 170 L 155 160 L 165 210 L 120 215 Z', activeUsers: 680 },
+  { id: 'santa-fe', name: 'Santa Fe', path: 'M 160 135 L 178 135 L 170 215 L 158 215 Z', activeUsers: 490 },
+  { id: 'mendoza', name: 'Mendoza', path: 'M 80 195 L 115 195 L 115 255 L 80 255 Z', activeUsers: 310 },
+  
+  // Non-clickable placeholder regions to complete the gorgeous full map look
+  { id: 'sur', name: 'Patagonia (Sur)', path: 'M 130 305 L 170 345 L 140 450 L 100 430 L 110 330 Z', activeUsers: 180, disabled: true },
+  { id: 'norte', name: 'Norte Grande', path: 'M 90 40 L 150 40 L 150 110 L 80 110 Z', activeUsers: 140, disabled: true },
+  { id: 'litoral', name: 'Litoral', path: 'M 180 80 L 220 100 L 195 180 L 170 135 Z', activeUsers: 220, disabled: true }
+]
+
+function ProvinceMapTab({
+  selectedProvinceKey,
+  onSelectProvince,
+  setTab,
+  setSelectedChatId,
+  chats,
+  saveChats
+}: {
+  selectedProvinceKey: string | null
+  onSelectProvince: (val: string | null) => void
+  setTab: (t: any) => void
+  setSelectedChatId: (id: string) => void
+  chats: any[]
+  saveChats: (chats: any[]) => void
+}) {
+  const [selectedCity, setSelectedCity] = useState<string | null>(null)
+  const [selectedNeighborhood, setSelectedNeighborhood] = useState<string | null>(null)
+  const [hoveredProvince, setHoveredProvince] = useState<any | null>(null)
+
+  // Clear selections when parent resets province
+  useEffect(() => {
+    if (!selectedProvinceKey) {
+      setSelectedCity(null)
+      setSelectedNeighborhood(null)
+    }
+  }, [selectedProvinceKey])
+
+  const handleMessageAdvertiser = (ad: any) => {
+    const initMsg = `Hola ${ad.userName}, soy el Super Administrador de TuBus. Me pongo en contacto con vos por tu campaña "${ad.title}" en la parada "${ad.stop || 'Plaza Italia'}".`
+    const existing = chats.find((c: any) => c.name.toLowerCase().includes(ad.userName.toLowerCase()))
+    let targetId = ''
+
+    if (existing) {
+      targetId = existing.id
+      const updated = chats.map((c: any) => {
+        if (c.id === targetId) {
+          return {
+            ...c,
+            lastMsg: initMsg,
+            history: [
+              ...c.history,
+              { id: `m-${Date.now()}`, sender: 'admin', text: initMsg, timestamp: 'Ahora' }
+            ]
+          }
+        }
+        return c
+      })
+      saveChats(updated)
+    } else {
+      const uniqueId = `c-adv-${Date.now()}`
+      targetId = uniqueId
+      const newChat = {
+        id: uniqueId,
+        name: ad.userName,
+        role: 'advertiser',
+        avatar: ad.userAvatar,
+        starred: false,
+        lastMsg: initMsg,
+        history: [
+          { id: `m-${Date.now()}`, sender: 'admin', text: initMsg, timestamp: 'Ahora' }
+        ]
+      }
+      saveChats([...chats, newChat])
+    }
+
+    setSelectedChatId(targetId)
+    setTab('chat')
+    toast.success(`Chat de soporte con ${ad.userName} abierto`)
+  }
+
+  // Get current state context
+  const currentProvinceData = selectedProvinceKey ? DRILLDOWN_DATA[selectedProvinceKey] : null
+  const currentCityData = (currentProvinceData && selectedCity) ? currentProvinceData.cities[selectedCity] : null
+  const currentNeighborhoodData = (currentCityData && selectedNeighborhood) ? currentCityData.neighborhoods[selectedNeighborhood] : null
+
+  // Custom mock coords for levels 1 & 2
+  const mockCitiesList = selectedProvinceKey === 'buenos-aires' ? [
+    { key: 'caba', name: 'CABA', x: 130, y: 150 },
+    { key: 'la-plata', name: 'La Plata', x: 210, y: 220 }
+  ] : [
+    { key: 'cordoba-cap', name: 'Córdoba Capital', x: 150, y: 200 }
+  ]
+
+  const mockNeighborhoodsList = selectedCity === 'caba' ? [
+    { key: 'palermo', name: 'Palermo', x: 100, y: 110, count: 14500 },
+    { key: 'recoleta', name: 'Recoleta', x: 180, y: 180, count: 9800 },
+    { key: 'belgrano', name: 'Belgrano', x: 70, y: 220, count: 11200 }
+  ] : [
+    { key: 'nueva-cordoba', name: 'Nueva Córdoba', x: 150, y: 180, count: 8500 }
+  ]
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div>
-        <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Mapa Demográfico de Argentina</h3>
-        <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Estadísticas de distribución y algoritmos de rastreo de hábitos y origen de vecindarios</p>
+      <style>{`
+        @keyframes flow {
+          to {
+            stroke-dashoffset: -20;
+          }
+        }
+        .flow-path {
+          stroke-dasharray: 6, 6;
+          animation: flow 1.2s linear infinite;
+        }
+        .pulse-circle {
+          animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+          0% { transform: scale(1); opacity: 0.8; }
+          50% { transform: scale(1.15); opacity: 0.4; }
+          100% { transform: scale(1); opacity: 0.8; }
+        }
+      `}</style>
+
+      {/* Header section with interactive breadcrumbs */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Mapa Demográfico y Flujo de Tránsito</h3>
+          
+          {/* Breadcrumbs */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#8f94a5', marginTop: '6px' }}>
+            <span
+              onClick={() => { onSelectProvince(null); setSelectedCity(null); setSelectedNeighborhood(null) }}
+              style={{ cursor: 'pointer', textDecoration: 'underline' }}
+            >
+              Argentina
+            </span>
+            {selectedProvinceKey && (
+              <>
+                <span>&gt;</span>
+                <span
+                  onClick={() => { setSelectedCity(null); setSelectedNeighborhood(null) }}
+                  style={{ cursor: 'pointer', textDecoration: 'underline', color: !selectedCity ? '#10B981' : '#8f94a5' }}
+                >
+                  {selectedProvinceKey === 'buenos-aires' ? 'Buenos Aires' : selectedProvinceKey.toUpperCase()}
+                </span>
+              </>
+            )}
+            {selectedCity && (
+              <>
+                <span>&gt;</span>
+                <span
+                  onClick={() => setSelectedNeighborhood(null)}
+                  style={{ cursor: 'pointer', textDecoration: 'underline', color: !selectedNeighborhood ? '#10B981' : '#8f94a5' }}
+                >
+                  {selectedCity.toUpperCase()}
+                </span>
+              </>
+            )}
+            {selectedNeighborhood && (
+              <>
+                <span>&gt;</span>
+                <span style={{ color: '#10B981', fontWeight: 600 }}>{selectedNeighborhood.toUpperCase()}</span>
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '24px' }}>
-        {/* Left: Argentina Province selection grid / SVG simulator */}
+        {/* Left: Map Viewer */}
         <div style={{ gridColumn: 'span 7', background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>Seleccione una Provincia</h4>
           
-          {/* Interactive Argentina Provincias */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-            {Object.entries(PROVINCES_DATA).map(([key, data]) => {
-              const active = selectedProvinceKey === key
-              return (
-                <button
-                  key={key}
-                  onClick={() => onSelectProvince(key)}
-                  style={{
-                    background: active ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.02)',
-                    border: `1.5px solid ${active ? '#10B981' : 'rgba(255,255,255,0.06)'}`,
+          {!selectedProvinceKey && (
+            <>
+              <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>Nivel 0: Provincias de Argentina</h4>
+              <div style={{ position: 'relative', width: '100%', height: '420px', display: 'flex', justifyContent: 'center' }}>
+                <svg width="280" height="420" viewBox="0 0 280 460" style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                  {ARG_PROVINCES.map((p) => {
+                    const active = selectedProvinceKey === p.id
+                    const hovered = hoveredProvince?.id === p.id
+                    
+                    return (
+                      <path
+                        key={p.id}
+                        d={p.path}
+                        fill={p.disabled ? 'rgba(30, 41, 59, 0.4)' : (hovered ? '#2563eb' : '#1e3a8a')}
+                        stroke={hovered ? '#60a5fa' : 'rgba(96, 165, 250, 0.25)'}
+                        strokeWidth={hovered ? '2' : '1'}
+                        style={{ cursor: p.disabled ? 'default' : 'pointer', transition: 'all 200ms' }}
+                        onMouseEnter={() => !p.disabled && setHoveredProvince(p)}
+                        onMouseLeave={() => setHoveredProvince(null)}
+                        onClick={() => !p.disabled && onSelectProvince(p.id)}
+                      />
+                    )
+                  })}
+                </svg>
+
+                {/* Map Tooltip overlay */}
+                {hoveredProvince && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '20px',
+                    left: '20px',
+                    background: '#1b1d2e',
+                    border: '1.5px solid #2563eb',
                     borderRadius: '8px',
-                    padding: '16px',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    transition: 'all 200ms',
-                    color: '#fff'
-                  }}
-                >
-                  <div style={{ fontSize: '14px', fontWeight: 700 }}>{data.name}</div>
-                  <div style={{ fontSize: '12px', color: '#8f94a5', marginTop: '4px' }}>{data.users.toLocaleString()} usuarios activos</div>
-                </button>
-              )
-            })}
-          </div>
+                    padding: '8px 12px',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                    pointerEvents: 'none'
+                  }}>
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{hoveredProvince.name}</div>
+                    <div style={{ fontSize: '10px', color: '#8f94a5', marginTop: '2px' }}>
+                      {hoveredProvince.activeUsers.toLocaleString()} pasajeros activos/día
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {selectedProvinceKey && !selectedCity && (
+            <>
+              <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>Nivel 1: Ciudades Principales ({selectedProvinceKey.toUpperCase()})</h4>
+              <div style={{ width: '100%', height: '420px', position: 'relative', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)', overflow: 'hidden' }}>
+                
+                {/* Cities radar visualization */}
+                <svg width="100%" height="100%" viewBox="0 0 300 350">
+                  {/* Grid background */}
+                  <defs>
+                    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+                    </pattern>
+                  </defs>
+                  <rect width="100%" height="100%" fill="url(#grid)" />
+
+                  {mockCitiesList.map((city) => (
+                    <g key={city.key} onClick={() => setSelectedCity(city.key)} style={{ cursor: 'pointer' }}>
+                      <circle cx={city.x} cy={city.y} r="14" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" strokeWidth="2" />
+                      <circle cx={city.x} cy={city.y} r="6" fill="#3b82f6" />
+                      <text x={city.x} y={city.y - 20} fill="#fff" fontSize="11" fontWeight="700" textAnchor="middle">
+                        {city.name}
+                      </text>
+                      <circle cx={city.x} cy={city.y} r="25" fill="none" stroke="rgba(59, 130, 246, 0.2)" strokeWidth="1" className="pulse-circle" />
+                    </g>
+                  ))}
+                </svg>
+
+                <div style={{ position: 'absolute', bottom: '12px', left: '12px', fontSize: '10px', color: '#8f94a5' }}>
+                  🎯 Pulse en un nodo de radar para ingresar a la ciudad
+                </div>
+              </div>
+            </>
+          )}
+
+          {selectedCity && (
+            <>
+              <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>
+                Nivel 2: Red de Barrios y Flujos de Pasajeros ({selectedCity.toUpperCase()})
+              </h4>
+              <div style={{ width: '100%', height: '420px', position: 'relative', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)', overflow: 'hidden' }}>
+                <svg width="100%" height="100%" viewBox="0 0 300 350">
+                  <rect width="100%" height="100%" fill="url(#grid)" />
+
+                  {/* Flowing connection lines */}
+                  {selectedCity === 'caba' && (
+                    <>
+                      {/* Palermo <-> Recoleta */}
+                      <line x1="100" y1="110" x2="180" y2="180" stroke="rgba(139, 92, 246, 0.4)" strokeWidth="3" className="flow-path" />
+                      {/* Belgrano <-> Palermo */}
+                      <line x1="70" y1="220" x2="100" y2="110" stroke="rgba(16, 185, 129, 0.4)" strokeWidth="3" className="flow-path" />
+                    </>
+                  )}
+
+                  {/* Render neighborhood points */}
+                  {mockNeighborhoodsList.map((n) => {
+                    const active = selectedNeighborhood === n.key
+                    return (
+                      <g key={n.key} onClick={() => setSelectedNeighborhood(n.key)} style={{ cursor: 'pointer' }}>
+                        <circle cx={n.x} cy={n.y} r={active ? '15' : '10'} fill={active ? '#10B981' : 'rgba(255,255,255,0.08)'} stroke={active ? '#fff' : 'rgba(255,255,255,0.2)'} strokeWidth="1.5" />
+                        <text x={n.x} y={n.y - 15} fill="#fff" fontSize="10" fontWeight="700" textAnchor="middle">
+                          {n.name}
+                        </text>
+                        <text x={n.x} y={n.y + 20} fill="#8f94a5" fontSize="8" textAnchor="middle">
+                          {n.count.toLocaleString()} pax/día
+                        </text>
+                      </g>
+                    )
+                  })}
+                </svg>
+                <div style={{ position: 'absolute', bottom: '12px', left: '12px', fontSize: '9px', color: '#8f94a5', display: 'flex', gap: '15px' }}>
+                  <span>🟢 Nodo Verde: Activo</span>
+                  <span>⚡ Líneas discontinuas: Sentido de tránsito</span>
+                </div>
+              </div>
+            </>
+          )}
 
           <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)', padding: '14px', borderRadius: '8px', fontSize: '11px', color: '#8f94a5', lineHeight: 1.4 }}>
-            💡 El sistema analiza en segundo plano las paradas de inicio y fin de viaje frecuentes de los pasajeros para identificar su vecindario principal sin comprometer su privacidad.
+            💡 Haga clic en cualquier nivel de las migas de pan superiores para volver o modificar la escala de visualización geográfica.
           </div>
         </div>
 
         {/* Right: Selected Province details and Neighborhood distribution */}
         <div style={{ gridColumn: 'span 5', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {currentProvinceData ? (
-            <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          
+          {/* Level 3: Neighborhood stats dashboard */}
+          {currentNeighborhoodData ? (
+            <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
-                <h4 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#10B981' }}>{currentProvinceData.name}</h4>
-                <span style={{ fontSize: '12px', color: '#8f94a5' }}>Desglose por Barrio / Comuna</span>
+                <h4 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#10B981' }}>{currentNeighborhoodData.name}</h4>
+                <span style={{ fontSize: '11px', color: '#8f94a5' }}>Estadísticas de Tránsito de Pasajeros</span>
               </div>
 
-              {/* Neighborhood list */}
+              {/* Movement stats */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                  <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Entrada (Inflow)</span>
+                  <span style={{ fontSize: '15px', fontWeight: 700, color: '#10B981' }}>+{currentNeighborhoodData.inflow.toLocaleString()}</span>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                  <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Salida (Outflow)</span>
+                  <span style={{ fontSize: '15px', fontWeight: 700, color: '#ef4444' }}>-{currentNeighborhoodData.outflow.toLocaleString()}</span>
+                </div>
+              </div>
+
+              {/* Traffic SVG Chart */}
+              <div>
+                <span style={{ fontSize: '11px', color: '#8f94a5', display: 'block', marginBottom: '8px' }}>Volumen Horario de Pasajeros (Tránsito)</span>
+                <svg width="100%" height="80" viewBox="0 0 240 80" style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '6px' }}>
+                  <polyline
+                    fill="none"
+                    stroke="#10B981"
+                    strokeWidth="2"
+                    points={currentNeighborhoodData.hourlyTraffic.map((val, idx) => `${idx * 20 + 10},${70 - (val / 500) * 60}`).join(' ')}
+                  />
+                  {currentNeighborhoodData.hourlyTraffic.map((val, idx) => (
+                    <circle
+                      key={idx}
+                      cx={idx * 20 + 10}
+                      cy={70 - (val / 500) * 60}
+                      r="2"
+                      fill="#fff"
+                    />
+                  ))}
+                </svg>
+              </div>
+
+              {/* Bus stops & Served lines */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {currentProvinceData.neighborhoods.map((n, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 500 }}>{n.name}</span>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff', fontFamily: 'DM Mono' }}>{n.count} usuarios</span>
-                  </div>
-                ))}
-              </div>
+                <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700 }}>Paradas Clave y Publicidad</span>
+                {currentNeighborhoodData.stops.map((stop, sIdx) => (
+                  <div key={sIdx} style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{stop.name}</span>
+                      <span style={{ fontSize: '10px', color: '#10B981', fontWeight: 600 }}>{stop.usage}% uso</span>
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#8f94a5' }}>
+                      Líneas: {stop.busLines.join(', ')}
+                    </div>
 
-              {/* Habits tracking log */}
-              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <span style={{ fontSize: '11px', color: '#8f94a5', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>Hábitos de Movilidad Detectados</span>
-                {currentProvinceData.habits.map((habit, i) => (
-                  <div key={i} style={{ fontSize: '12px', color: '#a3a6b8', background: 'rgba(0,0,0,0.15)', padding: '10px 14px', borderRadius: '8px', lineHeight: 1.4 }}>
-                    {habit}
+                    {/* Integrated Stop Ad Campaign Details */}
+                    {stop.ad && (
+                      <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <span style={{ fontSize: '9px', background: 'rgba(245,158,11,0.15)', color: '#f59e0b', padding: '2px 6px', borderRadius: '4px', alignSelf: 'flex-start', fontWeight: 700 }}>
+                          CAMPAÑA ACTIVA
+                        </span>
+                        
+                        {/* Physical Ad Banner Mockup Card */}
+                        <div style={{
+                          background: stop.ad.bannerBg,
+                          padding: '10px',
+                          borderRadius: '6px',
+                          color: '#fff',
+                          textAlign: 'center',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
+                        }}>
+                          <span style={{ fontSize: '14px', display: 'block' }}>{stop.ad.image}</span>
+                          <span style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginTop: '2px' }}>{stop.ad.title}</span>
+                          <span style={{ fontSize: '9px', opacity: 0.8, display: 'block', lineHeight: 1.2, marginTop: '2px' }}>{stop.ad.tagline}</span>
+                        </div>
+
+                        {/* Advertiser Profile Card & Action */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '6px' }}>
+                          <div>
+                            <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Anunciante</span>
+                            <span style={{ fontSize: '11px', fontWeight: 600, color: '#fff' }}>{stop.ad.userName}</span>
+                          </div>
+                          <button
+                            onClick={() => handleMessageAdvertiser(stop.ad)}
+                            style={{
+                              background: '#3B82F6',
+                              border: 'none',
+                              color: '#fff',
+                              borderRadius: '4px',
+                              padding: '4px 8px',
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Mensajear
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
             </div>
           ) : (
-            <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '40px 24px', textAlign: 'center', color: '#8f94a5' }}>
-              Seleccione una provincia de la lista para ver el reporte de distribución de usuarios y vecindarios.
+            <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '30px 20px', textAlign: 'center', color: '#8f94a5' }}>
+              {selectedCity ? (
+                <div>
+                  <h4 style={{ color: '#fff', fontSize: '14px', fontWeight: 700, margin: '0 0 6px' }}>{currentCityData?.name}</h4>
+                  <span style={{ fontSize: '11px' }}>Seleccione uno de los barrios en el mapa de red de la izquierda para ver el reporte de tránsito e integraciones publicitarias.</span>
+                </div>
+              ) : (
+                <div>
+                  <h4 style={{ color: '#fff', fontSize: '14px', fontWeight: 700, margin: '0 0 6px' }}>Detalles Demográficos</h4>
+                  <span style={{ fontSize: '11px' }}>Seleccione una provincia y luego una ciudad para visualizar las capas de tránsito y paradas.</span>
+                </div>
+              )}
             </div>
           )}
         </div>
