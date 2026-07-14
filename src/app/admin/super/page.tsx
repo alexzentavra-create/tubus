@@ -4158,6 +4158,8 @@ function ProvinceMapTab({
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<string | null>(null)
   const [hoveredProvince, setHoveredProvince] = useState<any | null>(null)
   const [realtimeActiveUsers, setRealtimeActiveUsers] = useState(2184)
+  const [timePeriod, setTimePeriod] = useState<'day' | 'week' | 'month'>('month')
+  const [selectedDate, setSelectedDate] = useState('2026-07-14')
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -4168,6 +4170,77 @@ function ProvinceMapTab({
     }, 3000)
     return () => clearInterval(timer)
   }, [])
+
+  // Helper to get metrics for the selected time period and calendar date
+  const getMetrics = useMemo(() => {
+    // Generate a simple numeric seed from the date string to make it deterministic
+    const seed = selectedDate.split('-').reduce((acc, val) => acc + (parseInt(val) || 0), 0)
+    
+    if (timePeriod === 'day') {
+      return {
+        label: 'Usuarios Únicos (Día)',
+        total: Math.round(2184 + (seed % 7) * 45),
+        trendText: '📈 +6.2% vs prom. diario',
+        trendColor: '#10B981',
+        registriesLabel: 'Registros Hoy',
+        registriesVal: Math.round(142 + (seed % 4) * 8 - 10),
+        registriesTrend: '✨ +18.3% vs ayer',
+        ages: [
+          { range: '18-24 años', pct: 30 + (seed % 3), color: '#3B82F6' },
+          { range: '25-34 años', pct: 45 + (seed % 2), color: '#10B981' },
+          { range: '35-54 años', pct: 19 - (seed % 2), color: '#f59e0b' },
+          { range: '55+ años', pct: 6, color: '#ef4444' }
+        ],
+        purposes: [
+          { label: 'Trabajo / Oficina', pct: 70 },
+          { label: 'Estudio / Facultad', pct: 22 },
+          { label: 'Ocio / Social', pct: 8 }
+        ]
+      }
+    } else if (timePeriod === 'week') {
+      return {
+        label: 'Usuarios Únicos (Semana)',
+        total: Math.round(4120 + (seed % 9) * 90),
+        trendText: '📈 +9.8% vs sem. anterior',
+        trendColor: '#10B981',
+        registriesLabel: 'Registros Semana',
+        registriesVal: Math.round(850 + (seed % 5) * 40),
+        registriesTrend: '✨ +11.5% vs prom.',
+        ages: [
+          { range: '18-24 años', pct: 28 + (seed % 4), color: '#3B82F6' },
+          { range: '25-34 años', pct: 43 + (seed % 3), color: '#10B981' },
+          { range: '35-54 años', pct: 21 - (seed % 3), color: '#f59e0b' },
+          { range: '55+ años', pct: 8, color: '#ef4444' }
+        ],
+        purposes: [
+          { label: 'Trabajo / Oficina', pct: 67 },
+          { label: 'Estudio / Facultad', pct: 21 },
+          { label: 'Ocio / Social', pct: 12 }
+        ]
+      }
+    } else { // month
+      return {
+        label: 'Usuarios SUBE (Mes)',
+        total: Math.round(5440 + (seed % 5) * 110),
+        trendText: '📈 +12.4% este mes',
+        trendColor: '#10B981',
+        registriesLabel: 'Registros Mes',
+        registriesVal: Math.round(3120 + (seed % 6) * 120),
+        registriesTrend: '✨ +24.1% vs mes ant.',
+        ages: [
+          { range: '18-24 años', pct: 32, color: '#3B82F6' },
+          { range: '25-34 años', pct: 44, color: '#10B981' },
+          { range: '35-54 años', pct: 18, color: '#f59e0b' },
+          { range: '55+ años', pct: 6, color: '#ef4444' }
+        ],
+        purposes: [
+          { label: 'Trabajo / Oficina', pct: 68 },
+          { label: 'Estudio / Facultad', pct: 20 },
+          { label: 'Ocio / Social', pct: 12 }
+        ]
+      }
+    }
+  }, [timePeriod, selectedDate])
 
   // Clear selections when parent resets province
   useEffect(() => {
@@ -4653,17 +4726,60 @@ function ProvinceMapTab({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {!selectedProvinceKey && (
                 <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
-                    <h4 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#3B82F6' }}>Demografía Nacional</h4>
-                    <span style={{ fontSize: '11px', color: '#8f94a5' }}>Resumen del estado y uso de la plataforma en el país</span>
+                  {/* Period Filter Header */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <h4 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#3B82F6' }}>Demografía Nacional</h4>
+                        <span style={{ fontSize: '11px', color: '#8f94a5' }}>Resumen del estado y uso en el país</span>
+                      </div>
+                      <input
+                        type="date"
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                        style={{
+                          background: '#1a1f37',
+                          border: '1px solid rgba(255,255,255,0.08)',
+                          color: '#fff',
+                          fontSize: '11px',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          outline: 'none',
+                          cursor: 'pointer'
+                        }}
+                      />
+                    </div>
+                    
+                    {/* Day / Week / Month selector */}
+                    <div style={{ display: 'flex', background: 'rgba(255,255,255,0.02)', padding: '2px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)', alignSelf: 'flex-start' }}>
+                      {(['day', 'week', 'month'] as const).map((period) => (
+                        <button
+                          key={period}
+                          onClick={() => setTimePeriod(period)}
+                          style={{
+                            background: timePeriod === period ? '#3B82F6' : 'transparent',
+                            color: timePeriod === period ? '#fff' : '#8f94a5',
+                            border: 'none',
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            padding: '4px 10px',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            transition: 'all 150ms'
+                          }}
+                        >
+                          {period === 'day' ? 'Día' : period === 'week' ? 'Semana' : 'Mes'}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {/* KPIs */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
                     <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Usuarios SUBE</span>
-                      <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>5,440</span>
-                      <span style={{ fontSize: '8px', color: '#10B981', display: 'block', marginTop: '2px' }}>📈 +12.4% este mes</span>
+                      <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>{getMetrics.label}</span>
+                      <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{getMetrics.total.toLocaleString()}</span>
+                      <span style={{ fontSize: '8px', color: getMetrics.trendColor, display: 'block', marginTop: '2px' }}>{getMetrics.trendText}</span>
                     </div>
                     <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
                       <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Activos Ahora</span>
@@ -4674,9 +4790,9 @@ function ProvinceMapTab({
                       <span style={{ fontSize: '8px', color: '#8f94a5', display: 'block', marginTop: '2px' }}>⚡ En tiempo real</span>
                     </div>
                     <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Registros Hoy</span>
-                      <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>142</span>
-                      <span style={{ fontSize: '8px', color: '#10B981', display: 'block', marginTop: '2px' }}>✨ +18.3% vs ayer</span>
+                      <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>{getMetrics.registriesLabel}</span>
+                      <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{getMetrics.registriesVal.toLocaleString()}</span>
+                      <span style={{ fontSize: '8px', color: '#10B981', display: 'block', marginTop: '2px' }}>{getMetrics.registriesTrend}</span>
                     </div>
                   </div>
 
@@ -4684,12 +4800,7 @@ function ProvinceMapTab({
                   <div>
                     <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '8px' }}>Rango de Edades de Pasajeros</span>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {[
-                        { range: '18-24 años', pct: 32, color: '#3B82F6' },
-                        { range: '25-34 años', pct: 44, color: '#10B981' },
-                        { range: '35-54 años', pct: 18, color: '#f59e0b' },
-                        { range: '55+ años', pct: 6, color: '#ef4444' }
-                      ].map((item, idx) => (
+                      {getMetrics.ages.map((item, idx) => (
                         <div key={idx} style={{ fontSize: '10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                             <span style={{ color: '#fff' }}>{item.range}</span>
@@ -4707,11 +4818,7 @@ function ProvinceMapTab({
                   <div>
                     <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Propósito Principal de Viaje</span>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
-                      {[
-                        { label: 'Trabajo / Oficina', pct: 68 },
-                        { label: 'Estudio / Facultad', pct: 20 },
-                        { label: 'Ocio / Social', pct: 12 }
-                      ].map((p, idx) => (
+                      {getMetrics.purposes.map((p, idx) => (
                         <div key={idx} style={{ flex: 1, background: 'rgba(255,255,255,0.01)', padding: '6px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)', textAlign: 'center' }}>
                           <span style={{ fontSize: '9px', color: '#8f94a5', display: 'block' }}>{p.label}</span>
                           <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{p.pct}%</span>
@@ -4724,28 +4831,70 @@ function ProvinceMapTab({
 
               {selectedProvinceKey && !selectedCity && (() => {
                 const provData = ARG_PROVINCES.find(p => p.id === selectedProvinceKey)
-                const provUsers = provData ? provData.activeUsers : 0
                 // Calculate real-time active proportion
                 let proportion = 0.1
                 if (selectedProvinceKey === 'buenos-aires') proportion = 0.63
                 if (selectedProvinceKey === 'cordoba') proportion = 0.13
                 if (selectedProvinceKey === 'santa-fe') proportion = 0.09
                 if (selectedProvinceKey === 'mendoza') proportion = 0.06
+                
+                const provTotalPeriod = Math.round(getMetrics.total * proportion)
                 const provActive = Math.round(realtimeActiveUsers * proportion)
-                const provRegistries = Math.round(142 * proportion)
+                const provRegistries = Math.round(getMetrics.registriesVal * proportion)
 
                 return (
                   <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
-                      <h4 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#10B981' }}>{provData?.name}</h4>
-                      <span style={{ fontSize: '11px', color: '#8f94a5' }}>Estadísticas de la plataforma a nivel provincial</span>
+                    {/* Period Filter Header */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <h4 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#10B981' }}>{provData?.name}</h4>
+                          <span style={{ fontSize: '11px', color: '#8f94a5' }}>Estadísticas de la plataforma a nivel provincial</span>
+                        </div>
+                        <input
+                          type="date"
+                          value={selectedDate}
+                          onChange={(e) => setSelectedDate(e.target.value)}
+                          style={{
+                            background: '#1a1f37',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            color: '#fff',
+                            fontSize: '11px',
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            outline: 'none',
+                            cursor: 'pointer'
+                          }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', background: 'rgba(255,255,255,0.02)', padding: '2px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)', alignSelf: 'flex-start' }}>
+                        {(['day', 'week', 'month'] as const).map((period) => (
+                          <button
+                            key={period}
+                            onClick={() => setTimePeriod(period)}
+                            style={{
+                              background: timePeriod === period ? '#10B981' : 'transparent',
+                              color: timePeriod === period ? '#fff' : '#8f94a5',
+                              border: 'none',
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              padding: '4px 10px',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              transition: 'all 150ms'
+                            }}
+                          >
+                            {period === 'day' ? 'Día' : period === 'week' ? 'Semana' : 'Mes'}
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
                     {/* KPIs */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
                       <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                        <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Usuarios Reg.</span>
-                        <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{provUsers.toLocaleString()}</span>
+                        <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>{timePeriod === 'day' ? 'Únicos (Día)' : timePeriod === 'week' ? 'Únicos (Sem)' : 'Únicos (Mes)'}</span>
+                        <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{provTotalPeriod.toLocaleString()}</span>
                       </div>
                       <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
                         <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Activos Prov.</span>
@@ -4755,8 +4904,8 @@ function ProvinceMapTab({
                         </div>
                       </div>
                       <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                        <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Nuevos Hoy</span>
-                        <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{provRegistries}</span>
+                        <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>{timePeriod === 'day' ? 'Regs. Hoy' : timePeriod === 'week' ? 'Regs. Sem' : 'Regs. Mes'}</span>
+                        <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{provRegistries.toLocaleString()}</span>
                       </div>
                     </div>
 
