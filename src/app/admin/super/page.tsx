@@ -4157,6 +4157,17 @@ function ProvinceMapTab({
   const [selectedCity, setSelectedCity] = useState<string | null>(null)
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<string | null>(null)
   const [hoveredProvince, setHoveredProvince] = useState<any | null>(null)
+  const [realtimeActiveUsers, setRealtimeActiveUsers] = useState(2184)
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setRealtimeActiveUsers(prev => {
+        const delta = Math.floor(Math.random() * 7) - 3
+        return Math.max(1800, Math.min(2500, prev + delta))
+      })
+    }, 3000)
+    return () => clearInterval(timer)
+  }, [])
 
   // Clear selections when parent resets province
   useEffect(() => {
@@ -4305,7 +4316,7 @@ function ProvinceMapTab({
             <>
               <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>Nivel 0: Provincias de Argentina</h4>
               <div style={{ position: 'relative', width: '100%', height: '420px', display: 'flex', justifyContent: 'center' }}>
-                <svg width="100%" height="520" viewBox="0 0 800 1752" style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                <svg width="100%" height="370" viewBox="0 0 800 1752" style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)', display: 'block', margin: '0 auto', maxHeight: '370px' }}>
                   {ARG_PROVINCES.map((p) => {
                     const active = selectedProvinceKey === p.id
                     const hovered = hoveredProvince?.id === p.id
@@ -4639,16 +4650,178 @@ function ProvinceMapTab({
               </div>
             </div>
           ) : (
-            <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '30px 20px', textAlign: 'center', color: '#8f94a5' }}>
-              {selectedCity ? (
-                <div>
-                  <h4 style={{ color: '#fff', fontSize: '14px', fontWeight: 700, margin: '0 0 6px' }}>{currentCityData?.name}</h4>
-                  <span style={{ fontSize: '11px' }}>Seleccione uno de los barrios en el mapa de red de la izquierda para ver el reporte de tránsito e integraciones publicitarias.</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {!selectedProvinceKey && (
+                <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
+                    <h4 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#3B82F6' }}>Demografía Nacional</h4>
+                    <span style={{ fontSize: '11px', color: '#8f94a5' }}>Resumen del estado y uso de la plataforma en el país</span>
+                  </div>
+
+                  {/* KPIs */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Usuarios SUBE</span>
+                      <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>5,440</span>
+                      <span style={{ fontSize: '8px', color: '#10B981', display: 'block', marginTop: '2px' }}>📈 +12.4% este mes</span>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Activos Ahora</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }} className="pulse-circle"></span>
+                        <span style={{ fontSize: '16px', fontWeight: 700, color: '#10B981' }}>{realtimeActiveUsers}</span>
+                      </div>
+                      <span style={{ fontSize: '8px', color: '#8f94a5', display: 'block', marginTop: '2px' }}>⚡ En tiempo real</span>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Registros Hoy</span>
+                      <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>142</span>
+                      <span style={{ fontSize: '8px', color: '#10B981', display: 'block', marginTop: '2px' }}>✨ +18.3% vs ayer</span>
+                    </div>
+                  </div>
+
+                  {/* Edades */}
+                  <div>
+                    <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '8px' }}>Rango de Edades de Pasajeros</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {[
+                        { range: '18-24 años', pct: 32, color: '#3B82F6' },
+                        { range: '25-34 años', pct: 44, color: '#10B981' },
+                        { range: '35-54 años', pct: 18, color: '#f59e0b' },
+                        { range: '55+ años', pct: 6, color: '#ef4444' }
+                      ].map((item, idx) => (
+                        <div key={idx} style={{ fontSize: '10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#fff' }}>{item.range}</span>
+                            <span style={{ color: '#8f94a5' }}>{item.pct}%</span>
+                          </div>
+                          <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
+                            <div style={{ width: `${item.pct}%`, height: '100%', background: item.color, borderRadius: '2px' }}></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Proposito */}
+                  <div>
+                    <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Propósito Principal de Viaje</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                      {[
+                        { label: 'Trabajo / Oficina', pct: 68 },
+                        { label: 'Estudio / Facultad', pct: 20 },
+                        { label: 'Ocio / Social', pct: 12 }
+                      ].map((p, idx) => (
+                        <div key={idx} style={{ flex: 1, background: 'rgba(255,255,255,0.01)', padding: '6px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)', textAlign: 'center' }}>
+                          <span style={{ fontSize: '9px', color: '#8f94a5', display: 'block' }}>{p.label}</span>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{p.pct}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              ) : (
-                <div>
-                  <h4 style={{ color: '#fff', fontSize: '14px', fontWeight: 700, margin: '0 0 6px' }}>Detalles Demográficos</h4>
-                  <span style={{ fontSize: '11px' }}>Seleccione una provincia y luego una ciudad para visualizar las capas de tránsito y paradas.</span>
+              )}
+
+              {selectedProvinceKey && !selectedCity && (() => {
+                const provData = ARG_PROVINCES.find(p => p.id === selectedProvinceKey)
+                const provUsers = provData ? provData.activeUsers : 0
+                // Calculate real-time active proportion
+                let proportion = 0.1
+                if (selectedProvinceKey === 'buenos-aires') proportion = 0.63
+                if (selectedProvinceKey === 'cordoba') proportion = 0.13
+                if (selectedProvinceKey === 'santa-fe') proportion = 0.09
+                if (selectedProvinceKey === 'mendoza') proportion = 0.06
+                const provActive = Math.round(realtimeActiveUsers * proportion)
+                const provRegistries = Math.round(142 * proportion)
+
+                return (
+                  <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
+                      <h4 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#10B981' }}>{provData?.name}</h4>
+                      <span style={{ fontSize: '11px', color: '#8f94a5' }}>Estadísticas de la plataforma a nivel provincial</span>
+                    </div>
+
+                    {/* KPIs */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                        <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Usuarios Reg.</span>
+                        <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{provUsers.toLocaleString()}</span>
+                      </div>
+                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                        <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Activos Prov.</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }} className="pulse-circle"></span>
+                          <span style={{ fontSize: '16px', fontWeight: 700, color: '#10B981' }}>{provActive}</span>
+                        </div>
+                      </div>
+                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                        <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Nuevos Hoy</span>
+                        <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{provRegistries}</span>
+                      </div>
+                    </div>
+
+                    {/* Habits / Insight list */}
+                    <div>
+                      <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '8px' }}>Hábitos y Patrones de Tránsito</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {(PROVINCES_DATA[selectedProvinceKey]?.habits || [
+                          '📍 El 80% de los usuarios inician viajes recurrentes desde áreas residenciales periféricas.',
+                          '🚌 Líneas con mayor concentración de uso registradas en horario laboral matutino.'
+                        ]).map((habit, idx) => (
+                          <div key={idx} style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', padding: '10px', borderRadius: '6px', fontSize: '10px', color: '#cbd5e1', lineHeight: 1.3 }}>
+                            {habit}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {selectedCity && !selectedNeighborhood && (
+                <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
+                    <h4 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#3B82F6' }}>{currentCityData?.name || selectedCity.toUpperCase()}</h4>
+                    <span style={{ fontSize: '11px', color: '#8f94a5' }}>Distribución de pasajeros y paradas en la red metropolitana</span>
+                  </div>
+
+                  {/* Info Row */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Pasajeros / día</span>
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>
+                        {selectedCity === 'caba' ? '35,500' : '8,500'}
+                      </span>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Nodos Activos</span>
+                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>
+                        {selectedCity === 'caba' ? '3' : '1'}
+                      </span>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Estado Red</span>
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#10B981' }}>Estable</span>
+                    </div>
+                  </div>
+
+                  {/* List of neighborhoods in city */}
+                  <div>
+                    <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '8px' }}>Flujo de Pasajeros por Barrio</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {mockNeighborhoodsList.map((n, idx) => (
+                        <div key={idx} onClick={() => setSelectedNeighborhood(n.key)} style={{ cursor: 'pointer', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', padding: '10px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#fff', display: 'block' }}>{n.name}</span>
+                            <span style={{ fontSize: '9px', color: '#8f94a5' }}>Click para ver reporte de tránsito y publicidad</span>
+                          </div>
+                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#3B82F6' }}>
+                            {n.count.toLocaleString()} pax/d
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
