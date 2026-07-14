@@ -47,6 +47,32 @@ const CARTODB_DARK = {
   ]
 }
 
+const CARTODB_LIGHT = {
+  version: 8,
+  sources: {
+    "cartodb-light-tiles": {
+      type: "raster",
+      tiles: [
+        "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
+        "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
+        "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
+        "https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png"
+      ],
+      tileSize: 256,
+      attribution: "© OpenStreetMap contributors, © CartoDB"
+    }
+  },
+  layers: [
+    {
+      id: "cartodb-light-layer",
+      type: "raster",
+      source: "cartodb-light-tiles",
+      minzoom: 0,
+      maxzoom: 20
+    }
+  ]
+}
+
 // Visual graphs mock data
 const METRICS_BY_PERIOD = {
   day: [
@@ -1383,58 +1409,161 @@ export default function SuperAdminDashboard() {
       <style>{`
         /* Dynamic Theme Overrides */
         .light-mode {
-          background: #f8fafc !important;
+          background: #f1f5f9 !important;
           color: #1e293b !important;
         }
-        .light-mode header, .light-mode .super-header {
-          background: #ffffff !important;
-          border-bottom: 1px solid rgba(0,0,0,0.08) !important;
+
+        /* 1. Header & main background overrides */
+        .light-mode header,
+        .light-mode .super-header,
+        .light-mode [style*="background: #0b0f19"],
+        .light-mode [style*="background:#0b0f19"],
+        .light-mode [style*="background: '#0b0f19'"],
+        .light-mode [style*="background: rgb(11, 15, 25)"],
+        .light-mode [style*="background:rgb(11, 15, 25)"],
+        .light-mode [style*="background: rgb(11, 13, 25)"],
+        .light-mode [style*="background:rgb(11, 13, 25)"] {
+          background: #f1f5f9 !important;
+          color: #1e293b !important;
         }
-        .light-mode .top-bar-pill {
+
+        /* 2. Navigation bar & primary card container overrides */
+        .light-mode .nav-container,
+        .light-mode [style*="background: #121527"],
+        .light-mode [style*="background:#121527"],
+        .light-mode [style*="background: '#121527'"],
+        .light-mode [style*="background: rgb(18, 21, 39)"],
+        .light-mode [style*="background:rgb(18, 21, 39)"] {
+          background: #ffffff !important;
+          border-color: rgba(0, 0, 0, 0.08) !important;
+          color: #1e293b !important;
+        }
+
+        /* 3. Sub-cards, input wrappers & list items overrides */
+        .light-mode .top-bar-pill,
+        .light-mode [style*="background: #1b1d2e"],
+        .light-mode [style*="background:#1b1d2e"],
+        .light-mode [style*="background: '#1b1d2e'"],
+        .light-mode [style*="background: rgb(27, 29, 46)"],
+        .light-mode [style*="background:rgb(27, 29, 46)"] {
+          background: #f8fafc !important;
+          border-color: rgba(0, 0, 0, 0.08) !important;
+          color: #334155 !important;
+        }
+
+        /* 4. Overriding transparent background overlays to look clean on white cards */
+        .light-mode [style*="background: rgba(255, 255, 255, 0.02)"],
+        .light-mode [style*="background:rgba(255, 255, 255, 0.02)"],
+        .light-mode [style*="background: rgba(255,255,255,0.02)"] {
           background: #f1f5f9 !important;
           border: 1px solid rgba(0, 0, 0, 0.08) !important;
-          color: #475569 !important;
+          color: #1e293b !important;
         }
-        .light-mode .top-bar-pill span, .light-mode .top-bar-pill svg {
-          color: #475569 !important;
+        .light-mode [style*="background: rgba(255, 255, 255, 0.05)"],
+        .light-mode [style*="background:rgba(255, 255, 255, 0.05)"],
+        .light-mode [style*="background: rgba(255,255,255,0.05)"] {
+          background: #e2e8f0 !important;
+          border: 1px solid rgba(0, 0, 0, 0.1) !important;
+          color: #1e293b !important;
         }
-        .light-mode .nav-container, .light-mode div[style*="background: '#121527'"], .light-mode div[style*="background: #121527"] {
-          background: #ffffff !important;
-          border-bottom: 1px solid rgba(0,0,0,0.08) !important;
-          border-color: rgba(0,0,0,0.08) !important;
-        }
-        .light-mode button[style*="color: '#fff'"], .light-mode button[style*="color: #fff"], .light-mode button.active {
+        .light-mode [style*="background: rgba(0, 0, 0, 0.15)"],
+        .light-mode [style*="background:rgba(0, 0, 0, 0.15)"] {
+          background: #cbd5e1 !important;
           color: #0f172a !important;
         }
-        .light-mode h1, .light-mode h2, .light-mode h3, .light-mode h4, .light-mode h5, .light-mode h6, .light-mode span[style*="color: '#fff'"], .light-mode span[style*="color: #fff"], .light-mode div[style*="color: '#fff'"], .light-mode div[style*="color: #fff"] {
-          color: #0f172a !important;
+
+        /* Keep status badge backgrounds as transparent color highlights */
+        .light-mode [style*="background: rgba(16, 185, 129, 0.15)"],
+        .light-mode [style*="background:rgba(16, 185, 129, 0.15)"] {
+          background: rgba(16, 185, 129, 0.15) !important;
         }
-        .light-mode .admin-card, .light-mode div[style*="background: '#121527'"], .light-mode div[style*="background: #121527"], .light-mode div[style*="background: '#1b1d2e'"], .light-mode div[style*="background: #1b1d2e"] {
-          background: #ffffff !important;
-          border-color: rgba(0,0,0,0.08) !important;
-          color: #334155 !important;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.04) !important;
+        .light-mode [style*="background: rgba(239, 68, 68, 0.15)"],
+        .light-mode [style*="background:rgba(239, 68, 68, 0.15)"] {
+          background: rgba(239, 68, 68, 0.15) !important;
         }
-        .light-mode input, .light-mode select, .light-mode textarea {
+        .light-mode [style*="background: rgba(59, 130, 246, 0.15)"],
+        .light-mode [style*="background:rgba(59, 130, 246, 0.15)"] {
+          background: rgba(59, 130, 246, 0.15) !important;
+        }
+
+        /* 5. Inputs & Form Elements overrides */
+        .light-mode input,
+        .light-mode select,
+        .light-mode textarea {
           background: #ffffff !important;
           color: #0f172a !important;
           border: 1px solid #cbd5e1 !important;
         }
-        .light-mode input::placeholder, .light-mode textarea::placeholder {
+        .light-mode input::placeholder,
+        .light-mode textarea::placeholder {
           color: #94a3b8 !important;
         }
-        .light-mode div[style*="background: 'rgba(255,255,255,0.02)'"], .light-mode div[style*="background: rgba(255, 255, 255, 0.02)"] {
-          background: #f8fafc !important;
-          border-color: rgba(0,0,0,0.06) !important;
+
+        /* 6. Typography & Text Color overrides */
+        .light-mode h1,
+        .light-mode h2,
+        .light-mode h3,
+        .light-mode h4,
+        .light-mode h5,
+        .light-mode h6,
+        .light-mode p,
+        .light-mode [style*="color: #fff"],
+        .light-mode [style*="color:#fff"],
+        .light-mode [style*="color: '#fff'"],
+        .light-mode [style*="color: rgb(255, 255, 255)"],
+        .light-mode [style*="color:rgb(255, 255, 255)"] {
+          color: #0f172a !important;
+        }
+        .light-mode [style*="color: #8f94a5"],
+        .light-mode [style*="color:#8f94a5"],
+        .light-mode [style*="color: '#8f94a5'"],
+        .light-mode [style*="color: rgb(143, 148, 165)"],
+        .light-mode [style*="color:rgb(143, 148, 165)"],
+        .light-mode [style*="color: #a3a6b8"],
+        .light-mode [style*="color:#a3a6b8"],
+        .light-mode [style*="color: '#a3a6b8'"],
+        .light-mode [style*="color: rgb(163, 166, 184)"],
+        .light-mode [style*="color:rgb(163, 166, 184)"] {
           color: #475569 !important;
         }
-        .light-mode span[style*="color: '#8f94a5'"], .light-mode span[style*="color: #8f94a5"], .light-mode div[style*="color: '#8f94a5'"], .light-mode div[style*="color: #8f94a5"], .light-mode p[style*="color: '#8f94a5'"], .light-mode p[style*="color: #8f94a5"] {
-          color: #64748b !important;
+
+        /* Safeguard action button colors and functional statuses */
+        .light-mode [style*="color: rgb(16, 185, 129)"],
+        .light-mode [style*="color: #10B981"],
+        .light-mode [style*="color:#10B981"],
+        .light-mode [style*="color: #10b981"] {
+          color: #10B981 !important;
         }
+        .light-mode [style*="color: rgb(239, 68, 68)"],
+        .light-mode [style*="color: #ef4444"],
+        .light-mode [style*="color:#ef4444"] {
+          color: #ef4444 !important;
+        }
+        .light-mode [style*="color: rgb(59, 130, 246)"],
+        .light-mode [style*="color: #3b82f6"],
+        .light-mode [style*="color:#3b82f6"] {
+          color: #3b82f6 !important;
+        }
+        .light-mode button[style*="background: #10B981"],
+        .light-mode button[style*="background:#10B981"],
+        .light-mode button[style*="background: #3B82F6"],
+        .light-mode button[style*="background:#3B82F6"] {
+          color: #ffffff !important;
+        }
+
+        /* 7. Icon styles inside navigation pills */
         .light-mode svg {
-          background: #f8fafc !important;
-          border-color: rgba(0,0,0,0.08) !important;
+          stroke: currentColor !important;
         }
+        .light-mode .top-bar-pill span {
+          color: #475569 !important;
+        }
+        .light-mode button.active {
+          color: #10B981 !important;
+          border-bottom: 2px solid #10B981 !important;
+        }
+
+        /* Charts grid & backgrounds */
         .light-mode rect[fill="url(#grid)"] {
           opacity: 0.15;
         }
@@ -1799,7 +1928,7 @@ export default function SuperAdminDashboard() {
       )}
 
         {/* 1. LineMapsTab */}
-        {tab === 'linemaps' && <LineMapsTab onMessageAdmin={handleSendMessageToAdmin} />}
+        {tab === 'linemaps' && <LineMapsTab onMessageAdmin={handleSendMessageToAdmin} theme={theme} />}
 
         {/* 2. Drivers and QR Code Directory */}
         {tab === 'drivers' && <DriversTab />}
@@ -2233,7 +2362,7 @@ const LINE_ADMINS: Record<string, { name: string, email: string }> = {
 }
 
 // ─── Map grid component for all active and tourist lines ────────────────────
-function LineMapsTab({ onMessageAdmin }: { onMessageAdmin: (adminName: string, adminEmail: string, lineName: string) => void }) {
+function LineMapsTab({ onMessageAdmin, theme }: { onMessageAdmin: (adminName: string, adminEmail: string, lineName: string) => void; theme?: string }) {
   const activeLines = MOCK_LINES
 
   return (
@@ -2244,14 +2373,14 @@ function LineMapsTab({ onMessageAdmin }: { onMessageAdmin: (adminName: string, a
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
         {activeLines.map(line => (
-          <SingleLineMap key={line.id} line={line} onMessageAdmin={onMessageAdmin} />
+          <SingleLineMap key={line.id} line={line} onMessageAdmin={onMessageAdmin} theme={theme} />
         ))}
       </div>
     </div>
   )
 }
 
-function SingleLineMap({ line, onMessageAdmin }: { line: any, onMessageAdmin: (adminName: string, adminEmail: string, lineName: string) => void }) {
+function SingleLineMap({ line, onMessageAdmin, theme }: { line: any, onMessageAdmin: (adminName: string, adminEmail: string, lineName: string) => void; theme?: string }) {
   const ramales = LINE_RAMALES[line.id] || []
   const [selectedRamalId, setSelectedRamalId] = useState(ramales[0]?.id || '')
   const activeRamal = ramales.find(r => r.id === selectedRamalId) || ramales[0]
@@ -2327,7 +2456,7 @@ function SingleLineMap({ line, onMessageAdmin }: { line: any, onMessageAdmin: (a
         <Map
           {...viewport}
           onMove={evt => setViewport(evt.viewState)}
-          mapStyle={CARTODB_DARK as any}
+          mapStyle={(theme === 'light' ? CARTODB_LIGHT : CARTODB_DARK) as any}
           attributionControl={false}
         >
           <Source id={`route-${line.id}-${activeRamal?.id || 'def'}`} type="geojson" data={geojson}>
