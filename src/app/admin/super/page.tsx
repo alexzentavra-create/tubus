@@ -494,9 +494,60 @@ export default function SuperAdminDashboard() {
 
   // Submitted ads
   const [ads, setAds] = useState<any[]>([
-    { id: 'ad-1', title: 'Coca Cola Sin Azúcar', desc: 'Promoción de lata 350ml en quioscos.', stop: 'Plaza Italia', route: 'Línea 12', budget: 120000, duration: '30 días', status: 'approved', timestamp: 'Hace 1 día' },
-    { id: 'ad-2', title: 'Hamburguesería Mostaza', desc: 'Descuento 20% en Combo Mega Deluxe.', stop: 'Av. Corrientes y Callao', route: 'Línea 37', budget: 85000, duration: '15 días', status: 'pending', timestamp: 'Hace 3 horas' },
-    { id: 'ad-3', title: 'Gimnasio Megatlon', desc: 'Matrícula gratis en pase anual.', stop: 'Obelisco', route: 'Línea 152', budget: 195000, duration: '45 días', status: 'approved', timestamp: 'Hace 5 días' }
+    {
+      id: 'ad-1',
+      title: 'Coca Cola Sin Azúcar',
+      desc: 'Promoción de lata 350ml en quioscos.',
+      stop: 'Plaza Italia',
+      route: 'Línea 12',
+      budget: 120000,
+      duration: '30 días',
+      status: 'approved',
+      isActive: true,
+      timestamp: 'Hace 1 día',
+      userName: 'Alejandro Zentavra',
+      userEmail: 'ale.zentavra@demo.com.ar',
+      userAvatar: 'AZ',
+      bannerBg: 'linear-gradient(135deg, #111, #ef4444)',
+      bannerText: 'Coca Cola Sin Azúcar 🥤',
+      bannerTagline: 'Sentí el sabor único. Disponible en todos los quioscos oficiales.'
+    },
+    {
+      id: 'ad-2',
+      title: 'Hamburguesería Mostaza',
+      desc: 'Descuento 20% en Combo Mega Deluxe.',
+      stop: 'Av. Corrientes y Callao',
+      route: 'Línea 37',
+      budget: 85000,
+      duration: '15 días',
+      status: 'pending',
+      isActive: false,
+      timestamp: 'Hace 3 horas',
+      userName: 'Sofía Valenzuela',
+      userEmail: 'sofia.v@demo.com.ar',
+      userAvatar: 'SV',
+      bannerBg: 'linear-gradient(135deg, #f59e0b, #b45309)',
+      bannerText: 'Mostaza Mega Deluxe 🍔',
+      bannerTagline: '20% OFF presentando tu boleto de TuBus en caja.'
+    },
+    {
+      id: 'ad-3',
+      title: 'Gimnasio Megatlon',
+      desc: 'Matrícula gratis en pase anual.',
+      stop: 'Obelisco',
+      route: 'Línea 152',
+      budget: 195000,
+      duration: '45 días',
+      status: 'approved',
+      isActive: true,
+      timestamp: 'Hace 5 días',
+      userName: 'Néstor García',
+      userEmail: 'nestor.g@callao.com.ar',
+      userAvatar: 'NG',
+      bannerBg: 'linear-gradient(135deg, #0f172a, #1d4ed8)',
+      bannerText: 'Megatlon Fitness 💪',
+      bannerTagline: 'Entrená en cualquiera de nuestras sedes. Matrícula bonificada.'
+    }
   ])
 
   // Support messenger chats
@@ -673,6 +724,49 @@ export default function SuperAdminDashboard() {
     setSelectedChatId(targetChatId)
     setTab('chat')
     toast.success('Chat de soporte con el administrador abierto')
+  }
+
+  const handleMessageUser = (userName: string, userEmail: string) => {
+    const initMsg = `Hola ${userName}, soy el Super Administrador. Me comunico con vos en relación a tu campaña de publicidad.`
+    const existingChat = chats.find(c => c.name.toLowerCase().includes(userName.toLowerCase()))
+    let targetChatId = ''
+
+    if (existingChat) {
+      targetChatId = existingChat.id
+      const updatedChats = chats.map(c => {
+        if (c.id === targetChatId) {
+          return {
+            ...c,
+            lastMsg: initMsg,
+            history: [
+              ...c.history,
+              { id: `m-${Date.now()}`, sender: 'admin', text: initMsg, timestamp: 'Ahora' }
+            ]
+          }
+        }
+        return c
+      })
+      saveChats(updatedChats)
+    } else {
+      const newId = `c-user-${Date.now()}`
+      targetChatId = newId
+      const newChat = {
+        id: newId,
+        name: userName,
+        role: 'user',
+        avatar: userName.split(' ').map(n=>n[0]).join('').slice(0, 2).toUpperCase(),
+        starred: false,
+        lastMsg: initMsg,
+        history: [
+          { id: `m-${Date.now()}`, sender: 'admin', text: initMsg, timestamp: 'Ahora' }
+        ]
+      }
+      saveChats([...chats, newChat])
+    }
+
+    setSelectedChatId(targetChatId)
+    setTab('chat')
+    toast.success('Chat de soporte con el anunciante abierto')
   }
 
   const renderUsersDetail = () => {
@@ -1486,15 +1580,33 @@ export default function SuperAdminDashboard() {
         {tab === 'drivers' && <DriversTab />}
 
         {/* 3. Ads Tab with ARS stats */}
-        {tab === 'ads' && <AdsTab ads={ads} onApprove={(id) => {
-          const updated = ads.map(a => a.id === id ? { ...a, status: 'approved' } : a)
-          saveAds(updated)
-          toast.success('Campaña publicitaria aprobada')
-        }} onReject={(id) => {
-          const updated = ads.map(a => a.id === id ? { ...a, status: 'rejected' } : a)
-          saveAds(updated)
-          toast.error('Campaña rechazada')
-        }} />}
+        {tab === 'ads' && (
+          <AdsTab
+            ads={ads}
+            onApprove={(id) => {
+              const updated = ads.map(a => a.id === id ? { ...a, status: 'approved', isActive: true } : a)
+              saveAds(updated)
+              toast.success('Campaña publicitaria aprobada')
+            }}
+            onReject={(id) => {
+              const updated = ads.map(a => a.id === id ? { ...a, status: 'rejected', isActive: false } : a)
+              saveAds(updated)
+              toast.error('Campaña rechazada')
+            }}
+            onToggleActive={(id) => {
+              const updated = ads.map(a => {
+                if (a.id === id) {
+                  const nextState = !a.isActive
+                  toast.success(nextState ? 'Campaña publicitaria activada' : 'Campaña publicitaria desactivada')
+                  return { ...a, isActive: nextState }
+                }
+                return a
+              })
+              saveAds(updated)
+            }}
+            onMessageUser={handleMessageUser}
+          />
+        )}
 
         {/* 4. Chat support messenger layout */}
         {tab === 'chat' && (
@@ -2327,7 +2439,23 @@ function DriversTab() {
 }
 
 // ─── Ads Management Component with ARS currency ──────────────────────────────
-function AdsTab({ ads, onApprove, onReject }: { ads: any[]; onApprove: (id: string) => void; onReject: (id: string) => void }) {
+// ─── Ads Management Component with ARS currency ──────────────────────────────
+function AdsTab({
+  ads,
+  onApprove,
+  onReject,
+  onToggleActive,
+  onMessageUser
+}: {
+  ads: any[];
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
+  onToggleActive: (id: string) => void;
+  onMessageUser: (name: string, email: string) => void;
+}) {
+  const [selectedAd, setSelectedAd] = useState<any | null>(null)
+  const [selectedUser, setSelectedUser] = useState<any | null>(null)
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div>
@@ -2336,45 +2464,362 @@ function AdsTab({ ads, onApprove, onReject }: { ads: any[]; onApprove: (id: stri
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
-        {ads.map(ad => (
-          <div key={ad.id} style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '16px' }}>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '11px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{ad.timestamp}</span>
-                <span style={{
-                  fontSize: '9px',
-                  background: ad.status === 'approved' ? 'rgba(16,185,129,0.15)' : ad.status === 'pending' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
-                  color: ad.status === 'approved' ? '#10B981' : ad.status === 'pending' ? '#f59e0b' : '#ef4444',
-                  padding: '3px 8px',
-                  borderRadius: '6px',
-                  fontWeight: 700,
-                  textTransform: 'uppercase'
-                }}>{ad.status === 'approved' ? 'Aprobado' : ad.status === 'pending' ? 'Pendiente' : 'Rechazado'}</span>
-              </div>
-              <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: '12px 0 4px' }}>{ad.title}</h4>
-              <p style={{ fontSize: '12px', color: '#8f94a5', margin: 0, lineHeight: 1.4 }}>{ad.desc}</p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '12px', background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                <div style={{ fontSize: '11px', color: '#8f94a5' }}>Parada asignada: <strong style={{ color: '#fff' }}>{ad.stop} ({ad.route})</strong></div>
-                <div style={{ fontSize: '11px', color: '#8f94a5' }}>Vigencia contratada: <strong style={{ color: '#fff' }}>{ad.duration}</strong></div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
+        {ads.map(ad => {
+          const isInactive = ad.status === 'approved' && !ad.isActive
+          return (
+            <div
+              key={ad.id}
+              onClick={() => setSelectedAd(ad)}
+              style={{
+                background: '#121527',
+                border: isInactive ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(255,255,255,0.06)',
+                borderRadius: '12px',
+                padding: '20px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: '16px',
+                cursor: 'pointer',
+                transition: 'all 200ms',
+                boxShadow: isInactive ? '0 0 15px rgba(239,68,68,0.05)' : 'none'
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+              onMouseLeave={e => { e.currentTarget.style.transform = 'none' }}
+            >
               <div>
-                <span style={{ fontSize: '10px', color: '#8f94a5' }}>Presupuesto total</span>
-                <div style={{ fontSize: '16px', fontWeight: 800, color: '#10B981' }}>${ad.budget.toLocaleString()} ARS</div>
-              </div>
-              {ad.status === 'pending' && (
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <button onClick={() => onApprove(ad.id)} style={{ padding: '6px 12px', background: '#10B981', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>Aprobar</button>
-                  <button onClick={() => onReject(ad.id)} style={{ padding: '6px 12px', background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}>Rechazar</button>
+                {/* Warning message if ad is inactive */}
+                {isInactive && (
+                  <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', padding: '6px 10px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+                    <AlertTriangle size={12} style={{ color: '#ef4444' }} />
+                    <span style={{ fontSize: '10px', color: '#ef4444', fontWeight: 600 }}>Campaña Desactivada / Pausada</span>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{ad.timestamp}</span>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    {ad.status === 'approved' && (
+                      <span style={{
+                        fontSize: '9px',
+                        background: ad.isActive ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+                        color: ad.isActive ? '#10B981' : '#ef4444',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        fontWeight: 700,
+                        textTransform: 'uppercase'
+                      }}>
+                        {ad.isActive ? 'Activo' : 'Inactivo'}
+                      </span>
+                    )}
+                    <span style={{
+                      fontSize: '9px',
+                      background: ad.status === 'approved' ? 'rgba(16,185,129,0.15)' : ad.status === 'pending' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
+                      color: ad.status === 'approved' ? '#10B981' : ad.status === 'pending' ? '#f59e0b' : '#ef4444',
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      fontWeight: 700,
+                      textTransform: 'uppercase'
+                    }}>
+                      {ad.status === 'approved' ? 'Aprobado' : ad.status === 'pending' ? 'Pendiente' : 'Rechazado'}
+                    </span>
+                  </div>
                 </div>
-              )}
+
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: '12px 0 4px' }}>{ad.title}</h4>
+                <p style={{ fontSize: '12px', color: '#8f94a5', margin: 0, lineHeight: 1.4 }}>{ad.desc}</p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '12px', background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                  <div style={{ fontSize: '11px', color: '#8f94a5' }}>Parada asignada: <strong style={{ color: '#fff' }}>{ad.stop} ({ad.route})</strong></div>
+                  <div style={{ fontSize: '11px', color: '#8f94a5' }}>Vigencia contratada: <strong style={{ color: '#fff' }}>{ad.duration}</strong></div>
+                </div>
+
+                {/* Advertiser Profile button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedUser({
+                      name: ad.userName || 'Anunciante Corporativo',
+                      email: ad.userEmail || 'ads@tubus.com.ar',
+                      avatar: ad.userAvatar || 'AC',
+                      adTitle: ad.title
+                    });
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#3b82f6',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    padding: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    marginTop: '10px'
+                  }}
+                >
+                  👤 Ver Anunciante: {ad.userName || 'Corporativo'}
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px', marginTop: '8px' }}>
+                <div>
+                  <span style={{ fontSize: '10px', color: '#8f94a5' }}>Presupuesto total</span>
+                  <div style={{ fontSize: '16px', fontWeight: 800, color: '#10B981' }}>${ad.budget.toLocaleString()} ARS</div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {ad.status === 'pending' && (
+                    <>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onApprove(ad.id); }}
+                        style={{ padding: '6px 12px', background: '#10B981', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        Aprobar
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onReject(ad.id); }}
+                        style={{ padding: '6px 12px', background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        Rechazar
+                      </button>
+                    </>
+                  )}
+                  {ad.status === 'approved' && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onToggleActive(ad.id); }}
+                      style={{
+                        padding: '6px 12px',
+                        background: ad.isActive ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)',
+                        color: ad.isActive ? '#ef4444' : '#10B981',
+                        border: `1px solid ${ad.isActive ? 'rgba(239,68,68,0.25)' : 'rgba(16,185,129,0.25)'}`,
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all 150ms'
+                      }}
+                    >
+                      {ad.isActive ? 'Desactivar' : 'Activar'}
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
+
+      {/* 1. Modal Preview Ad Picture / Banner */}
+      {selectedAd && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(5, 8, 16, 0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: '460px',
+            background: '#121527',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '16px',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h4 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#fff' }}>Vista Previa de Campaña</h4>
+              <button
+                onClick={() => setSelectedAd(null)}
+                style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* CSS Mockup Banner */}
+            <div style={{
+              background: selectedAd.bannerBg || 'linear-gradient(135deg, #1e1b4b, #312e81)',
+              borderRadius: '12px',
+              aspectRatio: '16/9',
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              padding: '24px',
+              boxShadow: '0 10px 20px rgba(0,0,0,0.3)',
+              textAlign: 'center',
+              color: '#fff',
+              border: '1px solid rgba(255,255,255,0.1)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              {/* Scanlines / light mockup effect */}
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06))', backgroundSize: '100% 4px, 6px 100%', pointerEvents: 'none' }} />
+              
+              <h2 style={{ fontSize: '20px', fontWeight: 800, margin: '0 0 8px', letterSpacing: '-0.02em', textShadow: '0 2px 4px rgba(0,0,0,0.6)' }}>
+                {selectedAd.bannerText || selectedAd.title}
+              </h2>
+              <p style={{ fontSize: '12px', opacity: 0.9, margin: 0, textShadow: '0 1px 2px rgba(0,0,0,0.6)', lineHeight: 1.4, maxWidth: '280px' }}>
+                {selectedAd.bannerTagline || selectedAd.desc}
+              </p>
+              <div style={{ marginTop: '14px', fontSize: '9px', background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(4px)', padding: '4px 10px', borderRadius: '20px', fontWeight: 600 }}>
+                📍 Parada: {selectedAd.stop} ({selectedAd.route})
+              </div>
+            </div>
+
+            {/* Ad Info */}
+            <div style={{ fontSize: '12px', color: '#8f94a5', display: 'flex', flexDirection: 'column', gap: '6px', background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+              <div>Campaña: <strong style={{ color: '#fff' }}>{selectedAd.title}</strong></div>
+              <div>Parada Asignada: <strong style={{ color: '#fff' }}>{selectedAd.stop} ({selectedAd.route})</strong></div>
+              <div>Presupuesto total: <strong style={{ color: '#10B981' }}>${selectedAd.budget.toLocaleString()} ARS</strong></div>
+            </div>
+
+            {/* Button to view Creator Profile */}
+            <button
+              onClick={() => {
+                setSelectedUser({
+                  name: selectedAd.userName || 'Anunciante Corporativo',
+                  email: selectedAd.userEmail || 'ads@tubus.com.ar',
+                  avatar: selectedAd.userAvatar || 'AC',
+                  adTitle: selectedAd.title
+                });
+                setSelectedAd(null);
+              }}
+              style={{
+                padding: '10px',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                textAlign: 'center',
+                transition: 'all 150ms'
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+            >
+              👤 Ver Perfil del Anunciante
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Modal Preview Advertiser Profile */}
+      {selectedUser && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(5, 8, 16, 0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: '360px',
+            background: '#121527',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '16px',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '16px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)'
+          }}>
+            <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h4 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#fff' }}>Perfil de Anunciante</h4>
+              <button
+                onClick={() => setSelectedUser(null)}
+                style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Profile Avatar */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
+              <div style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #f59e0b, #8b5cf6)',
+                color: '#fff',
+                fontSize: '22px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 6px 18px rgba(245, 158, 11, 0.25)'
+              }}>
+                {selectedUser.avatar}
+              </div>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', margin: '4px 0 0' }}>{selectedUser.name}</h3>
+              <span style={{ fontSize: '12px', color: '#8f94a5' }}>{selectedUser.email}</span>
+            </div>
+
+            {/* Stats */}
+            <div style={{ background: 'rgba(0, 0, 0, 0.2)', width: '100%', padding: '14px', borderRadius: '10px', display: 'flex', justifyContent: 'space-around', fontSize: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ color: '#8f94a5' }}>Categoría</div>
+                <div style={{ color: '#fff', fontWeight: 700, marginTop: '2px' }}>Anunciante</div>
+              </div>
+              <div style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.08)' }} />
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ color: '#8f94a5' }}>Campaña Activa</div>
+                <div style={{ color: '#f59e0b', fontWeight: 700, marginTop: '2px' }}>{selectedUser.adTitle.slice(0,18)}...</div>
+              </div>
+            </div>
+
+            {/* Direct message button */}
+            <button
+              onClick={() => {
+                setSelectedUser(null);
+                onMessageUser(selectedUser.name, selectedUser.email);
+              }}
+              style={{
+                width: '100%',
+                padding: '12px 14px',
+                background: '#3b82f6',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.2)'
+              }}
+            >
+              <MessageSquare size={14} /> Mensajear Anunciante
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
