@@ -450,11 +450,19 @@ const DEFAULT_CHATS = [
   ]},
   { id: 'c-user-ale', name: 'Alejandro Zentavra', role: 'user', avatar: 'AZ', starred: false, lastMsg: '¿El desvío de la línea 60 ya está cargado?', history: [
     { id: 'm3', sender: 'user', text: 'Hola, ¿dónde puedo ver las paradas de la Línea 37?', timestamp: 'Ayer' },
-    { id: 'm4', sender: 'admin', text: 'Hola Sofía, puedes ver las paradas seleccionando la Línea 37 en la pestaña de Colectivos.', timestamp: 'Ayer' }
+    { id: 'm4', sender: 'admin', text: 'Hola Alejandro, podés ver las paradas de la Línea 37 en la pestaña de Colectivos.', timestamp: 'Ayer' },
+    { id: 'm4b', sender: 'user', text: '¿El desvío de la línea 60 ya está cargado?', timestamp: 'Hace 2 horas' }
   ]},
   { id: 'c-admin-60', name: 'Admin Línea 60 (Carlos)', role: 'lineadmin', avatar: 'L60', starred: true, lastMsg: 'Coche 304 ya está en línea.', history: [
     { id: 'm5', sender: 'user', text: 'Carlos, ¿las unidades 302 y 304 tienen el nuevo QR?', timestamp: 'Ayer' },
     { id: 'm6', sender: 'admin', text: 'Coche 304 ya está en línea.', timestamp: 'Ayer' }
+  ]},
+  { id: 'c-adv-cola', name: 'Coca Cola Ads', role: 'advertiser', avatar: 'CC', starred: false, lastMsg: '¿Cuándo se activa la campaña de Coca Cola?', history: [
+    { id: 'm7', sender: 'user', text: 'Hola superadmin, queríamos consultar cuándo se activa la campaña de Coca Cola en Plaza Italia.', timestamp: '11:05' }
+  ]},
+  { id: 'm-adv-mostaza', name: 'Mostaza Premium', role: 'advertiser', avatar: 'MP', starred: false, lastMsg: 'Hola, enviamos el presupuesto ajustado.', history: [
+    { id: 'm8', sender: 'admin', text: 'Hola, recibimos su solicitud de campaña para Línea 37.', timestamp: '11:00' },
+    { id: 'm9', sender: 'user', text: 'Hola, enviamos el presupuesto ajustado.', timestamp: '11:02' }
   ]}
 ]
 
@@ -2831,21 +2839,92 @@ function ChatTab({
   onAddChat, showAddChatModal, setShowAddChatModal, newChatName,
   setNewChatName, newChatRole, setNewChatRole
 }: any) {
+  const [subTab, setSubTab] = useState<'users' | 'lineadmins' | 'advertisers'>('users')
   const currentChat = chats.find((c: any) => c.id === selectedChatId) || chats[0]
 
-  const filteredChats = chats.filter((c: any) =>
-    c.name.toLowerCase().includes(chatSearch.toLowerCase())
-  ).sort((a: any, b: any) => (b.starred ? 1 : 0) - (a.starred ? 1 : 0))
+  // Filter chats by search query and subTab role
+  const filteredChats = chats.filter((c: any) => {
+    const matchesSearch = c.name.toLowerCase().includes(chatSearch.toLowerCase())
+    if (!matchesSearch) return false
+    
+    if (subTab === 'users') return c.role === 'user'
+    if (subTab === 'lineadmins') return c.role === 'lineadmin'
+    if (subTab === 'advertisers') return c.role === 'advertiser'
+    return true
+  }).sort((a: any, b: any) => (b.starred ? 1 : 0) - (a.starred ? 1 : 0))
+
+  // Find conversations "left on read" (where the last message was from the user, not from admin)
+  const leftOnReadChats = chats.filter((c: any) => {
+    if (!c.history || c.history.length === 0) return false
+    const lastMsg = c.history[c.history.length - 1]
+    return lastMsg.sender === 'user' // last message is from customer, needs reply
+  })
 
   return (
-    <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', display: 'flex', height: '560px', overflow: 'hidden' }}>
-      {/* Search and chat list sidebar */}
-      <div style={{ width: '280px', borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.15)' }}>
+    <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', display: 'flex', height: '580px', overflow: 'hidden' }}>
+      {/* 1. Search and chat list sidebar */}
+      <div style={{ width: '290px', borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.15)' }}>
         <div style={{ padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '14px', fontWeight: 700 }}>Canal de Soporte</span>
-            <button onClick={() => setShowAddChatModal(true)} style={{ background: '#10B981', border: 'none', color: '#fff', borderRadius: '4px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>+</button>
+            <button onClick={() => setShowAddChatModal(true)} style={{ background: '#10B981', border: 'none', color: '#fff', borderRadius: '4px', width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontWeight: 'bold' }}>+</button>
           </div>
+
+          {/* Sub-tabs selector for chat categories */}
+          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.03)', padding: '2px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+            <button
+              onClick={() => setSubTab('users')}
+              style={{
+                flex: 1,
+                padding: '6px 0',
+                background: subTab === 'users' ? '#3b82f6' : 'transparent',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '10px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 150ms'
+              }}
+            >
+              Usuarios
+            </button>
+            <button
+              onClick={() => setSubTab('lineadmins')}
+              style={{
+                flex: 1,
+                padding: '6px 0',
+                background: subTab === 'lineadmins' ? '#ef4444' : 'transparent',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '10px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 150ms'
+              }}
+            >
+              Líneas
+            </button>
+            <button
+              onClick={() => setSubTab('advertisers')}
+              style={{
+                flex: 1,
+                padding: '6px 0',
+                background: subTab === 'advertisers' ? '#f59e0b' : 'transparent',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '4px',
+                fontSize: '10px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 150ms'
+              }}
+            >
+              Publicidad
+            </button>
+          </div>
+
           <input
             type="text"
             placeholder="Buscar conversación..."
@@ -2862,62 +2941,125 @@ function ChatTab({
             }}
           />
         </div>
+
+        {/* Chat list items */}
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-          {filteredChats.map((c: any) => {
-            const active = c.id === selectedChatId
-            return (
-              <div
-                key={c.id}
-                onClick={() => onSelectChat(c.id)}
-                style={{
-                  padding: '12px 16px',
-                  borderBottom: '1px solid rgba(255,255,255,0.03)',
-                  cursor: 'pointer',
-                  background: active ? 'rgba(255,255,255,0.04)' : 'transparent',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  transition: 'background 200ms'
-                }}
-              >
-                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: c.role === 'lineadmin' ? '#ef4444' : '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '12px' }}>
-                  {c.avatar}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
-                    <button onClick={(e) => { e.stopPropagation(); onToggleStar(c.id) }} style={{ background: 'none', border: 'none', color: c.starred ? '#eab308' : '#8f94a5', cursor: 'pointer' }}>
-                      <Star size={11} fill={c.starred ? '#eab308' : 'none'} />
-                    </button>
+          {filteredChats.length > 0 ? (
+            filteredChats.map((c: any) => {
+              const active = c.id === selectedChatId
+              const lastMsgIsFromUser = c.history && c.history[c.history.length - 1]?.sender === 'user'
+              const themeColor = c.role === 'lineadmin' ? '#ef4444' : c.role === 'advertiser' ? '#f59e0b' : '#10B981'
+              
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => onSelectChat(c.id)}
+                  style={{
+                    padding: '12px 16px',
+                    borderBottom: '1px solid rgba(255,255,255,0.03)',
+                    cursor: 'pointer',
+                    background: active ? 'rgba(255,255,255,0.04)' : 'transparent',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    position: 'relative',
+                    transition: 'background 200ms'
+                  }}
+                >
+                  <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: themeColor, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '12px', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }}>
+                    {c.avatar}
                   </div>
-                  <div style={{ fontSize: '11px', color: '#8f94a5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px' }}>{c.lastMsg}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                      <button onClick={(e) => { e.stopPropagation(); onToggleStar(c.id) }} style={{ background: 'none', border: 'none', color: c.starred ? '#eab308' : '#8f94a5', cursor: 'pointer' }}>
+                        <Star size={11} fill={c.starred ? '#eab308' : 'none'} />
+                      </button>
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#8f94a5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px' }}>{c.lastMsg}</div>
+                  </div>
+                  
+                  {/* Left on Read Unanswered Indicator Badge */}
+                  {lastMsgIsFromUser && (
+                    <span style={{
+                      position: 'absolute',
+                      right: '12px',
+                      bottom: '8px',
+                      background: '#ef4444',
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      boxShadow: '0 0 8px #ef4444'
+                    }} />
+                  )}
+
+                  <button onClick={(e) => { e.stopPropagation(); onDeleteChat(c.id) }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', opacity: 0.6 }} onMouseEnter={e => e.currentTarget.style.opacity = '1'} onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}>
+                    <Trash2 size={12} />
+                  </button>
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); onDeleteChat(c.id) }} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', opacity: 0.6 }} onMouseEnter={e => e.currentTarget.style.opacity = '1'} onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}>
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            )
-          })}
+              )
+            })
+          ) : (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#8f94a5', fontSize: '12px' }}>No hay chats en esta sección.</div>
+          )}
         </div>
       </div>
 
-      {/* Main chat window */}
+      {/* 2. Main chat window */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {currentChat ? (
           <>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <span style={{ fontSize: '14px', fontWeight: 700 }}>{currentChat.name}</span>
-                <span style={{ fontSize: '10px', background: currentChat.role === 'lineadmin' ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)', color: currentChat.role === 'lineadmin' ? '#ef4444' : '#10B981', padding: '2px 6px', borderRadius: '4px', marginLeft: '8px', fontWeight: 600 }}>{currentChat.role === 'lineadmin' ? 'ADMIN LÍNEA' : 'PASAJERO'}</span>
+                <span style={{
+                  fontSize: '10px',
+                  background: currentChat.role === 'lineadmin' ? 'rgba(239,68,68,0.15)' : currentChat.role === 'advertiser' ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)',
+                  color: currentChat.role === 'lineadmin' ? '#ef4444' : currentChat.role === 'advertiser' ? '#f59e0b' : '#10B981',
+                  padding: '2px 6px',
+                  borderRadius: '4px',
+                  marginLeft: '8px',
+                  fontWeight: 600
+                }}>
+                  {currentChat.role === 'lineadmin' ? 'ADMIN LÍNEA' : currentChat.role === 'advertiser' ? 'ANUNCIANTE' : 'PASAJERO'}
+                </span>
               </div>
             </div>
+            
+            {/* Messages body list */}
             <div style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {currentChat.history.map((msg: any) => {
                 const isAdmin = msg.sender === 'admin'
                 return (
-                  <div key={msg.id} style={{ alignSelf: isAdmin ? 'flex-end' : 'flex-start', maxWidth: '70%', background: isAdmin ? '#10B981' : 'rgba(255,255,255,0.04)', borderRadius: '12px', padding: '10px 14px' }}>
+                  <div
+                    key={msg.id}
+                    style={{
+                      alignSelf: isAdmin ? 'flex-end' : 'flex-start',
+                      maxWidth: '70%',
+                      background: isAdmin ? '#10B981' : 'rgba(255,255,255,0.04)',
+                      borderRadius: '12px',
+                      padding: '10px 14px',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                      border: isAdmin ? 'none' : '1px solid rgba(255,255,255,0.04)'
+                    }}
+                  >
                     <div style={{ fontSize: '12px', color: '#fff', lineHeight: 1.4 }}>{msg.text}</div>
-                    <span style={{ display: 'block', fontSize: '9px', color: 'rgba(255,255,255,0.4)', marginTop: '4px', textAlign: 'right' }}>{msg.timestamp}</span>
+                    
+                    {/* Timestamp and check marks indicators */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px', marginTop: '4px' }}>
+                      <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)' }}>{msg.timestamp}</span>
+                      
+                      {/* Double Blue Ticks / Read receipt */}
+                      <span style={{
+                        color: '#60a5fa',
+                        fontSize: '11px',
+                        fontWeight: 'bold',
+                        lineHeight: 1,
+                        letterSpacing: '-0.05em'
+                      }}>
+                        ✓✓
+                      </span>
+                    </div>
                   </div>
                 )
               })}
@@ -2938,6 +3080,51 @@ function ChatTab({
         )}
       </div>
 
+      {/* 3. Right Sidebar: Pending Responses / Left on Read Reminders */}
+      <div style={{ width: '220px', borderLeft: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <h4 style={{ fontSize: '12px', fontWeight: 700, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+            ⚠️ Sin Responder
+          </h4>
+          <span style={{ fontSize: '9px', color: '#8f94a5', display: 'block', marginTop: '2px' }}>Conversaciones "Left on Read"</span>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {leftOnReadChats.length > 0 ? (
+            leftOnReadChats.map((c: any) => {
+              const themeColor = c.role === 'lineadmin' ? '#ef4444' : c.role === 'advertiser' ? '#f59e0b' : '#10B981'
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => onSelectChat(c.id)}
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.05)',
+                    border: '1px solid rgba(239, 68, 68, 0.15)',
+                    borderRadius: '8px',
+                    padding: '10px',
+                    cursor: 'pointer',
+                    transition: 'all 150ms'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#fff' }}>{c.name}</span>
+                    <span style={{ fontSize: '8px', color: themeColor, fontWeight: 700 }}>{c.role.toUpperCase()}</span>
+                  </div>
+                  <div style={{ fontSize: '10px', color: '#8f94a5', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '4px' }}>
+                    {c.lastMsg}
+                  </div>
+                </div>
+              )
+            })
+          ) : (
+            <div style={{ padding: '20px 10px', textAlign: 'center', color: '#8f94a5', fontSize: '10px' }}>
+              🎉 ¡Al día! No hay chats pendientes de respuesta.
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Add support chat modal */}
       {showAddChatModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
@@ -2952,6 +3139,7 @@ function ChatTab({
               <select value={newChatRole} onChange={e => setNewChatRole(e.target.value as any)} style={{ width: '100%', background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', color: '#fff', outline: 'none' }}>
                 <option value="user">Pasajero / Usuario</option>
                 <option value="lineadmin">Administrador de Línea</option>
+                <option value="advertiser">Anunciante / Publicidad</option>
               </select>
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
