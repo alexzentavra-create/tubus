@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Bus, Users, Building2, Activity, TrendingUp, AlertTriangle,
@@ -630,6 +630,49 @@ export default function SuperAdminDashboard() {
     setTab('chat')
     setActiveDetail(null)
     toast.success('Chat abierto y enlace generado')
+  }
+
+  const handleSendMessageToAdmin = (adminName: string, adminEmail: string, lineName: string) => {
+    const initMsg = `Hola ${adminName}, soy el Super Administrador. Me comunico con vos para coordinar temas operativos sobre el recorrido de la ${lineName}.`
+    const existingChat = chats.find(c => c.name.toLowerCase().includes(adminName.toLowerCase()) || c.name.toLowerCase().includes(lineName.toLowerCase()))
+    let targetChatId = ''
+
+    if (existingChat) {
+      targetChatId = existingChat.id
+      const updatedChats = chats.map(c => {
+        if (c.id === targetChatId) {
+          return {
+            ...c,
+            lastMsg: initMsg,
+            history: [
+              ...c.history,
+              { id: `m-${Date.now()}`, sender: 'admin', text: initMsg, timestamp: 'Ahora' }
+            ]
+          }
+        }
+        return c
+      })
+      saveChats(updatedChats)
+    } else {
+      const newId = `c-admin-${Date.now()}`
+      targetChatId = newId
+      const newChat = {
+        id: newId,
+        name: `${adminName} (${lineName})`,
+        role: 'lineadmin',
+        avatar: lineName.includes('Turístico') ? 'BT' : lineName.replace('Línea ', 'L'),
+        starred: false,
+        lastMsg: initMsg,
+        history: [
+          { id: `m-${Date.now()}`, sender: 'admin', text: initMsg, timestamp: 'Ahora' }
+        ]
+      }
+      saveChats([...chats, newChat])
+    }
+
+    setSelectedChatId(targetChatId)
+    setTab('chat')
+    toast.success('Chat de soporte con el administrador abierto')
   }
 
   const renderUsersDetail = () => {
@@ -1437,7 +1480,7 @@ export default function SuperAdminDashboard() {
       )}
 
         {/* 1. LineMapsTab */}
-        {tab === 'linemaps' && <LineMapsTab />}
+        {tab === 'linemaps' && <LineMapsTab onMessageAdmin={handleSendMessageToAdmin} />}
 
         {/* 2. Drivers and QR Code Directory */}
         {tab === 'drivers' && <DriversTab />}
@@ -1607,27 +1650,99 @@ export default function SuperAdminDashboard() {
 }
 
 // ─── Map grid component for 7 maps ──────────────────────────────────────────
-function LineMapsTab() {
-  const activeLines = MOCK_LINES.filter(l => !l.is_tourist).slice(0, 7)
+// ─── Map constants and data definitions ──────────────────────────────────────
+const LINE_RAMALES: Record<string, { id: string, name: string, description: string, pathShift: number }[]> = {
+  'line-1': [
+    { id: 'l1-a', name: 'Ramal A (Villa Urquiza)', description: 'Por Av. Santa Fe y Las Heras', pathShift: 0 },
+    { id: 'l1-b', name: 'Ramal B (Pueyrredón)', description: 'Por Av. Córdoba y Las Heras (Alternativo)', pathShift: 1 },
+  ],
+  'line-28': [
+    { id: 'l28-a', name: 'Ramal A (General Paz)', description: 'Por Autopista General Paz directo', pathShift: 0 },
+    { id: 'l28-b', name: 'Ramal B (Liniers)', description: 'Por Av. General Paz colectores laterales', pathShift: 2 },
+  ],
+  'line-3': [
+    { id: 'l3-a', name: 'Ramal A (Costanera)', description: 'Por Av. Costanera y Libertador', pathShift: 0 },
+    { id: 'l3-b', name: 'Ramal B (Callao)', description: 'Por Av. Las Heras y Callao', pathShift: 3 },
+  ],
+  'line-39': [
+    { id: 'l39-a', name: 'Ramal 1 (Santa Fe)', description: 'Por Av. Corrientes y Santa Fe', pathShift: 0 },
+    { id: 'l39-b', name: 'Ramal 2 (Palermo)', description: 'Por Colegiales y Palermo Chico', pathShift: 4 },
+  ],
+  'line-59': [
+    { id: 'l59-a', name: 'Ramal 1 (Metrobús)', description: 'Por Metrobús Cabildo y Av. Maipú', pathShift: 0 },
+    { id: 'l59-b', name: 'Ramal 2 (Libertador)', description: 'Por Av. del Libertador y San Martín', pathShift: 5 },
+  ],
+  'line-60': [
+    { id: 'l60-a', name: 'Ramal Panamericana', description: 'Por Panamericana y Acceso Norte', pathShift: 0 },
+    { id: 'l60-b', name: 'Ramal Maipú', description: 'Por Av. Maipú y Centenario', pathShift: 6 },
+  ],
+  'line-102': [
+    { id: 'l102-a', name: 'Ramal A (Soho)', description: 'Por Palermo Soho y Las Heras', pathShift: 0 },
+    { id: 'l102-b', name: 'Ramal B (Recoleta)', description: 'Por Recoleta y Plaza de Mayo', pathShift: 7 },
+  ],
+  'line-152': [
+    { id: 'l152-a', name: 'Ramal A (Olivos)', description: 'Por Metrobús Cabildo y Av. Maipú', pathShift: 0 },
+    { id: 'l152-b', name: 'Ramal B (Puerto Madero)', description: 'Por Av. del Libertador y Puerto Madero', pathShift: 8 },
+  ],
+  'line-tourist-yellow': [
+    { id: 'lty-a', name: 'Circuito Histórico', description: 'Plaza de Mayo, San Telmo, La Boca', pathShift: 0 },
+    { id: 'lty-b', name: 'Circuito Costanera', description: 'Palermo Woods, Recoleta, Costanera', pathShift: 9 },
+  ],
+  'line-tourist-red': [
+    { id: 'ltr-a', name: 'Circuito Sur', description: 'Puerto Madero, Caminito, Plaza Dorrego', pathShift: 0 },
+    { id: 'ltr-b', name: 'Circuito Norte', description: 'Aeroparque, Planetario, Recoleta', pathShift: 10 },
+  ],
+}
+
+const LINE_ADMINS: Record<string, { name: string, email: string }> = {
+  'line-1': { name: 'Néstor García', email: 'nestor.garcia@callao.com.ar' },
+  'line-28': { name: 'Carlos DOTA', email: 'carlos.dota@dota.com.ar' },
+  'line-3': { name: 'Sofía L37', email: 'sofia.l37@cuatrosept.com.ar' },
+  'line-39': { name: 'Ricardo L39', email: 'ricardo.l39@santafe.com.ar' },
+  'line-59': { name: 'Valeria L59', email: 'valeria.l59@mic59.com.ar' },
+  'line-60': { name: 'Daniel Monsa', email: 'daniel.monsa@monsa.com.ar' },
+  'line-102': { name: 'Martín Sargento', email: 'martin@sargentocabral.com.ar' },
+  'line-152': { name: 'Tandilense Admin', email: 'admin@tandilense152.com.ar' },
+  'line-tourist-yellow': { name: 'Turismo Amarillo', email: 'admin@ba-citytour.com.ar' },
+  'line-tourist-red': { name: 'Gray Line Admin', email: 'admin@grayline.com.ar' },
+}
+
+// ─── Map grid component for all active and tourist lines ────────────────────
+function LineMapsTab({ onMessageAdmin }: { onMessageAdmin: (adminName: string, adminEmail: string, lineName: string) => void }) {
+  const activeLines = MOCK_LINES
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div>
         <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Mapas de Trayectorias en Tiempo Real</h3>
-        <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Monitoreo independiente de trayectos y unidades móviles de colectivos para cada una de las 7 líneas principales</p>
+        <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Monitoreo independiente de trayectos y unidades móviles en tiempo real para todas las líneas principales y turísticas</p>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
         {activeLines.map(line => (
-          <SingleLineMap key={line.id} line={line} />
+          <SingleLineMap key={line.id} line={line} onMessageAdmin={onMessageAdmin} />
         ))}
       </div>
     </div>
   )
 }
 
-function SingleLineMap({ line }: { line: any }) {
-  const path = getMockRoutePathForLine(line) || []
+function SingleLineMap({ line, onMessageAdmin }: { line: any, onMessageAdmin: (adminName: string, adminEmail: string, lineName: string) => void }) {
+  const ramales = LINE_RAMALES[line.id] || []
+  const [selectedRamalId, setSelectedRamalId] = useState(ramales[0]?.id || '')
+  const activeRamal = ramales.find(r => r.id === selectedRamalId) || ramales[0]
+
+  const basePath = getMockRoutePathForLine(line) || []
+  const path = useMemo(() => {
+    const shift = activeRamal ? activeRamal.pathShift : 0
+    if (shift === 0) return basePath
+    return basePath.map((p, idx) => ({
+      lat: p.lat + 0.0012 * Math.sin(idx / 1.5 + shift),
+      lng: p.lng + 0.0012 * Math.cos(idx / 1.5 + shift)
+    }))
+  }, [basePath, activeRamal])
+
   const [time, setTime] = useState(Date.now())
+  const [showDetailModal, setShowDetailModal] = useState(false)
 
   useEffect(() => {
     const timer = setInterval(() => setTime(Date.now()), 1000)
@@ -1637,15 +1752,26 @@ function SingleLineMap({ line }: { line: any }) {
   const [viewport, setViewport] = useState({
     latitude: path[0]?.lat || -34.6037,
     longitude: path[0]?.lng || -58.3816,
-    zoom: 11.5
+    zoom: 11.2
   })
+
+  // Recenter viewport when path changes due to ramal selection
+  useEffect(() => {
+    if (path[0]) {
+      setViewport(prev => ({
+        ...prev,
+        latitude: path[0].lat,
+        longitude: path[0].lng
+      }))
+    }
+  }, [path])
 
   const pathLen = path.length
   if (pathLen < 2) return null
 
   // Calculate simulated bus coordinates along the path line
-  const busIndex1 = Math.floor((time / 1500) % pathLen)
-  const busIndex2 = Math.floor((time / 1500 + pathLen / 2) % pathLen)
+  const busIndex1 = Math.floor((time / 1400) % pathLen)
+  const busIndex2 = Math.floor((time / 1400 + pathLen / 2.5) % pathLen)
   const bus1 = path[busIndex1]
   const bus2 = path[busIndex2]
 
@@ -1658,6 +1784,9 @@ function SingleLineMap({ line }: { line: any }) {
     }
   }
 
+  const adminInCharge = LINE_ADMINS[line.id] || { name: 'Operaciones Gral', email: 'ops@tubus.com.ar' }
+  const lineStopsList = getMockStopsForLine(line, 'ida')
+
   return (
     <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1668,6 +1797,7 @@ function SingleLineMap({ line }: { line: any }) {
         <span style={{ fontSize: '10px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{line.company}</span>
       </div>
 
+      {/* Map rendering */}
       <div style={{ height: '200px', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
         <Map
           {...viewport}
@@ -1675,9 +1805,9 @@ function SingleLineMap({ line }: { line: any }) {
           mapStyle={CARTODB_DARK as any}
           attributionControl={false}
         >
-          <Source id={`route-${line.id}`} type="geojson" data={geojson}>
+          <Source id={`route-${line.id}-${activeRamal?.id || 'def'}`} type="geojson" data={geojson}>
             <Layer
-              id={`route-line-${line.id}`}
+              id={`route-line-${line.id}-${activeRamal?.id || 'def'}`}
               type="line"
               paint={{
                 'line-color': line.color,
@@ -1701,10 +1831,180 @@ function SingleLineMap({ line }: { line: any }) {
         </Map>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#8f94a5', fontFamily: 'DM Mono' }}>
+      {/* Ramales selector buttons */}
+      {ramales.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <span style={{ fontSize: '9px', color: '#8f94a5', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ramales Disponibles:</span>
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+            {ramales.map(r => {
+              const isSel = r.id === selectedRamalId
+              return (
+                <button
+                  key={r.id}
+                  onClick={() => setSelectedRamalId(r.id)}
+                  style={{
+                    padding: '6px 10px',
+                    background: isSel ? line.color : 'rgba(255,255,255,0.04)',
+                    color: '#fff',
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    borderRadius: '6px',
+                    fontSize: '10px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 150ms'
+                  }}
+                >
+                  {r.name.replace(/Ramal\s+/, '')}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#8f94a5', fontFamily: 'DM Mono', marginTop: '4px' }}>
         <span>2 Colectivos Activos</span>
-        <span>Velocidad promedio: 22 km/h</span>
+        <span>Velocidad: 22 km/h</span>
       </div>
+
+      <button
+        onClick={() => setShowDetailModal(true)}
+        style={{
+          width: '100%',
+          padding: '8px 12px',
+          background: 'rgba(255,255,255,0.05)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: '8px',
+          color: '#fff',
+          fontSize: '11px',
+          fontWeight: 600,
+          cursor: 'pointer',
+          textAlign: 'center',
+          transition: 'all 200ms'
+        }}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+      >
+        Ver Detalles y Paradas
+      </button>
+
+      {/* Line detail Modal overlay */}
+      {showDetailModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(5, 8, 16, 0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: '650px',
+            background: '#121527',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '16px',
+            display: 'flex',
+            flexDirection: 'column',
+            maxHeight: '85vh',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+            overflow: 'hidden'
+          }}>
+            {/* Header */}
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255, 255, 255, 0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: line.color }} />
+                <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#fff' }}>{line.name}</h3>
+              </div>
+              <button
+                onClick={() => setShowDetailModal(false)}
+                style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Operator and Admin Block */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', padding: '16px', borderRadius: '10px' }}>
+                <div>
+                  <div style={{ fontSize: '11px', color: '#8f94a5', textTransform: 'uppercase' }}>Operador & Responsable</div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff', marginTop: '4px' }}>{adminInCharge.name}</div>
+                  <div style={{ fontSize: '11px', color: '#8f94a5', marginTop: '2px' }}>{adminInCharge.email}</div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowDetailModal(false);
+                    onMessageAdmin(adminInCharge.name, adminInCharge.email, line.name);
+                  }}
+                  style={{
+                    padding: '8px 14px',
+                    background: 'rgba(59,130,246,0.12)',
+                    border: '1px solid rgba(59,130,246,0.25)',
+                    borderRadius: '8px',
+                    color: '#3b82f6',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 150ms'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.2)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'rgba(59,130,246,0.12)'}
+                >
+                  <MessageSquare size={13} /> Mensajear Admin
+                </button>
+              </div>
+
+              {/* Real-time stats grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+                <div style={{ background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '9px', color: '#8f94a5' }}>Colectivos</div>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#10B981', marginTop: '4px' }}>2 activos</div>
+                </div>
+                <div style={{ background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '9px', color: '#8f94a5' }}>Pasajeros</div>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#8B5CF6', marginTop: '4px' }}>240 en viaje</div>
+                </div>
+                <div style={{ background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '9px', color: '#8f94a5' }}>Velocidad</div>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#3b82f6', marginTop: '4px' }}>22 km/h</div>
+                </div>
+                <div style={{ background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '9px', color: '#8f94a5' }}>Paradas</div>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#F59E0B', marginTop: '4px' }}>{lineStopsList.length} total</div>
+                </div>
+              </div>
+
+              {/* Stop Timeline */}
+              <div>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff', display: 'block', marginBottom: '10px' }}>Paradas y Recorrido de Ida</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '10px', padding: '14px', maxHeight: '250px', overflowY: 'auto' }}>
+                  {lineStopsList.map((stop, idx) => (
+                    <div key={stop.id} style={{ display: 'flex', gap: '12px', alignItems: 'center', fontSize: '11px', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '6px' }}>
+                      <span style={{ fontFamily: 'DM Mono', color: line.color, fontWeight: 700, width: '18px' }}>{idx + 1}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, color: '#fff' }}>{stop.name}</div>
+                        <div style={{ fontSize: '9px', color: '#8f94a5', marginTop: '1px' }}>{stop.street_name}</div>
+                      </div>
+                      <span style={{ fontSize: '9px', background: 'rgba(255,255,255,0.05)', color: '#8f94a5', padding: '2px 6px', borderRadius: '4px' }}>Espere: {stop.avg_wait_minutes} min</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
