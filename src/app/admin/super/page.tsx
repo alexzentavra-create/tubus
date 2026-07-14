@@ -2012,6 +2012,7 @@ function SingleLineMap({ line, onMessageAdmin }: { line: any, onMessageAdmin: (a
 // ─── Drivers credentials and QR view component ──────────────────────────────
 function DriversTab() {
   const [showPasswordMap, setShowPasswordMap] = useState<Record<string, boolean>>({})
+  const [selectedQr, setSelectedQr] = useState<any | null>(null)
 
   const togglePasswordVisibility = (driverName: string) => {
     setShowPasswordMap(prev => ({
@@ -2101,20 +2102,226 @@ function DriversTab() {
       <div style={{ marginTop: '12px' }}>
         <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '12px' }}>Directorio de Códigos QR Activos</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-          {allDrivers.map((d, idx) => (
-            <div key={idx} style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>Unidad {d.unit}</span>
-                <span style={{ fontSize: '9px', background: 'rgba(59,130,246,0.15)', color: '#3b82f6', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>{d.line}</span>
+          {allDrivers.map((d, idx) => {
+            const lineObj = MOCK_LINES.find(l => l.name.toLowerCase().includes(d.line.toLowerCase()))
+            const lineColor = lineObj ? lineObj.color : '#3B82F6'
+            return (
+              <div
+                key={idx}
+                onClick={() => setSelectedQr(d)}
+                style={{
+                  background: '#121527',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                  borderTop: `3px solid ${lineColor}`,
+                  borderRadius: '12px',
+                  padding: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  transition: 'all 200ms'
+                }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'none' }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>Unidad {d.unit}</span>
+                  <span style={{
+                    fontSize: '9px',
+                    background: `${lineColor}1A`,
+                    color: lineColor,
+                    border: `1px solid ${lineColor}33`,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    fontWeight: 600
+                  }}>
+                    {d.line}
+                  </span>
+                </div>
+                <div style={{ fontSize: '11px', color: '#8f94a5' }}>Chofer: <strong style={{ color: '#fff' }}>{d.name}</strong></div>
+                <div style={{
+                  fontSize: '10px',
+                  background: 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${lineColor}26`,
+                  padding: '6px 8px',
+                  borderRadius: '6px',
+                  fontFamily: 'DM Mono',
+                  color: lineColor,
+                  wordBreak: 'break-all',
+                  textAlign: 'center',
+                  marginTop: '4px',
+                  fontWeight: 600
+                }}>
+                  DEMO-QR-L{d.unit.slice(0, 2)}-{d.unit.slice(2)}
+                </div>
               </div>
-              <div style={{ fontSize: '11px', color: '#8f94a5' }}>Chofer: <strong style={{ color: '#fff' }}>{d.name}</strong></div>
-              <div style={{ fontSize: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: '6px 8px', borderRadius: '6px', fontFamily: 'DM Mono', color: '#3b82f6', wordBreak: 'break-all', textAlign: 'center', marginTop: '4px' }}>
-                DEMO-QR-L{d.unit.slice(0,2)}-{d.unit.slice(2)}
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
+
+      {/* Interactive QR Code Modal Preview */}
+      {selectedQr && (() => {
+        const lineObj = MOCK_LINES.find(l => l.name.toLowerCase().includes(selectedQr.line.toLowerCase()))
+        const lineColor = lineObj ? lineObj.color : '#3B82F6'
+        return (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(5, 8, 16, 0.85)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}>
+            <div style={{
+              width: '100%',
+              maxWidth: '360px',
+              background: '#121527',
+              border: `1px solid ${lineColor}40`,
+              borderTop: `4px solid ${lineColor}`,
+              borderRadius: '16px',
+              padding: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '16px',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)'
+            }}>
+              {/* Title */}
+              <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#fff' }}>Código QR de Unidad</h4>
+                <button
+                  onClick={() => setSelectedQr(null)}
+                  style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* QR Vector SVG */}
+              <div style={{
+                background: '#fff',
+                padding: '16px',
+                borderRadius: '12px',
+                boxShadow: '0 10px 20px rgba(0,0,0,0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <svg width="180" height="180" viewBox="0 0 29 29">
+                  <rect x="0" y="0" width="7" height="7" fill={lineColor}/>
+                  <rect x="1" y="1" width="5" height="5" fill="#fff"/>
+                  <rect x="2" y="2" width="3" height="3" fill={lineColor}/>
+                  
+                  <rect x="22" y="0" width="7" height="7" fill={lineColor}/>
+                  <rect x="23" y="1" width="5" height="5" fill="#fff"/>
+                  <rect x="24" y="2" width="3" height="3" fill={lineColor}/>
+                  
+                  <rect x="0" y="22" width="7" height="7" fill={lineColor}/>
+                  <rect x="1" y="23" width="5" height="5" fill="#fff"/>
+                  <rect x="2" y="24" width="3" height="3" fill={lineColor}/>
+                  
+                  <rect x="18" y="18" width="5" height="5" fill={lineColor}/>
+                  <rect x="19" y="19" width="3" height="3" fill="#fff"/>
+                  <rect x="20" y="20" width="1" height="1" fill={lineColor}/>
+                  
+                  <rect x="8" y="2" width="2" height="1" fill={lineColor}/>
+                  <rect x="12" y="1" width="1" height="3" fill={lineColor}/>
+                  <rect x="16" y="3" width="3" height="2" fill={lineColor}/>
+                  <rect x="10" y="6" width="4" height="1" fill={lineColor}/>
+                  
+                  <rect x="2" y="10" width="1" height="4" fill={lineColor}/>
+                  <rect x="6" y="8" width="3" height="2" fill={lineColor}/>
+                  <rect x="11" y="10" width="2" height="2" fill={lineColor}/>
+                  <rect x="15" y="9" width="1" height="4" fill={lineColor}/>
+                  <rect x="18" y="12" width="3" height="1" fill={lineColor}/>
+                  <rect x="22" y="10" width="4" height="2" fill={lineColor}/>
+                  
+                  <rect x="9" y="15" width="2" height="3" fill={lineColor}/>
+                  <rect x="14" y="16" width="3" height="1" fill={lineColor}/>
+                  <rect x="19" y="15" width="1" height="3" fill={lineColor}/>
+                  <rect x="25" y="16" width="2" height="2" fill={lineColor}/>
+                  
+                  <rect x="10" y="22" width="3" height="2" fill={lineColor}/>
+                  <rect x="15" y="24" width="2" height="3" fill={lineColor}/>
+                  <rect x="18" y="26" width="4" height="1" fill={lineColor}/>
+                  <rect x="25" y="23" width="1" height="3" fill={lineColor}/>
+                </svg>
+              </div>
+
+              {/* Info & Code */}
+              <div style={{ textAlign: 'center', width: '100%' }}>
+                <div style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>Interno #{selectedQr.unit}</div>
+                <div style={{ fontSize: '12px', color: lineColor, fontWeight: 600, marginTop: '4px' }}>{selectedQr.line}</div>
+                <div style={{ fontSize: '11px', color: '#8f94a5', marginTop: '2px' }}>Chofer: {selectedQr.name}</div>
+                <div style={{
+                  fontSize: '11px',
+                  background: 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${lineColor}33`,
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  fontFamily: 'DM Mono',
+                  color: lineColor,
+                  marginTop: '12px',
+                  wordBreak: 'break-all',
+                  fontWeight: 600
+                }}>
+                  DEMO-QR-L{selectedQr.unit.slice(0, 2)}-{selectedQr.unit.slice(2)}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                <button
+                  onClick={() => {
+                    toast.success('Descargando archivo QR en formato PNG...');
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    background: lineColor,
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <Download size={14} /> Descargar
+                </button>
+                <button
+                  onClick={() => {
+                    window.print();
+                  }}
+                  style={{
+                    padding: '10px 14px',
+                    background: 'rgba(255,255,255,0.05)',
+                    color: '#fff',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  <Printer size={14} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
