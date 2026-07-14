@@ -4298,21 +4298,53 @@ function ProvinceMapTab({
   const currentCityData = (currentProvinceData && selectedCity) ? currentProvinceData.cities[selectedCity] : null
   const currentNeighborhoodData = (currentCityData && selectedNeighborhood) ? currentCityData.neighborhoods[selectedNeighborhood] : null
 
-  // Custom mock coords for levels 1 & 2
-  const mockCitiesList = selectedProvinceKey === 'buenos-aires' ? [
-    { key: 'caba', name: 'CABA', x: 130, y: 150 },
-    { key: 'la-plata', name: 'La Plata', x: 210, y: 220 }
-  ] : [
-    { key: 'cordoba-cap', name: 'Córdoba Capital', x: 150, y: 200 }
-  ]
+  // Custom mock coords for levels 1 & 2 using high-fidelity 800x1752 coordinates
+  const mockCitiesList = useMemo(() => {
+    if (selectedProvinceKey === 'buenos-aires') {
+      return [
+        { key: 'caba', name: 'CABA', x: 194, y: 221 },
+        { key: 'la-plata', name: 'La Plata', x: 202, y: 227 }
+      ]
+    } else if (selectedProvinceKey === 'cordoba') {
+      return [
+        { key: 'cordoba-cap', name: 'Córdoba Capital', x: 132, y: 176 }
+      ]
+    } else if (selectedProvinceKey === 'santa-fe') {
+      return [
+        { key: 'santa-fe-cap', name: 'Santa Fe Capital', x: 158, y: 162 }
+      ]
+    } else if (selectedProvinceKey === 'mendoza') {
+      return [
+        { key: 'mendoza-cap', name: 'Mendoza Capital', x: 98, y: 205 }
+      ]
+    }
+    return []
+  }, [selectedProvinceKey])
 
-  const mockNeighborhoodsList = selectedCity === 'caba' ? [
-    { key: 'palermo', name: 'Palermo', x: 100, y: 110, count: 14500 },
-    { key: 'recoleta', name: 'Recoleta', x: 180, y: 180, count: 9800 },
-    { key: 'belgrano', name: 'Belgrano', x: 70, y: 220, count: 11200 }
-  ] : [
-    { key: 'nueva-cordoba', name: 'Nueva Córdoba', x: 150, y: 180, count: 8500 }
-  ]
+  const mockNeighborhoodsList = useMemo(() => {
+    if (selectedCity === 'caba') {
+      return [
+        { key: 'palermo', name: 'Palermo', x: 100, y: 110, count: 14500 },
+        { key: 'recoleta', name: 'Recoleta', x: 180, y: 180, count: 9800 },
+        { key: 'belgrano', name: 'Belgrano', x: 70, y: 220, count: 11200 }
+      ]
+    } else if (selectedCity === 'cordoba-cap') {
+      return [
+        { key: 'nueva-cordoba', name: 'Nueva Córdoba', x: 150, y: 180, count: 8500 }
+      ]
+    } else if (selectedCity === 'santa-fe-cap') {
+      return [
+        { key: 'centro-sf', name: 'Centro', x: 150, y: 150, count: 6200 },
+        { key: 'barrio-sur-sf', name: 'Barrio Sur', x: 140, y: 220, count: 4100 }
+      ]
+    } else if (selectedCity === 'mendoza-cap') {
+      return [
+        { key: 'quinta-seccion', name: 'Quinta Sección', x: 120, y: 160, count: 5300 },
+        { key: 'bombal', name: 'Barrio Bombal', x: 160, y: 220, count: 3800 }
+      ]
+    }
+    return []
+  }, [selectedCity])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -4439,68 +4471,109 @@ function ProvinceMapTab({
               <div style={{ width: '100%', height: '420px', position: 'relative', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)', overflow: 'hidden' }}>
                 
                 {/* Cities radar visualization */}
-                <svg width="100%" height="100%" viewBox="0 0 300 350">
-                  {/* Grid background */}
-                  <defs>
-                    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
-                    </pattern>
-                  </defs>
-                  <rect width="100%" height="100%" fill="url(#grid)" />
+                {/* Cities radar visualization */}
+                {(() => {
+                  const PROVINCE_VIEWBOX: Record<string, string> = {
+                    'buenos-aires': '110 185 130 130',
+                    'cordoba': '100 140 60 85',
+                    'santa-fe': '130 85 50 130',
+                    'mendoza': '70 175 55 85'
+                  }
+                  const viewBox = PROVINCE_VIEWBOX[selectedProvinceKey] || "0 0 300 350"
+                  const provData = ARG_PROVINCES.find(p => p.id === selectedProvinceKey)
+                  
+                  // Scale properties based on province dimensions
+                  const getProvinceScale = (key: string) => {
+                    if (key === 'buenos-aires') {
+                      return { radiusOuter: 5, radiusInner: 2, pulseRadius: 9, strokeWidthOuter: 0.8, fontSize: 3.8, textOffsetY: 6, strokeWidthLine: 0.5 }
+                    }
+                    if (key === 'cordoba') {
+                      return { radiusOuter: 2.5, radiusInner: 1.0, pulseRadius: 4.5, strokeWidthOuter: 0.4, fontSize: 1.9, textOffsetY: 3.2, strokeWidthLine: 0.25 }
+                    }
+                    if (key === 'santa-fe') {
+                      return { radiusOuter: 2.2, radiusInner: 0.9, pulseRadius: 4.0, strokeWidthOuter: 0.35, fontSize: 1.6, textOffsetY: 2.8, strokeWidthLine: 0.2 }
+                    }
+                    // mendoza
+                    return { radiusOuter: 2.4, radiusInner: 1.0, pulseRadius: 4.2, strokeWidthOuter: 0.4, fontSize: 1.8, textOffsetY: 3.0, strokeWidthLine: 0.25 }
+                  }
+                  const scale = getProvinceScale(selectedProvinceKey)
 
-                  {/* Stylized background contour of the province */}
-                  {selectedProvinceKey === 'buenos-aires' && (
-                    <path
-                      d="M 60 40 C 120 40, 180 30, 200 45 C 220 60, 250 120, 260 160 C 270 200, 220 240, 230 260 C 240 280, 210 310, 180 320 C 150 330, 120 310, 100 290 C 80 270, 70 200, 60 150 C 50 100, 60 70, 80 40 Z"
-                      fill="rgba(37, 99, 235, 0.04)"
-                      stroke="rgba(37, 99, 235, 0.25)"
-                      strokeWidth="1.5"
-                      strokeDasharray="4,4"
-                    />
-                  )}
-                  {selectedProvinceKey === 'cordoba' && (
-                    <path
-                      d="M 80 60 C 130 50, 180 50, 200 65 C 210 120, 220 180, 210 240 C 180 260, 140 270, 110 260 C 90 220, 80 140, 80 60 Z"
-                      fill="rgba(37, 99, 235, 0.04)"
-                      stroke="rgba(37, 99, 235, 0.25)"
-                      strokeWidth="1.5"
-                      strokeDasharray="4,4"
-                    />
-                  )}
-                  {selectedProvinceKey === 'santa-fe' && (
-                    <path
-                      d="M 120 40 C 150 40, 170 50, 170 80 C 172 140, 175 220, 170 280 C 150 300, 130 310, 110 310 C 120 220, 115 130, 120 40 Z"
-                      fill="rgba(37, 99, 235, 0.04)"
-                      stroke="rgba(37, 99, 235, 0.25)"
-                      strokeWidth="1.5"
-                      strokeDasharray="4,4"
-                    />
-                  )}
-                  {selectedProvinceKey === 'mendoza' && (
-                    <path
-                      d="M 70 60 C 110 60, 160 65, 170 70 C 172 130, 175 200, 170 280 C 130 290, 90 290, 80 270 C 70 200, 70 120, 70 60 Z"
-                      fill="rgba(37, 99, 235, 0.04)"
-                      stroke="rgba(37, 99, 235, 0.25)"
-                      strokeWidth="1.5"
-                      strokeDasharray="4,4"
-                    />
-                  )}
+                  return (
+                    <svg width="100%" height="100%" viewBox={viewBox}>
+                      {/* Grid background */}
+                      <defs>
+                        <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                          <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
+                        </pattern>
+                      </defs>
+                      <rect width="100%" height="100%" fill="url(#grid)" />
 
-                  {/* Inter-city highways */}
-                  <path d="M 60 150 L 130 150 L 210 220" fill="none" stroke="rgba(37, 99, 235, 0.15)" strokeWidth="2" strokeDasharray="3,3" />
-                  <path d="M 130 150 L 150 280" fill="none" stroke="rgba(37, 99, 235, 0.1)" strokeWidth="1.5" strokeDasharray="3,3" />
+                      {/* High-fidelity background contour of the province */}
+                      {provData && (
+                        <path
+                          d={provData.path}
+                          fill="rgba(37, 99, 235, 0.08)"
+                          stroke="rgba(37, 99, 235, 0.35)"
+                          strokeWidth={
+                            selectedProvinceKey === 'santa-fe' ? 0.4 :
+                            selectedProvinceKey === 'buenos-aires' ? 0.4 :
+                            0.25
+                          }
+                        />
+                      )}
 
-                  {mockCitiesList.map((city) => (
-                    <g key={city.key} onClick={() => setSelectedCity(city.key)} style={{ cursor: 'pointer' }}>
-                      <circle cx={city.x} cy={city.y} r="14" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" strokeWidth="2" />
-                      <circle cx={city.x} cy={city.y} r="6" fill="#3b82f6" />
-                      <text x={city.x} y={city.y - 20} fill="#fff" fontSize="11" fontWeight="700" textAnchor="middle">
-                        {city.name}
-                      </text>
-                      <circle cx={city.x} cy={city.y} r="25" fill="none" stroke="rgba(59, 130, 246, 0.2)" strokeWidth="1" className="pulse-circle" />
-                    </g>
-                  ))}
-                </svg>
+                      {/* Inter-city highways in high-fidelity coordinate space */}
+                      {selectedProvinceKey === 'buenos-aires' && (
+                        <path
+                          d="M 194 221 L 202 227"
+                          fill="none"
+                          stroke="rgba(37, 99, 235, 0.2)"
+                          strokeWidth={scale.strokeWidthLine}
+                          strokeDasharray="1,1"
+                        />
+                      )}
+
+                      {mockCitiesList.map((city) => (
+                        <g key={city.key} onClick={() => setSelectedCity(city.key)} style={{ cursor: 'pointer' }}>
+                          <circle
+                            cx={city.x}
+                            cy={city.y}
+                            r={scale.radiusOuter}
+                            fill="rgba(59, 130, 246, 0.2)"
+                            stroke="#3b82f6"
+                            strokeWidth={scale.strokeWidthOuter}
+                          />
+                          <circle
+                            cx={city.x}
+                            cy={city.y}
+                            r={scale.radiusInner}
+                            fill="#3b82f6"
+                          />
+                          <text
+                            x={city.x}
+                            y={city.y - scale.textOffsetY}
+                            fill="#fff"
+                            fontSize={scale.fontSize}
+                            fontWeight="700"
+                            textAnchor="middle"
+                            style={{ textShadow: '0 0.5px 1px rgba(0,0,0,0.8)' }}
+                          >
+                            {city.name}
+                          </text>
+                          <circle
+                            cx={city.x}
+                            cy={city.y}
+                            r={scale.pulseRadius}
+                            fill="none"
+                            stroke="rgba(59, 130, 246, 0.2)"
+                            strokeWidth={scale.strokeWidthOuter / 2}
+                            className="pulse-circle"
+                          />
+                        </g>
+                      ))}
+                    </svg>
+                  )
+                })()}
 
                 <div style={{ position: 'absolute', bottom: '12px', left: '12px', fontSize: '10px', color: '#8f94a5' }}>
                   🎯 Pulse en un nodo de radar para ingresar a la ciudad
