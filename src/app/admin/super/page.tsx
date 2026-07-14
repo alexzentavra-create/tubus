@@ -189,7 +189,6 @@ const LINE_DETAILS: Record<string, {
   }
 }
 
-// News tips mock data
 const INITIAL_NEWS = [
   {
     id: 'n1',
@@ -197,7 +196,14 @@ const INITIAL_NEWS = [
     desc: 'El Ministerio de Transporte anunció un nuevo esquema tarifario para ajustar el costo del boleto mínimo en línea con la inflación y la quita de subsidios.',
     source: 'Clarín',
     date: 'Hace 2 días (11 de Julio, 2026)',
-    starred: false
+    starred: false,
+    url: 'https://www.clarin.com/sociedad/aumento-boleto-colectivo-amba-cuanto-cuesta-minimo_0_W1bNz0K8eP.html',
+    image: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=400&q=80',
+    isNew: true,
+    isBusRelated: true,
+    comments: [
+      { author: 'Admin Alejandro', text: 'Esto va a impactar la demanda de saldo SUBE.', timestamp: '12/07/2026 14:30' }
+    ]
   },
   {
     id: 'n2',
@@ -205,7 +211,12 @@ const INITIAL_NEWS = [
     desc: 'Comienza a regir el último tramo de la actualización tarifaria acordada para el subterráneo de Buenos Aires. Descuentos vigentes con SUBE registrada.',
     source: 'Infobae',
     date: 'Hace 4 días (9 de Julio, 2026)',
-    starred: true
+    starred: true,
+    url: 'https://www.infobae.com/sociedad/2026/07/09/subte-porteno-la-tarifa-del-boleto-sube-a-757/',
+    image: 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=400&q=80',
+    isNew: false,
+    isBusRelated: false,
+    comments: []
   },
   {
     id: 'n3',
@@ -213,7 +224,12 @@ const INITIAL_NEWS = [
     desc: 'El Gobierno de la Ciudad inauguró la extensión del Metrobús sobre Av. Paseo Colón para agilizar la circulación de más de 30 líneas de colectivos.',
     source: 'La Nación',
     date: 'Hace 6 días (7 de Julio, 2026)',
-    starred: false
+    starred: false,
+    url: 'https://www.lanacion.com.ar/buenos-aires/nuevos-carriles-exclusivos-metrobus-del-bajo-inauguran-la-extension-nid07072026/',
+    image: 'https://images.unsplash.com/photo-1494515843206-f3117d3f51b7?w=400&q=80',
+    isNew: false,
+    isBusRelated: true,
+    comments: []
   },
   {
     id: 'n4',
@@ -221,7 +237,12 @@ const INITIAL_NEWS = [
     desc: 'La legislatura debate un proyecto de ley para endurecer los requisitos técnicos, de seguro y de habilitación para vehículos de aplicaciones de movilidad.',
     source: 'Ámbito Financiero',
     date: 'Hace 8 días (5 de Julio, 2026)',
-    starred: false
+    starred: false,
+    url: 'https://www.ambito.com/novedades-movilidad-uber-cabify-didi-regulacion-debate/',
+    image: 'https://images.unsplash.com/photo-1494976388531-d1058094e2fd?w=400&q=80',
+    isNew: false,
+    isBusRelated: false,
+    comments: []
   }
 ]
 
@@ -502,6 +523,26 @@ export default function SuperAdminDashboard() {
 
   // News and starred items
   const [news, setNews] = useState<any[]>(INITIAL_NEWS)
+  const [newsFilter, setNewsFilter] = useState<'all' | 'starred'>('all')
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark')
+
+  // Right-click context menu for comments on news or ads
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean
+    x: number
+    y: number
+    type: 'news' | 'ad'
+    itemId: string
+  } | null>(null)
+
+  const [commenters, setCommenters] = useState<string[]>([
+    'Admin Alejandro',
+    'Admin Gabriel',
+    'Soporte Técnico'
+  ])
+  const [selectedCommenter, setSelectedCommenter] = useState<string>('Admin Alejandro')
+  const [newCommenterName, setNewCommenterName] = useState('')
+  const [commentText, setCommentText] = useState('')
 
   // Submitted ads
   const [ads, setAds] = useState<any[]>([
@@ -591,6 +632,16 @@ export default function SuperAdminDashboard() {
     }
   }, [])
 
+  useEffect(() => {
+    const handleGlobalClick = () => {
+      if (contextMenu?.visible) {
+        setContextMenu(null)
+      }
+    }
+    window.addEventListener('click', handleGlobalClick)
+    return () => window.removeEventListener('click', handleGlobalClick)
+  }, [contextMenu])
+
   const handleToggleBanUser = (email: string) => {
     let nextBanned: string[] = []
     const lowerEmail = email.trim().toLowerCase()
@@ -640,6 +691,54 @@ export default function SuperAdminDashboard() {
   const saveNews = (newNews: any[]) => {
     setNews(newNews)
     localStorage.setItem('mock_super_news', JSON.stringify(newNews))
+  }
+
+  const handleAddComment = () => {
+    if (!commentText.trim() || !contextMenu) return
+    const newComment = {
+      id: `c-${Date.now()}`,
+      author: selectedCommenter,
+      text: commentText.trim(),
+      timestamp: new Date().toLocaleString('es-AR', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
+    }
+
+    if (contextMenu.type === 'news') {
+      const updated = news.map(n => {
+        if (n.id === contextMenu.itemId) {
+          return {
+            ...n,
+            comments: [...(n.comments || []), newComment]
+          }
+        }
+        return n
+      })
+      saveNews(updated)
+    } else if (contextMenu.type === 'ad') {
+      const updated = ads.map(a => {
+        if (a.id === contextMenu.itemId) {
+          return {
+            ...a,
+            comments: [...(a.comments || []), newComment]
+          }
+        }
+        return a
+      })
+      saveAds(updated)
+    }
+
+    setCommentText('')
+    toast.success('Comentario agregado')
+  }
+
+  const handleItemContextMenu = (e: React.MouseEvent, itemId: string, type: 'news' | 'ad') => {
+    e.preventDefault()
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      type,
+      itemId
+    })
   }
 
   const toggleTodo = (id: string) => {
@@ -1272,7 +1371,7 @@ export default function SuperAdminDashboard() {
     .reduce((sum, a) => sum + a.budget, 0)
 
   return (
-    <div style={{
+    <div className={theme === 'light' ? 'light-mode main-layout' : 'dark-mode main-layout'} style={{
       height: '100vh',
       overflow: 'hidden',
       background: '#0b0f19',
@@ -1281,8 +1380,70 @@ export default function SuperAdminDashboard() {
       flexDirection: 'column',
       fontFamily: 'DM Sans, sans-serif',
     }}>
+      <style>{`
+        /* Dynamic Theme Overrides */
+        .light-mode {
+          background: #f8fafc !important;
+          color: #1e293b !important;
+        }
+        .light-mode header, .light-mode .super-header {
+          background: #ffffff !important;
+          border-bottom: 1px solid rgba(0,0,0,0.08) !important;
+        }
+        .light-mode .top-bar-pill {
+          background: #f1f5f9 !important;
+          border: 1px solid rgba(0, 0, 0, 0.08) !important;
+          color: #475569 !important;
+        }
+        .light-mode .top-bar-pill span, .light-mode .top-bar-pill svg {
+          color: #475569 !important;
+        }
+        .light-mode .nav-container, .light-mode div[style*="background: '#121527'"], .light-mode div[style*="background: #121527"] {
+          background: #ffffff !important;
+          border-bottom: 1px solid rgba(0,0,0,0.08) !important;
+          border-color: rgba(0,0,0,0.08) !important;
+        }
+        .light-mode button[style*="color: '#fff'"], .light-mode button[style*="color: #fff"], .light-mode button.active {
+          color: #0f172a !important;
+        }
+        .light-mode h1, .light-mode h2, .light-mode h3, .light-mode h4, .light-mode h5, .light-mode h6, .light-mode span[style*="color: '#fff'"], .light-mode span[style*="color: #fff"], .light-mode div[style*="color: '#fff'"], .light-mode div[style*="color: #fff"] {
+          color: #0f172a !important;
+        }
+        .light-mode .admin-card, .light-mode div[style*="background: '#121527'"], .light-mode div[style*="background: #121527"], .light-mode div[style*="background: '#1b1d2e'"], .light-mode div[style*="background: #1b1d2e"] {
+          background: #ffffff !important;
+          border-color: rgba(0,0,0,0.08) !important;
+          color: #334155 !important;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.04) !important;
+        }
+        .light-mode input, .light-mode select, .light-mode textarea {
+          background: #ffffff !important;
+          color: #0f172a !important;
+          border: 1px solid #cbd5e1 !important;
+        }
+        .light-mode input::placeholder, .light-mode textarea::placeholder {
+          color: #94a3b8 !important;
+        }
+        .light-mode div[style*="background: 'rgba(255,255,255,0.02)'"], .light-mode div[style*="background: rgba(255, 255, 255, 0.02)"] {
+          background: #f8fafc !important;
+          border-color: rgba(0,0,0,0.06) !important;
+          color: #475569 !important;
+        }
+        .light-mode span[style*="color: '#8f94a5'"], .light-mode span[style*="color: #8f94a5"], .light-mode div[style*="color: '#8f94a5'"], .light-mode div[style*="color: #8f94a5"], .light-mode p[style*="color: '#8f94a5'"], .light-mode p[style*="color: #8f94a5"] {
+          color: #64748b !important;
+        }
+        .light-mode svg {
+          background: #f8fafc !important;
+          border-color: rgba(0,0,0,0.08) !important;
+        }
+        .light-mode rect[fill="url(#grid)"] {
+          opacity: 0.15;
+        }
+        .light-mode line[stroke="rgba(255,255,255,0.03)"] {
+          stroke: rgba(0,0,0,0.06) !important;
+        }
+      `}</style>
       {/* Horizontal Header */}
-      <header style={{
+      <header className="super-header" style={{
         background: '#121527',
         borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
         padding: '14px 24px',
@@ -1314,7 +1475,29 @@ export default function SuperAdminDashboard() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{
+          {/* Light/Dark Mode Toggle Button */}
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '32px',
+              height: '32px',
+              background: theme === 'dark' ? '#1b1d2e' : '#f1f5f9',
+              border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+              borderRadius: '6px',
+              color: theme === 'dark' ? '#eab308' : '#64748b',
+              cursor: 'pointer',
+              fontSize: '16px',
+              transition: 'all 200ms'
+            }}
+            title={theme === 'dark' ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
+          >
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
+
+          <div className="top-bar-pill" style={{
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
@@ -1647,6 +1830,7 @@ export default function SuperAdminDashboard() {
               saveAds(updated)
             }}
             onMessageUser={handleMessageUser}
+            onAdContextMenu={(e, id) => handleItemContextMenu(e, id, 'ad')}
           />
         )}
 
@@ -1741,29 +1925,247 @@ export default function SuperAdminDashboard() {
                 <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Noticias y Tips del Transporte Argentino</h3>
                 <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Información reciente (antigüedad menor a 10 días) de colectivos, taxis, aplicaciones y subtes</p>
               </div>
+
+              {/* Starred vs All filter switch */}
+              <div style={{ display: 'flex', background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '2px' }}>
+                <button
+                  onClick={() => setNewsFilter('all')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    background: newsFilter === 'all' ? 'rgba(16,185,129,0.15)' : 'transparent',
+                    border: 'none',
+                    color: newsFilter === 'all' ? '#10B981' : '#8f94a5',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Todas
+                </button>
+                <button
+                  onClick={() => setNewsFilter('starred')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    background: newsFilter === 'starred' ? 'rgba(16,185,129,0.15)' : 'transparent',
+                    border: 'none',
+                    color: newsFilter === 'starred' ? '#10B981' : '#8f94a5',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  ⭐ Favoritos
+                </button>
+              </div>
             </div>
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
-              {news.map(item => (
-                <div key={item.id} style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '14px' }}>
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'flex-start' }}>
-                      <span style={{ fontSize: '10px', background: 'rgba(16,185,129,0.15)', color: '#10B981', padding: '3px 8px', borderRadius: '4px', fontWeight: 700, fontFamily: 'DM Mono' }}>{item.source}</span>
-                      <button onClick={() => {
-                        const updated = news.map(n => n.id === item.id ? { ...n, starred: !n.starred } : n)
-                        saveNews(updated)
-                        toast.success(item.starred ? 'Destacado removido' : 'Noticia guardada en favoritos')
-                      }} style={{ background: 'none', border: 'none', color: item.starred ? '#eab308' : '#8f94a5', cursor: 'pointer' }}>
-                        <Star size={18} fill={item.starred ? '#eab308' : 'none'} />
-                      </button>
+              {news
+                .filter(item => newsFilter === 'all' || item.starred)
+                .map(item => (
+                  <div
+                    key={item.id}
+                    onClick={() => window.open(item.url, '_blank')}
+                    onContextMenu={(e) => handleItemContextMenu(e, item.id, 'news')}
+                    style={{
+                      background: '#121527',
+                      border: '1px solid rgba(255,255,255,0.06)',
+                      borderRadius: '12px',
+                      padding: '20px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      gap: '14px',
+                      cursor: 'pointer',
+                      transition: 'transform 200ms, border-color 200ms'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                  >
+                    <div>
+                      {/* Image Preview */}
+                      {item.image && (
+                        <img
+                          src={item.image}
+                          alt=""
+                          style={{ width: '100%', height: '130px', objectFit: 'cover', borderRadius: '8px', marginBottom: '12px' }}
+                        />
+                      )}
+
+                      {/* Header tags */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '9px', background: 'rgba(16,185,129,0.15)', color: '#10B981', padding: '2px 6px', borderRadius: '4px', fontWeight: 700, fontFamily: 'DM Mono' }}>
+                            {item.source}
+                          </span>
+                          {item.isNew && (
+                            <span style={{ fontSize: '8px', background: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                              NUEVO
+                            </span>
+                          )}
+                          {item.isBusRelated && (
+                            <span style={{ fontSize: '8px', background: 'rgba(59,130,246,0.15)', color: '#3b82f6', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                              COLECTIVOS
+                            </span>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const updated = news.map(n => n.id === item.id ? { ...n, starred: !n.starred } : n)
+                            saveNews(updated)
+                            toast.success(item.starred ? 'Destacado removido' : 'Noticia guardada en favoritos')
+                          }}
+                          style={{ background: 'none', border: 'none', color: item.starred ? '#eab308' : '#8f94a5', cursor: 'pointer', padding: 0 }}
+                        >
+                          <Star size={18} fill={item.starred ? '#eab308' : 'none'} />
+                        </button>
+                      </div>
+
+                      <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#fff', margin: '6px 0 6px', lineHeight: 1.3 }}>{item.title}</h4>
+                      <p style={{ fontSize: '12px', color: '#8f94a5', margin: 0, lineHeight: 1.4 }}>{item.desc}</p>
+                      
+                      <div style={{ fontSize: '11px', color: '#3B82F6', textDecoration: 'underline', marginTop: '10px', display: 'inline-block' }}>
+                        Ver noticia original ↗
+                      </div>
                     </div>
-                    <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#fff', margin: '12px 0 6px', lineHeight: 1.3 }}>{item.title}</h4>
-                    <p style={{ fontSize: '12px', color: '#8f94a5', margin: 0, lineHeight: 1.4 }}>{item.desc}</p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ fontSize: '11px', color: '#8f94a5', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between' }}>
+                        <span>Fecha: {item.date}</span>
+                      </div>
+                      
+                      {/* Comments hint and counter */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '9px', color: '#8f94a5', marginTop: '2px' }}>
+                        <span>💡 Clic derecho para comentar</span>
+                        <span style={{ fontWeight: 700, color: (item.comments?.length || 0) > 0 ? '#3b82f6' : '#8f94a5' }}>
+                          💬 {item.comments?.length || 0} comentarios
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: '11px', color: '#8f94a5', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between' }}>
-                    <span>Fecha: {item.date}</span>
+                ))}
+            </div>
+          </div>
+        )}
+
+        {/* Right-click Context Menu */}
+        {contextMenu?.visible && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'fixed',
+              top: Math.min(contextMenu.y, typeof window !== 'undefined' ? window.innerHeight - 350 : 300),
+              left: Math.min(contextMenu.x, typeof window !== 'undefined' ? window.innerWidth - 300 : 300),
+              width: '290px',
+              background: '#1b1d2e',
+              border: '1.5px solid rgba(255, 255, 255, 0.12)',
+              borderRadius: '12px',
+              boxShadow: '0 12px 36px rgba(0,0,0,0.6)',
+              padding: '16px',
+              zIndex: 9999,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+              color: '#fff'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '6px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, color: '#3B82F6' }}>
+                Comentarios del {contextMenu.type === 'news' ? 'Artículo' : 'Anuncio'}
+              </span>
+              <button
+                onClick={() => setContextMenu(null)}
+                style={{ background: 'none', border: 'none', color: '#8f94a5', cursor: 'pointer', fontSize: '12px' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Comments List */}
+            <div style={{ maxHeight: '140px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {(() => {
+                const item = contextMenu.type === 'news'
+                  ? news.find(n => n.id === contextMenu.itemId)
+                  : ads.find(a => a.id === contextMenu.itemId)
+                
+                const list = item?.comments || []
+                if (list.length === 0) {
+                  return <div style={{ fontSize: '11px', color: '#8f94a5', textAlign: 'center', padding: '10px 0' }}>No hay comentarios aún.</div>
+                }
+                return list.map((c: any) => (
+                  <div key={c.id} style={{ background: 'rgba(255,255,255,0.02)', padding: '6px 8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#8f94a5', marginBottom: '2px' }}>
+                      <span style={{ fontWeight: 700, color: '#a3a6b8' }}>{c.author}</span>
+                      <span>{c.timestamp}</span>
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#fff', wordBreak: 'break-word' }}>{c.text}</div>
                   </div>
-                </div>
-              ))}
+                ))
+              })()}
+            </div>
+
+            {/* Add comment section */}
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {/* Commenter selection */}
+              <div>
+                <label style={{ fontSize: '9px', color: '#8f94a5', display: 'block', marginBottom: '4px' }}>Seleccionar Persona</label>
+                <select
+                  value={selectedCommenter}
+                  onChange={e => setSelectedCommenter(e.target.value)}
+                  style={{ width: '100%', background: '#121527', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', padding: '6px', color: '#fff', fontSize: '11px', outline: 'none' }}
+                >
+                  {commenters.map((c, i) => (
+                    <option key={i} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Create new commenter */}
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <input
+                  type="text"
+                  placeholder="Nueva persona..."
+                  value={newCommenterName}
+                  onChange={e => setNewCommenterName(e.target.value)}
+                  style={{ flex: 1, background: '#121527', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', padding: '4px 8px', color: '#fff', fontSize: '10px', outline: 'none' }}
+                />
+                <button
+                  onClick={() => {
+                    if (newCommenterName.trim()) {
+                      const next = [...commenters, newCommenterName.trim()]
+                      setCommenters(next)
+                      setSelectedCommenter(newCommenterName.trim())
+                      setNewCommenterName('')
+                      toast.success('Nueva persona creada')
+                    }
+                  }}
+                  style={{ background: '#3B82F6', border: 'none', borderRadius: '6px', color: '#fff', fontSize: '10px', padding: '0 8px', cursor: 'pointer' }}
+                >
+                  + Crear
+                </button>
+              </div>
+
+              {/* Comment Text */}
+              <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                <input
+                  type="text"
+                  placeholder="Escriba un comentario..."
+                  value={commentText}
+                  onChange={e => setCommentText(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddComment()}
+                  style={{ flex: 1, background: '#121527', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '6px', padding: '6px 8px', color: '#fff', fontSize: '11px', outline: 'none' }}
+                />
+                <button
+                  onClick={handleAddComment}
+                  style={{ background: '#10B981', border: 'none', borderRadius: '6px', color: '#fff', fontSize: '11px', padding: '0 12px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Enviar
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -2456,13 +2858,15 @@ function AdsTab({
   onApprove,
   onReject,
   onToggleActive,
-  onMessageUser
+  onMessageUser,
+  onAdContextMenu
 }: {
   ads: any[];
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
   onToggleActive: (id: string) => void;
   onMessageUser: (name: string, email: string) => void;
+  onAdContextMenu?: (e: React.MouseEvent, id: string) => void;
 }) {
   const [selectedAd, setSelectedAd] = useState<any | null>(null)
   const [selectedUser, setSelectedUser] = useState<any | null>(null)
@@ -2481,6 +2885,7 @@ function AdsTab({
             <div
               key={ad.id}
               onClick={() => setSelectedAd(ad)}
+              onContextMenu={(e) => { e.preventDefault(); onAdContextMenu && onAdContextMenu(e, ad.id); }}
               style={{
                 background: '#121527',
                 border: isInactive ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(255,255,255,0.06)',
@@ -2509,6 +2914,18 @@ function AdsTab({
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '11px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{ad.timestamp}</span>
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    {ad.comments && ad.comments.length > 0 && (
+                      <span style={{
+                        fontSize: '9px',
+                        background: 'rgba(59,130,246,0.15)',
+                        color: '#3b82f6',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        fontWeight: 700
+                      }}>
+                        💬 {ad.comments.length}
+                      </span>
+                    )}
                     {ad.status === 'approved' && (
                       <span style={{
                         fontSize: '9px',
