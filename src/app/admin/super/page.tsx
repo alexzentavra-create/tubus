@@ -1570,6 +1570,16 @@ export default function SuperAdminDashboard() {
         .light-mode line[stroke="rgba(255,255,255,0.03)"] {
           stroke: rgba(0,0,0,0.06) !important;
         }
+        /* Vector maps text labels in light mode */
+        .light-mode svg text {
+          fill: #0f172a !important;
+          text-shadow: none !important;
+        }
+        .light-mode svg text[fill="#a3a6b8"],
+        .light-mode svg text[fill="#8f94a5"],
+        .light-mode svg text[fill="rgba(255,255,255,0.6)"] {
+          fill: #475569 !important;
+        }
       `}</style>
       {/* Horizontal Header */}
       <header className="super-header" style={{
@@ -4118,15 +4128,15 @@ const DRILLDOWN_DATA: Record<string, {
 }
 
 const ARG_PROVINCES = [
-  { id: 'buenos-aires', name: 'Provincia de Buenos Aires & CABA', path: 'M 160 220 L 195 240 L 225 285 L 170 345 L 130 300 Z', activeUsers: 3420 },
-  { id: 'cordoba', name: 'Córdoba', path: 'M 120 170 L 155 160 L 165 210 L 120 215 Z', activeUsers: 680 },
-  { id: 'santa-fe', name: 'Santa Fe', path: 'M 160 135 L 178 135 L 170 215 L 158 215 Z', activeUsers: 490 },
-  { id: 'mendoza', name: 'Mendoza', path: 'M 80 195 L 115 195 L 115 255 L 80 255 Z', activeUsers: 310 },
+  { id: 'buenos-aires', name: 'Provincia de Buenos Aires & CABA', path: 'M 155 220 C 165 210, 185 205, 195 210 C 205 215, 215 205, 220 220 C 225 235, 210 240, 225 250 C 235 260, 230 280, 215 290 C 200 300, 180 305, 170 305 C 160 305, 150 295, 145 280 C 135 270, 140 245, 145 230 C 150 225, 150 220, 155 220 Z', activeUsers: 3420 },
+  { id: 'cordoba', name: 'Córdoba', path: 'M 115 160 C 125 155, 140 155, 150 160 C 152 175, 155 190, 155 205 C 145 215, 130 220, 115 220 C 115 200, 110 180, 115 160 Z', activeUsers: 680 },
+  { id: 'santa-fe', name: 'Santa Fe', path: 'M 148 70 C 158 70, 168 70, 168 85 C 168 115, 170 145, 172 170 C 168 185, 162 195, 155 205 C 155 190, 152 175, 150 160 C 140 155, 138 120, 148 70 Z', activeUsers: 490 },
+  { id: 'mendoza', name: 'Mendoza', path: 'M 80 195 C 95 195, 110 195, 115 195 C 115 200, 115 220, 115 220 C 115 220, 122 230, 122 250 C 105 255, 90 255, 88 250 C 85 225, 80 210, 80 195 Z', activeUsers: 310 },
   
   // Non-clickable placeholder regions to complete the gorgeous full map look
-  { id: 'sur', name: 'Patagonia (Sur)', path: 'M 130 305 L 170 345 L 140 450 L 100 430 L 110 330 Z', activeUsers: 180, disabled: true },
-  { id: 'norte', name: 'Norte Grande', path: 'M 90 40 L 150 40 L 150 110 L 80 110 Z', activeUsers: 140, disabled: true },
-  { id: 'litoral', name: 'Litoral', path: 'M 180 80 L 220 100 L 195 180 L 170 135 Z', activeUsers: 220, disabled: true }
+  { id: 'sur', name: 'Patagonia (Sur)', path: 'M 88 250 C 105 255, 122 250, 122 250 C 122 250, 132 255, 140 280 C 150 300, 170 305, 170 305 C 170 305, 155 330, 130 330 C 125 360, 135 385, 125 425 C 115 440, 110 445, 100 445 C 98 420, 108 380, 98 335 C 105 300, 78 285, 88 250 Z', activeUsers: 180, disabled: true },
+  { id: 'norte', name: 'Norte Grande', path: 'M 90 30 C 105 25, 120 20, 125 15 C 135 25, 145 35, 150 45 C 145 55, 140 65, 148 70 C 138 120, 125 70, 115 110 C 105 135, 115 160, 115 160 C 110 180, 85 180, 80 180 C 80 150, 85 120, 95 90 C 85 75, 80 50, 90 30 Z', activeUsers: 140, disabled: true },
+  { id: 'litoral', name: 'Litoral', path: 'M 150 45 C 155 35, 175 30, 185 35 C 195 40, 205 35, 215 45 C 225 55, 220 70, 205 70 C 190 85, 180 90, 175 110 C 178 135, 170 145, 170 145 C 170 145, 168 115, 168 85 C 168 70, 158 70, 148 70 C 140 65, 145 55, 150 45 Z', activeUsers: 220, disabled: true }
 ]
 
 function ProvinceMapTab({
@@ -4354,6 +4364,48 @@ function ProvinceMapTab({
                   </defs>
                   <rect width="100%" height="100%" fill="url(#grid)" />
 
+                  {/* Stylized background contour of the province */}
+                  {selectedProvinceKey === 'buenos-aires' && (
+                    <path
+                      d="M 60 40 C 120 40, 180 30, 200 45 C 220 60, 250 120, 260 160 C 270 200, 220 240, 230 260 C 240 280, 210 310, 180 320 C 150 330, 120 310, 100 290 C 80 270, 70 200, 60 150 C 50 100, 60 70, 80 40 Z"
+                      fill="rgba(37, 99, 235, 0.04)"
+                      stroke="rgba(37, 99, 235, 0.25)"
+                      strokeWidth="1.5"
+                      strokeDasharray="4,4"
+                    />
+                  )}
+                  {selectedProvinceKey === 'cordoba' && (
+                    <path
+                      d="M 80 60 C 130 50, 180 50, 200 65 C 210 120, 220 180, 210 240 C 180 260, 140 270, 110 260 C 90 220, 80 140, 80 60 Z"
+                      fill="rgba(37, 99, 235, 0.04)"
+                      stroke="rgba(37, 99, 235, 0.25)"
+                      strokeWidth="1.5"
+                      strokeDasharray="4,4"
+                    />
+                  )}
+                  {selectedProvinceKey === 'santa-fe' && (
+                    <path
+                      d="M 120 40 C 150 40, 170 50, 170 80 C 172 140, 175 220, 170 280 C 150 300, 130 310, 110 310 C 120 220, 115 130, 120 40 Z"
+                      fill="rgba(37, 99, 235, 0.04)"
+                      stroke="rgba(37, 99, 235, 0.25)"
+                      strokeWidth="1.5"
+                      strokeDasharray="4,4"
+                    />
+                  )}
+                  {selectedProvinceKey === 'mendoza' && (
+                    <path
+                      d="M 70 60 C 110 60, 160 65, 170 70 C 172 130, 175 200, 170 280 C 130 290, 90 290, 80 270 C 70 200, 70 120, 70 60 Z"
+                      fill="rgba(37, 99, 235, 0.04)"
+                      stroke="rgba(37, 99, 235, 0.25)"
+                      strokeWidth="1.5"
+                      strokeDasharray="4,4"
+                    />
+                  )}
+
+                  {/* Inter-city highways */}
+                  <path d="M 60 150 L 130 150 L 210 220" fill="none" stroke="rgba(37, 99, 235, 0.15)" strokeWidth="2" strokeDasharray="3,3" />
+                  <path d="M 130 150 L 150 280" fill="none" stroke="rgba(37, 99, 235, 0.1)" strokeWidth="1.5" strokeDasharray="3,3" />
+
                   {mockCitiesList.map((city) => (
                     <g key={city.key} onClick={() => setSelectedCity(city.key)} style={{ cursor: 'pointer' }}>
                       <circle cx={city.x} cy={city.y} r="14" fill="rgba(59, 130, 246, 0.2)" stroke="#3b82f6" strokeWidth="2" />
@@ -4382,27 +4434,85 @@ function ProvinceMapTab({
                 <svg width="100%" height="100%" viewBox="0 0 300 350">
                   <rect width="100%" height="100%" fill="url(#grid)" />
 
+                  {/* Coastline / City Limits map representation */}
+                  {selectedCity === 'caba' && (
+                    <>
+                      {/* Rio de la Plata coastline contour */}
+                      <path
+                        d="M 30 140 C 60 80, 150 70, 260 110 L 270 200 C 250 240, 220 280, 180 320 C 140 310, 100 290, 60 270 Z"
+                        fill="rgba(37, 99, 235, 0.02)"
+                        stroke="rgba(37, 99, 235, 0.15)"
+                        strokeWidth="1.5"
+                      />
+                      {/* Palermo District Boundary */}
+                      <path
+                        d="M 90 130 L 150 115 L 160 180 L 100 180 Z"
+                        fill={selectedNeighborhood === 'palermo' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(37, 99, 235, 0.08)'}
+                        stroke={selectedNeighborhood === 'palermo' ? '#10B981' : 'rgba(37, 99, 235, 0.35)'}
+                        strokeWidth={selectedNeighborhood === 'palermo' ? 2 : 1}
+                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
+                        onClick={() => setSelectedNeighborhood('palermo')}
+                      />
+                      {/* Recoleta District Boundary */}
+                      <path
+                        d="M 150 115 L 210 130 L 205 210 L 160 180 Z"
+                        fill={selectedNeighborhood === 'recoleta' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(37, 99, 235, 0.08)'}
+                        stroke={selectedNeighborhood === 'recoleta' ? '#10B981' : 'rgba(37, 99, 235, 0.35)'}
+                        strokeWidth={selectedNeighborhood === 'recoleta' ? 2 : 1}
+                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
+                        onClick={() => setSelectedNeighborhood('recoleta')}
+                      />
+                      {/* Belgrano District Boundary */}
+                      <path
+                        d="M 50 160 L 100 180 L 95 250 L 50 230 Z"
+                        fill={selectedNeighborhood === 'belgrano' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(37, 99, 235, 0.08)'}
+                        stroke={selectedNeighborhood === 'belgrano' ? '#10B981' : 'rgba(37, 99, 235, 0.35)'}
+                        strokeWidth={selectedNeighborhood === 'belgrano' ? 2 : 1}
+                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
+                        onClick={() => setSelectedNeighborhood('belgrano')}
+                      />
+                    </>
+                  )}
+
+                  {selectedCity === 'cordoba-cap' && (
+                    <path
+                      d="M 100 130 L 200 130 L 180 220 L 120 220 Z"
+                      fill={selectedNeighborhood === 'nueva-cordoba' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(37, 99, 235, 0.08)'}
+                      stroke={selectedNeighborhood === 'nueva-cordoba' ? '#10B981' : 'rgba(37, 99, 235, 0.35)'}
+                      strokeWidth={selectedNeighborhood === 'nueva-cordoba' ? 2 : 1}
+                      style={{ cursor: 'pointer', transition: 'all 200ms' }}
+                      onClick={() => setSelectedNeighborhood('nueva-cordoba')}
+                    />
+                  )}
+
                   {/* Flowing connection lines */}
                   {selectedCity === 'caba' && (
                     <>
                       {/* Palermo <-> Recoleta */}
-                      <line x1="100" y1="110" x2="180" y2="180" stroke="rgba(139, 92, 246, 0.4)" strokeWidth="3" className="flow-path" />
+                      <line x1="125" y1="145" x2="180" y2="160" stroke="rgba(139, 92, 246, 0.6)" strokeWidth="3" className="flow-path" />
                       {/* Belgrano <-> Palermo */}
-                      <line x1="70" y1="220" x2="100" y2="110" stroke="rgba(16, 185, 129, 0.4)" strokeWidth="3" className="flow-path" />
+                      <line x1="70" y1="205" x2="125" y2="145" stroke="rgba(16, 185, 129, 0.6)" strokeWidth="3" className="flow-path" />
                     </>
                   )}
 
                   {/* Render neighborhood points */}
                   {mockNeighborhoodsList.map((n) => {
                     const active = selectedNeighborhood === n.key
+                    // Remap coordinates slightly to sit exactly at the center of each district polygon
+                    let displayX = n.x
+                    let displayY = n.y
+                    if (n.key === 'palermo') { displayX = 125; displayY = 145; }
+                    if (n.key === 'recoleta') { displayX = 180; displayY = 160; }
+                    if (n.key === 'belgrano') { displayX = 70; displayY = 205; }
+
                     return (
                       <g key={n.key} onClick={() => setSelectedNeighborhood(n.key)} style={{ cursor: 'pointer' }}>
-                        <circle cx={n.x} cy={n.y} r={active ? '15' : '10'} fill={active ? '#10B981' : 'rgba(255,255,255,0.08)'} stroke={active ? '#fff' : 'rgba(255,255,255,0.2)'} strokeWidth="1.5" />
-                        <text x={n.x} y={n.y - 15} fill="#fff" fontSize="10" fontWeight="700" textAnchor="middle">
+                        <circle cx={displayX} cy={displayY} r={active ? '10' : '6'} fill={active ? '#10B981' : '#3b82f6'} stroke="#fff" strokeWidth="1.5" />
+                        <text x={displayX} y={displayY - 14} fill="#fff" fontSize="10" fontWeight="700" textAnchor="middle" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
                           {n.name}
                         </text>
-                        <text x={n.x} y={n.y + 20} fill="#8f94a5" fontSize="8" textAnchor="middle">
-                          {n.count.toLocaleString()} pax/día
+                        <text x={displayX} y={displayY + 16} fill="#a3a6b8" fontSize="8" fontWeight="600" textAnchor="middle" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
+                          {n.count.toLocaleString()} pax/d
                         </text>
                       </g>
                     )
