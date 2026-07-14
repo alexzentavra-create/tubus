@@ -471,10 +471,13 @@ type Tab = 'overview' | 'linemaps' | 'drivers' | 'ads' | 'chat' | 'reports' | 'p
 interface Todo {
   id: string
   text: string
+  desc?: string
   done: boolean
   date: string
   badge: string
   flagged: boolean
+  stage: 'todo' | 'in_progress' | 'in_review' | 'done'
+  priority: 'high' | 'medium' | 'low'
 }
 
 export default function SuperAdminDashboard() {
@@ -569,10 +572,10 @@ export default function SuperAdminDashboard() {
 
   // Todo list state
   const [todos, setTodos] = useState<Todo[]>([
-    { id: 't1', text: 'Revisar desvíos temporales en Línea 12', done: false, date: 'Hoy', badge: 'Urgente', flagged: true },
-    { id: 't2', text: 'Aprobar chofer Néstor García', done: true, date: 'Ayer', badge: 'Completado', flagged: false },
-    { id: 't3', text: 'Verificar cobros publicitarios en pesos (ARS)', done: false, date: 'Mañana', badge: 'Administrativo', flagged: false },
-    { id: 't4', text: 'Auditar quejas de velocidad en Línea 60', done: false, date: 'Esta semana', badge: 'Seguridad', flagged: true },
+    { id: 't1', text: 'Revisar desvíos temporales en Línea 12', desc: 'Desvío por obras viales sobre Av. Callao.', done: false, date: 'Hoy', badge: 'Operaciones', flagged: true, stage: 'todo', priority: 'high' },
+    { id: 't2', text: 'Aprobar chofer Néstor García', desc: 'Verificar licencia nacional habilitante y documentación del coche 1201.', done: false, date: 'Ayer', badge: 'Aprobaciones', flagged: false, stage: 'in_progress', priority: 'medium' },
+    { id: 't3', text: 'Verificar cobros publicitarios en pesos (ARS)', desc: 'Validar transferencias bancarias de Mostaza Premium.', done: false, date: 'Mañana', badge: 'Finanzas', flagged: false, stage: 'in_review', priority: 'low' },
+    { id: 't4', text: 'Auditar quejas de velocidad en Línea 60', desc: 'Reportes de exceso de velocidad en autopista Panamericana coche 304.', done: false, date: 'Esta semana', badge: 'Seguridad', flagged: true, stage: 'done', priority: 'high' },
   ])
   const [newTodoText, setNewTodoText] = useState('')
 
@@ -640,7 +643,7 @@ export default function SuperAdminDashboard() {
   }
 
   const toggleTodo = (id: string) => {
-    saveTodos(todos.map(t => t.id === id ? { ...t, done: !t.done } : t))
+    saveTodos(todos.map(t => t.id === id ? { ...t, done: !t.done, stage: !t.done ? 'done' : 'todo' } : t))
   }
 
   const toggleFlag = (id: string) => {
@@ -657,14 +660,22 @@ export default function SuperAdminDashboard() {
     const newItem: Todo = {
       id: `t-${Date.now()}`,
       text: newTodoText.trim(),
+      desc: '',
       done: false,
       date: 'Hoy',
       badge: 'Normal',
-      flagged: false
+      flagged: false,
+      stage: 'todo',
+      priority: 'medium'
     }
     saveTodos([...todos, newItem])
     setNewTodoText('')
     toast.success('Tarea agregada')
+  }
+
+  const updateTodo = (updated: Todo) => {
+    saveTodos(todos.map(t => t.id === updated.id ? updated : t))
+    toast.success('Tarea actualizada')
   }
 
 
@@ -1713,47 +1724,12 @@ export default function SuperAdminDashboard() {
         {/* 7. Dedicated Todos/Reminders */}
         {tab === 'todos' && (
           <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '24px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '20px' }}>Remitentes, Recordatorios y Tareas Críticas</h3>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-              <input
-                type="text"
-                placeholder="Nueva tarea del centro de operaciones..."
-                value={newTodoText}
-                onChange={e => setNewTodoText(e.target.value)}
-                style={{
-                  flex: 1,
-                  background: '#1b1d2e',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: '8px',
-                  padding: '10px 14px',
-                  color: '#fff',
-                  outline: 'none',
-                  fontSize: '13px'
-                }}
-                onKeyDown={e => e.key === 'Enter' && addTodo()}
-              />
-              <button onClick={addTodo} style={{ padding: '0 24px', background: '#10B981', border: 'none', borderRadius: '8px', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '13px' }}>Agregar</button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {todos.map(t => (
-                <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '14px', background: 'rgba(255,255,255,0.02)', padding: '14px 20px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                  <input type="checkbox" checked={t.done} onChange={() => toggleTodo(t.id)} style={{ width: '18px', height: '18px', cursor: 'pointer' }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '14px', textDecoration: t.done ? 'line-through' : 'none', color: t.done ? '#8f94a5' : '#fff', fontWeight: 600 }}>{t.text}</div>
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                      <span style={{ fontSize: '9px', background: t.badge === 'Urgente' ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.05)', color: t.badge === 'Urgente' ? '#ef4444' : '#8f94a5', padding: '1px 5px', borderRadius: '3px', fontWeight: 600 }}>{t.badge}</span>
-                      <span style={{ fontSize: '9px', color: '#8f94a5' }}>Fecha: {t.date}</span>
-                    </div>
-                  </div>
-                  <button onClick={() => toggleFlag(t.id)} style={{ background: 'none', border: 'none', color: t.flagged ? '#eab308' : '#8f94a5', cursor: 'pointer' }}>
-                    <Star size={16} fill={t.flagged ? '#eab308' : 'none'} />
-                  </button>
-                  <button onClick={() => deleteTodo(t.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))}
-            </div>
+            <CRMTasksTab
+              todos={todos}
+              onUpdateTodo={updateTodo}
+              onDeleteTodo={deleteTodo}
+              onAddTodo={addTodo}
+            />
           </div>
         )}
 
@@ -4023,6 +3999,416 @@ function ProvinceMapTab({
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+// ─── CRM Pipeline Kanban Tasks component ─────────────────────────────────────
+function CRMTasksTab({
+  todos,
+  onUpdateTodo,
+  onDeleteTodo,
+  onAddTodo
+}: {
+  todos: Todo[]
+  onUpdateTodo: (todo: Todo) => void
+  onDeleteTodo: (id: string) => void
+  onAddTodo: (text: string) => void
+}) {
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null)
+  const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [newTodoForm, setNewTodoForm] = useState({
+    text: '',
+    desc: '',
+    badge: 'Operaciones',
+    priority: 'medium' as 'high' | 'medium' | 'low',
+    date: 'Hoy'
+  })
+
+  const STAGES = [
+    { key: 'todo', label: 'Por Hacer (To Do)', color: '#8f94a5', border: 'rgba(255,255,255,0.06)', bg: 'rgba(255,255,255,0.01)' },
+    { key: 'in_progress', label: 'En Progreso (In Progress)', color: '#3B82F6', border: 'rgba(59,130,246,0.15)', bg: 'rgba(59,130,246,0.02)' },
+    { key: 'in_review', label: 'En Revisión (In Review)', color: '#F59E0B', border: 'rgba(245,158,11,0.15)', bg: 'rgba(245,158,11,0.02)' },
+    { key: 'done', label: 'Completado (Done)', color: '#10B981', border: 'rgba(16,185,129,0.15)', bg: 'rgba(16,185,129,0.02)' }
+  ] as const
+
+  const moveTask = (todo: Todo, direction: 'left' | 'right') => {
+    const stageOrder: ('todo' | 'in_progress' | 'in_review' | 'done')[] = ['todo', 'in_progress', 'in_review', 'done']
+    const idx = stageOrder.indexOf(todo.stage)
+    let nextIdx = idx
+    if (direction === 'left' && idx > 0) nextIdx--
+    if (direction === 'right' && idx < 3) nextIdx++
+    if (nextIdx !== idx) {
+      const nextStage = stageOrder[nextIdx]
+      onUpdateTodo({ ...todo, stage: nextStage, done: nextStage === 'done' })
+    }
+  }
+
+  const handleAddNewTodo = () => {
+    if (!newTodoForm.text.trim()) return
+    const newItem: Todo = {
+      id: `t-${Date.now()}`,
+      text: newTodoForm.text.trim(),
+      desc: newTodoForm.desc.trim(),
+      done: false,
+      date: newTodoForm.date.trim() || 'Hoy',
+      badge: newTodoForm.badge.trim() || 'Operaciones',
+      flagged: false,
+      stage: 'todo',
+      priority: newTodoForm.priority
+    }
+    todos.push(newItem)
+    // Trigger sync
+    onUpdateTodo(newItem)
+    setNewTodoForm({ text: '', desc: '', badge: 'Operaciones', priority: 'medium', date: 'Hoy' })
+    setShowAddModal(false)
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Upper header action */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>CRM Pipeline de Operaciones</h3>
+          <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Arrastrá las tarjetas o usá los botones para cambiar de estado</p>
+        </div>
+        <button
+          onClick={() => setShowAddModal(true)}
+          style={{
+            background: '#10B981',
+            border: 'none',
+            color: '#fff',
+            borderRadius: '8px',
+            padding: '10px 18px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            fontSize: '12px',
+            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.2)'
+          }}
+        >
+          + Nueva Tarea
+        </button>
+      </div>
+
+      {/* Kanban Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', minHeight: '450px' }}>
+        {STAGES.map((col) => {
+          const colTasks = todos.filter(t => t.stage === col.key)
+          
+          return (
+            <div
+              key={col.key}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => {
+                if (draggedTaskId) {
+                  const target = todos.find(t => t.id === draggedTaskId)
+                  if (target) {
+                    onUpdateTodo({ ...target, stage: col.key, done: col.key === 'done' })
+                  }
+                  setDraggedTaskId(null)
+                }
+              }}
+              style={{
+                background: col.bg,
+                border: `1.5px solid ${col.border}`,
+                borderRadius: '12px',
+                padding: '16px 12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+                minHeight: '400px'
+              }}
+            >
+              {/* Column Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '8px', marginBottom: '4px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: col.color }}>{col.label}</span>
+                <span style={{ fontSize: '10px', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px', color: '#fff', fontWeight: 600 }}>{colTasks.length}</span>
+              </div>
+
+              {/* Tasks List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflowY: 'auto' }}>
+                {colTasks.length > 0 ? (
+                  colTasks.map((todo) => {
+                    const priorityColor = todo.priority === 'high' ? '#ef4444' : todo.priority === 'medium' ? '#F59E0B' : '#10B981'
+                    
+                    return (
+                      <div
+                        key={todo.id}
+                        draggable
+                        onDragStart={() => setDraggedTaskId(todo.id)}
+                        style={{
+                          background: '#1b1d2e',
+                          border: '1px solid rgba(255,255,255,0.06)',
+                          borderRadius: '10px',
+                          padding: '12px 14px',
+                          cursor: 'grab',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                          transition: 'transform 150ms, border-color 150ms',
+                          boxShadow: '0 4px 8px rgba(0,0,0,0.1)'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'}
+                      >
+                        {/* Title and Controls */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '6px' }}>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff', overflowWrap: 'break-word', wordBreak: 'break-word', flex: 1 }}>{todo.text}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                            <button onClick={() => onUpdateTodo({ ...todo, flagged: !todo.flagged })} style={{ background: 'none', border: 'none', padding: 0 }}>
+                              <Star size={12} fill={todo.flagged ? '#eab308' : 'none'} style={{ color: todo.flagged ? '#eab308' : '#8f94a5', cursor: 'pointer' }} />
+                            </button>
+                            <button onClick={() => setEditingTodo(todo)} style={{ background: 'none', border: 'none', padding: 0, color: '#8f94a5', fontSize: '11px', cursor: 'pointer' }}>✏️</button>
+                            <button onClick={() => onDeleteTodo(todo.id)} style={{ background: 'none', border: 'none', padding: 0 }}>
+                              <Trash2 size={12} style={{ color: '#ef4444', cursor: 'pointer' }} />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Description snippet */}
+                        {todo.desc && (
+                          <p style={{ fontSize: '10px', color: '#8f94a5', margin: 0, lineHeight: 1.3 }}>
+                            {todo.desc}
+                          </p>
+                        )}
+
+                        {/* Badges and metadata */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                          <span style={{ fontSize: '8px', background: 'rgba(255,255,255,0.05)', color: '#a3a6b8', padding: '2px 5px', borderRadius: '4px', fontWeight: 600 }}>
+                            {todo.badge}
+                          </span>
+                          <span style={{ fontSize: '8px', background: `${priorityColor}15`, color: priorityColor, padding: '2px 5px', borderRadius: '4px', fontWeight: 700 }}>
+                            {todo.priority.toUpperCase()}
+                          </span>
+                          <span style={{ fontSize: '8px', color: '#8f94a5', marginLeft: 'auto' }}>
+                            {todo.date}
+                          </span>
+                        </div>
+
+                        {/* Fast Shift Buttons */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px', marginTop: '2px' }}>
+                          <button
+                            onClick={() => moveTask(todo, 'left')}
+                            disabled={todo.stage === 'todo'}
+                            style={{
+                              background: 'rgba(255,255,255,0.03)',
+                              border: 'none',
+                              color: todo.stage === 'todo' ? 'rgba(255,255,255,0.1)' : '#fff',
+                              borderRadius: '4px',
+                              padding: '2px 6px',
+                              fontSize: '10px',
+                              cursor: todo.stage === 'todo' ? 'default' : 'pointer'
+                            }}
+                          >
+                            ◀
+                          </button>
+                          <button
+                            onClick={() => moveTask(todo, 'right')}
+                            disabled={todo.stage === 'done'}
+                            style={{
+                              background: 'rgba(255,255,255,0.03)',
+                              border: 'none',
+                              color: todo.stage === 'done' ? 'rgba(255,255,255,0.1)' : '#fff',
+                              borderRadius: '4px',
+                              padding: '2px 6px',
+                              fontSize: '10px',
+                              cursor: todo.stage === 'done' ? 'default' : 'pointer'
+                            }}
+                          >
+                            ▶
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <div style={{ padding: '20px 10px', border: '1.5px dashed rgba(255,255,255,0.04)', borderRadius: '8px', textAlign: 'center', color: '#8f94a5', fontSize: '10px' }}>
+                    Arrastrá una tarea aquí
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Edit Task Modal */}
+      {editingTodo && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '24px', width: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Editar Tarea Operativa</h3>
+            
+            <div>
+              <label style={{ fontSize: '11px', color: '#8f94a5', display: 'block', marginBottom: '6px' }}>Título</label>
+              <input
+                type="text"
+                value={editingTodo.text}
+                onChange={e => setEditingTodo({ ...editingTodo, text: e.target.value })}
+                style={{ width: '100%', background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', color: '#fff', outline: 'none', fontSize: '13px' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: '11px', color: '#8f94a5', display: 'block', marginBottom: '6px' }}>Detalles / Descripción</label>
+              <textarea
+                value={editingTodo.desc || ''}
+                onChange={e => setEditingTodo({ ...editingTodo, desc: e.target.value })}
+                style={{ width: '100%', height: '70px', background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', color: '#fff', outline: 'none', fontSize: '12px', resize: 'none' }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+              <div>
+                <label style={{ fontSize: '11px', color: '#8f94a5', display: 'block', marginBottom: '6px' }}>Prioridad</label>
+                <select
+                  value={editingTodo.priority}
+                  onChange={e => setEditingTodo({ ...editingTodo, priority: e.target.value as any })}
+                  style={{ width: '100%', background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', color: '#fff', outline: 'none', fontSize: '12px' }}
+                >
+                  <option value="high">Alta (High)</option>
+                  <option value="medium">Media (Medium)</option>
+                  <option value="low">Baja (Low)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '11px', color: '#8f94a5', display: 'block', marginBottom: '6px' }}>Etapa</label>
+                <select
+                  value={editingTodo.stage}
+                  onChange={e => setEditingTodo({ ...editingTodo, stage: e.target.value as any, done: e.target.value === 'done' })}
+                  style={{ width: '100%', background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', color: '#fff', outline: 'none', fontSize: '12px' }}
+                >
+                  <option value="todo">Por Hacer</option>
+                  <option value="in_progress">En Progreso</option>
+                  <option value="in_review">En Revisión</option>
+                  <option value="done">Completado</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+              <div>
+                <label style={{ fontSize: '11px', color: '#8f94a5', display: 'block', marginBottom: '6px' }}>Etiqueta (Badge)</label>
+                <input
+                  type="text"
+                  value={editingTodo.badge}
+                  onChange={e => setEditingTodo({ ...editingTodo, badge: e.target.value })}
+                  style={{ width: '100%', background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', color: '#fff', outline: 'none', fontSize: '12px' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '11px', color: '#8f94a5', display: 'block', marginBottom: '6px' }}>Fecha</label>
+                <input
+                  type="text"
+                  value={editingTodo.date}
+                  onChange={e => setEditingTodo({ ...editingTodo, date: e.target.value })}
+                  style={{ width: '100%', background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', color: '#fff', outline: 'none', fontSize: '12px' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+              <button
+                onClick={() => setEditingTodo(null)}
+                style={{ padding: '8px 14px', background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '6px', color: '#8f94a5', cursor: 'pointer', fontSize: '12px' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  onUpdateTodo(editingTodo)
+                  setEditingTodo(null)
+                }}
+                style={{ padding: '8px 14px', background: '#10B981', border: 'none', borderRadius: '6px', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '12px' }}
+              >
+                Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Task Modal */}
+      {showAddModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '24px', width: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Nueva Tarea Operativa</h3>
+            
+            <div>
+              <label style={{ fontSize: '11px', color: '#8f94a5', display: 'block', marginBottom: '6px' }}>Título</label>
+              <input
+                type="text"
+                placeholder="Escriba el título de la tarea..."
+                value={newTodoForm.text}
+                onChange={e => setNewTodoForm({ ...newTodoForm, text: e.target.value })}
+                style={{ width: '100%', background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', color: '#fff', outline: 'none', fontSize: '13px' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ fontSize: '11px', color: '#8f94a5', display: 'block', marginBottom: '6px' }}>Detalles / Descripción</label>
+              <textarea
+                placeholder="Escriba los detalles de la tarea..."
+                value={newTodoForm.desc}
+                onChange={e => setNewTodoForm({ ...newTodoForm, desc: e.target.value })}
+                style={{ width: '100%', height: '70px', background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', color: '#fff', outline: 'none', fontSize: '12px', resize: 'none' }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+              <div>
+                <label style={{ fontSize: '11px', color: '#8f94a5', display: 'block', marginBottom: '6px' }}>Prioridad</label>
+                <select
+                  value={newTodoForm.priority}
+                  onChange={e => setNewTodoForm({ ...newTodoForm, priority: e.target.value as any })}
+                  style={{ width: '100%', background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', color: '#fff', outline: 'none', fontSize: '12px' }}
+                >
+                  <option value="high">Alta (High)</option>
+                  <option value="medium">Media (Medium)</option>
+                  <option value="low">Baja (Low)</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '11px', color: '#8f94a5', display: 'block', marginBottom: '6px' }}>Etiqueta (Badge)</label>
+                <input
+                  type="text"
+                  value={newTodoForm.badge}
+                  onChange={e => setNewTodoForm({ ...newTodoForm, badge: e.target.value })}
+                  style={{ width: '100%', background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', color: '#fff', outline: 'none', fontSize: '12px' }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ fontSize: '11px', color: '#8f94a5', display: 'block', marginBottom: '6px' }}>Fecha límite</label>
+              <input
+                type="text"
+                value={newTodoForm.date}
+                onChange={e => setNewTodoForm({ ...newTodoForm, date: e.target.value })}
+                style={{ width: '100%', background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', color: '#fff', outline: 'none', fontSize: '12px' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+              <button
+                onClick={() => setShowAddModal(false)}
+                style={{ padding: '8px 14px', background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '6px', color: '#8f94a5', cursor: 'pointer', fontSize: '12px' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleAddNewTodo}
+                style={{ padding: '8px 14px', background: '#10B981', border: 'none', borderRadius: '6px', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '12px' }}
+              >
+                Crear Tarea
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
