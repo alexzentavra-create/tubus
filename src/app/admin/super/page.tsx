@@ -50,27 +50,27 @@ const CARTODB_DARK = {
 // Visual graphs mock data
 const METRICS_BY_PERIOD = {
   day: [
-    { label: '06:00', pasajeros: 120, colectivos: 18, choferes: 15 },
-    { label: '09:00', pasajeros: 450, colectivos: 23, choferes: 22 },
-    { label: '12:00', pasajeros: 310, colectivos: 21, choferes: 20 },
-    { label: '15:00', pasajeros: 280, colectivos: 20, choferes: 19 },
-    { label: '18:00', pasajeros: 520, colectivos: 23, choferes: 23 },
-    { label: '21:00', pasajeros: 190, colectivos: 15, choferes: 15 }
+    { label: '06:00', joined: 5, active: 45 },
+    { label: '09:00', joined: 12, active: 180 },
+    { label: '12:00', joined: 8, active: 110 },
+    { label: '15:00', joined: 6, active: 95 },
+    { label: '18:00', joined: 14, active: 210 },
+    { label: '21:00', joined: 4, active: 80 }
   ],
   week: [
-    { label: 'Lunes', pasajeros: 2450, colectivos: 23, choferes: 45 },
-    { label: 'Martes', pasajeros: 2600, colectivos: 23, choferes: 46 },
-    { label: 'Miércoles', pasajeros: 2550, colectivos: 23, choferes: 44 },
-    { label: 'Jueves', pasajeros: 2700, colectivos: 23, choferes: 47 },
-    { label: 'Viernes', pasajeros: 2950, colectivos: 23, choferes: 48 },
-    { label: 'Sábado', pasajeros: 1400, colectivos: 15, choferes: 25 },
-    { label: 'Domingo', pasajeros: 950, colectivos: 12, choferes: 18 }
+    { label: 'Lunes', joined: 80, active: 1250 },
+    { label: 'Martes', joined: 95, active: 1310 },
+    { label: 'Miércoles', joined: 90, active: 1290 },
+    { label: 'Jueves', joined: 110, active: 1340 },
+    { label: 'Viernes', joined: 125, active: 1420 },
+    { label: 'Sábado', joined: 55, active: 620 },
+    { label: 'Domingo', joined: 35, active: 410 }
   ],
   month: [
-    { label: 'Semana 1', pasajeros: 12400, colectivos: 23, choferes: 52 },
-    { label: 'Semana 2', pasajeros: 13150, colectivos: 23, choferes: 54 },
-    { label: 'Semana 3', pasajeros: 12900, colectivos: 23, choferes: 53 },
-    { label: 'Semana 4', pasajeros: 14200, colectivos: 23, choferes: 55 }
+    { label: 'Semana 1', joined: 380, active: 3950 },
+    { label: 'Semana 2', joined: 420, active: 4210 },
+    { label: 'Semana 3', joined: 405, active: 4150 },
+    { label: 'Semana 4', joined: 490, active: 4820 }
   ]
 }
 
@@ -292,6 +292,156 @@ const PROVINCES_DATA: Record<string, {
   }
 }
 
+// Interactive modals mock data
+const MOCK_USERS = [
+  {
+    id: 'usr-1',
+    name: 'Alejandro Zentavra',
+    email: 'ale.zentavra@demo.com.ar',
+    avatar: 'AZ',
+    joinedDate: '12 de Julio, 2026',
+    status: 'Activo',
+    searches: 48,
+    trips: 24,
+    rating: 4.8,
+    favLines: ['Línea 12', 'Línea 60'],
+    behavior: 'Usuario diario de Línea 12 y 60 en horario laboral.',
+    weeklyUsage: [
+      { day: 'Lun', count: 4 },
+      { day: 'Mar', count: 6 },
+      { day: 'Mie', count: 5 },
+      { day: 'Jue', count: 8 },
+      { day: 'Vie', count: 7 },
+      { day: 'Sab', count: 2 },
+      { day: 'Dom', count: 0 }
+    ]
+  },
+  {
+    id: 'usr-2',
+    name: 'Sofía Gutiérrez',
+    email: 'sofia.g@demo.com.ar',
+    avatar: 'SG',
+    joinedDate: '10 de Julio, 2026',
+    status: 'Activo',
+    searches: 15,
+    trips: 10,
+    rating: 4.5,
+    favLines: ['Línea 37'],
+    behavior: 'Uso frecuente enfocado en corredor de Av. Las Heras.',
+    weeklyUsage: [
+      { day: 'Lun', count: 2 },
+      { day: 'Mar', count: 3 },
+      { day: 'Mie', count: 2 },
+      { day: 'Jue', count: 2 },
+      { day: 'Vie', count: 1 },
+      { day: 'Sab', count: 0 },
+      { day: 'Dom', count: 0 }
+    ]
+  },
+  {
+    id: 'usr-3',
+    name: 'Mateo Lombardi',
+    email: 'mateo.l@demo.com.ar',
+    avatar: 'ML',
+    joinedDate: '07 de Julio, 2026',
+    status: 'Inactivo',
+    searches: 8,
+    trips: 4,
+    rating: 4.2,
+    favLines: ['Línea 152'],
+    behavior: 'Viajes ocasionales interurbanos de fin de semana.',
+    weeklyUsage: [
+      { day: 'Lun', count: 0 },
+      { day: 'Mar', count: 0 },
+      { day: 'Mie', count: 0 },
+      { day: 'Jue', count: 0 },
+      { day: 'Vie', count: 1 },
+      { day: 'Sab', count: 2 },
+      { day: 'Dom', count: 1 }
+    ]
+  },
+  {
+    id: 'usr-4',
+    name: 'Mariana Peralta',
+    email: 'mariana.p@demo.com.ar',
+    avatar: 'MP',
+    joinedDate: '11 de Julio, 2026',
+    status: 'Activo',
+    searches: 22,
+    trips: 14,
+    rating: 4.9,
+    favLines: ['Línea 59', 'Línea 39'],
+    behavior: 'Patrón de viaje vespertino recurrente entre las 18:00 y 20:00.',
+    weeklyUsage: [
+      { day: 'Lun', count: 3 },
+      { day: 'Mar', count: 2 },
+      { day: 'Mie', count: 4 },
+      { day: 'Jue', count: 3 },
+      { day: 'Vie', count: 2 },
+      { day: 'Sab', count: 0 },
+      { day: 'Dom', count: 0 }
+    ]
+  }
+]
+
+const GROWTH_STATS = {
+  day: {
+    newUsers: '+15',
+    activeUsers: '320',
+    churn: '2',
+    newLines: '0',
+    supportQueries: '5',
+    joinedList: ['usr-1', 'usr-4']
+  },
+  week: {
+    newUsers: '+120',
+    activeUsers: '1,840',
+    churn: '12',
+    newLines: '1',
+    supportQueries: '35',
+    joinedList: ['usr-1', 'usr-2', 'usr-4']
+  },
+  month: {
+    newUsers: '+580',
+    activeUsers: '4,820',
+    churn: '45',
+    newLines: '3',
+    supportQueries: '120',
+    joinedList: ['usr-1', 'usr-2', 'usr-3', 'usr-4']
+  }
+}
+
+const MOCK_ACTIVE_FLEET = [
+  { unit: '1201', line: 'Línea 12', driver: 'Néstor García', speed: 34, status: 'En Hora', deviation: 'Normal', lastSync: 'Hace 30s' },
+  { unit: '1203', line: 'Línea 12', driver: 'Roberto Sánchez', speed: 28, status: 'Demorado (3m)', deviation: 'Desvío Activo', lastSync: 'Hace 10s' },
+  { unit: '2802', line: 'Línea 28', driver: 'Carlos M.', speed: 62, status: 'En Hora', deviation: 'Velocidad Alta', lastSync: 'Hace 45s' },
+  { unit: '2804', line: 'Línea 28', driver: 'Jorge Rodríguez', speed: 0, status: 'Detenido', deviation: 'Normal', lastSync: 'Hace 2m' },
+  { unit: '3703', line: 'Línea 37', driver: 'Roberto S.', speed: 41, status: 'En Hora', deviation: 'Normal', lastSync: 'Hace 12s' },
+  { unit: '3901', line: 'Línea 39', driver: 'Esteban Ortiz', speed: 15, status: 'En Hora', deviation: 'Normal', lastSync: 'Hace 5s' },
+  { unit: '5903', line: 'Línea 59', driver: 'Hugo Bianchi', speed: 38, status: 'Demorado (1m)', deviation: 'Normal', lastSync: 'Hace 18s' },
+  { unit: '6020', line: 'Línea 60', driver: 'Carlos Martínez', speed: 45, status: 'En Hora', deviation: 'Normal', lastSync: 'Hace 25s' },
+  { unit: '6024', line: 'Línea 60', driver: 'Pablo García', speed: 22, status: 'En Hora', deviation: 'Normal', lastSync: 'Hace 8s' },
+  { unit: '15210', line: 'Línea 152', driver: 'Roberto S.', speed: 48, status: 'En Hora', deviation: 'Normal', lastSync: 'Hace 14s' }
+]
+
+const MOCK_DRIVERS_STATUS = [
+  { id: 'drv-1', name: 'Néstor García', line: 'Línea 12', unit: '1201', online: true, rating: 4.8, trips: 4, activity: 'Conduciendo, ruta normal.' },
+  { id: 'drv-2', name: 'Roberto Sánchez', line: 'Línea 12', unit: '1203', online: true, rating: 4.9, trips: 5, activity: 'Finalizó recorrido de ida.' },
+  { id: 'drv-3', name: 'Carlos Martínez', line: 'Línea 12', unit: '1202', online: false, rating: 4.6, trips: 0, activity: 'Guardia finalizada.' },
+  { id: 'drv-4', name: 'Juan Gómez', line: 'Línea 12', unit: '1205', online: true, rating: 4.5, trips: 3, activity: 'En parador de descanso.' },
+  { id: 'drv-5', name: 'Carlos M.', line: 'Línea 28', unit: '2802', online: true, rating: 4.6, trips: 6, activity: 'Conduciendo, exceso de velocidad reportado.' },
+  { id: 'drv-6', name: 'Pablo García', line: 'Línea 28', unit: '2806', online: false, rating: 4.9, trips: 2, activity: 'Turno de tarde terminado.' },
+  { id: 'drv-7', name: 'Jorge Rodríguez', line: 'Línea 28', unit: '2804', online: true, rating: 4.7, trips: 4, activity: 'Unidad detenida en semáforo.' },
+  { id: 'drv-8', name: 'Roberto S.', line: 'Línea 37', unit: '3703', online: true, rating: 4.9, trips: 5, activity: 'Iniciando vuelta de retorno.' },
+  { id: 'drv-9', name: 'Ana Martínez', line: 'Línea 37', unit: '3708', online: false, rating: 4.5, trips: 3, activity: 'Fuera de servicio.' },
+  { id: 'drv-10', name: 'Esteban Ortiz', line: 'Línea 39', unit: '3901', online: true, rating: 4.6, trips: 4, activity: 'Tráfico lento reportado.' },
+  { id: 'drv-11', name: 'Hugo Bianchi', line: 'Línea 59', unit: '5903', online: true, rating: 4.7, trips: 3, activity: 'Retraso de 1 minuto.' },
+  { id: 'drv-12', name: 'Carlos Martínez', line: 'Línea 60', unit: '6020', online: true, rating: 4.6, trips: 5, activity: 'Conduciendo por carril rápido.' },
+  { id: 'drv-13', name: 'Diego Rodríguez', line: 'Línea 60', unit: '6022', online: false, rating: 4.2, trips: 6, activity: 'Descanso de almuerzo.' },
+  { id: 'drv-14', name: 'Pablo García', line: 'Línea 60', unit: '6024', online: true, rating: 5.0, trips: 4, activity: 'Excelente puntualidad reportada.' },
+  { id: 'drv-15', name: 'Roberto S.', line: 'Línea 152', unit: '15210', online: true, rating: 4.9, trips: 5, activity: 'Ingresando a terminal.' }
+]
+
 // Messenger chats mock data
 const DEFAULT_CHATS = [
   { id: 'c-admin-12', name: 'Admin Línea 12 (Néstor)', role: 'lineadmin', avatar: 'L12', starred: true, lastMsg: 'Hola superadmin, modificamos el desvío en Callao.', history: [
@@ -327,6 +477,13 @@ export default function SuperAdminDashboard() {
     totalUsers: 4820, totalDrivers: 24, totalCompanies: 7,
     activeBuses: 18, pendingReports: 3, todayLogins: 142,
   })
+
+  // Modal active states
+  const [activeDetail, setActiveDetail] = useState<'users' | 'buses' | 'drivers' | 'ads' | null>(null)
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [selectedDriverLine, setSelectedDriverLine] = useState<string>('all')
+  const [userSearchTerm, setUserSearchTerm] = useState('')
+  const [growthPeriod, setGrowthPeriod] = useState<'day' | 'week' | 'month'>('week')
 
   // Graph mode (day, week, month)
   const [graphPeriod, setGraphPeriod] = useState<'day' | 'week' | 'month'>('week')
@@ -425,6 +582,410 @@ export default function SuperAdminDashboard() {
     saveTodos([...todos, newItem])
     setNewTodoText('')
     toast.success('Tarea agregada')
+  }
+
+
+  const handleSendAdReferral = (advertiserName: string) => {
+    const uniqueRefLink = `https://tubus.com.ar/join?ref=${advertiserName.toLowerCase().replace(/\s+/g, '-')}`
+    const promoMsg = `¡Hola! Aquí tienes tu enlace único de referidos de TuBus: ${uniqueRefLink}. Compartilo para que nuevos usuarios se registren y ganes puntos canjeables por publicidad gratuita.`
+
+    const existingChat = chats.find(c => c.name.toLowerCase().includes(advertiserName.toLowerCase()))
+    let targetChatId = ''
+
+    if (existingChat) {
+      targetChatId = existingChat.id
+      const updatedChats = chats.map(c => {
+        if (c.id === targetChatId) {
+          return {
+            ...c,
+            lastMsg: promoMsg,
+            history: [
+              ...c.history,
+              { id: `m-${Date.now()}`, sender: 'admin', text: promoMsg, timestamp: 'Ahora' }
+            ]
+          }
+        }
+        return c
+      })
+      saveChats(updatedChats)
+    } else {
+      const newId = `c-user-${Date.now()}`
+      targetChatId = newId
+      const newChat = {
+        id: newId,
+        name: advertiserName,
+        role: 'user',
+        avatar: advertiserName.split(' ').map(n=>n[0]).join(''),
+        starred: false,
+        lastMsg: promoMsg,
+        history: [
+          { id: `m-${Date.now()}`, sender: 'admin', text: promoMsg, timestamp: 'Ahora' }
+        ]
+      }
+      saveChats([...chats, newChat])
+    }
+
+    setSelectedChatId(targetChatId)
+    setTab('chat')
+    setActiveDetail(null)
+    toast.success('Chat abierto y enlace generado')
+  }
+
+  const renderUsersDetail = () => {
+    const activeStats = GROWTH_STATS[growthPeriod]
+    const filteredUsers = MOCK_USERS.filter(u =>
+      u.name.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+      u.email.toLowerCase().includes(userSearchTerm.toLowerCase())
+    )
+    const selectedUser = MOCK_USERS.find(u => u.id === selectedUserId) || MOCK_USERS[0]
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {/* Growth Stats Filter */}
+        <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>Estadísticas de Crecimiento</span>
+            <div style={{ display: 'flex', background: '#1b1d2e', borderRadius: '6px', padding: '3px', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <button onClick={() => setGrowthPeriod('day')} style={{ padding: '4px 10px', border: 'none', background: growthPeriod === 'day' ? '#10B981' : 'transparent', color: '#fff', fontSize: '11px', fontWeight: 600, borderRadius: '4px', cursor: 'pointer' }}>Día</button>
+              <button onClick={() => setGrowthPeriod('week')} style={{ padding: '4px 10px', border: 'none', background: growthPeriod === 'week' ? '#10B981' : 'transparent', color: '#fff', fontSize: '11px', fontWeight: 600, borderRadius: '4px', cursor: 'pointer' }}>Semana</button>
+              <button onClick={() => setGrowthPeriod('month')} style={{ padding: '4px 10px', border: 'none', background: growthPeriod === 'month' ? '#10B981' : 'transparent', color: '#fff', fontSize: '11px', fontWeight: 600, borderRadius: '4px', cursor: 'pointer' }}>Mes</button>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px' }}>
+            <div style={{ background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+              <div style={{ fontSize: '9px', color: '#8f94a5', textTransform: 'uppercase' }}>Nuevos</div>
+              <div style={{ fontSize: '16px', fontWeight: 700, color: '#10B981', marginTop: '4px' }}>{activeStats.newUsers}</div>
+            </div>
+            <div style={{ background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+              <div style={{ fontSize: '9px', color: '#8f94a5', textTransform: 'uppercase' }}>Activos</div>
+              <div style={{ fontSize: '16px', fontWeight: 700, color: '#8B5CF6', marginTop: '4px' }}>{activeStats.activeUsers}</div>
+            </div>
+            <div style={{ background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+              <div style={{ fontSize: '9px', color: '#8f94a5', textTransform: 'uppercase' }}>Bajas</div>
+              <div style={{ fontSize: '16px', fontWeight: 700, color: '#ef4444', marginTop: '4px' }}>-{activeStats.churn}</div>
+            </div>
+            <div style={{ background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+              <div style={{ fontSize: '9px', color: '#8f94a5', textTransform: 'uppercase' }}>Líneas Nuevas</div>
+              <div style={{ fontSize: '16px', fontWeight: 700, color: '#3b82f6', marginTop: '4px' }}>{activeStats.newLines}</div>
+            </div>
+            <div style={{ background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+              <div style={{ fontSize: '9px', color: '#8f94a5', textTransform: 'uppercase' }}>Consultas</div>
+              <div style={{ fontSize: '16px', fontWeight: 700, color: '#ec4899', marginTop: '4px' }}>{activeStats.supportQueries}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Double Column Users List and Profiles */}
+        <div style={{ display: 'flex', gap: '20px' }}>
+          {/* User List */}
+          <div style={{ width: '40%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                placeholder="Buscar usuarios..."
+                value={userSearchTerm}
+                onChange={e => setUserSearchTerm(e.target.value)}
+                style={{ width: '100%', padding: '8px 12px 8px 30px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#fff', fontSize: '12px', outline: 'none' }}
+              />
+              <Search size={12} style={{ position: 'absolute', left: '10px', top: '11px', color: '#8f94a5' }} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '350px', overflowY: 'auto' }}>
+              {filteredUsers.map(u => {
+                const isSelected = selectedUserId === u.id
+                return (
+                  <div
+                    key={u.id}
+                    onClick={() => setSelectedUserId(u.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', borderRadius: '8px', background: isSelected ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.02)', border: `1px solid ${isSelected ? '#10B981' : 'rgba(255,255,255,0.05)'}`, cursor: 'pointer', transition: 'all 150ms' }}
+                  >
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 600, color: '#fff' }}>{u.avatar}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.name}</div>
+                      <div style={{ fontSize: '10px', color: '#8f94a5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.email}</div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* User Profile Detail */}
+          <div style={{ width: '60%', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {selectedUser ? (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: '#8B5CF6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 600, color: '#fff' }}>{selectedUser.avatar}</div>
+                  <div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>{selectedUser.name}</div>
+                    <div style={{ fontSize: '11px', color: '#8f94a5', marginTop: '2px' }}>Unido: {selectedUser.joinedDate}</div>
+                  </div>
+                  <span style={{ marginLeft: 'auto', fontSize: '9px', fontWeight: 700, color: selectedUser.status === 'Activo' ? '#10B981' : '#ef4444', background: selectedUser.status === 'Activo' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', padding: '2px 8px', borderRadius: '10px', textTransform: 'uppercase' }}>{selectedUser.status}</span>
+                </div>
+
+                <div style={{ fontSize: '11px', color: '#a3a6b8', background: 'rgba(255,255,255,0.03)', padding: '10px 12px', borderRadius: '8px', borderLeft: '3px solid #10B981', lineHeight: '1.4' }}>
+                  {selectedUser.behavior}
+                </div>
+
+                {/* Profile Stats Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+                  <div style={{ background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '9px', color: '#8f94a5' }}>Búsquedas</div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff', marginTop: '4px' }}>{selectedUser.searches}</div>
+                  </div>
+                  <div style={{ background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '9px', color: '#8f94a5' }}>Viajes</div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff', marginTop: '4px' }}>{selectedUser.trips}</div>
+                  </div>
+                  <div style={{ background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '9px', color: '#8f94a5' }}>Rating Dado</div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#F59E0B', marginTop: '4px' }}>★ {selectedUser.rating}</div>
+                  </div>
+                  <div style={{ background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '8px', textAlign: 'center', overflow: 'hidden' }}>
+                    <div style={{ fontSize: '9px', color: '#8f94a5' }}>Favoritos</div>
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#fff', marginTop: '6px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{selectedUser.favLines[0]}</div>
+                  </div>
+                </div>
+
+                {/* Weekly Usage Graph */}
+                <div>
+                  <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 600, display: 'block', marginBottom: '8px' }}>Uso Semanal (Búsquedas y viajes por día)</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', height: '80px', background: 'rgba(0,0,0,0.2)', padding: '10px 14px', borderRadius: '8px' }}>
+                    {selectedUser.weeklyUsage.map((day, idx) => {
+                      const maxVal = Math.max(...selectedUser.weeklyUsage.map(d=>d.count)) || 1
+                      const pctHeight = (day.count / maxVal) * 100
+                      return (
+                        <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flex: 1 }}>
+                          <div style={{ width: '12px', height: `${pctHeight * 0.5 + 4}px`, background: '#10B981', borderRadius: '3px', position: 'relative' }} title={`${day.count} actividades`} />
+                          <span style={{ fontSize: '8px', color: '#8f94a5' }}>{day.day}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8f94a5', fontSize: '12px' }}>Seleccione un usuario de la lista</div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const renderBusesDetail = () => {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {/* Metric Cards Summary */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: '14px', borderRadius: '10px' }}>
+            <span style={{ fontSize: '10px', color: '#8f94a5', textTransform: 'uppercase' }}>Flota en Servicio</span>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: '#fff', marginTop: '6px' }}>18 Colectivos</div>
+          </div>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: '14px', borderRadius: '10px' }}>
+            <span style={{ fontSize: '10px', color: '#8f94a5', textTransform: 'uppercase' }}>Unidades Nuevas</span>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: '#10B981', marginTop: '6px' }}>+3 este mes</div>
+          </div>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: '14px', borderRadius: '10px' }}>
+            <span style={{ fontSize: '10px', color: '#8f94a5', textTransform: 'uppercase' }}>Alertas de Velocidad</span>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: '#ef4444', marginTop: '6px' }}>1 Unidad</div>
+          </div>
+          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: '14px', borderRadius: '10px' }}>
+            <span style={{ fontSize: '10px', color: '#8f94a5', textTransform: 'uppercase' }}>Desvíos Activos</span>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: '#F59E0B', marginTop: '6px' }}>1 Reportado</div>
+          </div>
+        </div>
+
+        {/* Live status Table */}
+        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ background: 'rgba(255,255,255,0.04)', color: '#8f94a5', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <th style={{ padding: '12px 16px' }}>Línea</th>
+                <th style={{ padding: '12px 16px' }}>Interno</th>
+                <th style={{ padding: '12px 16px' }}>Chofer</th>
+                <th style={{ padding: '12px 16px' }}>Velocidad</th>
+                <th style={{ padding: '12px 16px' }}>Alerta/Estado</th>
+                <th style={{ padding: '12px 16px' }}>Sincronizado</th>
+              </tr>
+            </thead>
+            <tbody>
+              {MOCK_ACTIVE_FLEET.map((f, idx) => {
+                const speedAlert = f.speed > 55
+                const isDelayed = f.status.includes('Demorado')
+                return (
+                  <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: idx % 2 === 0 ? 'rgba(0,0,0,0.1)' : 'transparent' }}>
+                    <td style={{ padding: '12px 16px', fontWeight: 600, color: '#fff' }}>{f.line}</td>
+                    <td style={{ padding: '12px 16px', fontFamily: 'DM Mono', color: '#10B981' }}>#{f.unit}</td>
+                    <td style={{ padding: '12px 16px' }}>{f.driver}</td>
+                    <td style={{ padding: '12px 16px', color: speedAlert ? '#ef4444' : '#fff', fontWeight: speedAlert ? 700 : 500 }}>{f.speed} km/h</td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <span style={{
+                        fontSize: '9px',
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        textTransform: 'uppercase',
+                        background: speedAlert ? 'rgba(239,68,68,0.15)' : isDelayed ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)',
+                        color: speedAlert ? '#ef4444' : isDelayed ? '#F59E0B' : '#10B981'
+                      }}>
+                        {speedAlert ? 'Velocidad Alta' : f.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 16px', color: '#8f94a5' }}>{f.lastSync}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )
+  }
+
+  const renderDriversDetail = () => {
+    const filteredDrivers = MOCK_DRIVERS_STATUS.filter(d => selectedDriverLine === 'all' || d.line === selectedDriverLine)
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {/* Line Filter selector */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(255,255,255,0.03)', padding: '12px 16px', borderRadius: '10px' }}>
+          <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>Filtrar Choferes</span>
+          <select
+            value={selectedDriverLine}
+            onChange={e => setSelectedDriverLine(e.target.value)}
+            style={{ background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', padding: '6px 12px', fontSize: '12px', outline: 'none', cursor: 'pointer' }}
+          >
+            <option value="all">Ver Todos los Choferes</option>
+            <option value="Línea 12">Línea 12</option>
+            <option value="Línea 28">Línea 28</option>
+            <option value="Línea 37">Línea 37</option>
+            <option value="Línea 39">Línea 39</option>
+            <option value="Línea 59">Línea 59</option>
+            <option value="Línea 60">Línea 60</option>
+            <option value="Línea 152">Línea 152</option>
+          </select>
+        </div>
+
+        {/* Drivers List Table */}
+        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ background: 'rgba(255,255,255,0.04)', color: '#8f94a5', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <th style={{ padding: '12px 16px' }}>Chofer</th>
+                <th style={{ padding: '12px 16px' }}>Línea</th>
+                <th style={{ padding: '12px 16px' }}>Interno</th>
+                <th style={{ padding: '12px 16px' }}>Estado</th>
+                <th style={{ padding: '12px 16px' }}>Viajes Turno</th>
+                <th style={{ padding: '12px 16px' }}>Calificación</th>
+                <th style={{ padding: '12px 16px' }}>Actividad Reciente</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredDrivers.map((d, idx) => (
+                <tr key={d.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: idx % 2 === 0 ? 'rgba(0,0,0,0.1)' : 'transparent' }}>
+                  <td style={{ padding: '12px 16px', fontWeight: 600, color: '#fff' }}>{d.name}</td>
+                  <td style={{ padding: '12px 16px' }}>{d.line}</td>
+                  <td style={{ padding: '12px 16px', fontFamily: 'DM Mono' }}>#{d.unit}</td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <span style={{
+                      fontSize: '8px',
+                      fontWeight: 700,
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      background: d.online ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)',
+                      color: d.online ? '#10B981' : '#8f94a5'
+                    }}>
+                      {d.online ? 'ONLINE' : 'OFFLINE'}
+                    </span>
+                  </td>
+                  <td style={{ padding: '12px 16px', textAlign: 'center' }}>{d.trips}</td>
+                  <td style={{ padding: '12px 16px', color: '#F59E0B', fontWeight: 600 }}>★ {d.rating}</td>
+                  <td style={{ padding: '12px 16px', color: '#a3a6b8' }}>{d.activity}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )
+  }
+
+  const renderAdsDetail = () => {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', overflow: 'hidden' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', textAlign: 'left' }}>
+            <thead>
+              <tr style={{ background: 'rgba(255,255,255,0.04)', color: '#8f94a5', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <th style={{ padding: '12px 16px' }}>Campaña</th>
+                <th style={{ padding: '12px 16px' }}>Anunciante</th>
+                <th style={{ padding: '12px 16px' }}>Parada / Línea</th>
+                <th style={{ padding: '12px 16px' }}>Presupuesto</th>
+                <th style={{ padding: '12px 16px' }}>Estado</th>
+                <th style={{ padding: '12px 16px', textAlign: 'center' }}>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ads.map((ad, idx) => {
+                const advertiserName = ad.title.includes('Coca Cola') ? 'Coca Cola Arg' : ad.title.includes('Mostaza') ? 'Mostaza S.A.' : 'Megatlon Club'
+                return (
+                  <tr key={ad.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: idx % 2 === 0 ? 'rgba(0,0,0,0.1)' : 'transparent' }}>
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ fontWeight: 600, color: '#fff' }}>{ad.title}</div>
+                      <div style={{ fontSize: '10px', color: '#8f94a5', marginTop: '2px' }}>{ad.desc}</div>
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ color: '#fff' }}>{advertiserName}</div>
+                      <div style={{ fontSize: '10px', color: '#8f94a5', marginTop: '2px' }}>{ad.timestamp}</div>
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <div>{ad.stop}</div>
+                      <div style={{ fontSize: '10px', color: '#10B981', marginTop: '2px' }}>{ad.route}</div>
+                    </td>
+                    <td style={{ padding: '12px 16px', fontWeight: 600, color: '#10B981' }}>${ad.budget.toLocaleString()} ARS</td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <span style={{
+                        fontSize: '8px',
+                        fontWeight: 700,
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        background: ad.status === 'approved' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+                        color: ad.status === 'approved' ? '#10B981' : '#F59E0B'
+                      }}>
+                        {ad.status === 'approved' ? 'APROBADO' : 'PENDIENTE'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                      <button
+                        onClick={() => handleSendAdReferral(advertiserName)}
+                        style={{
+                          background: 'rgba(59,130,246,0.12)',
+                          border: '1px solid rgba(59,130,246,0.25)',
+                          borderRadius: '6px',
+                          padding: '6px 12px',
+                          color: '#3b82f6',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          transition: 'all 150ms'
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.2)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(59,130,246,0.12)'}
+                      >
+                        <MessageSquare size={11} /> Mensajear Enlace
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )
   }
 
   const logout = async () => {
@@ -583,22 +1144,42 @@ export default function SuperAdminDashboard() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {/* Quick Metrics */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px' }}>
-              <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px' }}>
+              <div
+                onClick={() => { setActiveDetail('users'); setSelectedUserId('usr-1'); }}
+                style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', cursor: 'pointer', transition: 'all 200ms' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(16,185,129,0.3)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.transform = 'none' }}
+              >
                 <span style={{ fontSize: '11px', color: '#8f94a5', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Usuarios de la App</span>
                 <div style={{ fontSize: '28px', fontWeight: 800, marginTop: '8px', color: '#fff' }}>{stats.totalUsers.toLocaleString()}</div>
                 <div style={{ fontSize: '11px', color: '#10B981', marginTop: '4px' }}>▲ +4.2% esta semana</div>
               </div>
-              <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px' }}>
+              <div
+                onClick={() => setActiveDetail('buses')}
+                style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', cursor: 'pointer', transition: 'all 200ms' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(59,130,246,0.3)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.transform = 'none' }}
+              >
                 <span style={{ fontSize: '11px', color: '#8f94a5', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Colectivos en Ruta</span>
                 <div style={{ fontSize: '28px', fontWeight: 800, marginTop: '8px', color: '#fff' }}>{stats.activeBuses}</div>
                 <div style={{ fontSize: '11px', color: '#10B981', marginTop: '4px' }}>En servicio en tiempo real</div>
               </div>
-              <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px' }}>
+              <div
+                onClick={() => setActiveDetail('drivers')}
+                style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', cursor: 'pointer', transition: 'all 200ms' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(16,185,129,0.3)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.transform = 'none' }}
+              >
                 <span style={{ fontSize: '11px', color: '#8f94a5', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Choferes Activos</span>
                 <div style={{ fontSize: '28px', fontWeight: 800, marginTop: '8px', color: '#fff' }}>{stats.totalDrivers}</div>
                 <div style={{ fontSize: '11px', color: '#8f94a5', marginTop: '4px' }}>7 líneas registradas</div>
               </div>
-              <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px' }}>
+              <div
+                onClick={() => setActiveDetail('ads')}
+                style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', cursor: 'pointer', transition: 'all 200ms' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(245,158,11,0.3)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.transform = 'none' }}
+              >
                 <span style={{ fontSize: '11px', color: '#8f94a5', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Recaudado Publicidad</span>
                 <div style={{ fontSize: '28px', fontWeight: 800, marginTop: '8px', color: '#10B981' }}>${totalAdsEarnings.toLocaleString()} ARS</div>
                 <div style={{ fontSize: '11px', color: '#8f94a5', marginTop: '4px' }}>Facturado en pesos</div>
@@ -610,7 +1191,7 @@ export default function SuperAdminDashboard() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
                   <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Gráfico de Rendimiento General</h3>
-                  <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Análisis de afluencia de pasajeros, colectivos operativos y choferes de turno</p>
+                  <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Análisis de nuevos usuarios unidos y usuarios activos usando la app</p>
                 </div>
                 <div style={{ display: 'flex', background: '#1b1d2e', borderRadius: '8px', padding: '4px', border: '1px solid rgba(255,255,255,0.06)' }}>
                   <button onClick={() => setGraphPeriod('day')} style={{ padding: '6px 12px', border: 'none', background: graphPeriod === 'day' ? '#10B981' : 'transparent', color: '#fff', fontSize: '12px', fontWeight: 600, borderRadius: '6px', cursor: 'pointer' }}>Día</button>
@@ -623,17 +1204,21 @@ export default function SuperAdminDashboard() {
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={METRICS_BY_PERIOD[graphPeriod]} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
-                      <linearGradient id="colorPasajeros" x1="0" y1="0" x2="0" y2="1">
+                      <linearGradient id="colorJoined" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#10B981" stopOpacity={0.25} />
                         <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="colorActive" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
                     <XAxis dataKey="label" stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 11 }} />
                     <YAxis stroke="rgba(255,255,255,0.1)" tick={{ fill: '#8f94a5', fontSize: 11 }} />
                     <Tooltip contentStyle={{ background: '#121527', border: '1px solid rgba(255, 255, 255, 0.1)', color: '#fff', borderRadius: '8px' }} />
-                    <Area type="monotone" dataKey="pasajeros" name="Pasajeros" stroke="#10B981" fill="url(#colorPasajeros)" strokeWidth={2} />
-                    <Area type="monotone" dataKey="colectivos" name="Colectivos" stroke="#3b82f6" fill="none" strokeWidth={1.5} strokeDasharray="4 4" />
+                    <Area type="monotone" dataKey="joined" name="Nuevos Usuarios" stroke="#10B981" fill="url(#colorJoined)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="active" name="Usuarios Activos" stroke="#8B5CF6" fill="url(#colorActive)" strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -693,10 +1278,89 @@ export default function SuperAdminDashboard() {
                     </button>
                   </div>
                 ))}
-              </div>
             </div>
+
+            {/* Interactive Detail Modal Overlay */}
+            {activeDetail && (
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(5, 8, 16, 0.85)',
+                backdropFilter: 'blur(8px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 9999,
+                padding: '20px'
+              }}>
+                <div style={{
+                  width: '100%',
+                  maxWidth: activeDetail === 'users' ? '900px' : '800px',
+                  background: '#121527',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: '16px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  maxHeight: '90vh',
+                  boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+                  overflow: 'hidden'
+                }}>
+                  {/* Modal Header */}
+                  <div style={{
+                    padding: '20px 24px',
+                    borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      {activeDetail === 'users' && <Users size={20} style={{ color: '#10B981' }} />}
+                      {activeDetail === 'buses' && <Bus size={20} style={{ color: '#3b82f6' }} />}
+                      {activeDetail === 'drivers' && <Users size={20} style={{ color: '#10B981' }} />}
+                      {activeDetail === 'ads' && <Megaphone size={20} style={{ color: '#F59E0B' }} />}
+                      <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#fff' }}>
+                        {activeDetail === 'users' && 'Estadísticas de Usuarios'}
+                        {activeDetail === 'buses' && 'Estado de Colectivos en Ruta'}
+                        {activeDetail === 'drivers' && 'Monitoreo de Choferes Activos'}
+                        {activeDetail === 'ads' && 'Resumen de Campañas de Publicidad'}
+                      </h2>
+                    </div>
+                    <button
+                      onClick={() => { setActiveDetail(null); setSelectedUserId(null); }}
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: '32px',
+                        height: '32px',
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        fontSize: '16px'
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {/* Modal Body */}
+                  <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
+                    {activeDetail === 'users' && renderUsersDetail()}
+                    {activeDetail === 'buses' && renderBusesDetail()}
+                    {activeDetail === 'drivers' && renderDriversDetail()}
+                    {activeDetail === 'ads' && renderAdsDetail()}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+      )}
 
         {/* 1. LineMapsTab */}
         {tab === 'linemaps' && <LineMapsTab />}

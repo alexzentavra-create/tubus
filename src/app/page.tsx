@@ -9,7 +9,7 @@ import {
   LogOut, Heart, ChevronRight, User, Sliders, Moon, Globe,
   Navigation as NavIcon, LayoutDashboard, Menu,
   Locate, Plus, Minus, Sun, Route, Activity, Clock,
-  Megaphone, MessageSquare, PlusCircle, CheckCircle2, MessageCircle, Edit2,
+  Megaphone, MessageSquare, PlusCircle, CheckCircle2, MessageCircle, Edit2, Award,
   HelpCircle, Upload, Smartphone, CreditCard, PhoneCall
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
@@ -27421,11 +27421,49 @@ function ProfilePanel({
   allLines: any[]
   solveRoutes: (origin: { lat: number; lng: number }, dest: { lat: number; lng: number }) => any[]
 }) {
-  const [activeTab, setActiveTab] = useState<'profile' | 'history' | 'ads' | 'support'>('profile')
+  const [activeTab, setActiveTab] = useState<'profile' | 'history' | 'ads' | 'support' | 'points'>('profile')
   const [localName, setLocalName] = useState(profileName)
   const [localPhone, setLocalPhone] = useState(profilePhone)
   const [localEmail, setLocalEmail] = useState(profileEmail)
   const [localAvatar, setLocalAvatar] = useState(profileAvatar)
+  
+  // Points & Referral System States
+  const [points, setPoints] = useState<number>(350)
+  const [pointsHistory, setPointsHistory] = useState<any[]>([
+    { id: 'h-1', type: 'referral', desc: 'Referido registrado (Juan Pérez)', points: 100, date: '12 Jul 2026' },
+    { id: 'h-2', type: 'referral', desc: 'Referido registrado (María Gómez)', points: 100, date: '10 Jul 2026' },
+    { id: 'h-3', type: 'ad_post', desc: 'Publicación de anuncio (Descuento Mostaza)', points: -50, date: '08 Jul 2026' },
+    { id: 'h-4', type: 'referral', desc: 'Registro inicial de bienvenida', points: 200, date: '01 Jul 2026' },
+  ])
+
+  useEffect(() => {
+    const savedPoints = localStorage.getItem('user_points')
+    if (savedPoints) {
+      setPoints(Number(savedPoints))
+    } else {
+      localStorage.setItem('user_points', '350')
+    }
+    const savedHistory = localStorage.getItem('user_points_history')
+    if (savedHistory) {
+      setPointsHistory(JSON.parse(savedHistory))
+    } else {
+      localStorage.setItem('user_points_history', JSON.stringify([
+        { id: 'h-1', type: 'referral', desc: 'Referido registrado (Juan Pérez)', points: 100, date: '12 Jul 2026' },
+        { id: 'h-2', type: 'referral', desc: 'Referido registrado (María Gómez)', points: 100, date: '10 Jul 2026' },
+        { id: 'h-3', type: 'ad_post', desc: 'Publicación de anuncio (Descuento Mostaza)', points: -50, date: '08 Jul 2026' },
+        { id: 'h-4', type: 'referral', desc: 'Registro inicial de bienvenida', points: 200, date: '01 Jul 2026' },
+      ]))
+    }
+  }, [])
+
+  const updatePoints = (newVal: number, newHistory?: any[]) => {
+    setPoints(newVal)
+    localStorage.setItem('user_points', String(newVal))
+    if (newHistory) {
+      setPointsHistory(newHistory)
+      localStorage.setItem('user_points_history', JSON.stringify(newHistory))
+    }
+  }
   
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -27784,6 +27822,13 @@ function ProfilePanel({
         >
           <Megaphone size={15} style={{ color: activeTab === 'ads' ? '#F59E0B' : 'inherit' }} />
           <span>Anuncios</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('points')}
+          style={{ flex: 1, padding: '8px 4px', borderRadius: '8px', border: 'none', background: activeTab === 'points' ? 'rgba(255,255,255,0.08)' : 'transparent', color: activeTab === 'points' ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', cursor: 'pointer', transition: 'all 200ms' }}
+        >
+          <Award size={15} style={{ color: activeTab === 'points' ? '#10B981' : 'inherit' }} />
+          <span>Puntos</span>
         </button>
         <button
           onClick={() => setActiveTab('support')}
@@ -28702,6 +28747,192 @@ function ProfilePanel({
                 Enviar
               </button>
             </form>
+          </div>
+        )}
+
+        {/* ── POINTS TAB ── */}
+        {activeTab === 'points' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <PanelTitle>Puntos y Referidos</PanelTitle>
+            <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '4px', lineHeight: '1.4' }}>
+              Recomendá TuBus a tus amigos o marcas locales. Por cada nuevo registro o anunciante que use tu enlace de referidos, ganarás puntos que podés canjear por campañas publicitarias gratis.
+            </div>
+
+            {/* Points Summary Card */}
+            <div style={{
+              background: 'linear-gradient(135deg, #10B981, #059669)',
+              borderRadius: '16px',
+              padding: '20px',
+              color: '#FFFFFF',
+              boxShadow: '0 8px 16px rgba(16,185,129,0.2)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              {/* Subtle background glow pattern */}
+              <div style={{
+                position: 'absolute',
+                top: '-20px',
+                right: '-20px',
+                width: '120px',
+                height: '120px',
+                background: 'rgba(255,255,255,0.1)',
+                borderRadius: '50%',
+                filter: 'blur(20px)'
+              }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, opacity: 0.9 }}>
+                <Award size={14} /> Balance de Puntos
+              </div>
+              <div style={{ fontSize: '36px', fontWeight: 800, marginTop: '8px', display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+                {points} <span style={{ fontSize: '14px', fontWeight: 500 }}>pts</span>
+              </div>
+              <div style={{ fontSize: '11px', marginTop: '8px', opacity: 0.9, lineHeight: '1.4' }}>
+                100 pts equivalen a aproximadamente $120.000 ARS en saldo publicitario.
+              </div>
+            </div>
+
+            {/* Referral Link Card */}
+            <div style={{
+              background: prefs.darkMap ? 'rgba(30, 41, 59, 0.4)' : '#FFFFFF',
+              border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+              borderRadius: '14px',
+              padding: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px'
+            }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>Tu Enlace de Referidos</span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  readOnly
+                  value={`https://tubus.com.ar/join?ref=${(localName || 'usuario').toLowerCase().replace(/\s+/g, '-')}`}
+                  style={{
+                    flex: 1,
+                    background: prefs.darkMap ? 'rgba(15,23,42,0.6)' : '#F1F5F9',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    color: 'var(--text-primary)',
+                    fontSize: '11px',
+                    fontFamily: 'DM Mono',
+                    outline: 'none'
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    const link = `https://tubus.com.ar/join?ref=${(localName || 'usuario').toLowerCase().replace(/\s+/g, '-')}`;
+                    navigator.clipboard.writeText(link);
+                    toast.success('¡Enlace de referidos copiado al portapapeles!');
+                  }}
+                  style={{
+                    padding: '8px 14px',
+                    background: 'var(--accent-color)',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Copiar
+                </button>
+              </div>
+            </div>
+
+            {/* Rewards Redemption Table */}
+            <div>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', display: 'block', marginBottom: '10px' }}>Canjear Puntos por Publicidad</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {[
+                  { id: 'r-1', title: 'Anuncio 15 días (Parada Básica)', cost: 100, desc: 'Publicidad estándar en paradas barriales.' },
+                  { id: 'r-2', title: 'Anuncio 30 días (Parada Básica)', cost: 180, desc: 'Publicidad extendida en paradas secundarias.' },
+                  { id: 'r-3', title: 'Anuncio 15 días (Parada Premium)', cost: 250, desc: 'Publicación en zonas de alta densidad (Obelisco, Plaza Italia).' },
+                  { id: 'r-4', title: 'Anuncio 30 días (Parada Premium)', cost: 450, desc: 'Máxima visibilidad en puntos clave por un mes completo.' },
+                ].map(reward => {
+                  const canRedeem = points >= reward.cost;
+                  return (
+                    <div
+                      key={reward.id}
+                      style={{
+                        background: prefs.darkMap ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)',
+                        border: '1px solid rgba(255,255,255,0.05)',
+                        borderRadius: '10px',
+                        padding: '12px 14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '12px'
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>{reward.title}</div>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>{reward.desc}</div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#10B981' }}>{reward.cost} pts</span>
+                        <button
+                          disabled={!canRedeem}
+                          onClick={() => {
+                            const newHistory = [
+                              { id: `h-${Date.now()}`, type: 'ad_post', desc: `Canje: ${reward.title}`, points: -reward.cost, date: 'Hoy' },
+                              ...pointsHistory
+                            ];
+                            updatePoints(points - reward.cost, newHistory);
+                            toast.success(`¡Canje exitoso! Código generado: TUBUS-REF-${reward.cost}-${Math.floor(1000 + Math.random() * 9000)}`);
+                          }}
+                          style={{
+                            padding: '4px 10px',
+                            background: canRedeem ? '#10B981' : 'rgba(255,255,255,0.05)',
+                            color: canRedeem ? '#fff' : 'var(--text-muted)',
+                            border: 'none',
+                            borderRadius: '6px',
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            cursor: canRedeem ? 'pointer' : 'not-allowed',
+                            transition: 'all 150ms'
+                          }}
+                        >
+                          {canRedeem ? 'Canjear' : 'Faltan pts'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Points History */}
+            <div>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', display: 'block', marginBottom: '8px' }}>Historial de Transacciones</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
+                {pointsHistory.map((item, idx) => (
+                  <div
+                    key={item.id || idx}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 10px',
+                      background: 'rgba(255,255,255,0.01)',
+                      borderBottom: '1px solid rgba(255,255,255,0.03)',
+                      fontSize: '11px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{item.desc}</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '9px' }}>{item.date}</span>
+                    </div>
+                    <span style={{
+                      fontWeight: 700,
+                      color: item.points > 0 ? '#10B981' : '#ef4444'
+                    }}>
+                      {item.points > 0 ? `+${item.points}` : item.points} pts
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>
