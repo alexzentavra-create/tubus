@@ -4128,15 +4128,15 @@ const DRILLDOWN_DATA: Record<string, {
 }
 
 const ARG_PROVINCES = [
-  { id: 'buenos-aires', name: 'Provincia de Buenos Aires & CABA', path: 'M 155 220 C 165 210, 185 205, 195 210 C 205 215, 215 205, 220 220 C 225 235, 210 240, 225 250 C 235 260, 230 280, 215 290 C 200 300, 180 305, 170 305 C 160 305, 150 295, 145 280 C 135 270, 140 245, 145 230 C 150 225, 150 220, 155 220 Z', activeUsers: 3420 },
-  { id: 'cordoba', name: 'Córdoba', path: 'M 115 160 C 125 155, 140 155, 150 160 C 152 175, 155 190, 155 205 C 145 215, 130 220, 115 220 C 115 200, 110 180, 115 160 Z', activeUsers: 680 },
-  { id: 'santa-fe', name: 'Santa Fe', path: 'M 148 70 C 158 70, 168 70, 168 85 C 168 115, 170 145, 172 170 C 168 185, 162 195, 155 205 C 155 190, 152 175, 150 160 C 140 155, 138 120, 148 70 Z', activeUsers: 490 },
-  { id: 'mendoza', name: 'Mendoza', path: 'M 80 195 C 95 195, 110 195, 115 195 C 115 200, 115 220, 115 220 C 115 220, 122 230, 122 250 C 105 255, 90 255, 88 250 C 85 225, 80 210, 80 195 Z', activeUsers: 310 },
+  { id: 'buenos-aires', name: 'Provincia de Buenos Aires & CABA', path: 'M 150 205 L 168 200 L 182 205 L 205 200 L 215 225 L 205 235 L 225 250 L 225 270 L 205 290 L 190 295 L 170 300 L 150 295 L 132 255 L 122 250 L 135 215 Z', activeUsers: 3420 },
+  { id: 'cordoba', name: 'Córdoba', path: 'M 115 160 L 140 150 L 145 180 L 150 205 L 135 215 L 110 215 L 115 185 Z', activeUsers: 680 },
+  { id: 'santa-fe', name: 'Santa Fe', path: 'M 148 100 L 165 95 L 172 135 L 165 170 L 168 200 L 150 205 L 145 180 L 140 150 L 148 100 Z', activeUsers: 490 },
+  { id: 'mendoza', name: 'Mendoza', path: 'M 80 195 L 115 185 L 110 215 L 115 220 L 115 250 L 80 250 Z', activeUsers: 310 },
   
   // Non-clickable placeholder regions to complete the gorgeous full map look
-  { id: 'sur', name: 'Patagonia (Sur)', path: 'M 88 250 C 105 255, 122 250, 122 250 C 122 250, 132 255, 140 280 C 150 300, 170 305, 170 305 C 170 305, 155 330, 130 330 C 125 360, 135 385, 125 425 C 115 440, 110 445, 100 445 C 98 420, 108 380, 98 335 C 105 300, 78 285, 88 250 Z', activeUsers: 180, disabled: true },
-  { id: 'norte', name: 'Norte Grande', path: 'M 90 30 C 105 25, 120 20, 125 15 C 135 25, 145 35, 150 45 C 145 55, 140 65, 148 70 C 138 120, 125 70, 115 110 C 105 135, 115 160, 115 160 C 110 180, 85 180, 80 180 C 80 150, 85 120, 95 90 C 85 75, 80 50, 90 30 Z', activeUsers: 140, disabled: true },
-  { id: 'litoral', name: 'Litoral', path: 'M 150 45 C 155 35, 175 30, 185 35 C 195 40, 205 35, 215 45 C 225 55, 220 70, 205 70 C 190 85, 180 90, 175 110 C 178 135, 170 145, 170 145 C 170 145, 168 115, 168 85 C 168 70, 158 70, 148 70 C 140 65, 145 55, 150 45 Z', activeUsers: 220, disabled: true }
+  { id: 'sur', name: 'Patagonia (Sur)', path: 'M 80 250 L 115 250 L 122 250 L 132 255 L 150 295 L 170 300 L 155 330 L 140 330 L 130 350 L 135 385 L 125 425 L 115 440 Z M 102 445 L 115 445 L 108 455 Z', activeUsers: 180, disabled: true },
+  { id: 'norte', name: 'Norte Grande', path: 'M 90 30 L 115 20 L 125 15 L 135 25 L 145 35 L 150 45 L 140 65 L 148 70 L 138 120 L 115 110 L 105 135 L 115 160 L 80 180 L 80 150 L 85 120 L 95 90 Z', activeUsers: 140, disabled: true },
+  { id: 'litoral', name: 'Litoral', path: 'M 150 45 L 155 35 L 175 30 L 185 35 L 195 40 L 205 35 L 215 45 L 220 50 L 225 65 L 210 80 L 195 95 L 190 130 L 198 175 L 182 205 L 168 200 L 165 170 L 172 135 L 165 95 Z', activeUsers: 220, disabled: true }
 ]
 
 function ProvinceMapTab({
