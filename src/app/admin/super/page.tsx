@@ -4242,6 +4242,61 @@ function ProvinceMapTab({
     }
   }, [timePeriod, selectedDate])
 
+  const provAges = useMemo(() => {
+    const baseAges = getMetrics.ages
+    if (selectedProvinceKey === 'cordoba') {
+      return [
+        { range: '18-24 años', pct: baseAges[0].pct + 4, color: '#3B82F6' },
+        { range: '25-34 años', pct: baseAges[1].pct - 3, color: '#10B981' },
+        { range: '35-54 años', pct: baseAges[2].pct - 1, color: '#f59e0b' },
+        { range: '55+ años', pct: baseAges[3].pct, color: '#ef4444' }
+      ]
+    }
+    if (selectedProvinceKey === 'santa-fe') {
+      return [
+        { range: '18-24 años', pct: baseAges[0].pct + 2, color: '#3B82F6' },
+        { range: '25-34 años', pct: baseAges[1].pct - 2, color: '#10B981' },
+        { range: '35-54 años', pct: baseAges[2].pct, color: '#f59e0b' },
+        { range: '55+ años', pct: baseAges[3].pct, color: '#ef4444' }
+      ]
+    }
+    if (selectedProvinceKey === 'mendoza') {
+      return [
+        { range: '18-24 años', pct: baseAges[0].pct - 2, color: '#3B82F6' },
+        { range: '25-34 años', pct: baseAges[1].pct - 1, color: '#10B981' },
+        { range: '35-54 años', pct: baseAges[2].pct + 2, color: '#f59e0b' },
+        { range: '55+ años', pct: baseAges[3].pct + 1, color: '#ef4444' }
+      ]
+    }
+    return baseAges
+  }, [getMetrics.ages, selectedProvinceKey])
+
+  const provPurposes = useMemo(() => {
+    const basePurposes = getMetrics.purposes
+    if (selectedProvinceKey === 'cordoba') {
+      return [
+        { label: 'Trabajo / Oficina', pct: basePurposes[0].pct - 6 },
+        { label: 'Estudio / Facultad', pct: basePurposes[1].pct + 6 },
+        { label: 'Ocio / Social', pct: basePurposes[2].pct }
+      ]
+    }
+    if (selectedProvinceKey === 'santa-fe') {
+      return [
+        { label: 'Trabajo / Oficina', pct: basePurposes[0].pct - 4 },
+        { label: 'Estudio / Facultad', pct: basePurposes[1].pct + 3 },
+        { label: 'Ocio / Social', pct: basePurposes[2].pct + 1 }
+      ]
+    }
+    if (selectedProvinceKey === 'mendoza') {
+      return [
+        { label: 'Trabajo / Oficina', pct: basePurposes[0].pct - 1 },
+        { label: 'Estudio / Facultad', pct: basePurposes[1].pct - 2 },
+        { label: 'Ocio / Social', pct: basePurposes[2].pct + 3 }
+      ]
+    }
+    return basePurposes
+  }, [getMetrics.purposes, selectedProvinceKey])
+
   // Clear selections when parent resets province
   useEffect(() => {
     if (!selectedProvinceKey) {
@@ -4485,16 +4540,16 @@ function ProvinceMapTab({
                   // Scale properties based on province dimensions
                   const getProvinceScale = (key: string) => {
                     if (key === 'buenos-aires') {
-                      return { radiusOuter: 5, radiusInner: 2, pulseRadius: 9, strokeWidthOuter: 0.8, fontSize: 3.8, textOffsetY: 6, strokeWidthLine: 0.5 }
+                      return { radiusOuter: 9, radiusInner: 4, pulseRadius: 15, strokeWidthOuter: 1.5, fontSize: 6.5, textOffsetY: 10, strokeWidthLine: 0.8 }
                     }
                     if (key === 'cordoba') {
-                      return { radiusOuter: 2.5, radiusInner: 1.0, pulseRadius: 4.5, strokeWidthOuter: 0.4, fontSize: 1.9, textOffsetY: 3.2, strokeWidthLine: 0.25 }
+                      return { radiusOuter: 6.0, radiusInner: 2.5, pulseRadius: 10.0, strokeWidthOuter: 1.0, fontSize: 4.5, textOffsetY: 7.0, strokeWidthLine: 0.4 }
                     }
                     if (key === 'santa-fe') {
-                      return { radiusOuter: 2.2, radiusInner: 0.9, pulseRadius: 4.0, strokeWidthOuter: 0.35, fontSize: 1.6, textOffsetY: 2.8, strokeWidthLine: 0.2 }
+                      return { radiusOuter: 6.0, radiusInner: 2.5, pulseRadius: 10.0, strokeWidthOuter: 1.0, fontSize: 4.5, textOffsetY: 7.0, strokeWidthLine: 0.4 }
                     }
                     // mendoza
-                    return { radiusOuter: 2.4, radiusInner: 1.0, pulseRadius: 4.2, strokeWidthOuter: 0.4, fontSize: 1.8, textOffsetY: 3.0, strokeWidthLine: 0.25 }
+                    return { radiusOuter: 6.0, radiusInner: 2.5, pulseRadius: 10.0, strokeWidthOuter: 1.0, fontSize: 4.5, textOffsetY: 7.0, strokeWidthLine: 0.4 }
                   }
                   const scale = getProvinceScale(selectedProvinceKey)
 
@@ -4992,6 +5047,37 @@ function ProvinceMapTab({
                         ]).map((habit, idx) => (
                           <div key={idx} style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', padding: '10px', borderRadius: '6px', fontSize: '10px', color: '#cbd5e1', lineHeight: 1.3 }}>
                             {habit}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Edades */}
+                    <div>
+                      <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '8px' }}>Rango de Edades de Pasajeros ({provData?.name})</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {provAges.map((item, idx) => (
+                          <div key={idx} style={{ fontSize: '10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#fff' }}>{item.range}</span>
+                              <span style={{ color: '#8f94a5' }}>{item.pct}%</span>
+                            </div>
+                            <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
+                              <div style={{ width: `${item.pct}%`, height: '100%', background: item.color, borderRadius: '2px' }}></div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Proposito */}
+                    <div>
+                      <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Propósito Principal de Viaje ({provData?.name})</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                        {provPurposes.map((p, idx) => (
+                          <div key={idx} style={{ flex: 1, background: 'rgba(255,255,255,0.01)', padding: '6px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)', textAlign: 'center' }}>
+                            <span style={{ fontSize: '9px', color: '#8f94a5', display: 'block' }}>{p.label}</span>
+                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{p.pct}%</span>
                           </div>
                         ))}
                       </div>
