@@ -4557,12 +4557,12 @@ function ProvinceMapTab({
   const mockNeighborhoodsList = useMemo(() => {
     if (selectedCity === 'caba') {
       return [
-        { key: 'palermo', name: 'Palermo', x: 170, y: 95, count: 14500 },
-        { key: 'recoleta', name: 'Recoleta', x: 225, y: 110, count: 9800 },
-        { key: 'belgrano', name: 'Belgrano', x: 125, y: 45, count: 11200 },
-        { key: 'chacarita', name: 'Chacarita', x: 118, y: 105, count: 5400 },
-        { key: 'caballito', name: 'Caballito', x: 140, y: 145, count: 8900 },
-        { key: 'monserrat', name: 'Monserrat', x: 245, y: 150, count: 7600 }
+        { key: 'palermo', name: 'Palermo', x: 175, y: 90, count: 14500 },
+        { key: 'recoleta', name: 'Recoleta', x: 230, y: 110, count: 9800 },
+        { key: 'belgrano', name: 'Belgrano', x: 145, y: 45, count: 11200 },
+        { key: 'chacarita', name: 'Chacarita', x: 115, y: 110, count: 5400 },
+        { key: 'caballito', name: 'Caballito', x: 135, y: 145, count: 8900 },
+        { key: 'monserrat', name: 'Monserrat', x: 242, y: 160, count: 7600 }
       ]
     } else if (selectedCity === 'cordoba-cap') {
       return [
@@ -4929,6 +4929,59 @@ function ProvinceMapTab({
                         stroke="#2563eb"
                         strokeWidth="1.8"
                       />
+                      {/* Non-interactive backdrop neighborhoods to show complete divisions */}
+                      {[
+                        { name: "Nuñez", d: "M 130,10 L 150,25 L 125,45 L 110,25 Z" },
+                        { name: "Retiro", d: "M 255,100 L 270,115 L 260,135 L 235,135 Z" },
+                        { name: "San Nicolás", d: "M 235,135 L 260,135 L 255,150 L 225,150 Z" },
+                        { name: "Puerto Madero", d: "M 255,100 C 265,110 270,120 275,135 L 285,160 L 280,180 L 260,170 L 255,150 L 260,135 Z" },
+                        { name: "San Telmo", d: "M 225,170 L 260,170 L 250,195 L 220,190 Z" },
+                        { name: "La Boca", d: "M 260,170 L 280,180 C 275,200 250,225 240,220 L 220,190 L 250,195 Z" },
+                        { name: "Constitución", d: "M 200,170 L 225,170 L 220,190 L 195,190 Z" },
+                        { name: "Barracas", d: "M 220,190 L 240,220 C 235,225 220,240 210,230 L 180,210 Z" },
+                        { name: "Balvanera", d: "M 200,120 L 235,135 L 225,170 L 190,165 Z" },
+                        { name: "San Cristóbal", d: "M 190,165 L 225,170 L 200,170 L 195,190 L 175,185 Z" },
+                        { name: "Boedo", d: "M 160,175 L 190,165 L 175,185 L 170,210 L 160,205 Z" },
+                        { name: "Parque Patricios", d: "M 175,185 L 195,190 L 180,210 L 160,205 Z" },
+                        { name: "Nueva Pompeya", d: "M 160,205 L 180,210 L 210,230 C 200,240 190,250 170,245 L 150,230 Z" },
+                        { name: "Almagro", d: "M 165,115 L 200,120 L 190,165 L 160,155 Z" },
+                        { name: "Villa Crespo", d: "M 140,95 L 165,115 L 160,135 L 135,125 Z" },
+                        { name: "Colegiales", d: "M 115,80 L 140,95 L 130,110 L 105,95 Z" },
+                        { name: "Villa Ortúzar", d: "M 90,80 L 115,80 L 105,95 L 80,95 Z" },
+                        { name: "Coghlan", d: "M 95,45 L 125,45 L 115,80 L 90,80 Z" },
+                        { name: "Saavedra", d: "M 70,40 L 110,25 L 125,45 L 95,45 L 75,55 Z" },
+                        { name: "Villa Urquiza", d: "M 60,65 L 95,45 L 90,80 L 65,85 Z" },
+                        { name: "Villa Pueyrredón", d: "M 50,85 L 75,55 L 60,65 L 65,85 L 45,95 Z" },
+                        { name: "Parque Chas", d: "M 65,85 L 90,80 L 80,95 L 60,95 Z" },
+                        { name: "Agronomía", d: "M 60,95 L 80,95 L 75,115 L 55,110 Z" },
+                        { name: "La Paternal", d: "M 80,95 L 100,110 L 95,125 L 75,115 Z" },
+                        { name: "Villa del Parque", d: "M 45,95 L 65,85 L 60,95 L 55,110 L 65,135 L 40,125 Z" },
+                        { name: "Villa Devoto", d: "M 20,135 L 50,85 L 45,95 L 40,125 L 15,135 Z" },
+                        { name: "Monte Castro", d: "M 15,135 L 40,125 L 45,150 L 25,160 Z" },
+                        { name: "Villa Real", d: "M 15,135 L 25,160 L 10,165 Z" },
+                        { name: "Versailles", d: "M 10,165 L 25,160 L 20,185 L 15,175 Z" },
+                        { name: "Liniers", d: "M 15,175 L 20,185 L 35,200 L 15,200 Z" },
+                        { name: "Villa Luro", d: "M 25,160 L 45,150 L 50,175 L 35,200 Z" },
+                        { name: "Vélez Sarsfield", d: "M 45,150 L 65,135 L 75,160 L 50,175 Z" },
+                        { name: "Villa Santa Rita", d: "M 65,135 L 80,130 L 75,150 L 65,150 Z" },
+                        { name: "Villa Gral Mitre", d: "M 80,130 L 100,125 L 95,150 L 75,150 Z" },
+                        { name: "Flores", d: "M 90,150 L 110,130 L 130,170 L 125,200 L 80,195 Z" },
+                        { name: "Floresta", d: "M 50,175 L 75,160 L 90,150 L 80,195 L 55,190 Z" },
+                        { name: "Parque Avellaneda", d: "M 55,190 L 80,195 L 75,225 L 45,215 Z" },
+                        { name: "Mataderos", d: "M 35,200 L 55,190 L 45,215 L 50,220 Z" },
+                        { name: "Parque Chacabuco", d: "M 130,170 L 160,175 L 150,205 L 120,200 Z" },
+                        { name: "Villa Soldati", d: "M 120,200 L 150,205 L 170,245 L 130,245 Z" },
+                        { name: "Villa Lugano", d: "M 75,225 L 120,200 L 130,245 L 115,290 L 95,275 Z" },
+                        { name: "Villa Riachuelo", d: "M 95,275 L 115,290 L 90,300 Z" }
+                      ].map((barrio, idx) => (
+                        <path
+                          key={idx}
+                          d={barrio.d}
+                          fill="rgba(37, 99, 235, 0.02)"
+                          stroke="rgba(37, 99, 235, 0.15)"
+                          strokeWidth="0.6"
+                        />
+                      ))}
                       {/* Belgrano */}
                       <path
                         d="M 130,10 L 160,60 L 115,80 L 125,45 L 110,25 Z"
@@ -4958,7 +5011,7 @@ function ProvinceMapTab({
                       />
                       {/* Chacarita */}
                       <path
-                        d="M 115,80 L 140,95 L 135,115 L 110,130 L 90,110 Z"
+                        d="M 105,95 L 130,110 L 125,125 L 100,110 Z"
                         fill={selectedNeighborhood === 'chacarita' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
                         stroke={selectedNeighborhood === 'chacarita' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'chacarita' ? 2 : 1}
@@ -4967,7 +5020,7 @@ function ProvinceMapTab({
                       />
                       {/* Caballito */}
                       <path
-                        d="M 135,115 L 165,115 L 160,175 L 130,170 L 110,130 Z"
+                        d="M 110,130 L 135,115 L 165,115 L 160,175 L 130,170 L 110,130 Z"
                         fill={selectedNeighborhood === 'caballito' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
                         stroke={selectedNeighborhood === 'caballito' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'caballito' ? 2 : 1}
@@ -4976,7 +5029,7 @@ function ProvinceMapTab({
                       />
                       {/* Monserrat */}
                       <path
-                        d="M 235,135 L 255,135 L 260,170 L 225,170 Z"
+                        d="M 225,150 L 255,150 L 260,170 L 225,170 Z"
                         fill={selectedNeighborhood === 'monserrat' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
                         stroke={selectedNeighborhood === 'monserrat' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'monserrat' ? 2 : 1}
@@ -4995,6 +5048,20 @@ function ProvinceMapTab({
                         stroke="#2563eb"
                         strokeWidth="1.8"
                       />
+                      {/* Non-interactive backdrop neighborhoods */}
+                      {[
+                        { name: "Alberdi", d: "M 50,120 L 70,120 L 100,120 L 80,220 L 50,230 Z" },
+                        { name: "General Paz", d: "M 180,120 L 250,120 L 220,180 L 180,190 Z" },
+                        { name: "Villa Belgrano", d: "M 50,50 L 100,50 L 100,120 L 50,120 Z" }
+                      ].map((barrio, idx) => (
+                        <path
+                          key={idx}
+                          d={barrio.d}
+                          fill="rgba(37, 99, 235, 0.02)"
+                          stroke="rgba(37, 99, 235, 0.15)"
+                          strokeWidth="0.6"
+                        />
+                      ))}
                       {/* Alta Córdoba */}
                       <path
                         d="M 60,60 C 100,55 140,55 160,60 L 150,120 L 70,120 Z"
@@ -5034,6 +5101,20 @@ function ProvinceMapTab({
                         stroke="#2563eb"
                         strokeWidth="1.8"
                       />
+                      {/* Non-interactive backdrop neighborhoods */}
+                      {[
+                        { name: "Colastiné", d: "M 170,40 C 210,70 240,120 230,190 L 210,130 L 180,50 Z" },
+                        { name: "El Pozo", d: "M 155,130 L 210,130 L 190,240 L 155,130 Z" },
+                        { name: "Roma", d: "M 70,40 L 80,80 L 80,170 L 65,140 Z" }
+                      ].map((barrio, idx) => (
+                        <path
+                          key={idx}
+                          d={barrio.d}
+                          fill="rgba(37, 99, 235, 0.02)"
+                          stroke="rgba(37, 99, 235, 0.15)"
+                          strokeWidth="0.6"
+                        />
+                      ))}
                       {/* Centro */}
                       <path
                         d="M 80,80 L 140,50 L 155,130 L 140,190 L 80,170 Z"
@@ -5073,6 +5154,20 @@ function ProvinceMapTab({
                         stroke="#2563eb"
                         strokeWidth="1.8"
                       />
+                      {/* Non-interactive backdrop neighborhoods */}
+                      {[
+                        { name: "Sexta Sección", d: "M 50,60 L 100,50 L 140,70 L 60,70 Z" },
+                        { name: "San Martín", d: "M 100,50 L 200,55 L 150,70 L 140,70 Z" },
+                        { name: "Godoy Cruz border", d: "M 215,180 L 230,240 C 180,260 100,250 195,235 Z" }
+                      ].map((barrio, idx) => (
+                        <path
+                          key={idx}
+                          d={barrio.d}
+                          fill="rgba(37, 99, 235, 0.02)"
+                          stroke="rgba(37, 99, 235, 0.15)"
+                          strokeWidth="0.6"
+                        />
+                      ))}
                       {/* Quinta Sección */}
                       <path
                         d="M 60,70 L 140,70 L 125,160 L 60,150 Z"
@@ -5107,9 +5202,9 @@ function ProvinceMapTab({
                   {selectedCity === 'caba' && (
                     <>
                       {/* Palermo <-> Recoleta */}
-                      <line x1="170" y1="95" x2="225" y2="110" stroke="rgba(139, 92, 246, 0.6)" strokeWidth="2.5" className="flow-path" />
+                      <line x1="175" y1="90" x2="230" y2="110" stroke="rgba(139, 92, 246, 0.6)" strokeWidth="2.5" className="flow-path" />
                       {/* Belgrano <-> Palermo */}
-                      <line x1="125" y1="45" x2="170" y2="95" stroke="rgba(16, 185, 129, 0.6)" strokeWidth="2.5" className="flow-path" />
+                      <line x1="145" y1="45" x2="175" y2="90" stroke="rgba(16, 185, 129, 0.6)" strokeWidth="2.5" className="flow-path" />
                     </>
                   )}
 
