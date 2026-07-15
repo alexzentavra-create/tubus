@@ -4557,12 +4557,12 @@ function ProvinceMapTab({
   const mockNeighborhoodsList = useMemo(() => {
     if (selectedCity === 'caba') {
       return [
-        { key: 'palermo', name: 'Palermo', x: 150, y: 85, count: 14500 },
-        { key: 'recoleta', name: 'Recoleta', x: 210, y: 115, count: 9800 },
-        { key: 'belgrano', name: 'Belgrano', x: 85, y: 60, count: 11200 },
-        { key: 'chacarita', name: 'Chacarita', x: 80, y: 115, count: 5400 },
-        { key: 'caballito', name: 'Caballito', x: 140, y: 165, count: 8900 },
-        { key: 'monserrat', name: 'Monserrat', x: 220, y: 170, count: 7600 }
+        { key: 'palermo', name: 'Palermo', x: 170, y: 95, count: 14500 },
+        { key: 'recoleta', name: 'Recoleta', x: 225, y: 110, count: 9800 },
+        { key: 'belgrano', name: 'Belgrano', x: 125, y: 45, count: 11200 },
+        { key: 'chacarita', name: 'Chacarita', x: 118, y: 105, count: 5400 },
+        { key: 'caballito', name: 'Caballito', x: 140, y: 145, count: 8900 },
+        { key: 'monserrat', name: 'Monserrat', x: 245, y: 150, count: 7600 }
       ]
     } else if (selectedCity === 'cordoba-cap') {
       return [
@@ -4924,61 +4924,61 @@ function ProvinceMapTab({
                     <>
                       {/* CABA Outer limits (General Paz & Rio de la Plata coastline) */}
                       <path
-                        d="M 60,30 C 130,50 180,80 250,110 C 270,130 280,160 280,180 C 280,210 260,250 240,260 C 200,270 140,260 100,240 C 60,210 30,170 30,140 C 30,100 40,60 60,30 Z"
+                        d="M 130,10 L 175,45 C 190,55 210,70 230,85 C 245,95 260,110 270,130 C 275,145 285,160 280,180 C 275,200 250,225 220,240 C 190,250 150,245 115,290 L 50,220 L 15,175 L 20,135 L 50,85 L 110,25 Z"
                         fill="rgba(37, 99, 235, 0.01)"
-                        stroke="rgba(37, 99, 235, 0.15)"
-                        strokeWidth="1.5"
+                        stroke="#2563eb"
+                        strokeWidth="1.8"
                       />
                       {/* Belgrano */}
                       <path
-                        d="M 60,30 C 80,36 100,43 120,50 L 115,85 L 85,95 L 50,65 Z"
-                        fill={selectedNeighborhood === 'belgrano' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'belgrano' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        d="M 130,10 L 160,60 L 115,80 L 125,45 L 110,25 Z"
+                        fill={selectedNeighborhood === 'belgrano' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'belgrano' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'belgrano' ? 2 : 1}
                         style={{ cursor: 'pointer', transition: 'all 200ms' }}
                         onClick={() => setSelectedNeighborhood('belgrano')}
                       />
                       {/* Palermo */}
                       <path
-                        d="M 120,50 C 145,60 170,70 200,80 L 175,130 L 115,85 Z"
-                        fill={selectedNeighborhood === 'palermo' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'palermo' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        d="M 160,60 C 190,70 210,80 230,85 L 200,120 L 165,115 L 140,95 L 115,80 Z"
+                        fill={selectedNeighborhood === 'palermo' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'palermo' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'palermo' ? 2 : 1}
                         style={{ cursor: 'pointer', transition: 'all 200ms' }}
                         onClick={() => setSelectedNeighborhood('palermo')}
                       />
                       {/* Recoleta */}
                       <path
-                        d="M 200,80 C 215,89 230,98 250,110 L 220,160 L 175,130 Z"
-                        fill={selectedNeighborhood === 'recoleta' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'recoleta' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        d="M 230,85 L 255,100 L 235,135 L 200,120 Z"
+                        fill={selectedNeighborhood === 'recoleta' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'recoleta' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'recoleta' ? 2 : 1}
                         style={{ cursor: 'pointer', transition: 'all 200ms' }}
                         onClick={() => setSelectedNeighborhood('recoleta')}
                       />
                       {/* Chacarita */}
                       <path
-                        d="M 50,65 L 85,95 L 115,85 L 130,110 L 110,165 L 65,150 L 35,120 Z"
-                        fill={selectedNeighborhood === 'chacarita' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'chacarita' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        d="M 115,80 L 140,95 L 135,115 L 110,130 L 90,110 Z"
+                        fill={selectedNeighborhood === 'chacarita' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'chacarita' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'chacarita' ? 2 : 1}
                         style={{ cursor: 'pointer', transition: 'all 200ms' }}
                         onClick={() => setSelectedNeighborhood('chacarita')}
                       />
                       {/* Caballito */}
                       <path
-                        d="M 110,165 L 130,110 L 175,130 L 190,140 L 170,210 L 100,205 Z"
-                        fill={selectedNeighborhood === 'caballito' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'caballito' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        d="M 135,115 L 165,115 L 160,175 L 130,170 L 110,130 Z"
+                        fill={selectedNeighborhood === 'caballito' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'caballito' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'caballito' ? 2 : 1}
                         style={{ cursor: 'pointer', transition: 'all 200ms' }}
                         onClick={() => setSelectedNeighborhood('caballito')}
                       />
                       {/* Monserrat */}
                       <path
-                        d="M 250,110 C 260,123 270,136 275,150 L 265,210 L 170,210 L 190,140 L 220,160 Z"
-                        fill={selectedNeighborhood === 'monserrat' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'monserrat' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        d="M 235,135 L 255,135 L 260,170 L 225,170 Z"
+                        fill={selectedNeighborhood === 'monserrat' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'monserrat' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'monserrat' ? 2 : 1}
                         style={{ cursor: 'pointer', transition: 'all 200ms' }}
                         onClick={() => setSelectedNeighborhood('monserrat')}
@@ -4992,14 +4992,14 @@ function ProvinceMapTab({
                       <path
                         d="M 50,50 C 120,40 200,40 250,60 C 270,120 280,180 260,240 C 200,270 120,270 50,230 C 30,180 30,120 50,50 Z"
                         fill="rgba(37, 99, 235, 0.01)"
-                        stroke="rgba(37, 99, 235, 0.15)"
-                        strokeWidth="1.5"
+                        stroke="#2563eb"
+                        strokeWidth="1.8"
                       />
                       {/* Alta Córdoba */}
                       <path
                         d="M 60,60 C 100,55 140,55 160,60 L 150,120 L 70,120 Z"
-                        fill={selectedNeighborhood === 'alta-cordoba' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'alta-cordoba' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        fill={selectedNeighborhood === 'alta-cordoba' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'alta-cordoba' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'alta-cordoba' ? 2 : 1}
                         style={{ cursor: 'pointer', transition: 'all 200ms' }}
                         onClick={() => setSelectedNeighborhood('alta-cordoba')}
@@ -5007,8 +5007,8 @@ function ProvinceMapTab({
                       {/* Nueva Córdoba */}
                       <path
                         d="M 70,120 L 150,120 L 220,180 L 190,230 L 80,220 Z"
-                        fill={selectedNeighborhood === 'nueva-cordoba' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'nueva-cordoba' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        fill={selectedNeighborhood === 'nueva-cordoba' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'nueva-cordoba' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'nueva-cordoba' ? 2 : 1}
                         style={{ cursor: 'pointer', transition: 'all 200ms' }}
                         onClick={() => setSelectedNeighborhood('nueva-cordoba')}
@@ -5016,8 +5016,8 @@ function ProvinceMapTab({
                       {/* Centro */}
                       <path
                         d="M 160,60 C 190,65 220,70 240,80 L 220,180 L 150,120 Z"
-                        fill={selectedNeighborhood === 'centro-cba' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'centro-cba' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        fill={selectedNeighborhood === 'centro-cba' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'centro-cba' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'centro-cba' ? 2 : 1}
                         style={{ cursor: 'pointer', transition: 'all 200ms' }}
                         onClick={() => setSelectedNeighborhood('centro-cba')}
@@ -5031,14 +5031,14 @@ function ProvinceMapTab({
                       <path
                         d="M 70,40 C 110,35 150,35 170,40 C 210,70 240,120 230,190 C 220,240 180,260 140,265 C 100,260 60,230 65,140 Z"
                         fill="rgba(37, 99, 235, 0.01)"
-                        stroke="rgba(37, 99, 235, 0.15)"
-                        strokeWidth="1.5"
+                        stroke="#2563eb"
+                        strokeWidth="1.8"
                       />
                       {/* Centro */}
                       <path
                         d="M 80,80 L 140,50 L 155,130 L 140,190 L 80,170 Z"
-                        fill={selectedNeighborhood === 'centro-sf' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'centro-sf' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        fill={selectedNeighborhood === 'centro-sf' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'centro-sf' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'centro-sf' ? 2 : 1}
                         style={{ cursor: 'pointer', transition: 'all 200ms' }}
                         onClick={() => setSelectedNeighborhood('centro-sf')}
@@ -5046,8 +5046,8 @@ function ProvinceMapTab({
                       {/* Barrio Sur */}
                       <path
                         d="M 80,170 L 140,190 L 155,130 L 210,130 L 190,240 L 95,240 Z"
-                        fill={selectedNeighborhood === 'barrio-sur-sf' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'barrio-sur-sf' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        fill={selectedNeighborhood === 'barrio-sur-sf' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'barrio-sur-sf' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'barrio-sur-sf' ? 2 : 1}
                         style={{ cursor: 'pointer', transition: 'all 200ms' }}
                         onClick={() => setSelectedNeighborhood('barrio-sur-sf')}
@@ -5055,8 +5055,8 @@ function ProvinceMapTab({
                       {/* Guadalupe */}
                       <path
                         d="M 140,50 L 180,50 L 210,130 L 155,130 Z"
-                        fill={selectedNeighborhood === 'guadalupe' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'guadalupe' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        fill={selectedNeighborhood === 'guadalupe' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'guadalupe' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'guadalupe' ? 2 : 1}
                         style={{ cursor: 'pointer', transition: 'all 200ms' }}
                         onClick={() => setSelectedNeighborhood('guadalupe')}
@@ -5070,14 +5070,14 @@ function ProvinceMapTab({
                       <path
                         d="M 50,60 C 100,50 200,55 240,70 C 260,110 250,190 230,240 C 180,260 100,250 50,220 Z"
                         fill="rgba(37, 99, 235, 0.01)"
-                        stroke="rgba(37, 99, 235, 0.15)"
-                        strokeWidth="1.5"
+                        stroke="#2563eb"
+                        strokeWidth="1.8"
                       />
                       {/* Quinta Sección */}
                       <path
                         d="M 60,70 L 140,70 L 125,160 L 60,150 Z"
-                        fill={selectedNeighborhood === 'quinta-seccion' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'quinta-seccion' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        fill={selectedNeighborhood === 'quinta-seccion' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'quinta-seccion' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'quinta-seccion' ? 2 : 1}
                         style={{ cursor: 'pointer', transition: 'all 200ms' }}
                         onClick={() => setSelectedNeighborhood('quinta-seccion')}
@@ -5085,8 +5085,8 @@ function ProvinceMapTab({
                       {/* Barrio Bombal */}
                       <path
                         d="M 60,150 L 125,160 L 215,180 L 195,235 L 75,225 Z"
-                        fill={selectedNeighborhood === 'bombal' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'bombal' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        fill={selectedNeighborhood === 'bombal' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'bombal' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'bombal' ? 2 : 1}
                         style={{ cursor: 'pointer', transition: 'all 200ms' }}
                         onClick={() => setSelectedNeighborhood('bombal')}
@@ -5094,8 +5094,8 @@ function ProvinceMapTab({
                       {/* Centro Mendoza */}
                       <path
                         d="M 150,70 L 240,70 L 240,250 L 150,250 Z"
-                        fill={selectedNeighborhood === 'centro-mdz' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'centro-mdz' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        fill={selectedNeighborhood === 'centro-mdz' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'centro-mdz' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'centro-mdz' ? 2 : 1}
                         style={{ cursor: 'pointer', transition: 'all 200ms' }}
                         onClick={() => setSelectedNeighborhood('centro-mdz')}
@@ -5107,9 +5107,9 @@ function ProvinceMapTab({
                   {selectedCity === 'caba' && (
                     <>
                       {/* Palermo <-> Recoleta */}
-                      <line x1="150" y1="85" x2="210" y2="115" stroke="rgba(139, 92, 246, 0.6)" strokeWidth="2.5" className="flow-path" />
+                      <line x1="170" y1="95" x2="225" y2="110" stroke="rgba(139, 92, 246, 0.6)" strokeWidth="2.5" className="flow-path" />
                       {/* Belgrano <-> Palermo */}
-                      <line x1="85" y1="60" x2="150" y2="85" stroke="rgba(16, 185, 129, 0.6)" strokeWidth="2.5" className="flow-path" />
+                      <line x1="125" y1="45" x2="170" y2="95" stroke="rgba(16, 185, 129, 0.6)" strokeWidth="2.5" className="flow-path" />
                     </>
                   )}
 
@@ -5118,7 +5118,7 @@ function ProvinceMapTab({
                     const active = selectedNeighborhood === n.key
                     return (
                       <g key={n.key} onClick={() => setSelectedNeighborhood(n.key)} style={{ cursor: 'pointer' }}>
-                        <circle cx={n.x} cy={n.y} r={active ? '6' : '3.5'} fill={active ? '#10B981' : '#3b82f6'} stroke="#fff" strokeWidth="0.8" />
+                        <circle cx={n.x} cy={n.y} r={active ? '6' : '3.5'} fill={active ? '#60a5fa' : '#1e40af'} stroke="#fff" strokeWidth="0.8" />
                         <text x={n.x} y={n.y - 7} fill="#fff" fontSize="5.5" fontWeight="700" textAnchor="middle" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
                           {n.name}
                         </text>
@@ -5131,7 +5131,7 @@ function ProvinceMapTab({
                   </g>
                 </svg>
                 <div style={{ position: 'absolute', bottom: '12px', left: '12px', fontSize: '9px', color: '#8f94a5', display: 'flex', gap: '15px' }}>
-                  <span>🟢 Nodo Verde: Activo</span>
+                  <span>🔵 Nodo Resaltado: Activo</span>
                   <span>⚡ Líneas discontinuas: Sentido de tránsito</span>
                 </div>
               </div>
