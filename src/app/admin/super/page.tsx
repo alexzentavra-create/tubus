@@ -4302,20 +4302,20 @@ function ProvinceMapTab({
   const mockCitiesList = useMemo(() => {
     if (selectedProvinceKey === 'buenos-aires') {
       return [
-        { key: 'caba', name: 'CABA', x: 194, y: 221 },
-        { key: 'la-plata', name: 'La Plata', x: 202, y: 227 }
+        { key: 'caba', name: 'CABA', x: 605, y: 577 },
+        { key: 'la-plata', name: 'La Plata', x: 622, y: 592 }
       ]
     } else if (selectedProvinceKey === 'cordoba') {
       return [
-        { key: 'cordoba-cap', name: 'Córdoba Capital', x: 132, y: 176 }
+        { key: 'cordoba-cap', name: 'Córdoba Capital', x: 398, y: 469 }
       ]
     } else if (selectedProvinceKey === 'santa-fe') {
       return [
-        { key: 'santa-fe-cap', name: 'Santa Fe Capital', x: 158, y: 162 }
+        { key: 'santa-fe-cap', name: 'Santa Fe Capital', x: 510, y: 415 }
       ]
     } else if (selectedProvinceKey === 'mendoza') {
       return [
-        { key: 'mendoza-cap', name: 'Mendoza Capital', x: 98, y: 205 }
+        { key: 'mendoza-cap', name: 'Mendoza Capital', x: 205, y: 595 }
       ]
     }
     return []
@@ -4474,10 +4474,10 @@ function ProvinceMapTab({
                 {/* Cities radar visualization */}
                 {(() => {
                   const PROVINCE_VIEWBOX: Record<string, string> = {
-                    'buenos-aires': '110 185 130 130',
-                    'cordoba': '100 140 60 85',
-                    'santa-fe': '130 85 50 130',
-                    'mendoza': '70 175 55 85'
+                    'buenos-aires': '404 512 279 401',
+                    'cordoba': '308 333 172 273',
+                    'santa-fe': '425 268 170 308',
+                    'mendoza': '116 450 173 282'
                   }
                   const viewBox = PROVINCE_VIEWBOX[selectedProvinceKey] || "0 0 300 350"
                   const provData = ARG_PROVINCES.find(p => p.id === selectedProvinceKey)
@@ -4525,7 +4525,7 @@ function ProvinceMapTab({
                       {/* Inter-city highways in high-fidelity coordinate space */}
                       {selectedProvinceKey === 'buenos-aires' && (
                         <path
-                          d="M 194 221 L 202 227"
+                          d="M 605 577 L 622 592"
                           fill="none"
                           stroke="rgba(37, 99, 235, 0.2)"
                           strokeWidth={scale.strokeWidthLine}
