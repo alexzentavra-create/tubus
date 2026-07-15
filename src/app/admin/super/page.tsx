@@ -4924,26 +4924,26 @@ function ProvinceMapTab({
                     <>
                       {/* CABA Outer limits (General Paz & Rio de la Plata coastline) */}
                       <path
-                        d="M 130,10 L 175,45 C 190,55 210,70 230,85 C 245,95 260,110 270,130 C 275,145 285,160 280,180 C 275,200 250,225 220,240 C 190,250 150,245 115,290 L 50,220 L 15,175 L 20,135 L 50,85 L 110,25 Z"
+                        d="M 130,10 L 175,45 L 230,85 L 270,130 L 280,170 L 240,210 L 210,230 L 115,290 L 50,220 L 15,175 L 20,135 L 50,85 L 110,25 Z"
                         fill="rgba(37, 99, 235, 0.01)"
                         stroke="#2563eb"
-                        strokeWidth="1.8"
+                        strokeWidth="2.0"
                       />
                       {/* Non-interactive backdrop neighborhoods to show complete divisions */}
                       {[
                         { name: "Nuñez", d: "M 130,10 L 150,25 L 125,45 L 110,25 Z" },
                         { name: "Retiro", d: "M 255,100 L 270,115 L 260,135 L 235,135 Z" },
                         { name: "San Nicolás", d: "M 235,135 L 260,135 L 255,150 L 225,150 Z" },
-                        { name: "Puerto Madero", d: "M 255,100 C 265,110 270,120 275,135 L 285,160 L 280,180 L 260,170 L 255,150 L 260,135 Z" },
+                        { name: "Puerto Madero", d: "M 255,100 L 270,115 L 275,135 L 285,160 L 280,170 L 260,170 L 255,150 L 260,135 Z" },
                         { name: "San Telmo", d: "M 225,170 L 260,170 L 250,195 L 220,190 Z" },
-                        { name: "La Boca", d: "M 260,170 L 280,180 C 275,200 250,225 240,220 L 220,190 L 250,195 Z" },
+                        { name: "La Boca", d: "M 260,170 L 280,170 L 240,210 L 220,190 L 250,195 Z" },
                         { name: "Constitución", d: "M 200,170 L 225,170 L 220,190 L 195,190 Z" },
                         { name: "Barracas", d: "M 220,190 L 240,220 C 235,225 220,240 210,230 L 180,210 Z" },
                         { name: "Balvanera", d: "M 200,120 L 235,135 L 225,170 L 190,165 Z" },
                         { name: "San Cristóbal", d: "M 190,165 L 225,170 L 200,170 L 195,190 L 175,185 Z" },
                         { name: "Boedo", d: "M 160,175 L 190,165 L 175,185 L 170,210 L 160,205 Z" },
                         { name: "Parque Patricios", d: "M 175,185 L 195,190 L 180,210 L 160,205 Z" },
-                        { name: "Nueva Pompeya", d: "M 160,205 L 180,210 L 210,230 C 200,240 190,250 170,245 L 150,230 Z" },
+                        { name: "Nueva Pompeya", d: "M 160,205 L 180,210 L 210,230 L 170,245 L 150,230 Z" },
                         { name: "Almagro", d: "M 165,115 L 200,120 L 190,165 L 160,155 Z" },
                         { name: "Villa Crespo", d: "M 140,95 L 165,115 L 160,135 L 135,125 Z" },
                         { name: "Colegiales", d: "M 115,80 L 140,95 L 130,110 L 105,95 Z" },
@@ -4993,7 +4993,7 @@ function ProvinceMapTab({
                       />
                       {/* Palermo */}
                       <path
-                        d="M 160,60 C 190,70 210,80 230,85 L 200,120 L 165,115 L 140,95 L 115,80 Z"
+                        d="M 160,60 L 230,85 L 200,120 L 165,115 L 140,95 L 115,80 Z"
                         fill={selectedNeighborhood === 'palermo' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
                         stroke={selectedNeighborhood === 'palermo' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'palermo' ? 2 : 1}
@@ -5096,14 +5096,14 @@ function ProvinceMapTab({
                     <>
                       {/* Santa Fe Limits outline */}
                       <path
-                        d="M 70,40 C 110,35 150,35 170,40 C 210,70 240,120 230,190 C 220,240 180,260 140,265 C 100,260 60,230 65,140 Z"
+                        d="M 70,40 L 170,40 L 230,190 L 140,265 L 65,140 Z"
                         fill="rgba(37, 99, 235, 0.01)"
                         stroke="#2563eb"
                         strokeWidth="1.8"
                       />
                       {/* Non-interactive backdrop neighborhoods */}
                       {[
-                        { name: "Colastiné", d: "M 170,40 C 210,70 240,120 230,190 L 210,130 L 180,50 Z" },
+                        { name: "Colastiné", d: "M 170,40 L 230,120 L 230,190 L 210,130 L 180,50 Z" },
                         { name: "El Pozo", d: "M 155,130 L 210,130 L 190,240 L 155,130 Z" },
                         { name: "Roma", d: "M 70,40 L 80,80 L 80,170 L 65,140 Z" }
                       ].map((barrio, idx) => (
@@ -5149,7 +5149,7 @@ function ProvinceMapTab({
                     <>
                       {/* Mendoza Limits outline */}
                       <path
-                        d="M 50,60 C 100,50 200,55 240,70 C 260,110 250,190 230,240 C 180,260 100,250 50,220 Z"
+                        d="M 50,60 L 240,70 L 230,240 L 50,220 Z"
                         fill="rgba(37, 99, 235, 0.01)"
                         stroke="#2563eb"
                         strokeWidth="1.8"
@@ -5158,7 +5158,7 @@ function ProvinceMapTab({
                       {[
                         { name: "Sexta Sección", d: "M 50,60 L 100,50 L 140,70 L 60,70 Z" },
                         { name: "San Martín", d: "M 100,50 L 200,55 L 150,70 L 140,70 Z" },
-                        { name: "Godoy Cruz border", d: "M 215,180 L 230,240 C 180,260 100,250 195,235 Z" }
+                        { name: "Godoy Cruz border", d: "M 215,180 L 230,240 L 195,235 Z" }
                       ].map((barrio, idx) => (
                         <path
                           key={idx}
