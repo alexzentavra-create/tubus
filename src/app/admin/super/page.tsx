@@ -4557,30 +4557,30 @@ function ProvinceMapTab({
   const mockNeighborhoodsList = useMemo(() => {
     if (selectedCity === 'caba') {
       return [
-        { key: 'palermo', name: 'Palermo', x: 165, y: 85, count: 14500 },
-        { key: 'recoleta', name: 'Recoleta', x: 205, y: 125, count: 9800 },
-        { key: 'belgrano', name: 'Belgrano', x: 115, y: 75, count: 11200 },
-        { key: 'chacarita', name: 'Chacarita', x: 95, y: 120, count: 5400 },
-        { key: 'caballito', name: 'Caballito', x: 110, y: 180, count: 8900 },
-        { key: 'monserrat', name: 'Monserrat', x: 205, y: 185, count: 7600 }
+        { key: 'palermo', name: 'Palermo', x: 150, y: 85, count: 14500 },
+        { key: 'recoleta', name: 'Recoleta', x: 210, y: 115, count: 9800 },
+        { key: 'belgrano', name: 'Belgrano', x: 85, y: 60, count: 11200 },
+        { key: 'chacarita', name: 'Chacarita', x: 80, y: 115, count: 5400 },
+        { key: 'caballito', name: 'Caballito', x: 140, y: 165, count: 8900 },
+        { key: 'monserrat', name: 'Monserrat', x: 220, y: 170, count: 7600 }
       ]
     } else if (selectedCity === 'cordoba-cap') {
       return [
-        { key: 'nueva-cordoba', name: 'Nueva Córdoba', x: 140, y: 155, count: 8500 },
-        { key: 'alta-cordoba', name: 'Alta Córdoba', x: 140, y: 85, count: 6200 },
-        { key: 'centro-cba', name: 'Centro', x: 215, y: 120, count: 4800 }
+        { key: 'nueva-cordoba', name: 'Nueva Córdoba', x: 135, y: 170, count: 8500 },
+        { key: 'alta-cordoba', name: 'Alta Córdoba', x: 110, y: 85, count: 6200 },
+        { key: 'centro-cba', name: 'Centro', x: 180, y: 115, count: 4800 }
       ]
     } else if (selectedCity === 'santa-fe-cap') {
       return [
-        { key: 'centro-sf', name: 'Centro', x: 120, y: 130, count: 6200 },
-        { key: 'barrio-sur-sf', name: 'Barrio Sur', x: 120, y: 220, count: 4100 },
-        { key: 'guadalupe', name: 'Guadalupe', x: 200, y: 170, count: 3200 }
+        { key: 'centro-sf', name: 'Centro', x: 115, y: 115, count: 6200 },
+        { key: 'barrio-sur-sf', name: 'Barrio Sur', x: 135, y: 190, count: 4100 },
+        { key: 'guadalupe', name: 'Guadalupe', x: 175, y: 90, count: 3200 }
       ]
     } else if (selectedCity === 'mendoza-cap') {
       return [
-        { key: 'quinta-seccion', name: 'Quinta Sección', x: 105, y: 120, count: 5300 },
-        { key: 'bombal', name: 'Barrio Bombal', x: 105, y: 210, count: 3800 },
-        { key: 'centro-mdz', name: 'Centro Mendoza', x: 195, y: 160, count: 4500 }
+        { key: 'quinta-seccion', name: 'Quinta Sección', x: 95, y: 115, count: 5300 },
+        { key: 'bombal', name: 'Barrio Bombal', x: 130, y: 195, count: 3800 },
+        { key: 'centro-mdz', name: 'Centro Mendoza', x: 180, y: 125, count: 4500 }
       ]
     }
     return []
@@ -4922,16 +4922,16 @@ function ProvinceMapTab({
                   {/* Coastline / City Limits map representation */}
                   {selectedCity === 'caba' && (
                     <>
-                      {/* Rio de la Plata coastline contour */}
+                      {/* CABA Outer limits (General Paz & Rio de la Plata coastline) */}
                       <path
-                        d="M 30 140 C 60 80, 150 70, 260 110 L 270 200 C 250 240, 220 280, 180 320 C 140 310, 100 290, 60 270 Z"
+                        d="M 60,30 C 130,50 180,80 250,110 C 270,130 280,160 280,180 C 280,210 260,250 240,260 C 200,270 140,260 100,240 C 60,210 30,170 30,140 C 30,100 40,60 60,30 Z"
                         fill="rgba(37, 99, 235, 0.01)"
-                        stroke="rgba(37, 99, 235, 0.1)"
-                        strokeWidth="1"
+                        stroke="rgba(37, 99, 235, 0.15)"
+                        strokeWidth="1.5"
                       />
                       {/* Belgrano */}
                       <path
-                        d="M 90 70 L 150 40 L 125 85 L 105 105 Z"
+                        d="M 60,30 C 80,36 100,43 120,50 L 115,85 L 85,95 L 50,65 Z"
                         fill={selectedNeighborhood === 'belgrano' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
                         stroke={selectedNeighborhood === 'belgrano' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'belgrano' ? 2 : 1}
@@ -4940,7 +4940,7 @@ function ProvinceMapTab({
                       />
                       {/* Palermo */}
                       <path
-                        d="M 150 40 L 220 80 L 160 140 L 125 85 Z"
+                        d="M 120,50 C 145,60 170,70 200,80 L 175,130 L 115,85 Z"
                         fill={selectedNeighborhood === 'palermo' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
                         stroke={selectedNeighborhood === 'palermo' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'palermo' ? 2 : 1}
@@ -4949,7 +4949,7 @@ function ProvinceMapTab({
                       />
                       {/* Recoleta */}
                       <path
-                        d="M 220 80 L 250 120 L 180 170 L 160 140 Z"
+                        d="M 200,80 C 215,89 230,98 250,110 L 220,160 L 175,130 Z"
                         fill={selectedNeighborhood === 'recoleta' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
                         stroke={selectedNeighborhood === 'recoleta' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'recoleta' ? 2 : 1}
@@ -4958,7 +4958,7 @@ function ProvinceMapTab({
                       />
                       {/* Chacarita */}
                       <path
-                        d="M 90 70 L 105 105 L 140 150 L 60 150 Z"
+                        d="M 50,65 L 85,95 L 115,85 L 130,110 L 110,165 L 65,150 L 35,120 Z"
                         fill={selectedNeighborhood === 'chacarita' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
                         stroke={selectedNeighborhood === 'chacarita' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'chacarita' ? 2 : 1}
@@ -4967,7 +4967,7 @@ function ProvinceMapTab({
                       />
                       {/* Caballito */}
                       <path
-                        d="M 60 150 L 140 150 L 165 205 L 90 220 Z"
+                        d="M 110,165 L 130,110 L 175,130 L 190,140 L 170,210 L 100,205 Z"
                         fill={selectedNeighborhood === 'caballito' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
                         stroke={selectedNeighborhood === 'caballito' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'caballito' ? 2 : 1}
@@ -4976,7 +4976,7 @@ function ProvinceMapTab({
                       />
                       {/* Monserrat */}
                       <path
-                        d="M 250 120 L 220 240 L 165 205 L 180 170 Z"
+                        d="M 250,110 C 260,123 270,136 275,150 L 265,210 L 170,210 L 190,140 L 220,160 Z"
                         fill={selectedNeighborhood === 'monserrat' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
                         stroke={selectedNeighborhood === 'monserrat' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'monserrat' ? 2 : 1}
@@ -4988,9 +4988,16 @@ function ProvinceMapTab({
 
                   {selectedCity === 'cordoba-cap' && (
                     <>
+                      {/* Córdoba Circumvalation outline */}
+                      <path
+                        d="M 50,50 C 120,40 200,40 250,60 C 270,120 280,180 260,240 C 200,270 120,270 50,230 C 30,180 30,120 50,50 Z"
+                        fill="rgba(37, 99, 235, 0.01)"
+                        stroke="rgba(37, 99, 235, 0.15)"
+                        strokeWidth="1.5"
+                      />
                       {/* Alta Córdoba */}
                       <path
-                        d="M 100 50 L 180 50 L 180 120 L 100 120 Z"
+                        d="M 60,60 C 100,55 140,55 160,60 L 150,120 L 70,120 Z"
                         fill={selectedNeighborhood === 'alta-cordoba' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
                         stroke={selectedNeighborhood === 'alta-cordoba' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'alta-cordoba' ? 2 : 1}
@@ -4999,7 +5006,7 @@ function ProvinceMapTab({
                       />
                       {/* Nueva Córdoba */}
                       <path
-                        d="M 100 120 L 180 120 L 180 190 L 100 190 Z"
+                        d="M 70,120 L 150,120 L 220,180 L 190,230 L 80,220 Z"
                         fill={selectedNeighborhood === 'nueva-cordoba' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
                         stroke={selectedNeighborhood === 'nueva-cordoba' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'nueva-cordoba' ? 2 : 1}
@@ -5008,7 +5015,7 @@ function ProvinceMapTab({
                       />
                       {/* Centro */}
                       <path
-                        d="M 180 50 L 250 50 L 250 190 L 180 190 Z"
+                        d="M 160,60 C 190,65 220,70 240,80 L 220,180 L 150,120 Z"
                         fill={selectedNeighborhood === 'centro-cba' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
                         stroke={selectedNeighborhood === 'centro-cba' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'centro-cba' ? 2 : 1}
@@ -5020,9 +5027,16 @@ function ProvinceMapTab({
 
                   {selectedCity === 'santa-fe-cap' && (
                     <>
+                      {/* Santa Fe Limits outline */}
+                      <path
+                        d="M 70,40 C 110,35 150,35 170,40 C 210,70 240,120 230,190 C 220,240 180,260 140,265 C 100,260 60,230 65,140 Z"
+                        fill="rgba(37, 99, 235, 0.01)"
+                        stroke="rgba(37, 99, 235, 0.15)"
+                        strokeWidth="1.5"
+                      />
                       {/* Centro */}
                       <path
-                        d="M 80 80 L 160 80 L 160 180 L 80 180 Z"
+                        d="M 80,80 L 140,50 L 155,130 L 140,190 L 80,170 Z"
                         fill={selectedNeighborhood === 'centro-sf' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
                         stroke={selectedNeighborhood === 'centro-sf' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'centro-sf' ? 2 : 1}
@@ -5031,7 +5045,7 @@ function ProvinceMapTab({
                       />
                       {/* Barrio Sur */}
                       <path
-                        d="M 80 180 L 160 180 L 160 260 L 80 260 Z"
+                        d="M 80,170 L 140,190 L 155,130 L 210,130 L 190,240 L 95,240 Z"
                         fill={selectedNeighborhood === 'barrio-sur-sf' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
                         stroke={selectedNeighborhood === 'barrio-sur-sf' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'barrio-sur-sf' ? 2 : 1}
@@ -5040,7 +5054,7 @@ function ProvinceMapTab({
                       />
                       {/* Guadalupe */}
                       <path
-                        d="M 160 80 L 240 80 L 240 260 L 160 260 Z"
+                        d="M 140,50 L 180,50 L 210,130 L 155,130 Z"
                         fill={selectedNeighborhood === 'guadalupe' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
                         stroke={selectedNeighborhood === 'guadalupe' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'guadalupe' ? 2 : 1}
@@ -5052,9 +5066,16 @@ function ProvinceMapTab({
 
                   {selectedCity === 'mendoza-cap' && (
                     <>
+                      {/* Mendoza Limits outline */}
+                      <path
+                        d="M 50,60 C 100,50 200,55 240,70 C 260,110 250,190 230,240 C 180,260 100,250 50,220 Z"
+                        fill="rgba(37, 99, 235, 0.01)"
+                        stroke="rgba(37, 99, 235, 0.15)"
+                        strokeWidth="1.5"
+                      />
                       {/* Quinta Sección */}
                       <path
-                        d="M 60 70 L 150 70 L 150 170 L 60 170 Z"
+                        d="M 60,70 L 140,70 L 125,160 L 60,150 Z"
                         fill={selectedNeighborhood === 'quinta-seccion' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
                         stroke={selectedNeighborhood === 'quinta-seccion' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'quinta-seccion' ? 2 : 1}
@@ -5063,7 +5084,7 @@ function ProvinceMapTab({
                       />
                       {/* Barrio Bombal */}
                       <path
-                        d="M 60 170 L 150 170 L 150 250 L 60 250 Z"
+                        d="M 60,150 L 125,160 L 215,180 L 195,235 L 75,225 Z"
                         fill={selectedNeighborhood === 'bombal' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
                         stroke={selectedNeighborhood === 'bombal' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'bombal' ? 2 : 1}
@@ -5072,7 +5093,7 @@ function ProvinceMapTab({
                       />
                       {/* Centro Mendoza */}
                       <path
-                        d="M 150 70 L 240 70 L 240 250 L 150 250 Z"
+                        d="M 150,70 L 240,70 L 240,250 L 150,250 Z"
                         fill={selectedNeighborhood === 'centro-mdz' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
                         stroke={selectedNeighborhood === 'centro-mdz' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'centro-mdz' ? 2 : 1}
@@ -5086,9 +5107,9 @@ function ProvinceMapTab({
                   {selectedCity === 'caba' && (
                     <>
                       {/* Palermo <-> Recoleta */}
-                      <line x1="165" y1="85" x2="205" y2="125" stroke="rgba(139, 92, 246, 0.6)" strokeWidth="2.5" className="flow-path" />
+                      <line x1="150" y1="85" x2="210" y2="115" stroke="rgba(139, 92, 246, 0.6)" strokeWidth="2.5" className="flow-path" />
                       {/* Belgrano <-> Palermo */}
-                      <line x1="115" y1="75" x2="165" y2="85" stroke="rgba(16, 185, 129, 0.6)" strokeWidth="2.5" className="flow-path" />
+                      <line x1="85" y1="60" x2="150" y2="85" stroke="rgba(16, 185, 129, 0.6)" strokeWidth="2.5" className="flow-path" />
                     </>
                   )}
 
