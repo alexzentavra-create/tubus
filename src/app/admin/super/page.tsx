@@ -4260,6 +4260,44 @@ function ProvinceMapTab({
   const [realtimeActiveUsers, setRealtimeActiveUsers] = useState(2184)
   const [timePeriod, setTimePeriod] = useState<'day' | 'week' | 'month'>('month')
   const [selectedDate, setSelectedDate] = useState('2026-07-14')
+  const [zoomScale, setZoomScale] = useState(1.0)
+
+  // Reset zoom on navigation change
+  useEffect(() => {
+    setZoomScale(1.0);
+  }, [selectedProvinceKey, selectedCity, selectedNeighborhood]);
+
+  // Zoom auto transition threshold trigger
+  useEffect(() => {
+    if (zoomScale >= 2.25) {
+      if (!selectedProvinceKey) {
+        // Zooming in on country map: jump to Buenos Aires (default)
+        onSelectProvince('buenos-aires');
+      } else if (selectedProvinceKey && !selectedCity) {
+        // Zooming in on province map: jump to CABA / first city
+        const defaultCity = selectedProvinceKey === 'buenos-aires' ? 'caba' :
+                            selectedProvinceKey === 'cordoba' ? 'cordoba-cap' :
+                            selectedProvinceKey === 'santa-fe' ? 'santa-fe-cap' :
+                            selectedProvinceKey === 'mendoza' ? 'mendoza-cap' : null;
+        if (defaultCity) setSelectedCity(defaultCity);
+      } else if (selectedCity && !selectedNeighborhood) {
+        // Zooming in on city map: jump to first neighborhood
+        const defaultNeigh = selectedCity === 'caba' ? 'palermo' :
+                             selectedCity === 'cordoba-cap' ? 'nueva-cordoba' :
+                             selectedCity === 'santa-fe-cap' ? 'centro-sf' :
+                             selectedCity === 'mendoza-cap' ? 'quinta-seccion' : null;
+        if (defaultNeigh) setSelectedNeighborhood(defaultNeigh);
+      }
+    } else if (zoomScale <= 0.6) {
+      if (selectedNeighborhood) {
+        setSelectedNeighborhood(null);
+      } else if (selectedCity) {
+        setSelectedCity(null);
+      } else if (selectedProvinceKey) {
+        onSelectProvince(null);
+      }
+    }
+  }, [zoomScale, selectedProvinceKey, selectedCity, selectedNeighborhood]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -4622,26 +4660,56 @@ function ProvinceMapTab({
           {!selectedProvinceKey && (
             <>
               <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>Nivel 0: Provincias de Argentina</h4>
-              <div style={{ position: 'relative', width: '100%', height: '420px', display: 'flex', justifyContent: 'center' }}>
+              <div style={{ position: 'relative', width: '100%', height: '420px', display: 'flex', justifyContent: 'center', overflow: 'hidden', borderRadius: '8px' }}>
+                {/* Floating Map Zoom Controls */}
+                <div style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <button
+                    onClick={() => setZoomScale(prev => Math.min(prev + 0.25, 3.0))}
+                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', transition: 'all 150ms' }}
+                    title="Acercar (Zoom In)"
+                  >
+                    ➕
+                  </button>
+                  <button
+                    onClick={() => setZoomScale(prev => Math.max(prev - 0.25, 0.5))}
+                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', transition: 'all 150ms' }}
+                    title="Alejar (Zoom Out)"
+                  >
+                    ➖
+                  </button>
+                  <button
+                    onClick={() => setZoomScale(1.0)}
+                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#8f94a5', fontSize: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', transition: 'all 150ms' }}
+                    title="Restablecer (Reset Zoom)"
+                  >
+                    R
+                  </button>
+                  <div style={{ background: 'rgba(15, 23, 42, 0.8)', padding: '2px 6px', borderRadius: '4px', fontSize: '8px', color: '#8f94a5', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    {Math.round(zoomScale * 100)}%
+                  </div>
+                </div>
+
                 <svg width="100%" height="370" viewBox="0 0 800 1752" style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)', display: 'block', margin: '0 auto', maxHeight: '370px' }}>
-                  {ARG_PROVINCES.map((p) => {
-                    const active = selectedProvinceKey === p.id
-                    const hovered = hoveredProvince?.id === p.id
-                    
-                    return (
-                      <path
-                        key={p.id}
-                        d={p.path}
-                        fill={p.disabled ? 'rgba(30, 41, 59, 0.4)' : (hovered ? '#2563eb' : '#1e3a8a')}
-                        stroke={hovered ? '#60a5fa' : 'rgba(96, 165, 250, 0.25)'}
-                        strokeWidth={hovered ? '2' : '1'}
-                        style={{ cursor: p.disabled ? 'default' : 'pointer', transition: 'all 200ms' }}
-                        onMouseEnter={() => !p.disabled && setHoveredProvince(p)}
-                        onMouseLeave={() => setHoveredProvince(null)}
-                        onClick={() => !p.disabled && onSelectProvince(p.id)}
-                      />
-                    )
-                  })}
+                  <g style={{ transform: `scale(${zoomScale})`, transformOrigin: 'center', transition: 'transform 300ms ease-out' }}>
+                    {ARG_PROVINCES.map((p) => {
+                      const active = selectedProvinceKey === p.id
+                      const hovered = hoveredProvince?.id === p.id
+                      
+                      return (
+                        <path
+                          key={p.id}
+                          d={p.path}
+                          fill={p.disabled ? 'rgba(30, 41, 59, 0.4)' : (hovered ? '#2563eb' : '#1e3a8a')}
+                          stroke={hovered ? '#60a5fa' : 'rgba(96, 165, 250, 0.25)'}
+                          strokeWidth={hovered ? '2' : '1'}
+                          style={{ cursor: p.disabled ? 'default' : 'pointer', transition: 'all 200ms' }}
+                          onMouseEnter={() => !p.disabled && setHoveredProvince(p)}
+                          onMouseLeave={() => setHoveredProvince(null)}
+                          onClick={() => !p.disabled && onSelectProvince(p.id)}
+                        />
+                      )
+                    })}
+                  </g>
                 </svg>
 
                 {/* Map Tooltip overlay */}
@@ -4671,8 +4739,34 @@ function ProvinceMapTab({
             <>
               <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>Nivel 1: Ciudades Principales ({selectedProvinceKey.toUpperCase()})</h4>
               <div style={{ width: '100%', height: '420px', position: 'relative', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)', overflow: 'hidden' }}>
+                {/* Floating Map Zoom Controls */}
+                <div style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <button
+                    onClick={() => setZoomScale(prev => Math.min(prev + 0.25, 3.0))}
+                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', transition: 'all 150ms' }}
+                    title="Acercar (Zoom In)"
+                  >
+                    ➕
+                  </button>
+                  <button
+                    onClick={() => setZoomScale(prev => Math.max(prev - 0.25, 0.5))}
+                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', transition: 'all 150ms' }}
+                    title="Alejar (Zoom Out)"
+                  >
+                    ➖
+                  </button>
+                  <button
+                    onClick={() => setZoomScale(1.0)}
+                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#8f94a5', fontSize: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', transition: 'all 150ms' }}
+                    title="Restablecer (Reset Zoom)"
+                  >
+                    R
+                  </button>
+                  <div style={{ background: 'rgba(15, 23, 42, 0.8)', padding: '2px 6px', borderRadius: '4px', fontSize: '8px', color: '#8f94a5', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    {Math.round(zoomScale * 100)}%
+                  </div>
+                </div>
                 
-                {/* Cities radar visualization */}
                 {/* Cities radar visualization */}
                 {(() => {
                   const PROVINCE_VIEWBOX: Record<string, string> = {
@@ -4710,69 +4804,71 @@ function ProvinceMapTab({
                       </defs>
                       <rect width="100%" height="100%" fill="url(#grid)" />
 
-                      {/* High-fidelity background contour of the province */}
-                      {provData && (
-                        <path
-                          d={provData.path}
-                          fill="rgba(37, 99, 235, 0.08)"
-                          stroke="rgba(37, 99, 235, 0.35)"
-                          strokeWidth={
-                            selectedProvinceKey === 'santa-fe' ? 0.4 :
-                            selectedProvinceKey === 'buenos-aires' ? 0.4 :
-                            0.25
-                          }
-                        />
-                      )}
-
-                      {/* Inter-city highways in high-fidelity coordinate space */}
-                      {selectedProvinceKey === 'buenos-aires' && (
-                        <path
-                          d="M 605 577 L 622 592"
-                          fill="none"
-                          stroke="rgba(37, 99, 235, 0.2)"
-                          strokeWidth={scale.strokeWidthLine}
-                          strokeDasharray="1,1"
-                        />
-                      )}
-
-                      {mockCitiesList.map((city) => (
-                        <g key={city.key} onClick={() => setSelectedCity(city.key)} style={{ cursor: 'pointer' }}>
-                          <circle
-                            cx={city.x}
-                            cy={city.y}
-                            r={scale.radiusOuter}
-                            fill="rgba(59, 130, 246, 0.2)"
-                            stroke="#3b82f6"
-                            strokeWidth={scale.strokeWidthOuter}
+                      <g style={{ transform: `scale(${zoomScale})`, transformOrigin: 'center', transition: 'transform 300ms ease-out' }}>
+                        {/* High-fidelity background contour of the province */}
+                        {provData && (
+                          <path
+                            d={provData.path}
+                            fill="rgba(37, 99, 235, 0.08)"
+                            stroke="rgba(37, 99, 235, 0.35)"
+                            strokeWidth={
+                              selectedProvinceKey === 'santa-fe' ? 0.4 :
+                              selectedProvinceKey === 'buenos-aires' ? 0.4 :
+                              0.25
+                            }
                           />
-                          <circle
-                            cx={city.x}
-                            cy={city.y}
-                            r={scale.radiusInner}
-                            fill="#3b82f6"
-                          />
-                          <text
-                            x={city.x}
-                            y={city.y - scale.textOffsetY}
-                            fill="#fff"
-                            fontSize={scale.fontSize}
-                            fontWeight="700"
-                            textAnchor="middle"
-                            style={{ textShadow: '0 0.5px 1px rgba(0,0,0,0.8)' }}
-                          >
-                            {city.name}
-                          </text>
-                          <circle
-                            cx={city.x}
-                            cy={city.y}
-                            r={scale.pulseRadius}
+                        )}
+
+                        {/* Inter-city highways in high-fidelity coordinate space */}
+                        {selectedProvinceKey === 'buenos-aires' && (
+                          <path
+                            d="M 605 577 L 622 592"
                             fill="none"
-                            stroke="rgba(59, 130, 246, 0.2)"
-                            strokeWidth={scale.strokeWidthOuter / 2}
-                            className="pulse-circle"
+                            stroke="rgba(37, 99, 235, 0.2)"
+                            strokeWidth={scale.strokeWidthLine}
+                            strokeDasharray="1,1"
                           />
-                        </g>
-                      ))}
+                        )}
+
+                        {mockCitiesList.map((city) => (
+                          <g key={city.key} onClick={() => setSelectedCity(city.key)} style={{ cursor: 'pointer' }}>
+                            <circle
+                              cx={city.x}
+                              cy={city.y}
+                              r={scale.radiusOuter}
+                              fill="rgba(59, 130, 246, 0.2)"
+                              stroke="#3b82f6"
+                              strokeWidth={scale.strokeWidthOuter}
+                            />
+                            <circle
+                              cx={city.x}
+                              cy={city.y}
+                              r={scale.radiusInner}
+                              fill="#3b82f6"
+                            />
+                            <text
+                              x={city.x}
+                              y={city.y - scale.textOffsetY}
+                              fill="#fff"
+                              fontSize={scale.fontSize}
+                              fontWeight="700"
+                              textAnchor="middle"
+                              style={{ textShadow: '0 0.5px 1px rgba(0,0,0,0.8)' }}
+                            >
+                              {city.name}
+                            </text>
+                            <circle
+                              cx={city.x}
+                              cy={city.y}
+                              r={scale.pulseRadius}
+                              fill="none"
+                              stroke="rgba(59, 130, 246, 0.2)"
+                              strokeWidth={scale.strokeWidthOuter / 2}
+                              className="pulse-circle"
+                            />
+                          </g>
+                        ))}
+                      </g>
                     </svg>
                   )
                 })()}
@@ -4790,8 +4886,38 @@ function ProvinceMapTab({
                 Nivel 2: Red de Barrios y Flujos de Pasajeros ({selectedCity.toUpperCase()})
               </h4>
               <div style={{ width: '100%', height: '420px', position: 'relative', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)', overflow: 'hidden' }}>
+                {/* Floating Map Zoom Controls */}
+                <div style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <button
+                    onClick={() => setZoomScale(prev => Math.min(prev + 0.25, 3.0))}
+                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', transition: 'all 150ms' }}
+                    title="Acercar (Zoom In)"
+                  >
+                    ➕
+                  </button>
+                  <button
+                    onClick={() => setZoomScale(prev => Math.max(prev - 0.25, 0.5))}
+                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', transition: 'all 150ms' }}
+                    title="Alejar (Zoom Out)"
+                  >
+                    ➖
+                  </button>
+                  <button
+                    onClick={() => setZoomScale(1.0)}
+                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#8f94a5', fontSize: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', transition: 'all 150ms' }}
+                    title="Restablecer (Reset Zoom)"
+                  >
+                    R
+                  </button>
+                  <div style={{ background: 'rgba(15, 23, 42, 0.8)', padding: '2px 6px', borderRadius: '4px', fontSize: '8px', color: '#8f94a5', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    {Math.round(zoomScale * 100)}%
+                  </div>
+                </div>
+
                 <svg width="100%" height="100%" viewBox="0 0 300 300">
                   <rect width="100%" height="100%" fill="url(#grid)" />
+
+                  <g style={{ transform: `scale(${zoomScale})`, transformOrigin: 'center', transition: 'transform 300ms ease-out' }}>
 
                   {/* Coastline / City Limits map representation */}
                   {selectedCity === 'caba' && (
@@ -4981,6 +5107,7 @@ function ProvinceMapTab({
                       </g>
                     )
                   })}
+                  </g>
                 </svg>
                 <div style={{ position: 'absolute', bottom: '12px', left: '12px', fontSize: '9px', color: '#8f94a5', display: 'flex', gap: '15px' }}>
                   <span>🟢 Nodo Verde: Activo</span>
