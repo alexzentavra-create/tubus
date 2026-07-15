@@ -3177,6 +3177,106 @@ function AdsTab({
         })}
       </div>
 
+      {/* Interactive Bus Lines Stop-by-Stop Ads Monitor */}
+      <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div>
+          <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: 0 }}>Monitoreo de Campañas por Parada (Líneas de Colectivo)</h4>
+          <p style={{ fontSize: '11px', color: '#8f94a5', margin: '4px 0 0' }}>Seleccione una parada en el recorrido de cualquier línea para inspeccionar las campañas activas y presupuestos contratados</p>
+        </div>
+
+
+        {/* Horizontal Tracks */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          {[
+            { name: 'Línea 12', color: '#ef4444', stops: ['Plaza Italia', 'Las Heras y Callao', 'Av. Santa Fe y Pueyrredón', 'Constitución'] },
+            { name: 'Línea 37', color: '#3b82f6', stops: ['Av. Corrientes y Callao', 'Plaza Congreso', 'Av. de Mayo', 'Lanús'] },
+            { name: 'Línea 152', color: '#10b981', stops: ['Obelisco', 'Retiro', 'Cabildo y Juramento', 'Olivos'] },
+            { name: 'Línea 60', color: '#f59e0b', stops: ['Plaza Italia', 'Barrancas de Belgrano', 'San Isidro', 'Tigre'] }
+          ].map((lineObj) => (
+            <div key={lineObj.name} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: lineObj.color }} />
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{lineObj.name}</span>
+              </div>
+
+              {/* Horizontal line track containing the stops */}
+              <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0' }}>
+                {/* Horizontal Bar line */}
+                <div style={{ position: 'absolute', top: '50%', left: '10px', right: '10px', height: '2px', background: 'rgba(255,255,255,0.06)', zIndex: 1 }} />
+
+                {lineObj.stops.map((stopName, idx) => {
+                  // Check if there is an ad on this stop (by partial match)
+                  const matchingAd = ads.find(a => 
+                    a.isActive && 
+                    a.status === 'approved' && 
+                    (a.stop.toLowerCase().includes(stopName.toLowerCase()) || stopName.toLowerCase().includes(a.stop.toLowerCase()))
+                  );
+
+                  return (
+                    <div
+                      key={stopName}
+                      onClick={() => {
+                        if (matchingAd) {
+                          setSelectedAd(matchingAd);
+                        } else {
+                          // Display feedback for empty stop ad
+                          setSelectedAd({
+                            id: `empty-${stopName}`,
+                            title: 'Sin Publicidad Activa',
+                            desc: 'Esta parada actualmente no cuenta con ninguna campaña de publicidad o patrocinio contratado.',
+                            stop: stopName,
+                            route: lineObj.name,
+                            duration: 'N/A',
+                            budget: 0,
+                            userName: 'N/A',
+                            userEmail: 'N/A',
+                            userAvatar: '?',
+                            bannerBg: 'linear-gradient(135deg, #1e293b, #0f172a)',
+                            bannerText: 'Espacio Disponible',
+                            bannerTagline: '¡Anunciate aquí con TuBus!',
+                            status: 'approved',
+                            isActive: false,
+                            timestamp: 'Hoy'
+                          });
+                        }
+                      }}
+                      style={{
+                        position: 'relative',
+                        zIndex: 2,
+                        background: '#121527',
+                        border: matchingAd ? `2px solid ${lineObj.color}` : '2px solid rgba(255,255,255,0.1)',
+                        borderRadius: '20px',
+                        padding: '6px 14px',
+                        cursor: 'pointer',
+                        transition: 'all 150ms',
+                        boxShadow: matchingAd ? `0 0 10px ${lineObj.color}40` : 'none'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.05)';
+                        e.currentTarget.style.borderColor = lineObj.color;
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'none';
+                        e.currentTarget.style.borderColor = matchingAd ? lineObj.color : 'rgba(255,255,255,0.1)';
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                        <span style={{ fontSize: '10px', fontWeight: 600, color: '#fff', textAlign: 'center' }}>{stopName}</span>
+                        {matchingAd ? (
+                          <span style={{ fontSize: '8px', color: '#10B981', fontWeight: 700 }}>📢 ACTIVO</span>
+                        ) : (
+                          <span style={{ fontSize: '8px', color: '#8f94a5' }}>Libre</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* 1. Modal Preview Ad Picture / Banner */}
       {selectedAd && (
         <div style={{
