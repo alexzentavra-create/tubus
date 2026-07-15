@@ -4297,6 +4297,46 @@ function ProvinceMapTab({
     return basePurposes
   }, [getMetrics.purposes, selectedProvinceKey])
 
+  const neighAges = useMemo(() => {
+    const baseAges = getMetrics.ages
+    if (selectedNeighborhood === 'palermo') {
+      return [
+        { range: '18-24 años', pct: baseAges[0].pct + 6, color: '#3B82F6' },
+        { range: '25-34 años', pct: baseAges[1].pct + 2, color: '#10B981' },
+        { range: '35-54 años', pct: baseAges[2].pct - 6, color: '#f59e0b' },
+        { range: '55+ años', pct: baseAges[3].pct - 2, color: '#ef4444' }
+      ]
+    }
+    if (selectedNeighborhood === 'recoleta') {
+      return [
+        { range: '18-24 años', pct: baseAges[0].pct - 6, color: '#3B82F6' },
+        { range: '25-34 años', pct: baseAges[1].pct - 2, color: '#10B981' },
+        { range: '35-54 años', pct: baseAges[2].pct + 5, color: '#f59e0b' },
+        { range: '55+ años', pct: baseAges[3].pct + 3, color: '#ef4444' }
+      ]
+    }
+    return baseAges
+  }, [getMetrics.ages, selectedNeighborhood])
+
+  const neighPurposes = useMemo(() => {
+    const basePurposes = getMetrics.purposes
+    if (selectedNeighborhood === 'palermo') {
+      return [
+        { label: 'Trabajo / Oficina', pct: 58 },
+        { label: 'Estudio / Facultad', pct: 16 },
+        { label: 'Ocio / Social', pct: 26 }
+      ]
+    }
+    if (selectedNeighborhood === 'recoleta') {
+      return [
+        { label: 'Trabajo / Oficina', pct: 64 },
+        { label: 'Estudio / Facultad', pct: 18 },
+        { label: 'Ocio / Social', pct: 18 }
+      ]
+    }
+    return basePurposes
+  }, [getMetrics.purposes, selectedNeighborhood])
+
   // Clear selections when parent resets province
   useEffect(() => {
     if (!selectedProvinceKey) {
@@ -4379,23 +4419,30 @@ function ProvinceMapTab({
   const mockNeighborhoodsList = useMemo(() => {
     if (selectedCity === 'caba') {
       return [
-        { key: 'palermo', name: 'Palermo', x: 100, y: 110, count: 14500 },
-        { key: 'recoleta', name: 'Recoleta', x: 180, y: 180, count: 9800 },
-        { key: 'belgrano', name: 'Belgrano', x: 70, y: 220, count: 11200 }
+        { key: 'palermo', name: 'Palermo', x: 165, y: 85, count: 14500 },
+        { key: 'recoleta', name: 'Recoleta', x: 205, y: 125, count: 9800 },
+        { key: 'belgrano', name: 'Belgrano', x: 115, y: 75, count: 11200 },
+        { key: 'chacarita', name: 'Chacarita', x: 95, y: 120, count: 5400 },
+        { key: 'caballito', name: 'Caballito', x: 110, y: 180, count: 8900 },
+        { key: 'monserrat', name: 'Monserrat', x: 205, y: 185, count: 7600 }
       ]
     } else if (selectedCity === 'cordoba-cap') {
       return [
-        { key: 'nueva-cordoba', name: 'Nueva Córdoba', x: 150, y: 180, count: 8500 }
+        { key: 'nueva-cordoba', name: 'Nueva Córdoba', x: 140, y: 155, count: 8500 },
+        { key: 'alta-cordoba', name: 'Alta Córdoba', x: 140, y: 85, count: 6200 },
+        { key: 'centro-cba', name: 'Centro', x: 215, y: 120, count: 4800 }
       ]
     } else if (selectedCity === 'santa-fe-cap') {
       return [
-        { key: 'centro-sf', name: 'Centro', x: 150, y: 150, count: 6200 },
-        { key: 'barrio-sur-sf', name: 'Barrio Sur', x: 140, y: 220, count: 4100 }
+        { key: 'centro-sf', name: 'Centro', x: 120, y: 130, count: 6200 },
+        { key: 'barrio-sur-sf', name: 'Barrio Sur', x: 120, y: 220, count: 4100 },
+        { key: 'guadalupe', name: 'Guadalupe', x: 200, y: 170, count: 3200 }
       ]
     } else if (selectedCity === 'mendoza-cap') {
       return [
-        { key: 'quinta-seccion', name: 'Quinta Sección', x: 120, y: 160, count: 5300 },
-        { key: 'bombal', name: 'Barrio Bombal', x: 160, y: 220, count: 3800 }
+        { key: 'quinta-seccion', name: 'Quinta Sección', x: 105, y: 120, count: 5300 },
+        { key: 'bombal', name: 'Barrio Bombal', x: 105, y: 210, count: 3800 },
+        { key: 'centro-mdz', name: 'Centro Mendoza', x: 195, y: 160, count: 4500 }
       ]
     }
     return []
@@ -4643,7 +4690,7 @@ function ProvinceMapTab({
                 Nivel 2: Red de Barrios y Flujos de Pasajeros ({selectedCity.toUpperCase()})
               </h4>
               <div style={{ width: '100%', height: '420px', position: 'relative', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)', overflow: 'hidden' }}>
-                <svg width="100%" height="100%" viewBox="0 0 300 350">
+                <svg width="100%" height="100%" viewBox="0 0 300 300">
                   <rect width="100%" height="100%" fill="url(#grid)" />
 
                   {/* Coastline / City Limits map representation */}
@@ -4652,78 +4699,183 @@ function ProvinceMapTab({
                       {/* Rio de la Plata coastline contour */}
                       <path
                         d="M 30 140 C 60 80, 150 70, 260 110 L 270 200 C 250 240, 220 280, 180 320 C 140 310, 100 290, 60 270 Z"
-                        fill="rgba(37, 99, 235, 0.02)"
-                        stroke="rgba(37, 99, 235, 0.15)"
-                        strokeWidth="1.5"
+                        fill="rgba(37, 99, 235, 0.01)"
+                        stroke="rgba(37, 99, 235, 0.1)"
+                        strokeWidth="1"
                       />
-                      {/* Palermo District Boundary */}
+                      {/* Belgrano */}
                       <path
-                        d="M 90 130 L 150 115 L 160 180 L 100 180 Z"
-                        fill={selectedNeighborhood === 'palermo' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(37, 99, 235, 0.08)'}
-                        stroke={selectedNeighborhood === 'palermo' ? '#10B981' : 'rgba(37, 99, 235, 0.35)'}
+                        d="M 90 70 L 150 40 L 125 85 L 105 105 Z"
+                        fill={selectedNeighborhood === 'belgrano' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'belgrano' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        strokeWidth={selectedNeighborhood === 'belgrano' ? 2 : 1}
+                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
+                        onClick={() => setSelectedNeighborhood('belgrano')}
+                      />
+                      {/* Palermo */}
+                      <path
+                        d="M 150 40 L 220 80 L 160 140 L 125 85 Z"
+                        fill={selectedNeighborhood === 'palermo' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'palermo' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'palermo' ? 2 : 1}
                         style={{ cursor: 'pointer', transition: 'all 200ms' }}
                         onClick={() => setSelectedNeighborhood('palermo')}
                       />
-                      {/* Recoleta District Boundary */}
+                      {/* Recoleta */}
                       <path
-                        d="M 150 115 L 210 130 L 205 210 L 160 180 Z"
-                        fill={selectedNeighborhood === 'recoleta' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(37, 99, 235, 0.08)'}
-                        stroke={selectedNeighborhood === 'recoleta' ? '#10B981' : 'rgba(37, 99, 235, 0.35)'}
+                        d="M 220 80 L 250 120 L 180 170 L 160 140 Z"
+                        fill={selectedNeighborhood === 'recoleta' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'recoleta' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
                         strokeWidth={selectedNeighborhood === 'recoleta' ? 2 : 1}
                         style={{ cursor: 'pointer', transition: 'all 200ms' }}
                         onClick={() => setSelectedNeighborhood('recoleta')}
                       />
-                      {/* Belgrano District Boundary */}
+                      {/* Chacarita */}
                       <path
-                        d="M 50 160 L 100 180 L 95 250 L 50 230 Z"
-                        fill={selectedNeighborhood === 'belgrano' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(37, 99, 235, 0.08)'}
-                        stroke={selectedNeighborhood === 'belgrano' ? '#10B981' : 'rgba(37, 99, 235, 0.35)'}
-                        strokeWidth={selectedNeighborhood === 'belgrano' ? 2 : 1}
+                        d="M 90 70 L 105 105 L 140 150 L 60 150 Z"
+                        fill={selectedNeighborhood === 'chacarita' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'chacarita' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        strokeWidth={selectedNeighborhood === 'chacarita' ? 2 : 1}
                         style={{ cursor: 'pointer', transition: 'all 200ms' }}
-                        onClick={() => setSelectedNeighborhood('belgrano')}
+                        onClick={() => setSelectedNeighborhood('chacarita')}
+                      />
+                      {/* Caballito */}
+                      <path
+                        d="M 60 150 L 140 150 L 165 205 L 90 220 Z"
+                        fill={selectedNeighborhood === 'caballito' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'caballito' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        strokeWidth={selectedNeighborhood === 'caballito' ? 2 : 1}
+                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
+                        onClick={() => setSelectedNeighborhood('caballito')}
+                      />
+                      {/* Monserrat */}
+                      <path
+                        d="M 250 120 L 220 240 L 165 205 L 180 170 Z"
+                        fill={selectedNeighborhood === 'monserrat' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'monserrat' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        strokeWidth={selectedNeighborhood === 'monserrat' ? 2 : 1}
+                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
+                        onClick={() => setSelectedNeighborhood('monserrat')}
                       />
                     </>
                   )}
 
                   {selectedCity === 'cordoba-cap' && (
-                    <path
-                      d="M 100 130 L 200 130 L 180 220 L 120 220 Z"
-                      fill={selectedNeighborhood === 'nueva-cordoba' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(37, 99, 235, 0.08)'}
-                      stroke={selectedNeighborhood === 'nueva-cordoba' ? '#10B981' : 'rgba(37, 99, 235, 0.35)'}
-                      strokeWidth={selectedNeighborhood === 'nueva-cordoba' ? 2 : 1}
-                      style={{ cursor: 'pointer', transition: 'all 200ms' }}
-                      onClick={() => setSelectedNeighborhood('nueva-cordoba')}
-                    />
+                    <>
+                      {/* Alta Córdoba */}
+                      <path
+                        d="M 100 50 L 180 50 L 180 120 L 100 120 Z"
+                        fill={selectedNeighborhood === 'alta-cordoba' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'alta-cordoba' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        strokeWidth={selectedNeighborhood === 'alta-cordoba' ? 2 : 1}
+                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
+                        onClick={() => setSelectedNeighborhood('alta-cordoba')}
+                      />
+                      {/* Nueva Córdoba */}
+                      <path
+                        d="M 100 120 L 180 120 L 180 190 L 100 190 Z"
+                        fill={selectedNeighborhood === 'nueva-cordoba' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'nueva-cordoba' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        strokeWidth={selectedNeighborhood === 'nueva-cordoba' ? 2 : 1}
+                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
+                        onClick={() => setSelectedNeighborhood('nueva-cordoba')}
+                      />
+                      {/* Centro */}
+                      <path
+                        d="M 180 50 L 250 50 L 250 190 L 180 190 Z"
+                        fill={selectedNeighborhood === 'centro-cba' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'centro-cba' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        strokeWidth={selectedNeighborhood === 'centro-cba' ? 2 : 1}
+                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
+                        onClick={() => setSelectedNeighborhood('centro-cba')}
+                      />
+                    </>
+                  )}
+
+                  {selectedCity === 'santa-fe-cap' && (
+                    <>
+                      {/* Centro */}
+                      <path
+                        d="M 80 80 L 160 80 L 160 180 L 80 180 Z"
+                        fill={selectedNeighborhood === 'centro-sf' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'centro-sf' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        strokeWidth={selectedNeighborhood === 'centro-sf' ? 2 : 1}
+                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
+                        onClick={() => setSelectedNeighborhood('centro-sf')}
+                      />
+                      {/* Barrio Sur */}
+                      <path
+                        d="M 80 180 L 160 180 L 160 260 L 80 260 Z"
+                        fill={selectedNeighborhood === 'barrio-sur-sf' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'barrio-sur-sf' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        strokeWidth={selectedNeighborhood === 'barrio-sur-sf' ? 2 : 1}
+                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
+                        onClick={() => setSelectedNeighborhood('barrio-sur-sf')}
+                      />
+                      {/* Guadalupe */}
+                      <path
+                        d="M 160 80 L 240 80 L 240 260 L 160 260 Z"
+                        fill={selectedNeighborhood === 'guadalupe' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'guadalupe' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        strokeWidth={selectedNeighborhood === 'guadalupe' ? 2 : 1}
+                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
+                        onClick={() => setSelectedNeighborhood('guadalupe')}
+                      />
+                    </>
+                  )}
+
+                  {selectedCity === 'mendoza-cap' && (
+                    <>
+                      {/* Quinta Sección */}
+                      <path
+                        d="M 60 70 L 150 70 L 150 170 L 60 170 Z"
+                        fill={selectedNeighborhood === 'quinta-seccion' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'quinta-seccion' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        strokeWidth={selectedNeighborhood === 'quinta-seccion' ? 2 : 1}
+                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
+                        onClick={() => setSelectedNeighborhood('quinta-seccion')}
+                      />
+                      {/* Barrio Bombal */}
+                      <path
+                        d="M 60 170 L 150 170 L 150 250 L 60 250 Z"
+                        fill={selectedNeighborhood === 'bombal' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'bombal' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        strokeWidth={selectedNeighborhood === 'bombal' ? 2 : 1}
+                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
+                        onClick={() => setSelectedNeighborhood('bombal')}
+                      />
+                      {/* Centro Mendoza */}
+                      <path
+                        d="M 150 70 L 240 70 L 240 250 L 150 250 Z"
+                        fill={selectedNeighborhood === 'centro-mdz' ? 'rgba(16, 185, 129, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
+                        stroke={selectedNeighborhood === 'centro-mdz' ? '#10B981' : 'rgba(37, 99, 235, 0.25)'}
+                        strokeWidth={selectedNeighborhood === 'centro-mdz' ? 2 : 1}
+                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
+                        onClick={() => setSelectedNeighborhood('centro-mdz')}
+                      />
+                    </>
                   )}
 
                   {/* Flowing connection lines */}
                   {selectedCity === 'caba' && (
                     <>
                       {/* Palermo <-> Recoleta */}
-                      <line x1="125" y1="145" x2="180" y2="160" stroke="rgba(139, 92, 246, 0.6)" strokeWidth="3" className="flow-path" />
+                      <line x1="165" y1="85" x2="205" y2="125" stroke="rgba(139, 92, 246, 0.6)" strokeWidth="2.5" className="flow-path" />
                       {/* Belgrano <-> Palermo */}
-                      <line x1="70" y1="205" x2="125" y2="145" stroke="rgba(16, 185, 129, 0.6)" strokeWidth="3" className="flow-path" />
+                      <line x1="115" y1="75" x2="165" y2="85" stroke="rgba(16, 185, 129, 0.6)" strokeWidth="2.5" className="flow-path" />
                     </>
                   )}
 
                   {/* Render neighborhood points */}
                   {mockNeighborhoodsList.map((n) => {
                     const active = selectedNeighborhood === n.key
-                    // Remap coordinates slightly to sit exactly at the center of each district polygon
-                    let displayX = n.x
-                    let displayY = n.y
-                    if (n.key === 'palermo') { displayX = 125; displayY = 145; }
-                    if (n.key === 'recoleta') { displayX = 180; displayY = 160; }
-                    if (n.key === 'belgrano') { displayX = 70; displayY = 205; }
-
                     return (
                       <g key={n.key} onClick={() => setSelectedNeighborhood(n.key)} style={{ cursor: 'pointer' }}>
-                        <circle cx={displayX} cy={displayY} r={active ? '10' : '6'} fill={active ? '#10B981' : '#3b82f6'} stroke="#fff" strokeWidth="1.5" />
-                        <text x={displayX} y={displayY - 14} fill="#fff" fontSize="10" fontWeight="700" textAnchor="middle" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
+                        <circle cx={n.x} cy={n.y} r={active ? '6' : '3.5'} fill={active ? '#10B981' : '#3b82f6'} stroke="#fff" strokeWidth="0.8" />
+                        <text x={n.x} y={n.y - 7} fill="#fff" fontSize="5.5" fontWeight="700" textAnchor="middle" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
                           {n.name}
                         </text>
-                        <text x={displayX} y={displayY + 16} fill="#a3a6b8" fontSize="8" fontWeight="600" textAnchor="middle" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.8)' }}>
+                        <text x={n.x} y={n.y + 8} fill="#a3a6b8" fontSize="4.5" fontWeight="600" textAnchor="middle" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
                           {n.count.toLocaleString()} pax/d
                         </text>
                       </g>
@@ -4747,110 +4899,208 @@ function ProvinceMapTab({
         <div style={{ gridColumn: 'span 5', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           
           {/* Level 3: Neighborhood stats dashboard */}
-          {currentNeighborhoodData ? (
-            <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
-                <h4 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#10B981' }}>{currentNeighborhoodData.name}</h4>
-                <span style={{ fontSize: '11px', color: '#8f94a5' }}>Estadísticas de Tránsito de Pasajeros</span>
-              </div>
+          {currentNeighborhoodData ? (() => {
+            // Find neighborhood metrics proportion
+            const neighData = mockNeighborhoodsList.find(n => n.key === selectedNeighborhood)
+            const neighCount = neighData ? neighData.count : 0
+            const cityTotalCount = mockNeighborhoodsList.reduce((sum, n) => sum + n.count, 0) || 1
+            const neighProportion = neighCount / cityTotalCount
 
-              {/* Movement stats */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                  <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Entrada (Inflow)</span>
-                  <span style={{ fontSize: '15px', fontWeight: 700, color: '#10B981' }}>+{currentNeighborhoodData.inflow.toLocaleString()}</span>
-                </div>
-                <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                  <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Salida (Outflow)</span>
-                  <span style={{ fontSize: '15px', fontWeight: 700, color: '#ef4444' }}>-{currentNeighborhoodData.outflow.toLocaleString()}</span>
-                </div>
-              </div>
+            // Province proportion
+            let provProportion = 0.1
+            if (selectedProvinceKey === 'buenos-aires') provProportion = 0.63
+            if (selectedProvinceKey === 'cordoba') provProportion = 0.13
+            if (selectedProvinceKey === 'santa-fe') provProportion = 0.09
+            if (selectedProvinceKey === 'mendoza') provProportion = 0.06
 
-              {/* Traffic SVG Chart */}
-              <div>
-                <span style={{ fontSize: '11px', color: '#8f94a5', display: 'block', marginBottom: '8px' }}>Volumen Horario de Pasajeros (Tránsito)</span>
-                <svg width="100%" height="80" viewBox="0 0 240 80" style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '6px' }}>
-                  <polyline
-                    fill="none"
-                    stroke="#10B981"
-                    strokeWidth="2"
-                    points={currentNeighborhoodData.hourlyTraffic.map((val, idx) => `${idx * 20 + 10},${70 - (val / 500) * 60}`).join(' ')}
-                  />
-                  {currentNeighborhoodData.hourlyTraffic.map((val, idx) => (
-                    <circle
-                      key={idx}
-                      cx={idx * 20 + 10}
-                      cy={70 - (val / 500) * 60}
-                      r="2"
-                      fill="#fff"
+            const neighTotalPeriod = Math.round(getMetrics.total * provProportion * neighProportion)
+            const neighActive = Math.round(realtimeActiveUsers * provProportion * neighProportion)
+            const neighRegistries = Math.round(getMetrics.registriesVal * provProportion * neighProportion)
+
+            return (
+              <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Period Filter Header */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h4 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#10B981' }}>{currentNeighborhoodData.name}</h4>
+                      <span style={{ fontSize: '11px', color: '#8f94a5' }}>Estadísticas de la plataforma a nivel barrio</span>
+                    </div>
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      style={{
+                        background: '#1a1f37',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        color: '#fff',
+                        fontSize: '11px',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        outline: 'none',
+                        cursor: 'pointer'
+                      }}
                     />
-                  ))}
-                </svg>
-              </div>
+                  </div>
+                  <div style={{ display: 'flex', background: 'rgba(255,255,255,0.02)', padding: '2px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)', alignSelf: 'flex-start' }}>
+                    {(['day', 'week', 'month'] as const).map((period) => (
+                      <button
+                        key={period}
+                        onClick={() => setTimePeriod(period)}
+                        style={{
+                          background: timePeriod === period ? '#10B981' : 'transparent',
+                          color: timePeriod === period ? '#fff' : '#8f94a5',
+                          border: 'none',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          padding: '4px 10px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          transition: 'all 150ms'
+                        }}
+                      >
+                        {period === 'day' ? 'Día' : period === 'week' ? 'Semana' : 'Mes'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-              {/* Bus stops & Served lines */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700 }}>Paradas Clave y Publicidad</span>
-                {currentNeighborhoodData.stops.map((stop, sIdx) => (
-                  <div key={sIdx} style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{stop.name}</span>
-                      <span style={{ fontSize: '10px', color: '#10B981', fontWeight: 600 }}>{stop.usage}% uso</span>
+                {/* KPIs */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>{timePeriod === 'day' ? 'Únicos (Día)' : timePeriod === 'week' ? 'Únicos (Sem)' : 'Únicos (Mes)'}</span>
+                    <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{neighTotalPeriod.toLocaleString()}</span>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Activos Barrio</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }} className="pulse-circle"></span>
+                      <span style={{ fontSize: '16px', fontWeight: 700, color: '#10B981' }}>{neighActive}</span>
                     </div>
-                    <div style={{ fontSize: '10px', color: '#8f94a5' }}>
-                      Líneas: {stop.busLines.join(', ')}
-                    </div>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>{timePeriod === 'day' ? 'Regs. Hoy' : timePeriod === 'week' ? 'Regs. Sem' : 'Regs. Mes'}</span>
+                    <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{neighRegistries.toLocaleString()}</span>
+                  </div>
+                </div>
 
-                    {/* Integrated Stop Ad Campaign Details */}
-                    {stop.ad && (
-                      <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <span style={{ fontSize: '9px', background: 'rgba(245,158,11,0.15)', color: '#f59e0b', padding: '2px 6px', borderRadius: '4px', alignSelf: 'flex-start', fontWeight: 700 }}>
-                          CAMPAÑA ACTIVA
-                        </span>
-                        
-                        {/* Physical Ad Banner Mockup Card */}
-                        <div style={{
-                          background: stop.ad.bannerBg,
-                          padding: '10px',
-                          borderRadius: '6px',
-                          color: '#fff',
-                          textAlign: 'center',
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
-                        }}>
-                          <span style={{ fontSize: '14px', display: 'block' }}>{stop.ad.image}</span>
-                          <span style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginTop: '2px' }}>{stop.ad.title}</span>
-                          <span style={{ fontSize: '9px', opacity: 0.8, display: 'block', lineHeight: 1.2, marginTop: '2px' }}>{stop.ad.tagline}</span>
+                {/* Edades */}
+                <div>
+                  <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '8px' }}>Rango de Edades de Pasajeros ({currentNeighborhoodData.name})</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {neighAges.map((item, idx) => (
+                      <div key={idx} style={{ fontSize: '10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#fff' }}>{item.range}</span>
+                          <span style={{ color: '#8f94a5' }}>{item.pct}%</span>
                         </div>
-
-                        {/* Advertiser Profile Card & Action */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '6px' }}>
-                          <div>
-                            <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Anunciante</span>
-                            <span style={{ fontSize: '11px', fontWeight: 600, color: '#fff' }}>{stop.ad.userName}</span>
-                          </div>
-                          <button
-                            onClick={() => handleMessageAdvertiser(stop.ad)}
-                            style={{
-                              background: '#3B82F6',
-                              border: 'none',
-                              color: '#fff',
-                              borderRadius: '4px',
-                              padding: '4px 8px',
-                              fontSize: '10px',
-                              fontWeight: 700,
-                              cursor: 'pointer'
-                            }}
-                          >
-                            Mensajear
-                          </button>
+                        <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
+                          <div style={{ width: `${item.pct}%`, height: '100%', background: item.color, borderRadius: '2px' }}></div>
                         </div>
                       </div>
-                    )}
+                    ))}
                   </div>
-                ))}
+                </div>
+
+                {/* Proposito */}
+                <div>
+                  <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Propósito Principal de Viaje ({currentNeighborhoodData.name})</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                    {neighPurposes.map((p, idx) => (
+                      <div key={idx} style={{ flex: 1, background: 'rgba(255,255,255,0.01)', padding: '6px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)', textAlign: 'center' }}>
+                        <span style={{ fontSize: '9px', color: '#8f94a5', display: 'block' }}>{p.label}</span>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{p.pct}%</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Traffic SVG Chart */}
+                <div>
+                  <span style={{ fontSize: '11px', color: '#8f94a5', display: 'block', marginBottom: '8px' }}>Volumen Horario de Pasajeros (Tránsito)</span>
+                  <svg width="100%" height="80" viewBox="0 0 240 80" style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '6px' }}>
+                    <polyline
+                      fill="none"
+                      stroke="#10B981"
+                      strokeWidth="2"
+                      points={currentNeighborhoodData.hourlyTraffic.map((val, idx) => `${idx * 20 + 10},${70 - (val / 500) * 60}`).join(' ')}
+                    />
+                    {currentNeighborhoodData.hourlyTraffic.map((val, idx) => (
+                      <circle
+                        key={idx}
+                        cx={idx * 20 + 10}
+                        cy={70 - (val / 500) * 60}
+                        r="2"
+                        fill="#fff"
+                      />
+                    ))}
+                  </svg>
+                </div>
+
+                {/* Bus stops & Served lines */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700 }}>Paradas Clave y Publicidad</span>
+                  {currentNeighborhoodData.stops.map((stop, sIdx) => (
+                    <div key={sIdx} style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{stop.name}</span>
+                        <span style={{ fontSize: '10px', color: '#10B981', fontWeight: 600 }}>{stop.usage}% uso</span>
+                      </div>
+                      <div style={{ fontSize: '10px', color: '#8f94a5' }}>
+                        Líneas: {stop.busLines.join(', ')}
+                      </div>
+
+                      {/* Integrated Stop Ad Campaign Details */}
+                      {stop.ad && (
+                        <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <span style={{ fontSize: '9px', background: 'rgba(245,158,11,0.15)', color: '#f59e0b', padding: '2px 6px', borderRadius: '4px', alignSelf: 'flex-start', fontWeight: 700 }}>
+                            CAMPAÑA ACTIVA
+                          </span>
+                          
+                          {/* Physical Ad Banner Mockup Card */}
+                          <div style={{
+                            background: stop.ad.bannerBg,
+                            padding: '10px',
+                            borderRadius: '6px',
+                            color: '#fff',
+                            textAlign: 'center',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
+                          }}>
+                            <span style={{ fontSize: '14px', display: 'block' }}>{stop.ad.image}</span>
+                            <span style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginTop: '2px' }}>{stop.ad.title}</span>
+                            <span style={{ fontSize: '9px', opacity: 0.8, display: 'block', lineHeight: 1.2, marginTop: '2px' }}>{stop.ad.tagline}</span>
+                          </div>
+
+                          {/* Advertiser Profile Card & Action */}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '6px' }}>
+                            <div>
+                              <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Anunciante</span>
+                              <span style={{ fontSize: '11px', fontWeight: 600, color: '#fff' }}>{stop.ad.userName}</span>
+                            </div>
+                            <button
+                              onClick={() => handleMessageAdvertiser(stop.ad)}
+                              style={{
+                                background: '#3B82F6',
+                                border: 'none',
+                                color: '#fff',
+                                borderRadius: '4px',
+                                padding: '4px 8px',
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Mensajear
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ) : (
+            )
+          })() : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {!selectedProvinceKey && (
                 <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
