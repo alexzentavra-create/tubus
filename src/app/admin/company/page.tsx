@@ -411,6 +411,7 @@ export default function CompanyDashboard() {
 
 
   const LINE_STATS: Record<string, { rating: string; punctuality: string; dailyPas: number }> = {
+    '0': { rating: '0.0', punctuality: '0%', dailyPas: 0 },
     '12': { rating: '4.7', punctuality: '84%', dailyPas: 1240 },
     '28': { rating: '4.5', punctuality: '88%', dailyPas: 2150 },
     '37': { rating: '4.6', punctuality: '82%', dailyPas: 1480 },
@@ -929,6 +930,7 @@ export default function CompanyDashboard() {
   const currentChartData = getChartData()
 
   const LINE_DRIVERS: Record<string, string[]> = {
+    '0': [],
     '12': ['Néstor García', 'Roberto Sánchez', 'Carlos Martínez', 'Juan Gómez'],
     '28': ['Carlos M.', 'Jorge Rodríguez', 'Pablo García'],
     '37': ['Roberto S.', 'Ana Martínez'],

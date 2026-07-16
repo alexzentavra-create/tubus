@@ -4,6 +4,7 @@ import { OFFICIAL_ROUTES } from './officialRoutes'
 import type { OfficialRoute, RoutePoint } from './routeTypes'
 
 export const MOCK_LINES: BusLine[] = [
+  { id: 'line-0',   line_number: '0',   name: 'Línea 0 - Plaza Italia / Av. Belgrano (Test)', color: '#8B5CF6', company: 'Línea de Prueba S.A.', total_stops: 35, is_active: true },
   { id: 'line-1',   line_number: '12',  name: 'Línea 12 - Once / Villa Urquiza',        color: '#EF4444', company: 'Transportes Callao S.A.', total_stops: 69, is_active: true },
   { id: 'line-28',  line_number: '28',  name: 'Línea 28 - Retiro / Puente La Noria',    color: '#16A34A', company: 'DOTA S.A.',        total_stops: 95,  is_active: true },
   { id: 'line-3',   line_number: '37',  name: 'Línea 37 - Aeropuerto / Centro',         color: '#15803D', company: '4 de Septiembre S.A.', total_stops: 142, is_active: true },
@@ -249,7 +250,8 @@ export function getIntersectionForStopName(stopName: string, lat: number, lng: n
 // ─── GTFS Route Processing ──────────────────────────────────────────────────
 
 function officialRouteForLine(line: BusLine): OfficialRoute | null {
-  return OFFICIAL_ROUTES[line.line_number.replace(/^0+/, '')] || null
+  const numKey = line.line_number === '0' ? '0' : line.line_number.replace(/^0+/, '');
+  return OFFICIAL_ROUTES[numKey] || null
 }
 
 function routeTemplateForLine(line: BusLine, direction: 'ida' | 'vuelta' = 'ida'): BusStop[] {
@@ -325,7 +327,8 @@ function getRoutePathForLine(line: BusLine, direction: 'ida' | 'vuelta' = 'ida')
     }
   }
 
-  const officialRoute = OFFICIAL_ROUTES[line.line_number.replace(/^0+/, '')]
+  const numKey = line.line_number === '0' ? '0' : line.line_number.replace(/^0+/, '');
+  const officialRoute = OFFICIAL_ROUTES[numKey]
   if (officialRoute) {
     const dirObj = direction === 'vuelta' ? officialRoute.vuelta : officialRoute.ida
     if (dirObj?.path) {

@@ -20,14 +20,15 @@ interface ActiveSession {
 
 // ─── Mock QR tokens (one per line) ───────────────────────────────────────────
 const MOCK_QR_TOKENS: Record<string, { busUnit: string; lineIdx: number }> = {
-  'DEMO-QR-L12-001': { busUnit: '001', lineIdx: 0 },
-  'DEMO-QR-L24-002': { busUnit: '002', lineIdx: 1 },
-  'DEMO-QR-L37-003': { busUnit: '003', lineIdx: 2 },
-  'DEMO-QR-L55-004': { busUnit: '004', lineIdx: 3 },
-  'DEMO-QR-L71-005': { busUnit: '005', lineIdx: 4 },
-  'DEMO-QR-L88-006': { busUnit: '006', lineIdx: 5 },
-  'DEMO-QR-L102-07': { busUnit: '007', lineIdx: 6 },
-  'DEMO-QR-L115-08': { busUnit: '008', lineIdx: 7 },
+  'DEMO-QR-L0-000': { busUnit: '000', lineIdx: 0 },
+  'DEMO-QR-L12-001': { busUnit: '001', lineIdx: 1 },
+  'DEMO-QR-L24-002': { busUnit: '002', lineIdx: 2 },
+  'DEMO-QR-L37-003': { busUnit: '003', lineIdx: 3 },
+  'DEMO-QR-L55-004': { busUnit: '004', lineIdx: 4 },
+  'DEMO-QR-L71-005': { busUnit: '005', lineIdx: 5 },
+  'DEMO-QR-L88-006': { busUnit: '006', lineIdx: 6 },
+  'DEMO-QR-L102-07': { busUnit: '007', lineIdx: 7 },
+  'DEMO-QR-L115-08': { busUnit: '008', lineIdx: 8 },
 }
 
 const CARTODB_DARK = {

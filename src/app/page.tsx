@@ -21122,6 +21122,7 @@ const NAV_ITEMS: { id: Panel; label: string; icon: any }[] = [
 ]
 
 const LINE_DRIVERS: Record<string, string[]> = {
+  '0': ['Chofer de Prueba'],
   '12': ['Néstor García', 'Roberto Sánchez', 'Carlos Martínez', 'Juan Gómez'],
   '28': ['Carlos M.', 'Jorge Rodríguez', 'Pablo García'],
   '37': ['Roberto S.', 'Ana Martínez'],
@@ -22323,7 +22324,7 @@ export default function UserMapPage() {
     }
 
     supabase.auth.getUser().then(({ data: { user } }) => { if (user) setUser(user) })
-    const ALLOWED_LINES = ['12', '28', '37', '39', '59', '60', '102', '152', 'T-Amarillo', 'T-Rojo']
+    const ALLOWED_LINES = ['0', '12', '28', '37', '39', '59', '60', '102', '152', 'T-Amarillo', 'T-Rojo']
     const availableLines = MOCK_LINES.filter(l => ALLOWED_LINES.includes(l.line_number))
     setLines(availableLines)
     
@@ -23099,6 +23100,7 @@ export default function UserMapPage() {
 
   const getDirectionLabels = () => {
     const lineNum = selectedLines[0]?.line_number
+    if (lineNum === '0') return { ida: 'A Plaza Italia', vuelta: 'A Av. Belgrano' }
     if (lineNum === '12') return { ida: 'A Palermo', vuelta: 'A Barracas' }
     if (lineNum === '28') return { ida: 'A Puente La Noria', vuelta: 'A Retiro' }
     if (lineNum === '37') return { ida: 'A Plaza Italia', vuelta: 'A Est. Lanús' }
@@ -23702,7 +23704,7 @@ export default function UserMapPage() {
                       boxShadow: isSelected ? `0 0 8px ${line.color}30` : 'none'
                     }}>
                       <img 
-                        src={line.line_number === '12' ? '/images/bus-12-side.png' : `/images/bus-${line.line_number}.png`} 
+                        src={line.line_number === '12' || line.line_number === '0' ? '/images/bus-12-side.png' : `/images/bus-${line.line_number}.png`} 
                         alt={`Bus ${line.line_number}`}
                         onError={(e) => {
                           // Fallback to front image if side is missing
@@ -30195,7 +30197,8 @@ function MiniPopup({
   const [thresholdVal, setThresholdVal] = useState<number>(5)
   const [alarmNotificationType, setAlarmNotificationType] = useState<'notification' | 'ringing'>('notification')
 
-  const busColor = bus.line_number === '12' ? '#EF4444' : 
+  const busColor = bus.line_number === '0' ? '#8B5CF6' :
+                   bus.line_number === '12' ? '#EF4444' : 
                    bus.line_number === '28' ? '#16A34A' :
                    bus.line_number === '37' ? '#15803D' :
                    bus.line_number === '60' ? '#EAB308' :
@@ -30250,6 +30253,7 @@ function MiniPopup({
       }}>
         <img
           src={
+            bus.line_number === '0' ? '/images/bus-12-real.jpg' :
             bus.line_number === '12' ? '/images/bus-12-real.jpg' :
             bus.line_number === '37' ? '/images/bus-37-real.jpg' :
             bus.line_number === '28' ? '/images/bus-28-real.png' :
@@ -30263,7 +30267,7 @@ function MiniPopup({
             `/images/bus-${bus.line_number}.png`
           }
           alt={`Bus ${bus.line_number}`}
-          style={{ width: '100%', height: '100%', objectFit: (bus.line_number === '12' || bus.line_number === '37' || bus.line_number === '28' || bus.line_number === '39' || bus.line_number === '59' || bus.line_number === '60' || bus.line_number === '102' || bus.line_number === '152' || bus.line_number === 'T-Amarillo' || bus.line_number === 'T-Rojo') ? 'cover' : 'contain' }}
+          style={{ width: '100%', height: '100%', objectFit: (bus.line_number === '0' || bus.line_number === '12' || bus.line_number === '37' || bus.line_number === '28' || bus.line_number === '39' || bus.line_number === '59' || bus.line_number === '60' || bus.line_number === '102' || bus.line_number === '152' || bus.line_number === 'T-Amarillo' || bus.line_number === 'T-Rojo') ? 'cover' : 'contain' }}
         />
         <div style={{
           position: 'absolute',
