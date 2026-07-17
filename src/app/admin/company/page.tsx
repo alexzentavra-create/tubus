@@ -434,6 +434,7 @@ export default function CompanyDashboard() {
   }, [activeStats.dailyPas])
 
   useEffect(() => {
+    if (activeLine?.line_number === '0') return
     const interval = setInterval(() => {
       // Boards a group of 1 to 5 passengers
       const amt = Math.floor(Math.random() * 5) + 1
@@ -447,18 +448,27 @@ export default function CompanyDashboard() {
       }, 1500)
     }, 4500)
     return () => clearInterval(interval)
-  }, [])
+  }, [activeLine?.line_number])
 
-  const [liveEvents, setLiveEvents] = useState<Array<{ id: string; time: string; text: string; icon: string; color: string }>>([
-    { id: '1', time: 'Hace 2m', text: 'Pico de pasajeros: Coche 301 reporta ocupación del 82%.', icon: '👥', color: '#22d3ee' },
-    { id: '2', time: 'Hace 5m', text: 'Congestión en Av. Pueyrredón: demora de 4 min en Coche 302.', icon: '🚦', color: '#ff4d6a' },
-    { id: '3', time: 'Hace 12m', text: 'Conducción eficiente: Coche 303 califica con 98% en Eco-Driving.', icon: '🍃', color: '#00c689' },
-  ])
+  const [liveEvents, setLiveEvents] = useState<Array<{ id: string; time: string; text: string; icon: string; color: string }>>([])
 
   useEffect(() => {
+    if (activeLine?.line_number === '0') {
+      setLiveEvents([])
+    } else {
+      setLiveEvents([
+        { id: '1', time: 'Hace 2m', text: 'Pico de pasajeros: Coche 301 reporta ocupación del 82%.', icon: '👥', color: '#22d3ee' },
+        { id: '2', time: 'Hace 5m', text: 'Congestión en Av. Pueyrredón: demora de 4 min en Coche 302.', icon: '🚦', color: '#ff4d6a' },
+        { id: '3', time: 'Hace 12m', text: 'Conducción eficiente: Coche 303 califica con 98% en Eco-Driving.', icon: '🍃', color: '#00c689' },
+      ])
+    }
+  }, [activeLine?.line_number])
+
+  useEffect(() => {
+    if (activeLine?.line_number === '0') return
     const EVENT_TEMPLATES = [
       { text: 'Congestión moderada detectada en Av. Cabildo para Coche 305.', icon: '🚦', color: '#ff4d6a' },
-      { text: 'Unidad 302 reporta conducción eficiente excepcional (100% Eco).', icon: '🍃', color: '#00c689' },
+      { text: 'Unidad 302 reporta conducción eficiente exceptional (100% Eco).', icon: '🍃', color: '#00c689' },
       { text: 'Frecuencia regularizada: tiempo de espera reducido a 5 min.', icon: '⏱️', color: '#22D3A0' },
       { text: 'Alta afluencia de pasajeros en parada Pueyrredón.', icon: '👥', color: '#22d3ee' },
       { text: 'Unidad 304 reanudó ruta habitual tras desvío por obras.', icon: '✅', color: '#00c689' },
@@ -483,7 +493,7 @@ export default function CompanyDashboard() {
       })
     }, 12000)
     return () => clearInterval(interval)
-  }, [])
+  }, [activeLine?.line_number])
   
   const totalPassengersOnboard = buses.reduce((acc, b) => acc + b.passenger_count, 0)
   const avgOnboard = buses.length > 0 ? Math.round(totalPassengersOnboard / buses.length) : 0
@@ -498,12 +508,20 @@ export default function CompanyDashboard() {
   }
 
   // Checklist State
-  const [todos, setTodos] = useState<Todo[]>([
-    { id: 't1', text: 'Revisar reclamo sobre coche 001', done: false, date: '28 de Mayo', badge: 'Urgente', flagged: true },
-    { id: 't2', text: 'Imprimir y colocar código QR en unidad 005', done: false, date: '29 de Mayo', badge: 'Pendiente', flagged: false },
-    { id: 't3', text: 'Verificar habilitación de chofer Juan Gómez', done: false, date: '30 de Mayo', badge: 'Esta semana', flagged: true },
-    { id: 't4', text: 'Limpieza y desinfección unidad 003', done: true, date: '27 de Mayo', badge: 'Resuelto', flagged: false },
-  ])
+  const [todos, setTodos] = useState<Todo[]>([])
+
+  useEffect(() => {
+    if (activeLine?.line_number === '0') {
+      setTodos([])
+    } else {
+      setTodos([
+        { id: 't1', text: 'Revisar reclamo sobre coche 001', done: false, date: '28 de Mayo', badge: 'Urgente', flagged: true },
+        { id: 't2', text: 'Imprimir y colocar código QR en unidad 005', done: false, date: '29 de Mayo', badge: 'Pendiente', flagged: false },
+        { id: 't3', text: 'Verificar habilitación de chofer Juan Gómez', done: false, date: '30 de Mayo', badge: 'Esta semana', flagged: true },
+        { id: 't4', text: 'Limpieza y desinfección unidad 003', done: true, date: '27 de Mayo', badge: 'Resuelto', flagged: false },
+      ])
+    }
+  }, [activeLine?.line_number])
   const [newTodoText, setNewTodoText] = useState('')
   const [showAddTodo, setShowAddTodo] = useState(false)
 
@@ -517,6 +535,11 @@ export default function CompanyDashboard() {
   useEffect(() => {
     if (!activeLine) return
     const key = `mock_inactive_buses_${activeLine.line_number}`
+    if (activeLine.line_number === '0') {
+      setInactiveBuses([])
+      localStorage.setItem(key, JSON.stringify([]))
+      return
+    }
     const stored = localStorage.getItem(key)
     if (stored) {
       setInactiveBuses(JSON.parse(stored))
@@ -886,6 +909,35 @@ export default function CompanyDashboard() {
   }, [activeLine, stopsTimeframes])
 
   const getChartData = () => {
+    if (activeLine.line_number === '0') {
+      if (chartPeriod === 'week') {
+        return Array.from({ length: 7 }, (_, i) => {
+          const d = subDays(new Date(selectedDate), 6 - i)
+          const dayLabel = format(d, 'EEEE', { locale: es })
+          return { label: dayLabel.substring(0, 3), subidos: 0, bajados: 0 }
+        })
+      }
+      if (chartPeriod === 'month') {
+        return Array.from({ length: 30 }, (_, i) => {
+          const d = subDays(new Date(selectedDate), 29 - i)
+          const dayLabel = format(d, 'dd MMM', { locale: es })
+          return { label: dayLabel, subidos: 0, bajados: 0 }
+        })
+      }
+      const todayStr = format(new Date(), 'yyyy-MM-dd')
+      let maxHour = 23
+      if (selectedDate === todayStr) {
+        maxHour = new Date().getHours()
+      } else if (selectedDate > todayStr) {
+        return []
+      }
+      return HOURLY.slice(0, maxHour + 1).map((h) => ({
+        label: h.h,
+        subidos: 0,
+        bajados: 0
+      }))
+    }
+
     if (chartPeriod === 'week') {
       return Array.from({ length: 7 }, (_, i) => {
         const d = subDays(new Date(selectedDate), 6 - i)
@@ -959,7 +1011,7 @@ export default function CompanyDashboard() {
   const currentDrivers = getLineDrivers(activeLine.line_number)
 
   const stops = getMockStopsForLine(activeLine, 'ida')
-  const topStops = [...stops]
+  const topStops = activeLine.line_number === '0' ? [] : [...stops]
     .sort((a, b) => b.total_daily_users - a.total_daily_users)
     .slice(0, 4)
     .map(s => ({
@@ -973,6 +1025,10 @@ export default function CompanyDashboard() {
   useEffect(() => {
     const driversList = LINE_DRIVERS[activeLine.line_number] || ['Chofer de Guardia']
     const stopsList = getMockStopsForLine(activeLine, 'ida')
+    if (activeLine.line_number === '0') {
+      setReports([])
+      return
+    }
     setReports([
       {
         id: 'rep-1',
@@ -1009,6 +1065,7 @@ export default function CompanyDashboard() {
 
   // Auto-detect and sync system issues to Todo List
   useEffect(() => {
+    if (activeLine?.line_number === '0') return
     setTodos(prev => {
       const updated = [...prev]
       let changed = false
@@ -1615,7 +1672,7 @@ export default function CompanyDashboard() {
         >
           <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Colectivos Activos</span>
           <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{activeSessions.length}</span>
-          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +1 hoy</span>
+          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>{activeLine.line_number === '0' ? '' : '▲ +1 hoy'}</span>
         </div>
         {/* Pasajeros Hoy */}
         <div
@@ -1658,7 +1715,7 @@ export default function CompanyDashboard() {
             </div>
           </div>
           
-          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +12%</span>
+          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>{activeLine.line_number === '0' ? '' : '▲ +12%'}</span>
         </div>
         {/* Denuncias Pendientes */}
         <div
@@ -1669,7 +1726,7 @@ export default function CompanyDashboard() {
         >
           <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Denuncias Pend.</span>
           <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{reports.filter(r => r.status === 'pending').length}</span>
-          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▼ -15.0%</span>
+          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>{activeLine.line_number === '0' ? '' : '▼ -15.0%'}</span>
         </div>
         {/* Pasajeros A Bordo */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
@@ -1686,7 +1743,7 @@ export default function CompanyDashboard() {
         >
           <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Puntualidad</span>
           <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{activeStats.punctuality}</span>
-          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>▲ +2.4%</span>
+          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>{activeLine.line_number === '0' ? '' : '▲ +2.4%'}</span>
         </div>
       </div>
 
@@ -4569,14 +4626,34 @@ function CalendarTab({ themeColor, activeLine, activeStats }: { themeColor: stri
   const [selected, setSelected] = useState<any>(null)
   const [historyBaseMonth, setHistoryBaseMonth] = useState<string>(format(new Date(), 'yyyy-MM'))
 
+  if (activeLine?.line_number === '0') {
+    return (
+      <div style={{
+        background: '#121527',
+        borderRadius: '12px',
+        border: '1px solid rgba(255, 255, 255, 0.06)',
+        padding: '48px 24px',
+        textAlign: 'center',
+        color: '#8f94a5'
+      }}>
+        <div style={{ fontSize: '32px', marginBottom: '12px' }}>📅</div>
+        <div style={{ fontSize: '15px', fontWeight: 600, color: '#fff', marginBottom: '4px' }}>Sin Historial de Viajes</div>
+        <p style={{ fontSize: '12px', margin: 0 }}>Aún no se han registrado viajes ni métricas de operación para la Línea 0.</p>
+      </div>
+    )
+  }
+
   const getRichDetails = (item: any) => {
     if (!item) return null;
     const seed = item.passengers;
-    const stopsList = [
-      { name: 'Plaza Italia', flow: Math.round(seed * 0.28) },
-      { name: 'Estación Palermo', flow: Math.round(seed * 0.22) },
-      { name: 'Barrancas de Belgrano', flow: Math.round(seed * 0.18) }
-    ];
+    const rawStops = getMockStopsForLine(activeLine, 'ida')
+    const stopsList = activeLine.line_number === '0'
+      ? rawStops.map(s => ({ name: s.name, flow: 0 }))
+      : [
+          { name: 'Plaza Italia', flow: Math.round(seed * 0.28) },
+          { name: 'Estación Palermo', flow: Math.round(seed * 0.22) },
+          { name: 'Barrancas de Belgrano', flow: Math.round(seed * 0.18) }
+        ];
     
     let activeBuses = [];
     try {
@@ -4585,11 +4662,13 @@ function CalendarTab({ themeColor, activeLine, activeStats }: { themeColor: stri
       const recordedBuses = JSON.parse(localStorage.getItem(key) || '[]')
       activeBuses = recordedBuses.length > 0
         ? recordedBuses
-        : (item.type === 'day'
-           ? [`Coche ${item.bus}`, `Coche 30${(seed % 4) + 1}`, `Coche 305`]
-           : [`Coche 301`, `Coche 302`, `Coche 304`, `Coche 305`].slice(0, item.busesCount || 4));
+        : (activeLine.line_number === '0'
+           ? []
+           : (item.type === 'day'
+              ? [`Coche ${item.bus}`, `Coche 30${(seed % 4) + 1}`, `Coche 305`]
+              : [`Coche 301`, `Coche 302`, `Coche 304`, `Coche 305`].slice(0, item.busesCount || 4)));
     } catch (e) {
-      activeBuses = [`Coche 301`, `Coche 302`, `Coche 305`]
+      activeBuses = activeLine.line_number === '0' ? [] : [`Coche 301`, `Coche 302`, `Coche 305`]
     }
 
     const peakHour = (seed % 2 === 0) ? '08:00 - 09:30 (Pico Mañana)' : '17:30 - 19:00 (Pico Tarde)';
@@ -4623,10 +4702,17 @@ function CalendarTab({ themeColor, activeLine, activeStats }: { themeColor: stri
         ageGroup31_50 = Math.round((c3 / tot) * 100)
         ageGroup51_70 = 100 - ageGroup10_18 - ageGroup19_30 - ageGroup31_50
       } else {
-        ageGroup10_18 = 15 + (seed % 8)
-        ageGroup19_30 = 35 + (seed % 12)
-        ageGroup31_50 = 30 + (seed % 10)
-        ageGroup51_70 = 100 - ageGroup10_18 - ageGroup19_30 - ageGroup31_50
+        if (activeLine.line_number === '0') {
+          ageGroup10_18 = 0
+          ageGroup19_30 = 0
+          ageGroup31_50 = 0
+          ageGroup51_70 = 0
+        } else {
+          ageGroup10_18 = 15 + (seed % 8)
+          ageGroup19_30 = 35 + (seed % 12)
+          ageGroup31_50 = 30 + (seed % 10)
+          ageGroup51_70 = 100 - ageGroup10_18 - ageGroup19_30 - ageGroup31_50
+        }
       }
     } catch (e) {
       console.error(e)
