@@ -2336,7 +2336,9 @@ export default function CompanyDashboard() {
                   const crossings = gpsPassageLogs || []
                   const onTimeCount = crossings.filter((log: any) => log.status === 'A tiempo' || log.status === 'on-time' || log.status === 'On Time').length
                   const totalCrossings = crossings.length
-                  const punctualityPct = totalCrossings > 0 ? Math.round((onTimeCount / totalCrossings) * 100) : 92
+                  const punctualityPct = totalCrossings > 0
+                    ? Math.round((onTimeCount / totalCrossings) * 100)
+                    : (activeLine.line_number === '0' ? 0 : 92)
 
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center' }}>

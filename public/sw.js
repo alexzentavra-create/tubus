@@ -2,7 +2,7 @@
 // Handles background GPS broadcasting even when the app is minimized.
 // This file is served from /public/sw.js
 
-const CACHE_NAME = 'bustrack-v6'
+const CACHE_NAME = 'bustrack-v7'
 const STATIC_ASSETS = ['/', '/login', '/driver', '/manifest.json']
 
 // ─── Install & cache static assets ─────────────────────────────────────────
