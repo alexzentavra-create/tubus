@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     console.warn(`[Transitland API WARNING] Error fetching routes from Transitland: ${error.message}. Falling back to static route data.`)
     
     // Fallback to local static routes to ensure 100% robustness
-    const cleanedLineNum = lineNumber.replace(/^0+/, '')
+    const cleanedLineNum = lineNumber === '0' ? '0' : lineNumber.replace(/^0+/, '')
     const localRoute = OFFICIAL_ROUTES[cleanedLineNum]
 
     if (localRoute) {
