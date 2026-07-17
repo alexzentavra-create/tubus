@@ -643,7 +643,7 @@ export default function CompanyDashboard() {
         username: `linea${activeLine.line_number.toLowerCase()}`,
         is_active: true
       })
-      setQrCodes([
+      setQrCodes(activeLine.line_number === '0' ? [] : [
         { id: `mock-qr-${activeLine.line_number}-1`, qr_token: `DEMO-QR-L${activeLine.line_number}-001`, bus_unit: `${activeLine.line_number}-301`, is_active: true, company_id: `mock-company-${activeLine.id}`, line_id: activeLine.id },
         { id: `mock-qr-${activeLine.line_number}-2`, qr_token: `DEMO-QR-L${activeLine.line_number}-002`, bus_unit: `${activeLine.line_number}-302`, is_active: false, company_id: `mock-company-${activeLine.id}`, line_id: activeLine.id }
       ])
