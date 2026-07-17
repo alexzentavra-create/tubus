@@ -862,9 +862,10 @@ export default function CompanyDashboard() {
     })
   }, [buses, stopsTimeframes])
 
-  // Load real-time driver passage logs from localStorage and merge them
   useEffect(() => {
     if (!activeLine) return
+    setGpsPassageLogs([])
+    if (activeLine.line_number === '0' && buses.length === 0) return
     const mergeLogs = () => {
       setGpsPassageLogs(prev => {
         const updated = [...prev]
