@@ -49,6 +49,31 @@ interface Todo {
   flagged: boolean
 }
 
+// Password row with show/hide toggle for driver credential display
+function PasswordRow({ password, themeColor }: { password: string; themeColor: string }) {
+  const [show, setShow] = useState(false)
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <span style={{ color: '#8f94a5' }}>Contraseña:</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <span style={{ color: '#e2e8f0', fontWeight: 500, fontFamily: 'DM Mono', fontSize: '12px', letterSpacing: show ? 'normal' : '0.15em' }}>
+          {show ? password : '••••••••'}
+        </span>
+        <button
+          onClick={() => setShow(s => !s)}
+          title={show ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: show ? themeColor : '#64748b', padding: '2px', display: 'flex', alignItems: 'center', transition: 'color 150ms' }}
+        >
+          {show
+            ? <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            : <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          }
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // Simple QR SVG generator
 function QRDisplay({ token, busUnit }: { token: string; busUnit: string }) {
   const size = 120
@@ -4115,6 +4140,30 @@ function CompanyDrivers({ drivers, activeSessions = [], driverWarnings = {}, onD
                               <span style={{ color: '#8f94a5' }}>Legajo interno:</span>
                               <span style={{ color: '#fff', fontWeight: 500, fontFamily: 'DM Mono' }}>{d.legajo}</span>
                             </div>
+
+                            {/* Credentials row — read from mock_users */}
+                            {(() => {
+                              const driverEmail = d.email || ''
+                              let creds: { email: string; password: string } | null = null
+                              try {
+                                const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
+                                const found = mockUsers.find((u: any) => u.email?.toLowerCase() === driverEmail.toLowerCase() || u.name === d.name)
+                                if (found) creds = { email: found.email, password: found.password }
+                              } catch (e) {}
+                              if (!creds) return null
+                              return (
+                                <>
+                                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: '6px', paddingTop: '10px' }}>
+                                    <span style={{ color: '#8f94a5', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Credenciales de Acceso</span>
+                                  </div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ color: '#8f94a5' }}>Email:</span>
+                                    <span style={{ color: '#60A5FA', fontWeight: 500, fontFamily: 'DM Mono', fontSize: '12px' }}>{creds.email}</span>
+                                  </div>
+                                  <PasswordRow password={creds.password} themeColor={themeColor} />
+                                </>
+                              )
+                            })()}
                           </div>
                         </div>
                       </div>
