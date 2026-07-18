@@ -397,6 +397,8 @@ export default function CompanyDashboard() {
   const [newDriverDni, setNewDriverDni] = useState('')
   const [newDriverAge, setNewDriverAge] = useState('')
   const [newDriverPhone, setNewDriverPhone] = useState('')
+  const [newDriverEmail, setNewDriverEmail] = useState('')
+  const [newDriverPassword, setNewDriverPassword] = useState('')
 
   // Load initial line from query parameter if present
   useEffect(() => {
@@ -1202,6 +1204,9 @@ export default function CompanyDashboard() {
       toast.error('Por favor, completa los campos requeridos (Nombre, Legajo y DNI)');
       return;
     }
+    const email = newDriverEmail.trim() || `${newDriverName.trim().toLowerCase().replace(/\s+/g, '.')}.linea${activeLine.line_number}@tubus.ar`
+    const password = newDriverPassword.trim() || Math.random().toString(36).slice(2, 10)
+
     const newDriver = {
       id: `driver-${Date.now()}`,
       name: newDriverName.trim(),
@@ -1209,6 +1214,7 @@ export default function CompanyDashboard() {
       dni: newDriverDni.trim(),
       age: parseInt(newDriverAge) || 30,
       phone: newDriverPhone.trim() || '+54 9 11 5000 0000',
+      email,
       sessions: 0,
       onTime: 100,
       rating: "5.0",
@@ -1220,6 +1226,22 @@ export default function CompanyDashboard() {
     const updated = [...driversList, newDriver]
     setDriversList(updated)
     localStorage.setItem(`mock_drivers_${activeLine.line_number}`, JSON.stringify(updated))
+
+    // Register credentials in mock_users so the driver can log in from /login
+    try {
+      const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
+      const existingIdx = mockUsers.findIndex((u: any) => u.email.toLowerCase() === email.toLowerCase())
+      const userEntry = { name: newDriver.name, email, password, role: 'driver', lineNumber: activeLine.line_number }
+      if (existingIdx >= 0) {
+        mockUsers[existingIdx] = userEntry
+      } else {
+        mockUsers.push(userEntry)
+      }
+      localStorage.setItem('mock_users', JSON.stringify(mockUsers))
+    } catch (e) {
+      console.error('Error saving driver credentials:', e)
+    }
+
     setShowAddDriverModal(false)
     
     // Clear inputs
@@ -1228,7 +1250,9 @@ export default function CompanyDashboard() {
     setNewDriverDni('')
     setNewDriverAge('')
     setNewDriverPhone('')
-    toast.success(`Chofer ${newDriver.name} registrado con éxito`);
+    setNewDriverEmail('')
+    setNewDriverPassword('')
+    toast.success(`✅ Chofer ${newDriver.name} registrado. Email: ${email} | Contraseña: ${password}`);
   }
 
   const logout = async () => {
@@ -3440,6 +3464,34 @@ export default function CompanyDashboard() {
                     onChange={(e) => setNewDriverPhone(e.target.value)}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px', outline: 'none' }}
                   />
+                </div>
+              </div>
+
+              {/* Credentials section */}
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '14px' }}>
+                <div style={{ color: '#8f94a5', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>Credenciales de Acceso a la App</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div>
+                    <label style={{ display: 'block', color: '#8f94a5', fontSize: '12px', marginBottom: '6px', fontWeight: 500 }}>Email <span style={{ color: '#8f94a5', fontWeight: 400, fontSize: '11px' }}>(se autogenera si se deja vacío)</span></label>
+                    <input
+                      type="email"
+                      placeholder={`ej. ${(newDriverName || 'juan.perez').toLowerCase().replace(/\s+/g, '.')}.linea${activeLine.line_number}@tubus.ar`}
+                      value={newDriverEmail}
+                      onChange={(e) => setNewDriverEmail(e.target.value)}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', color: '#8f94a5', fontSize: '12px', marginBottom: '6px', fontWeight: 500 }}>Contraseña <span style={{ color: '#8f94a5', fontWeight: 400, fontSize: '11px' }}>(se autogenera si se deja vacío)</span></label>
+                    <input
+                      type="text"
+                      placeholder="ej. clave1234"
+                      value={newDriverPassword}
+                      onChange={(e) => setNewDriverPassword(e.target.value)}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  <p style={{ margin: 0, fontSize: '11px', color: '#64748b', lineHeight: 1.5 }}>El chofer usará estas credenciales para ingresar a <strong style={{ color: '#8f94a5' }}>/login</strong> y acceder al panel del conductor. Las credenciales se muestran una sola vez al guardar.</p>
                 </div>
               </div>
             </div>

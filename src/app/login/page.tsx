@@ -391,12 +391,25 @@ export default function LoginPage() {
           localStorage.setItem('active_user', JSON.stringify({ name: 'Usuario Prueba', age: 24, email: 'usuario@usuario.com' }))
           window.location.href = `/?city=${city}`
         } else {
-          // Check for custom registered mock users
+          // Check for custom registered mock users (drivers, company admins, etc.)
+          let foundUser: any = null
           try {
             const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
-            const found = mockUsers.find((u: any) => u.email.toLowerCase() === lowerEmail && u.password === pass)
-            if (found) {
-              localStorage.setItem('active_user', JSON.stringify(found))
+            foundUser = mockUsers.find((u: any) => u.email.toLowerCase() === lowerEmail && u.password === pass)
+            if (foundUser) {
+              localStorage.setItem('active_user', JSON.stringify(foundUser))
+              // If this is a registered driver, store their identity so /driver can load it
+              if (foundUser.role === 'driver') {
+                localStorage.setItem('mock_driver_identity', JSON.stringify({
+                  name: foundUser.name,
+                  email: foundUser.email,
+                  lineNumber: foundUser.lineNumber || '0',
+                  driverId: `driver-${foundUser.email}`
+                }))
+                window.location.href = '/driver'
+                setLoading(false)
+                return
+              }
             } else {
               // Fallback default mock profile
               localStorage.setItem('active_user', JSON.stringify({ name: lowerEmail.split('@')[0], age: 28, email: lowerEmail }))
@@ -408,6 +421,10 @@ export default function LoginPage() {
           if (lowerEmail === 'admin@admin.com' && pass === 'admin') {
             window.location.href = '/admin/super'
           } else if (lowerEmail === 'nestor@nestor.ar' && pass === 'nestor') {
+            // Legacy demo driver — store identity so /driver page can greet them
+            localStorage.setItem('mock_driver_identity', JSON.stringify({
+              name: 'Néstor García', email: lowerEmail, lineNumber: '12', driverId: 'mock-driver-nestor'
+            }))
             window.location.href = '/driver'
           } else if (lowerEmail === 'linea12@bienparada.ar' && pass === 'bienparada') {
             window.location.href = '/admin/company'

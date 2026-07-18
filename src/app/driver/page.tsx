@@ -462,27 +462,21 @@ export default function DriverPage() {
     const isMock = url.includes('placeholder.supabase.co')
 
     if (isMock) {
-      setDriverName('Néstor García')
-      setDriverId('mock-driver-nestor')
-      // Automatically load the Line 12 session
-      const mockLine = MOCK_LINES.find(l => l.line_number === '12') || MOCK_LINES[0]
-      const sess: ActiveSession = {
-        sessionId: `mock-session-12`,
-        driverId: 'mock-driver-nestor',
-        driverName: 'Néstor García',
-        busUnit: '001',
-        lineId: mockLine.id,
-        lineName: mockLine.name,
-        lineNumber: mockLine.line_number,
-        companyName: mockLine.company,
+      // Read real driver identity saved at login — no auto-mock session
+      const rawIdentity = typeof window !== 'undefined' ? localStorage.getItem('mock_driver_identity') : null
+      if (!rawIdentity) {
+        // No identity found — redirect to login
+        window.location.href = '/login'
+        return
       }
-      setSession(sess)
-      setPassengers(12)
-      setIsOnline(true)
-      const path = getMockRoutePathForLine(mockLine)
-      if (path && path.length > 0) {
-        setPos({ lat: path[0].lat, lng: path[0].lng, speed: 0, heading: 0 })
-        setViewState(v => ({ ...v, latitude: path[0].lat, longitude: path[0].lng, zoom: 16, pitch: 20, bearing: 0 }))
+      try {
+        const identity = JSON.parse(rawIdentity)
+        setDriverName(identity.name || 'Chofer')
+        setDriverId(identity.driverId || `driver-${Date.now()}`)
+        // Do NOT auto-start a session — driver must scan a QR code to begin their shift
+      } catch (e) {
+        console.error('Error reading driver identity:', e)
+        window.location.href = '/login'
       }
       return
     }
@@ -1109,6 +1103,9 @@ export default function DriverPage() {
 
   const logout = async () => {
     if (isOnline) await endShift()
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('mock_driver_identity')
+    }
     await supabase.auth.signOut()
     window.location.href = '/login'
   }
