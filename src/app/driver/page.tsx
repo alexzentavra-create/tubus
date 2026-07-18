@@ -473,6 +473,19 @@ export default function DriverPage() {
         const identity = JSON.parse(rawIdentity)
         setDriverName(identity.name || 'Chofer')
         setDriverId(identity.driverId || `driver-${Date.now()}`)
+        // Request GPS permission immediately so the browser dialog appears on panel load
+        if (typeof navigator !== 'undefined' && navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              // Permission granted — GPS ready for when QR is scanned
+              console.log('[BienParada] GPS listo:', pos.coords.latitude, pos.coords.longitude)
+            },
+            (err) => {
+              console.warn('[BienParada] GPS no disponible:', err.message)
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+          )
+        }
         // Do NOT auto-start a session — driver must scan a QR code to begin their shift
       } catch (e) {
         console.error('Error reading driver identity:', e)

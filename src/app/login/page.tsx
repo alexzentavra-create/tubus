@@ -394,9 +394,28 @@ export default function LoginPage() {
           let foundUser: any = null
           try {
             const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
-            // Match email (case-insensitive) and password (case-sensitive, as stored)
+            // Match email case-insensitively; try exact password first, then case-insensitive fallback
             foundUser = mockUsers.find((u: any) => u.email.toLowerCase() === lowerEmail && u.password === pass)
+              || mockUsers.find((u: any) => u.email.toLowerCase() === lowerEmail && u.password?.toLowerCase() === pass.toLowerCase())
+
             if (foundUser) {
+              // Auto-detect role if missing: scan all mock_drivers_* keys in localStorage
+              if (!foundUser.role) {
+                const driverKeys = Object.keys(localStorage).filter(k => k.startsWith('mock_drivers_'))
+                for (const key of driverKeys) {
+                  const drivers = JSON.parse(localStorage.getItem(key) || '[]')
+                  const lineNumber = key.replace('mock_drivers_', '')
+                  const match = drivers.find((d: any) => d.email?.toLowerCase() === lowerEmail)
+                  if (match) {
+                    foundUser = { ...foundUser, role: 'driver', lineNumber, name: match.name || foundUser.name }
+                    // Patch mock_users with correct role for future logins
+                    const idx = mockUsers.findIndex((u: any) => u.email.toLowerCase() === lowerEmail)
+                    if (idx >= 0) { mockUsers[idx] = foundUser; localStorage.setItem('mock_users', JSON.stringify(mockUsers)) }
+                    break
+                  }
+                }
+              }
+
               localStorage.setItem('active_user', JSON.stringify(foundUser))
               // If this is a registered driver, store their identity so /driver can load it
               if (foundUser.role === 'driver') {
@@ -416,6 +435,10 @@ export default function LoginPage() {
                 setLoading(false)
                 return
               }
+              // Found but no specific role — still redirect to user panel
+              window.location.href = `/?city=${city}`
+              setLoading(false)
+              return
             }
           } catch (e) {
             console.error(e)
