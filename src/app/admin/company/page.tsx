@@ -412,9 +412,17 @@ export default function CompanyDashboard() {
   }
 
   const deleteDriver = (id: string) => {
+    const driver = driversList.find(d => d.id === id)
     const updated = driversList.filter(d => d.id !== id)
     setDriversList(updated)
     localStorage.setItem(`mock_drivers_${activeLine.line_number}`, JSON.stringify(updated))
+    // Also remove their login credentials
+    if (driver?.email) {
+      try {
+        const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
+        localStorage.setItem('mock_users', JSON.stringify(mockUsers.filter((u: any) => u.email?.toLowerCase() !== driver.email.toLowerCase())))
+      } catch (e) {}
+    }
     toast.success('Chofer eliminado con éxito de los registros');
   }
 
@@ -673,10 +681,28 @@ export default function CompanyDashboard() {
         username: `linea${activeLine.line_number.toLowerCase()}`,
         is_active: true
       })
-      setQrCodes(activeLine.line_number === '0' ? [] : [
-        { id: `mock-qr-${activeLine.line_number}-1`, qr_token: `DEMO-QR-L${activeLine.line_number}-001`, bus_unit: `${activeLine.line_number}-301`, is_active: true, company_id: `mock-company-${activeLine.id}`, line_id: activeLine.id },
-        { id: `mock-qr-${activeLine.line_number}-2`, qr_token: `DEMO-QR-L${activeLine.line_number}-002`, bus_unit: `${activeLine.line_number}-302`, is_active: false, company_id: `mock-company-${activeLine.id}`, line_id: activeLine.id }
-      ])
+      // Always load QR codes from localStorage first — this is the source of truth for all lines
+      const companyId = `mock-company-${activeLine.id}`
+      const storedQRs: any[] = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
+        .filter((q: any) => q.line_id === activeLine.id || q.company_id === companyId)
+      
+      if (storedQRs.length > 0) {
+        // Real QRs created by admin — use them
+        setQrCodes(storedQRs)
+      } else if (activeLine.line_number !== '0') {
+        // No stored QRs yet and not Line 0 — seed with demo placeholders
+        const demoQRs = [
+          { id: `mock-qr-${activeLine.line_number}-1`, qr_token: `DEMO-QR-L${activeLine.line_number}-001`, bus_unit: `${activeLine.line_number}-301`, is_active: true, company_id: companyId, line_id: activeLine.id },
+          { id: `mock-qr-${activeLine.line_number}-2`, qr_token: `DEMO-QR-L${activeLine.line_number}-002`, bus_unit: `${activeLine.line_number}-302`, is_active: false, company_id: companyId, line_id: activeLine.id }
+        ]
+        setQrCodes(demoQRs)
+        // Persist demo QRs so they survive reload too
+        const allStored = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
+        localStorage.setItem('mock_bus_qr_codes', JSON.stringify([...allStored, ...demoQRs]))
+      } else {
+        // Line 0 with no QRs yet — start empty (admin must create real ones)
+        setQrCodes([])
+      }
       setLoading(false)
       return
     }
