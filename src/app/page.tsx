@@ -30205,14 +30205,24 @@ function MiniPopup({
                    bus.line_number === 'T-Amarillo' ? '#F59E0B' :
                    bus.line_number === 'T-Rojo' ? '#EF4444' : '#1D4ED8';
 
-  // Deterministically generate amenities based on bus unit to make them consistent but different
+  // Look up real bus characteristics from QR code data stored by admin
   const getBusAmenities = (busUnit: string) => {
+    try {
+      const qrCodes = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
+      const qr = qrCodes.find((q: any) => q.bus_unit?.toLowerCase() === busUnit?.toLowerCase())
+      if (qr && (qr.has_ac !== undefined || qr.is_new !== undefined || qr.has_ramp !== undefined)) {
+        return {
+          hasAC: qr.has_ac ?? true,
+          isNew: qr.is_new ?? true,
+          hasRamp: qr.has_ramp ?? false,
+          fromAdmin: true,
+        }
+      }
+    } catch (e) {}
+    // Fallback: deterministic but consistent
     const digits = busUnit.split('').filter(c => '0123456789'.includes(c)).join('')
     const num = parseInt(digits) || 0
-    const hasAC = num % 3 !== 0      // 2 out of 3 have AC (most of them)
-    const isNew = num % 4 !== 0      // 3 out of 4 are under 5 years old
-    const hasRamp = num % 5 !== 0    // 4 out of 5 have wheelchair ramps (some have no ramp)
-    return { hasAC, isNew, hasRamp }
+    return { hasAC: num % 3 !== 0, isNew: num % 4 !== 0, hasRamp: num % 5 !== 0, fromAdmin: false }
   }
 
   const amenities = getBusAmenities(bus.bus_unit)

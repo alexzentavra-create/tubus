@@ -104,6 +104,9 @@ export default function CompanyDashboard() {
   const [selectedQR, setSelectedQR] = useState<any>(null)
   const [showQRModal, setShowQRModal] = useState(false)
   const [newBusUnit, setNewBusUnit] = useState('')
+  const [newBusHasAC, setNewBusHasAC] = useState(true)
+  const [newBusIsNew, setNewBusIsNew] = useState(true)
+  const [newBusHasRamp, setNewBusHasRamp] = useState(false)
   const [activeSessions, setActiveSessions] = useState<any[]>([])
 
   const [selectedLineNumber, setSelectedLineNumber] = useState<string>('12')
@@ -1152,7 +1155,10 @@ export default function CompanyDashboard() {
         bus_unit: newBusUnit.trim(),
         qr_token: `DEMO-QR-L${activeLine.line_number}-${newBusUnit.trim()}-${Math.floor(Math.random() * 1000)}`,
         is_active: true,
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        has_ac: newBusHasAC,
+        is_new: newBusIsNew,
+        has_ramp: newBusHasRamp,
       }
       const prevQRs = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
       localStorage.setItem('mock_bus_qr_codes', JSON.stringify([...prevQRs, qrData]))
@@ -1162,6 +1168,9 @@ export default function CompanyDashboard() {
 
     setQrCodes(prev => [...prev, qrData])
     setNewBusUnit('')
+    setNewBusHasAC(true)
+    setNewBusIsNew(true)
+    setNewBusHasRamp(false)
     setSelectedQR(qrData)
     setShowQRModal(true)
     toast.success(`QR generado para unidad ${newBusUnit}`)
@@ -2207,6 +2216,12 @@ export default function CompanyDashboard() {
                 qrCodes={qrCodes}
                 newBusUnit={newBusUnit}
                 setNewBusUnit={setNewBusUnit}
+                newBusHasAC={newBusHasAC}
+                setNewBusHasAC={setNewBusHasAC}
+                newBusIsNew={newBusIsNew}
+                setNewBusIsNew={setNewBusIsNew}
+                newBusHasRamp={newBusHasRamp}
+                setNewBusHasRamp={setNewBusHasRamp}
                 onGenerate={generateQR}
                 onDownload={downloadQR}
                 onDelete={deleteQR}
@@ -4308,8 +4323,49 @@ function CompanyDrivers({ drivers, activeSessions = [], driverWarnings = {}, onD
   )
 }
 
-function QRTab({qrCodes,newBusUnit,setNewBusUnit,onGenerate,onDownload,onDelete,onToggleActive,themeColor}:{qrCodes:any[];newBusUnit:string;setNewBusUnit:(v:string)=>void;onGenerate:()=>void;onDownload:(qr:any)=>void;onDelete:(id:string)=>void;onToggleActive:(id:string,status:boolean)=>void;themeColor:string}) {
+function QRTab({qrCodes,newBusUnit,setNewBusUnit,newBusHasAC,setNewBusHasAC,newBusIsNew,setNewBusIsNew,newBusHasRamp,setNewBusHasRamp,onGenerate,onDownload,onDelete,onToggleActive,themeColor}:{
+  qrCodes:any[];newBusUnit:string;setNewBusUnit:(v:string)=>void;
+  newBusHasAC:boolean;setNewBusHasAC:(v:boolean)=>void;
+  newBusIsNew:boolean;setNewBusIsNew:(v:boolean)=>void;
+  newBusHasRamp:boolean;setNewBusHasRamp:(v:boolean)=>void;
+  onGenerate:()=>void;onDownload:(qr:any)=>void;onDelete:(id:string)=>void;onToggleActive:(id:string,status:boolean)=>void;themeColor:string
+}) {
   const [selected, setSelected] = useState<any>(null)
+
+  const ToggleOption = ({ label, sublabel, value, onChange, icon }: { label: string; sublabel?: string; value: boolean; onChange: (v: boolean) => void; icon: string }) => (
+    <div
+      onClick={() => onChange(!value)}
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '10px 14px', borderRadius: '10px', cursor: 'pointer',
+        background: value ? hexToRgba(themeColor, 0.08) : 'rgba(255,255,255,0.02)',
+        border: `1px solid ${value ? hexToRgba(themeColor, 0.3) : 'rgba(255,255,255,0.07)'}`,
+        transition: 'all 180ms',
+        userSelect: 'none',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <span style={{ fontSize: '18px' }}>{icon}</span>
+        <div>
+          <div style={{ color: '#e2e8f0', fontSize: '13px', fontWeight: 600 }}>{label}</div>
+          {sublabel && <div style={{ color: '#64748b', fontSize: '11px', marginTop: '1px' }}>{sublabel}</div>}
+        </div>
+      </div>
+      <div style={{
+        width: '36px', height: '20px', borderRadius: '10px', position: 'relative',
+        background: value ? themeColor : 'rgba(255,255,255,0.1)',
+        transition: 'background 200ms', flexShrink: 0,
+      }}>
+        <div style={{
+          position: 'absolute', top: '2px', left: value ? '18px' : '2px',
+          width: '16px', height: '16px', borderRadius: '50%',
+          background: '#fff', transition: 'left 200ms',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+        }} />
+      </div>
+    </div>
+  )
+
   return (
     <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
       {/* Generator */}
@@ -4319,19 +4375,51 @@ function QRTab({qrCodes,newBusUnit,setNewBusUnit,onGenerate,onDownload,onDelete,
         border: '1px solid rgba(255, 255, 255, 0.06)',
         padding: '24px',
       }}>
-        <div style={{color:'#8f94a5',fontSize:'12px',fontWeight:500,textTransform:'uppercase',marginBottom:'14px',letterSpacing:'0.05em'}}>Generar nuevo QR</div>
-        <div style={{display:'flex',gap:'10px'}}>
-          <input
-            className="input-dark" placeholder="Número de unidad (ej: 005)"
-            value={newBusUnit} onChange={e=>setNewBusUnit(e.target.value)}
-            style={{flex:1}}
-            onKeyDown={e=>e.key==='Enter'&&onGenerate()}
-          />
-          <button onClick={onGenerate} disabled={!newBusUnit.trim()} style={{padding:'13px 20px',borderRadius:'10px',background:hexToRgba(themeColor, 0.15),border:`1px solid ${hexToRgba(themeColor, 0.3)}`,color:themeColor,fontWeight:600,fontSize:'13px',cursor:newBusUnit.trim()?'pointer':'not-allowed',display:'flex',alignItems:'center',gap:'8px',flexShrink:0,transition:'all 200ms',opacity:newBusUnit.trim()?1:0.5}}>
-            <Plus size={15}/> Generar QR
-          </button>
+        <div style={{color:'#8f94a5',fontSize:'12px',fontWeight:500,textTransform:'uppercase',marginBottom:'14px',letterSpacing:'0.05em'}}>Generar nuevo QR / Unidad</div>
+
+        {/* Bus unit number */}
+        <div style={{marginBottom:'14px'}}>
+          <label style={{display:'block',color:'#8f94a5',fontSize:'12px',marginBottom:'8px',fontWeight:500}}>Número de unidad</label>
+          <div style={{display:'flex',gap:'10px'}}>
+            <input
+              className="input-dark" placeholder="ej: 005"
+              value={newBusUnit} onChange={e=>setNewBusUnit(e.target.value)}
+              style={{flex:1}}
+              onKeyDown={e=>e.key==='Enter'&&onGenerate()}
+            />
+            <button onClick={onGenerate} disabled={!newBusUnit.trim()} style={{padding:'13px 20px',borderRadius:'10px',background:hexToRgba(themeColor, 0.15),border:`1px solid ${hexToRgba(themeColor, 0.3)}`,color:themeColor,fontWeight:600,fontSize:'13px',cursor:newBusUnit.trim()?'pointer':'not-allowed',display:'flex',alignItems:'center',gap:'8px',flexShrink:0,transition:'all 200ms',opacity:newBusUnit.trim()?1:0.5}}>
+              <Plus size={15}/> Generar QR
+            </button>
+          </div>
         </div>
-        <p style={{color:'#8f94a5',fontSize:'11px',marginTop:'10px',lineHeight:1.5}}>
+
+        {/* Bus characteristics */}
+        <div style={{borderTop:'1px solid rgba(255,255,255,0.06)',paddingTop:'14px'}}>
+          <div style={{color:'#8f94a5',fontSize:'11px',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em',marginBottom:'10px'}}>Características del vehículo</div>
+          <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+            <ToggleOption
+              icon="❄️"
+              label="Aire acondicionado"
+              value={newBusHasAC}
+              onChange={setNewBusHasAC}
+            />
+            <ToggleOption
+              icon="🕐"
+              label="Antigüedad del vehículo"
+              sublabel={newBusIsNew ? 'Menos de 5 años' : 'Más de 5 años'}
+              value={newBusIsNew}
+              onChange={setNewBusIsNew}
+            />
+            <ToggleOption
+              icon="♿"
+              label="Rampa para sillas de ruedas"
+              value={newBusHasRamp}
+              onChange={setNewBusHasRamp}
+            />
+          </div>
+        </div>
+
+        <p style={{color:'#8f94a5',fontSize:'11px',marginTop:'14px',lineHeight:1.5}}>
           El QR generado debe ser impreso y colocado en el colectivo. Cuando el chofer lo escaneara, el sistema lo asocia automáticamente con ese vehículo y chofer en tiempo real.
         </p>
       </div>
@@ -4357,7 +4445,27 @@ function QRTab({qrCodes,newBusUnit,setNewBusUnit,onGenerate,onDownload,onDelete,
               setSelected(selected?.id===qr.id?null:qr)
             }}>
               <QRDisplay token={qr.qr_token} busUnit={qr.bus_unit}/>
-              <div style={{marginTop:'14px',display:'flex',gap:'8px'}}>
+              {/* Characteristics badges */}
+              {(qr.has_ac !== undefined || qr.is_new !== undefined || qr.has_ramp !== undefined) && (
+                <div style={{display:'flex',flexWrap:'wrap',gap:'4px',margin:'10px 0 6px'}}>
+                  {qr.has_ac !== undefined && (
+                    <span style={{padding:'2px 7px',borderRadius:'20px',fontSize:'10px',fontWeight:600,background:qr.has_ac?'rgba(34,211,160,0.12)':'rgba(255,255,255,0.04)',color:qr.has_ac?'#22D3A0':'#64748b',border:`1px solid ${qr.has_ac?'rgba(34,211,160,0.3)':'rgba(255,255,255,0.07)'}`}}>
+                      {qr.has_ac ? '❄️ AC' : '🌡️ Sin AC'}
+                    </span>
+                  )}
+                  {qr.is_new !== undefined && (
+                    <span style={{padding:'2px 7px',borderRadius:'20px',fontSize:'10px',fontWeight:600,background:qr.is_new?'rgba(96,165,250,0.12)':'rgba(255,255,255,0.04)',color:qr.is_new?'#60A5FA':'#64748b',border:`1px solid ${qr.is_new?'rgba(96,165,250,0.3)':'rgba(255,255,255,0.07)'}`}}>
+                      {qr.is_new ? '🕐 &lt;5 años' : '🕐 &gt;5 años'}
+                    </span>
+                  )}
+                  {qr.has_ramp !== undefined && qr.has_ramp && (
+                    <span style={{padding:'2px 7px',borderRadius:'20px',fontSize:'10px',fontWeight:600,background:'rgba(167,139,250,0.12)',color:'#A78BFA',border:'1px solid rgba(167,139,250,0.3)'}}>
+                      ♿ Rampa
+                    </span>
+                  )}
+                </div>
+              )}
+              <div style={{marginTop:'8px',display:'flex',gap:'8px'}}>
                 <button onClick={e=>{e.stopPropagation();onDownload(qr)}} style={{flex:1,padding:'8px',borderRadius:'8px',background:hexToRgba(themeColor, 0.1),border:`1px solid ${hexToRgba(themeColor, 0.25)}`,color:themeColor,fontSize:'11px',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'5px'}}>
                   <Download size={12}/> Descargar
                 </button>
