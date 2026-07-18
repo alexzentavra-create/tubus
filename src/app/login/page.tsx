@@ -373,10 +373,9 @@ export default function LoginPage() {
 
       // Mock login bypass ONLY when running without database credentials (placeholder Supabase URL)
       if (url.includes('placeholder.supabase.co')) {
-        toast.success('Modo de prueba: ingresando sin base de datos')
         const lowerEmail = email.trim().toLowerCase()
-        const pass = form.password.trim().toLowerCase()
-
+        const pass = form.password.trim()  // keep original casing for password comparison
+        const passLower = pass.toLowerCase() // used only for legacy hardcoded accounts
         const bannedList = JSON.parse(localStorage.getItem('banned_users') || '[]')
         if (bannedList.includes(lowerEmail)) {
           setBannedEmail(lowerEmail)
@@ -395,6 +394,7 @@ export default function LoginPage() {
           let foundUser: any = null
           try {
             const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
+            // Match email (case-insensitive) and password (case-sensitive, as stored)
             foundUser = mockUsers.find((u: any) => u.email.toLowerCase() === lowerEmail && u.password === pass)
             if (foundUser) {
               localStorage.setItem('active_user', JSON.stringify(foundUser))
@@ -410,25 +410,31 @@ export default function LoginPage() {
                 setLoading(false)
                 return
               }
-            } else {
-              // Fallback default mock profile
-              localStorage.setItem('active_user', JSON.stringify({ name: lowerEmail.split('@')[0], age: 28, email: lowerEmail }))
+              // Company admin registered via super-admin
+              if (foundUser.role === 'company_admin' || foundUser.role === 'admin') {
+                window.location.href = '/admin/company'
+                setLoading(false)
+                return
+              }
             }
           } catch (e) {
             console.error(e)
           }
 
-          if (lowerEmail === 'admin@admin.com' && pass === 'admin') {
+          if (lowerEmail === 'admin@admin.com' && passLower === 'admin') {
             window.location.href = '/admin/super'
-          } else if (lowerEmail === 'nestor@nestor.ar' && pass === 'nestor') {
+          } else if (lowerEmail === 'nestor@nestor.ar' && passLower === 'nestor') {
             // Legacy demo driver — store identity so /driver page can greet them
             localStorage.setItem('mock_driver_identity', JSON.stringify({
               name: 'Néstor García', email: lowerEmail, lineNumber: '12', driverId: 'mock-driver-nestor'
             }))
             window.location.href = '/driver'
-          } else if (lowerEmail === 'linea12@bienparada.ar' && pass === 'bienparada') {
+          } else if (lowerEmail === 'linea12@bienparada.ar' && passLower === 'bienparada') {
             window.location.href = '/admin/company'
           } else {
+            // Generic fallback for unrecognized emails
+            toast('Modo de prueba: ingresando como usuario genérico', { icon: 'ℹ️' })
+            localStorage.setItem('active_user', JSON.stringify({ name: lowerEmail.split('@')[0], age: 28, email: lowerEmail }))
             if (lowerEmail.includes('superadmin') || lowerEmail.includes('admin')) {
               window.location.href = '/admin/super'
             } else if (lowerEmail.includes('driver') || lowerEmail.includes('chofer')) {
