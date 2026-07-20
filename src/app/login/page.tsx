@@ -390,13 +390,22 @@ export default function LoginPage() {
           localStorage.setItem('active_user', JSON.stringify({ name: 'Usuario Prueba', age: 24, email: 'usuario@usuario.com' }))
           window.location.href = `/?city=${city}`
         } else {
-          // Check for custom registered mock users (drivers, company admins, etc.)
           let foundUser: any = null
           try {
             const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
-            // Match email case-insensitively; try exact password first, then case-insensitive fallback
-            foundUser = mockUsers.find((u: any) => u.email.toLowerCase() === lowerEmail && u.password === pass)
-              || mockUsers.find((u: any) => u.email.toLowerCase() === lowerEmail && u.password?.toLowerCase() === pass.toLowerCase())
+            // First check: does this email exist at all?
+            const emailMatch = mockUsers.find((u: any) => u.email.toLowerCase() === lowerEmail)
+            if (emailMatch) {
+              // Email found — check password (exact first, then case-insensitive fallback)
+              const passwordOk = emailMatch.password === pass || emailMatch.password?.toLowerCase() === pass.toLowerCase()
+              if (!passwordOk) {
+                // Wrong password — show error, do NOT fall through to keyword guessing
+                toast.error('Contraseña incorrecta. Revisá las mayúsculas.')
+                setLoading(false)
+                return
+              }
+              foundUser = emailMatch
+            }
 
             if (foundUser) {
               // Auto-detect role if missing: scan all mock_drivers_* keys in localStorage
@@ -435,7 +444,7 @@ export default function LoginPage() {
                 setLoading(false)
                 return
               }
-              // Found but no specific role — still redirect to user panel
+              // Found but no specific role — redirect to user panel
               window.location.href = `/?city=${city}`
               setLoading(false)
               return
@@ -455,14 +464,15 @@ export default function LoginPage() {
           } else if (lowerEmail === 'linea12@bienparada.ar' && passLower === 'bienparada') {
             window.location.href = '/admin/company'
           } else {
-            // Generic fallback for unrecognized emails
+            // Generic fallback — completely unrecognized account
+            // NOTE: keyword matching removed to avoid catching driver emails like "marcos.diaz.linea0@..."
             toast('Modo de prueba: ingresando como usuario genérico', { icon: 'ℹ️' })
             localStorage.setItem('active_user', JSON.stringify({ name: lowerEmail.split('@')[0], age: 28, email: lowerEmail }))
-            if (lowerEmail.includes('superadmin') || lowerEmail.includes('admin')) {
+            if (lowerEmail.startsWith('superadmin') || lowerEmail.startsWith('admin@')) {
               window.location.href = '/admin/super'
-            } else if (lowerEmail.includes('driver') || lowerEmail.includes('chofer')) {
+            } else if (lowerEmail.startsWith('driver') || lowerEmail.startsWith('chofer')) {
               window.location.href = '/driver'
-            } else if (lowerEmail.includes('company') || lowerEmail.includes('linea') || lowerEmail.includes('lineas') || lowerEmail.includes('empresa') || lowerEmail.includes('line')) {
+            } else if (lowerEmail.startsWith('company') || lowerEmail.startsWith('empresa')) {
               window.location.href = '/admin/company'
             } else {
               window.location.href = `/?city=${city}`
