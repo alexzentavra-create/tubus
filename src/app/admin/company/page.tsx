@@ -344,10 +344,18 @@ export default function CompanyDashboard() {
     if (!activeLine) return
     const initialDrivers = getLineDrivers(activeLine.line_number)
     const stored = localStorage.getItem(`mock_drivers_${activeLine.line_number}`)
+    
+    let loadedDrivers: any[] = []
     if (stored) {
-      setDriversList(JSON.parse(stored))
-    } else {
-      const enhanced = initialDrivers.map((d: any, idx: number) => ({
+      try {
+        loadedDrivers = JSON.parse(stored)
+      } catch (e) {
+        loadedDrivers = []
+      }
+    }
+    
+    if (loadedDrivers.length === 0) {
+      loadedDrivers = initialDrivers.map((d: any, idx: number) => ({
         ...d,
         id: `driver-${idx}-${Date.now()}`,
         dni: String(28000000 + idx * 45293),
@@ -365,8 +373,59 @@ export default function CompanyDashboard() {
           stop: 'Av. Rivadavia y Pueyrredón'
         }] : []
       }))
-      setDriversList(enhanced)
-      localStorage.setItem(`mock_drivers_${activeLine.line_number}`, JSON.stringify(enhanced))
+    }
+
+    // Ensure every loaded driver has a valid email, password, and is registered in mock_users
+    let needsUpdate = false
+    try {
+      const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
+      let mockUsersUpdated = false
+
+      loadedDrivers = loadedDrivers.map((d: any) => {
+        let email = d.email
+        let password = d.password
+
+        // Generate email if missing
+        if (!email) {
+          email = `${d.name.toLowerCase().replace(/[^a-z0-9]/g, '.').replace(/\.+/g, '.')}.linea${activeLine.line_number}@tubus.ar`
+          d.email = email
+          needsUpdate = true
+        }
+        // Generate password if missing
+        if (!password) {
+          password = d.name.split(' ')[0] || 'chofer123'
+          if (password.length < 5) password = `${password}123`
+          d.password = password
+          needsUpdate = true
+        }
+
+        // Register in mockUsers if not already there
+        const existingIdx = mockUsers.findIndex((u: any) => u.email.toLowerCase() === email.toLowerCase())
+        const userEntry = { name: d.name, email, password, role: 'driver', lineNumber: activeLine.line_number }
+        if (existingIdx >= 0) {
+          const u = mockUsers[existingIdx]
+          if (u.role !== 'driver' || u.lineNumber !== activeLine.line_number || u.password !== password) {
+            mockUsers[existingIdx] = { ...u, ...userEntry }
+            mockUsersUpdated = true
+          }
+        } else {
+          mockUsers.push(userEntry)
+          mockUsersUpdated = true
+        }
+
+        return d
+      })
+
+      if (mockUsersUpdated) {
+        localStorage.setItem('mock_users', JSON.stringify(mockUsers))
+      }
+    } catch (e) {
+      console.error('Error during drivers login registration sync:', e)
+    }
+
+    setDriversList(loadedDrivers)
+    if (needsUpdate || !stored) {
+      localStorage.setItem(`mock_drivers_${activeLine.line_number}`, JSON.stringify(loadedDrivers))
     }
   }, [activeLine])
 

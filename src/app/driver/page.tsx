@@ -391,6 +391,7 @@ export default function DriverPage() {
 
   const [driverName, setDriverName]     = useState('')
   const [driverId,   setDriverId]       = useState('')
+  const [driverLineNumber, setDriverLineNumber] = useState('')
   const [session,    setSession]        = useState<ActiveSession | null>(null)
   const [isOnline,   setIsOnline]       = useState(false)
   const [passengers, setPassengers]     = useState(0)
@@ -473,6 +474,7 @@ export default function DriverPage() {
         const identity = JSON.parse(rawIdentity)
         setDriverName(identity.name || 'Chofer')
         setDriverId(identity.driverId || `driver-${Date.now()}`)
+        setDriverLineNumber(identity.lineNumber || '0')
         // Request GPS permission immediately so the browser dialog appears on panel load
         if (typeof navigator !== 'undefined' && navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
@@ -962,6 +964,13 @@ export default function DriverPage() {
           companyId = localMatch.company_id
         }
 
+        // Validate that driver scans a QR code belonging to their assigned line
+        if (driverLineNumber && driverLineNumber !== lineNumber) {
+          toast.error(`Acceso denegado: Perteneces a la Línea ${driverLineNumber}. No podés escanear unidades de la Línea ${lineNumber}.`)
+          setScanning(false)
+          return
+        }
+
         const sess: ActiveSession = {
           sessionId: `mock-session-${Date.now()}`,
           driverId: driverId || 'mock-driver',
@@ -1019,6 +1028,14 @@ export default function DriverPage() {
       .single()
 
     if (error || !qr) { toast.error('Código QR inválido'); setScanning(false); return }
+
+    // Validate that driver scans a QR code belonging to their assigned line
+    const qrLineNumber = (qr.bus_lines as any)?.line_number
+    if (driverLineNumber && qrLineNumber && driverLineNumber !== qrLineNumber) {
+      toast.error(`Acceso denegado: Perteneces a la Línea ${driverLineNumber}. No podés escanear unidades de la Línea ${qrLineNumber}.`)
+      setScanning(false)
+      return
+    }
 
     if (!qr.is_active) {
       const warning = {
@@ -1196,8 +1213,16 @@ export default function DriverPage() {
 
   useEffect(() => { if (showNotes) loadDriverNotes() }, [showNotes])
 
-  const isMock = session?.sessionId.startsWith('mock-')
-  const mockLine = session ? MOCK_LINES.find(l => l.id === session.lineId) : null
+  const isMock = session?.sessionId.startsWith('mock-') || (!session && typeof window !== 'undefined')
+  const mockLine = useMemo(() => {
+    if (session) {
+      return MOCK_LINES.find(l => l.id === session.lineId) || null
+    }
+    if (driverLineNumber) {
+      return MOCK_LINES.find(l => l.line_number === driverLineNumber) || null
+    }
+    return null
+  }, [session, driverLineNumber])
   const accentColor = mockLine?.color || '#EF4444'
 
   // Map route geometries
@@ -1269,7 +1294,7 @@ export default function DriverPage() {
                 <span style={{
                   fontSize: '9px',
                   color: '#fff',
-                  background: '#EF4444',
+                  background: accentColor,
                   padding: '2px 6px',
                   borderRadius: '4px',
                   fontWeight: 700,
@@ -1297,6 +1322,11 @@ export default function DriverPage() {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ color: '#fff', fontWeight: 600, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{driverName || 'Chofer Demo'}</div>
             <div style={{ color: '#a3a6b8', fontSize: '11px', fontFamily: 'DM Mono', marginTop: '1px' }}>ID: {driverId ? driverId.slice(0, 12) : 'mock-driver'}</div>
+            {(driverLineNumber || (session && session.lineNumber)) && (
+              <div style={{ color: accentColor, fontSize: '10px', fontFamily: 'DM Mono', fontWeight: 600, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Bus size={10} /> LÍNEA {session ? session.lineNumber : driverLineNumber}
+              </div>
+            )}
           </div>
           {/* Clock Widget */}
           <div style={{ 
