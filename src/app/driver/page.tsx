@@ -594,16 +594,37 @@ export default function DriverPage() {
     intervalRef.current = setInterval(async () => {
       const p = lastPosRef.current; if (!p) return
       const spd = p.coords.speed ? Math.round(p.coords.speed * 3.6) : 0
+      const lat = p.coords.latitude
+      const lng = p.coords.longitude
+      const heading = Math.round(p.coords.heading || 0)
+      const status = spd > 2 ? 'moving' : 'stopped'
+      const ts = new Date().toISOString()
+
+      // ── Mock mode: push real GPS into localStorage so user map + admin panel sync ──
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+      if (url.includes('placeholder.supabase.co')) {
+        try {
+          const sessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+          const idx = sessions.findIndex((s: any) => s.id === sid)
+          if (idx >= 0) {
+            sessions[idx] = { ...sessions[idx], latitude: lat, longitude: lng, speed_kmh: spd, heading, status, last_gps: ts }
+            localStorage.setItem('mock_active_sessions', JSON.stringify(sessions))
+          }
+        } catch (e) {}
+        return // skip Supabase calls in mock mode
+      }
+
+      // ── Real mode: push to Supabase ──
       await supabase.from('bus_positions').upsert({
         driver_id: uid, line_id: lid, bus_unit: unit,
-        latitude: p.coords.latitude, longitude: p.coords.longitude,
-        heading: Math.round(p.coords.heading || 0), speed_kmh: spd,
-        status: spd > 2 ? 'moving' : 'stopped',
+        latitude: lat, longitude: lng,
+        heading, speed_kmh: spd,
+        status,
         passenger_count: initPass,
-        timestamp: new Date().toISOString(),
+        timestamp: ts,
       }, { onConflict: 'driver_id' })
       await supabase.from('driver_sessions').update({ total_passengers: initPass }).eq('id', sid)
-    }, 5000)
+    }, 3000) // every 3 s for smoother tracking
   }, [])
 
   useEffect(() => {

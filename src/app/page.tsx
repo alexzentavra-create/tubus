@@ -22570,13 +22570,19 @@ export default function UserMapPage() {
 
       // Update all simulated buses
       simulatedBusesRef.current.forEach(bus => {
-        // GPS Sync Mechanic: If driver is online on this unit, snap the bus to driver's GPS
-        const activeSess = activeSessions.find(s => {
-          const sUnit = s.bus_unit || ''
-          const bUnit = bus.bus_unit || ''
-          const sMatch = sUnit.match(/\d+$/)
-          const bMatch = bUnit.match(/\d+$/)
-          return sMatch && bMatch && sMatch[0] === bMatch[0]
+        // GPS Sync Mechanic: match session to bus by line_id + bus_unit
+        // A real driver's phone GPS overrides the simulated position
+        const activeSess = activeSessions.find((s: any) => {
+          // Must match the same line
+          if (s.line_id && bus.line_id && s.line_id !== bus.line_id) return false
+          if (s.line_number && bus.line_number && s.line_number !== bus.line_number) return false
+          // Match bus unit — exact or by trailing number
+          const sUnit = (s.bus_unit || '').trim()
+          const bUnit = (bus.bus_unit || '').trim()
+          if (sUnit === bUnit) return true
+          const sMatch = sUnit.match(/(\d+)$/)
+          const bMatch = bUnit.match(/(\d+)$/)
+          return sMatch && bMatch && sMatch[1] === bMatch[1]
         })
 
         if (activeSess && activeSess.latitude !== undefined) {
@@ -22584,7 +22590,8 @@ export default function UserMapPage() {
           bus.longitude = activeSess.longitude
           bus.speed_kmh = activeSess.speed_kmh || 0
           bus.heading = activeSess.heading || 0
-          bus.driver_name = activeSess.profiles?.name || bus.driver_name
+          // Use real driver name from session
+          bus.driver_name = activeSess.profiles?.name || activeSess.driver_name || bus.driver_name
           bus.passenger_count = activeSess.total_passengers !== undefined ? activeSess.total_passengers : bus.passenger_count
           bus.status = activeSess.status || (bus.speed_kmh > 2 ? 'moving' : 'stopped')
           return
