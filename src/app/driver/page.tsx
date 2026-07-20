@@ -644,7 +644,7 @@ export default function DriverPage() {
 
   // ─── Simulation movement loop ───────────────────────────────────────────────
   useEffect(() => {
-    if (!session || !isOnline || !session.sessionId.startsWith('mock-')) {
+    if (!session || !isOnline || !session.sessionId.startsWith('mock-') || session.lineNumber === '0') {
       if (simIntervalRef.current) { clearInterval(simIntervalRef.current); simIntervalRef.current = null }
       return
     }
@@ -1371,24 +1371,28 @@ export default function DriverPage() {
                 <QrCode size={15} /> Escanear QR
               </button>
 
-              <button
-                onClick={handleSimulateScan}
-                title="Simular escaneo (demo)"
-                className="action-btn"
-                style={{
-                  width: '44px', height: '44px', borderRadius: '12px', flexShrink: 0,
-                  background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.3)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', transition: 'all 200ms',
-                }}
-              >
-                <Zap size={18} style={{ color: 'var(--near)' }} />
-              </button>
+              {driverLineNumber !== '0' && (
+                <button
+                  onClick={handleSimulateScan}
+                  title="Simular escaneo (demo)"
+                  className="action-btn"
+                  style={{
+                    width: '44px', height: '44px', borderRadius: '12px', flexShrink: 0,
+                    background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.3)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: 'pointer', transition: 'all 200ms',
+                  }}
+                >
+                  <Zap size={18} style={{ color: 'var(--near)' }} />
+                </button>
+              )}
             </div>
 
-            <p style={{ color: 'var(--text-muted)', fontSize: '10px', fontFamily: 'DM Mono', marginTop: '12px', letterSpacing: '0.04em' }}>
-              El ⚡ simula un escaneo para previsualizar el panel
-            </p>
+            {driverLineNumber !== '0' && (
+              <p style={{ color: 'var(--text-muted)', fontSize: '10px', fontFamily: 'DM Mono', marginTop: '12px', letterSpacing: '0.04em' }}>
+                El ⚡ simula un escaneo para previsualizar el panel
+              </p>
+            )}
           </motion.div>
         )}
 
@@ -1406,20 +1410,22 @@ export default function DriverPage() {
                     Ingresar código QR
                   </h3>
                 </div>
-                <button
-                  onClick={handleSimulateScan}
-                  title="Simular escaneo (demo)"
-                  className="action-btn"
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '5px',
-                    padding: '5px 10px', borderRadius: '8px',
-                    background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.25)',
-                    cursor: 'pointer', transition: 'all 200ms',
-                  }}
-                >
-                  <Zap size={13} style={{ color: 'var(--near)' }} />
-                  <span style={{ fontSize: '10px', fontFamily: 'DM Mono', fontWeight: 600, color: 'var(--near)' }}>SIMULAR</span>
-                </button>
+                {driverLineNumber !== '0' && (
+                  <button
+                    onClick={handleSimulateScan}
+                    title="Simular escaneo (demo)"
+                    className="action-btn"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '5px',
+                      padding: '5px 10px', borderRadius: '8px',
+                      background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.25)',
+                      cursor: 'pointer', transition: 'all 200ms',
+                    }}
+                  >
+                    <Zap size={13} style={{ color: 'var(--near)' }} />
+                    <span style={{ fontSize: '10px', fontFamily: 'DM Mono', fontWeight: 600, color: 'var(--near)' }}>SIMULAR</span>
+                  </button>
+                )}
               </div>
 
               {/* Viewfinder */}
@@ -1467,7 +1473,7 @@ export default function DriverPage() {
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
             
             {/* Simulation mode warning */}
-            {isMock && (
+            {isMock && session?.lineNumber !== '0' && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px', borderRadius: 'var(--r-md)', background: 'rgba(240,180,41,0.07)', border: '1px solid rgba(240,180,41,0.2)', marginBottom: '12px' }}>
                 <Zap size={13} style={{ color: 'var(--near)', flexShrink: 0 }} />
                 <span style={{ color: 'var(--near)', fontSize: '11px', fontFamily: 'DM Mono', fontWeight: 600 }}>
