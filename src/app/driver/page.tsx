@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bus, Navigation, Wifi, WifiOff, Users, Power, AlertCircle, Gauge, Clock, QrCode, CheckCircle, LogOut, Zap, MapPin, Sun, Moon } from 'lucide-react'
+import { Bus, Navigation, Wifi, WifiOff, Users, Power, AlertCircle, Gauge, Clock, QrCode, CheckCircle, LogOut, Zap, MapPin, Sun, Moon, FileText, Trash2, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { MOCK_LINES, getMockRoutePathForLine, getMockStopsForLine } from '@/lib/mockData'
 import toast from 'react-hot-toast'
@@ -1149,6 +1149,53 @@ export default function DriverPage() {
     return h > 0 ? `${h}h ${m}m` : `${m}m ${s % 60}s`
   }
 
+  // ── Driver notes (written by admin) ──
+  const [showNotes, setShowNotes] = useState(false)
+  const [driverNotes, setDriverNotes] = useState<any[]>([])
+
+  const loadDriverNotes = () => {
+    if (typeof window === 'undefined') return
+    try {
+      const id = typeof window !== 'undefined' ? localStorage.getItem('mock_driver_identity') : null
+      if (!id) return
+      const identity = JSON.parse(id)
+      // Search all mock_drivers_* lists to find this driver's ID
+      const driverKeys = Object.keys(localStorage).filter(k => k.startsWith('mock_drivers_'))
+      for (const key of driverKeys) {
+        const drivers = JSON.parse(localStorage.getItem(key) || '[]')
+        const d = drivers.find((dr: any) => dr.email?.toLowerCase() === identity.email?.toLowerCase())
+        if (d) {
+          const notes = JSON.parse(localStorage.getItem(`mock_driver_notes_${d.id}`) || '[]')
+          setDriverNotes(notes)
+          return
+        }
+      }
+    } catch {}
+  }
+
+  const deleteDriverNote = (noteId: string) => {
+    if (typeof window === 'undefined') return
+    try {
+      const id = localStorage.getItem('mock_driver_identity')
+      if (!id) return
+      const identity = JSON.parse(id)
+      const driverKeys = Object.keys(localStorage).filter(k => k.startsWith('mock_drivers_'))
+      for (const key of driverKeys) {
+        const drivers = JSON.parse(localStorage.getItem(key) || '[]')
+        const d = drivers.find((dr: any) => dr.email?.toLowerCase() === identity.email?.toLowerCase())
+        if (d) {
+          const notesKey = `mock_driver_notes_${d.id}`
+          const updated = driverNotes.filter(n => n.id !== noteId)
+          localStorage.setItem(notesKey, JSON.stringify(updated))
+          setDriverNotes(updated)
+          return
+        }
+      }
+    } catch {}
+  }
+
+  useEffect(() => { if (showNotes) loadDriverNotes() }, [showNotes])
+
   const isMock = session?.sessionId.startsWith('mock-')
   const mockLine = session ? MOCK_LINES.find(l => l.id === session.lineId) : null
   const accentColor = mockLine?.color || '#EF4444'
@@ -1748,9 +1795,68 @@ export default function DriverPage() {
           </motion.div>
         )}
 
-        <button onClick={logout} style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '16px auto 0', padding: '8px 16px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '12px', fontFamily: 'DM Mono', flexShrink: 0 }}>
+        {/* Mis Notas button */}
+        <button
+          onClick={() => { setShowNotes(true); loadDriverNotes() }}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '12px auto 0', padding: '8px 20px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '12px', fontFamily: 'DM Mono', flexShrink: 0, transition: 'all 200ms' }}
+          onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'}
+          onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'}
+        >
+          <FileText size={13} /> Mis Notas {driverNotes.length > 0 ? `(${driverNotes.length})` : ''}
+        </button>
+
+        <button onClick={logout} style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '8px auto 0', padding: '8px 16px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '12px', fontFamily: 'DM Mono', flexShrink: 0 }}>
           <LogOut size={13} /> Cerrar sesión
         </button>
+
+        {/* Notes modal */}
+        {showNotes && (
+          <div
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
+            onClick={() => setShowNotes(false)}
+          >
+            <div
+              onClick={e => e.stopPropagation()}
+              style={{ background: '#121527', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', padding: '24px', width: '100%', maxWidth: '440px', maxHeight: '70vh', display: 'flex', flexDirection: 'column', gap: '16px' }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <FileText size={16} style={{ color: '#8f94a5' }} />
+                  <span style={{ color: '#fff', fontWeight: 700, fontSize: '15px', fontFamily: 'Syne,sans-serif' }}>Notas del administrador</span>
+                </div>
+                <button onClick={() => setShowNotes(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8f94a5', padding: '4px' }}>
+                  <X size={18} />
+                </button>
+              </div>
+
+              {driverNotes.length === 0 ? (
+                <div style={{ color: '#8f94a5', fontSize: '13px', fontFamily: 'DM Mono', textAlign: 'center', padding: '24px 0' }}>
+                  No tenés notas del administrador aún.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto' }}>
+                  {driverNotes.map(n => (
+                    <div key={n.id} style={{ padding: '12px 14px', borderRadius: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ color: '#e2e8f0', fontSize: '13px', lineHeight: 1.5 }}>{n.text}</div>
+                        <div style={{ color: '#8f94a5', fontSize: '10px', fontFamily: 'DM Mono', marginTop: '4px' }}>{n.author} · {n.date}</div>
+                      </div>
+                      <button
+                        onClick={() => deleteDriverNote(n.id)}
+                        title="Eliminar nota"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#FF4D6A', opacity: 0.6, padding: '2px', flexShrink: 0 }}
+                        onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                        onMouseLeave={e => (e.currentTarget.style.opacity = '0.6')}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════

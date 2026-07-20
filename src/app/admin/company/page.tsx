@@ -4358,8 +4358,9 @@ function CompanyDrivers({ drivers, activeSessions = [], driverWarnings = {}, onD
                       ))}
                     </div>
 
-                    {/* Delete Action bar */}
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
+                    {/* Action bar: Notes + Delete */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
+                      <DriverNotesPanel driverId={d.id} driverName={d.name} themeColor={themeColor} />
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
@@ -4392,6 +4393,125 @@ function CompanyDrivers({ drivers, activeSessions = [], driverWarnings = {}, onD
               </div>
             )
           })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+// ─── Admin Notes Panel for a driver ─────────────────────────────────────────
+function DriverNotesPanel({ driverId, driverName, themeColor }: { driverId: string; driverName: string; themeColor: string }) {
+  const [open, setOpen] = useState(false)
+  const [notes, setNotes] = useState<any[]>([])
+  const [text, setText] = useState('')
+
+  const loadNotes = () => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(`mock_driver_notes_${driverId}`) || '[]')
+      setNotes(stored)
+    } catch {}
+  }
+
+  useEffect(() => { if (open) loadNotes() }, [open, driverId])
+
+  const saveNote = () => {
+    if (!text.trim()) return
+    const updated = [...notes, { id: `note-${Date.now()}`, text: text.trim(), date: new Date().toLocaleString('es-AR'), author: 'Admin' }]
+    setNotes(updated)
+    localStorage.setItem(`mock_driver_notes_${driverId}`, JSON.stringify(updated))
+    setText('')
+  }
+
+  const deleteNote = (id: string) => {
+    const updated = notes.filter(n => n.id !== id)
+    setNotes(updated)
+    localStorage.setItem(`mock_driver_notes_${driverId}`, JSON.stringify(updated))
+  }
+
+  return (
+    <div style={{ flex: 1, marginRight: '12px' }}>
+      <button
+        onClick={(e) => { e.stopPropagation(); setOpen(o => !o) }}
+        style={{
+          padding: '8px 14px', borderRadius: '8px',
+          background: open ? `${themeColor}22` : 'rgba(255,255,255,0.04)',
+          border: `1px solid ${open ? themeColor : 'rgba(255,255,255,0.1)'}`,
+          color: open ? themeColor : '#8f94a5',
+          fontSize: '12px', fontWeight: 600, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 200ms'
+        }}
+      >
+        <MessageSquarePlus size={13} /> Notas{notes.length > 0 || open ? ` (${notes.length})` : ''}
+      </button>
+
+      {open && (
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            marginTop: '10px', padding: '14px', borderRadius: '10px',
+            background: 'rgba(6,8,16,0.6)', border: `1px solid ${themeColor}33`,
+            display: 'flex', flexDirection: 'column', gap: '10px'
+          }}
+        >
+          {/* Note input */}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input
+              value={text}
+              onChange={e => setText(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && saveNote()}
+              placeholder={`Nota sobre ${driverName}…`}
+              style={{
+                flex: 1, padding: '8px 12px', borderRadius: '8px', fontSize: '12px',
+                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+                color: '#fff', outline: 'none', fontFamily: 'DM Sans,sans-serif'
+              }}
+            />
+            <button
+              onClick={saveNote}
+              disabled={!text.trim()}
+              style={{
+                padding: '8px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 600,
+                background: themeColor, border: 'none', color: '#fff',
+                cursor: text.trim() ? 'pointer' : 'not-allowed', opacity: text.trim() ? 1 : 0.5
+              }}
+            >
+              Guardar
+            </button>
+          </div>
+
+          {/* Existing notes */}
+          {notes.length === 0 ? (
+            <div style={{ color: '#8f94a5', fontSize: '11px', fontFamily: 'DM Mono', textAlign: 'center', padding: '8px 0' }}>
+              No hay notas aún. Escribí la primera arriba.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '180px', overflowY: 'auto' }}>
+              {notes.map(n => (
+                <div key={n.id} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px',
+                  padding: '8px 10px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.06)'
+                }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ color: '#e2e8f0', fontSize: '12px', lineHeight: 1.4 }}>{n.text}</div>
+                    <div style={{ color: '#8f94a5', fontSize: '10px', fontFamily: 'DM Mono', marginTop: '3px' }}>
+                      {n.author} · {n.date}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => deleteNote(n.id)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#FF4D6A', padding: '2px', flexShrink: 0, opacity: 0.6 }}
+                    onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
+                    onMouseLeave={e => (e.currentTarget.style.opacity = '0.6')}
+                    title="Eliminar nota"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
