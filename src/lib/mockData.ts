@@ -278,7 +278,7 @@ function routeTemplateForLine(line: BusLine, direction: 'ida' | 'vuelta' = 'ida'
     }
   }
 
-  const directStops = MOCK_STOPS[line.id] || MOCK_STOPS[MOCK_LINES[0].id]
+  const directStops = MOCK_STOPS[line.id] || MOCK_STOPS['line-1']
   return directStops.filter(s => s.direction === direction)
 }
 

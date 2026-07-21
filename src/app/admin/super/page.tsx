@@ -2428,7 +2428,7 @@ function SingleLineMap({ line, onMessageAdmin, theme }: { line: any, onMessageAd
         longitude: path[0].lng
       }))
     }
-  }, [path])
+  }, [path[0]?.lat, path[0]?.lng])
 
   const pathLen = path.length
   if (pathLen < 2) return null
@@ -5765,7 +5765,7 @@ function CRMTasksTab({
 
   const moveTask = (todo: Todo, direction: 'left' | 'right') => {
     const stageOrder: ('todo' | 'in_progress' | 'in_review' | 'done')[] = ['todo', 'in_progress', 'in_review', 'done']
-    const idx = stageOrder.indexOf(todo.stage)
+    const idx = stageOrder.indexOf(todo.stage || 'todo')
     let nextIdx = idx
     if (direction === 'left' && idx > 0) nextIdx--
     if (direction === 'right' && idx < 3) nextIdx++
@@ -5824,7 +5824,7 @@ function CRMTasksTab({
       {/* Kanban Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', minHeight: '450px' }}>
         {STAGES.map((col) => {
-          const colTasks = todos.filter(t => t.stage === col.key)
+          const colTasks = todos.filter(t => (t.stage || 'todo') === col.key)
           
           return (
             <div
@@ -5860,7 +5860,9 @@ function CRMTasksTab({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflowY: 'auto' }}>
                 {colTasks.length > 0 ? (
                   colTasks.map((todo) => {
-                    const priorityColor = todo.priority === 'high' ? '#ef4444' : todo.priority === 'medium' ? '#F59E0B' : '#10B981'
+                    const todoPriority = todo.priority || 'medium'
+                    const todoStage = todo.stage || 'todo'
+                    const priorityColor = todoPriority === 'high' ? '#ef4444' : todoPriority === 'medium' ? '#F59E0B' : '#10B981'
                     
                     return (
                       <div
@@ -5909,7 +5911,7 @@ function CRMTasksTab({
                             {todo.badge}
                           </span>
                           <span style={{ fontSize: '8px', background: `${priorityColor}15`, color: priorityColor, padding: '2px 5px', borderRadius: '4px', fontWeight: 700 }}>
-                            {todo.priority.toUpperCase()}
+                            {todoPriority.toUpperCase()}
                           </span>
                           <span style={{ fontSize: '8px', color: '#8f94a5', marginLeft: 'auto' }}>
                             {todo.date}
@@ -5920,30 +5922,30 @@ function CRMTasksTab({
                         <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px', marginTop: '2px' }}>
                           <button
                             onClick={() => moveTask(todo, 'left')}
-                            disabled={todo.stage === 'todo'}
+                            disabled={todoStage === 'todo'}
                             style={{
                               background: 'rgba(255,255,255,0.03)',
                               border: 'none',
-                              color: todo.stage === 'todo' ? 'rgba(255,255,255,0.1)' : '#fff',
+                              color: todoStage === 'todo' ? 'rgba(255,255,255,0.1)' : '#fff',
                               borderRadius: '4px',
                               padding: '2px 6px',
                               fontSize: '10px',
-                              cursor: todo.stage === 'todo' ? 'default' : 'pointer'
+                              cursor: todoStage === 'todo' ? 'default' : 'pointer'
                             }}
                           >
                             ◀
                           </button>
                           <button
                             onClick={() => moveTask(todo, 'right')}
-                            disabled={todo.stage === 'done'}
+                            disabled={todoStage === 'done'}
                             style={{
                               background: 'rgba(255,255,255,0.03)',
                               border: 'none',
-                              color: todo.stage === 'done' ? 'rgba(255,255,255,0.1)' : '#fff',
+                              color: todoStage === 'done' ? 'rgba(255,255,255,0.1)' : '#fff',
                               borderRadius: '4px',
                               padding: '2px 6px',
                               fontSize: '10px',
-                              cursor: todo.stage === 'done' ? 'default' : 'pointer'
+                              cursor: todoStage === 'done' ? 'default' : 'pointer'
                             }}
                           >
                             ▶
@@ -5992,7 +5994,7 @@ function CRMTasksTab({
               <div>
                 <label style={{ fontSize: '11px', color: '#8f94a5', display: 'block', marginBottom: '6px' }}>Prioridad</label>
                 <select
-                  value={editingTodo.priority}
+                  value={editingTodo.priority || 'medium'}
                   onChange={e => setEditingTodo({ ...editingTodo, priority: e.target.value as any })}
                   style={{ width: '100%', background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', color: '#fff', outline: 'none', fontSize: '12px' }}
                 >
@@ -6005,7 +6007,7 @@ function CRMTasksTab({
               <div>
                 <label style={{ fontSize: '11px', color: '#8f94a5', display: 'block', marginBottom: '6px' }}>Etapa</label>
                 <select
-                  value={editingTodo.stage}
+                  value={editingTodo.stage || 'todo'}
                   onChange={e => setEditingTodo({ ...editingTodo, stage: e.target.value as any, done: e.target.value === 'done' })}
                   style={{ width: '100%', background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', padding: '8px 12px', color: '#fff', outline: 'none', fontSize: '12px' }}
                 >
