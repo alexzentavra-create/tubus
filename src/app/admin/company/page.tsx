@@ -628,28 +628,41 @@ export default function CompanyDashboard() {
   const [newInactiveBusUnit, setNewInactiveBusUnit] = useState('')
   const [newInactiveBusTimer, setNewInactiveBusTimer] = useState('30')
 
-  // Load inactive buses from localStorage on line change
+  // Load and synchronize inactive buses with qrCodes and activeSessions dynamically
   useEffect(() => {
     if (!activeLine) return
-    const key = `mock_inactive_buses_${activeLine.line_number}`
-    if (activeLine.line_number === '0') {
-      setInactiveBuses([])
-      localStorage.setItem(key, JSON.stringify([]))
-      return
-    }
-    const stored = localStorage.getItem(key)
-    if (stored) {
-      setInactiveBuses(JSON.parse(stored))
-    } else {
-      const defaults = [
-        { id: 'in-1', unit: `${activeLine.line_number}-307`, minutesRemaining: 45 },
-        { id: 'in-2', unit: `${activeLine.line_number}-308`, minutesRemaining: 90 },
-        { id: 'in-3', unit: `${activeLine.line_number}-309`, minutesRemaining: 120 },
-      ]
-      setInactiveBuses(defaults)
-      localStorage.setItem(key, JSON.stringify(defaults))
-    }
-  }, [activeLine])
+    
+    const companyId = `mock-company-${activeLine.id}`
+    const lineQRs = qrCodes.filter((q: any) => q.line_id === activeLine.id || q.company_id === companyId)
+
+    // A QR code belongs in "Colectivos inactivos" if:
+    // - it is NOT active (is_active === false)
+    // - OR there is no active session matching this QR code/bus unit (not scanned currently)
+    const inactiveQRs = lineQRs.filter((qr: any) => {
+      if (!qr.is_active) return true
+      const isScanned = activeSessions.some((s: any) => {
+        const sUnit = (s.bus_unit || s.busUnit || '').replace(/\D/g, '')
+        const qrUnit = (qr.bus_unit || '').replace(/\D/g, '')
+        return sUnit && qrUnit && sUnit === qrUnit
+      })
+      return !isScanned
+    })
+
+    setInactiveBuses(prev => {
+      const updated = inactiveQRs.map((qr: any) => {
+        const existing = prev.find(p => p.id === qr.id || p.unit === qr.bus_unit)
+        const minutes = existing ? existing.minutesRemaining : (qr.is_active ? 0 : 60)
+        return {
+          id: qr.id,
+          unit: qr.bus_unit,
+          minutesRemaining: minutes,
+          is_active: qr.is_active
+        }
+      })
+      localStorage.setItem(`mock_inactive_buses_${activeLine.line_number}`, JSON.stringify(updated))
+      return updated
+    })
+  }, [qrCodes, activeSessions, activeLine])
 
   // Inactive buses countdown interval
   useEffect(() => {
@@ -677,24 +690,57 @@ export default function CompanyDashboard() {
       return
     }
     const minutes = parseInt(newInactiveBusTimer) || 30
+    const fullUnit = `${activeLine.line_number}-${newInactiveBusUnit}`
+    const companyId = `mock-company-${activeLine.id}`
+    
+    // Create new inactive QR code / bus
+    const qrData = {
+      id: `qr-${Date.now()}`,
+      qr_token: `DEMO-QR-L${activeLine.line_number}-${newInactiveBusUnit}`,
+      bus_unit: fullUnit,
+      is_active: false, // starts inactive
+      company_id: companyId,
+      line_id: activeLine.id
+    }
+
+    try {
+      const prevQRs = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
+      localStorage.setItem('mock_bus_qr_codes', JSON.stringify([...prevQRs, qrData]))
+      setQrCodes(prev => [...prev, qrData])
+    } catch (e) {
+      console.error(e)
+    }
+
     const newBus = {
-      id: `in-${Date.now()}`,
-      unit: `${activeLine.line_number}-${newInactiveBusUnit}`,
-      minutesRemaining: minutes
+      id: qrData.id,
+      unit: fullUnit,
+      minutesRemaining: minutes,
+      is_active: false
     }
     const next = [...inactiveBuses, newBus]
     setInactiveBuses(next)
     localStorage.setItem(`mock_inactive_buses_${activeLine.line_number}`, JSON.stringify(next))
     setNewInactiveBusUnit('')
     setShowAddInactiveBus(false)
-    toast.success(`Colectivo ${newBus.unit} registrado como inactivo`)
+    toast.success(`Colectivo ${newBus.unit} registrado como inactivo y código QR creado.`)
   }
 
   // Delete inactive bus
   const deleteInactiveBus = (id: string) => {
+    const bus = inactiveBuses.find(b => b.id === id)
     const next = inactiveBuses.filter(b => b.id !== id)
     setInactiveBuses(next)
     localStorage.setItem(`mock_inactive_buses_${activeLine.line_number}`, JSON.stringify(next))
+    
+    // Also delete corresponding QR code to remain synced
+    if (bus) {
+      try {
+        const prevQRs = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
+        const filteredQRs = prevQRs.filter((q: any) => q.id !== id && q.bus_unit !== bus.unit)
+        localStorage.setItem('mock_bus_qr_codes', JSON.stringify(filteredQRs))
+        setQrCodes(prev => prev.filter(q => q.id !== id && q.bus_unit !== bus.unit))
+      } catch (e) {}
+    }
     toast.success("Colectivo eliminado de la lista de inactivos")
   }
 
@@ -809,72 +855,123 @@ export default function CompanyDashboard() {
       fetch(`/api/buses?line_id=${activeLine.id}&line_number=${activeLine.line_number}`)
         .then(res => res.json())
         .then(json => {
-          if (json.data) {
-            // Load local mock active sessions from localStorage
-            const localSessions = typeof window !== 'undefined'
-              ? JSON.parse(localStorage.getItem('mock_active_sessions') || '[]').filter((s: any) => s.line_id === activeLine.id)
-              : []
+          // Load local mock active sessions from localStorage
+          const localSessions = typeof window !== 'undefined'
+            ? JSON.parse(localStorage.getItem('mock_active_sessions') || '[]').filter((s: any) => s.line_id === activeLine.id)
+            : []
 
-            const localBuses = localSessions.map((s: any) => ({
-              id: s.id,
-              driver_id: s.driver_id || `driver-${s.id}`,
-              line_id: s.line_id,
-              line_number: s.line_number || activeLine.line_number,
-              bus_unit: s.bus_unit,
-              driver_name: s.profiles?.name || 'Chofer Real',
-              latitude: Number(s.latitude || -34.6037),
-              longitude: Number(s.longitude || -58.3816),
-              heading: Number(s.heading || 0),
-              speed_kmh: Number(s.speed_kmh || 0),
-              next_stop_id: `stop-${activeLine.line_number}-active`,
-              next_stop_name: 'Recorrido Activo',
-              eta_minutes: 5,
-              status: s.status || 'stopped',
-              passenger_count: Number(s.total_passengers || 0),
-              timestamp: s.timestamp || new Date().toISOString(),
-              reports_count: 0,
-              direction: 'ida',
-              ramal: `${activeLine.line_number}-A`,
-              qr_code: s.qr_code
-            }))
+          // Load QR codes from localStorage for the active line
+          const companyId = `mock-company-${activeLine.id}`
+          const storedQRs: any[] = typeof window !== 'undefined'
+            ? JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]').filter((q: any) => q.line_id === activeLine.id || q.company_id === companyId)
+            : []
 
-            const mergedBuses = [...json.data]
-            localBuses.forEach((lb: any) => {
-              const idx = mergedBuses.findIndex(mb => {
-                const lbUnit = (lb.bus_unit || '').replace(/\D/g, '')
-                const mbUnit = (mb.bus_unit || '').replace(/\D/g, '')
-                return lbUnit && mbUnit && lbUnit === mbUnit
-              })
-              if (idx !== -1) {
-                mergedBuses[idx] = lb
-              } else {
-                mergedBuses.push(lb)
-              }
+          // Find all active QR codes for this line
+          const activeQRs = storedQRs.filter((q: any) => q.is_active)
+
+          // Build active buses list from active QR codes
+          const activeBuses = activeQRs.map((qr: any) => {
+            const sess = localSessions.find((s: any) => {
+              const sUnit = (s.busUnit || s.bus_unit || '').replace(/\D/g, '')
+              const qrUnit = (qr.bus_unit || '').replace(/\D/g, '')
+              return sUnit && qrUnit && sUnit === qrUnit
             })
 
-            setBuses(mergedBuses)
+            const routePath = getMockRoutePathForLine(activeLine)
+            const firstStop = routePath && routePath.length > 0 ? routePath[0] : { lat: -34.6037, lng: -58.3816 }
 
-            try {
-              if (mergedBuses.length > 0) {
-                const todayStr = new Date().toISOString().split('T')[0]
-                const key = `mock_active_buses_line_${activeLine.line_number}_${todayStr}`
-                const storedBuses = JSON.parse(localStorage.getItem(key) || '[]')
-                const currentUnits = mergedBuses.map((b: any) => `Coche ${b.bus_unit}`)
-                const merged = Array.from(new Set([...storedBuses, ...currentUnits]))
-                localStorage.setItem(key, JSON.stringify(merged))
+            if (sess) {
+              // Scanned and active! Uses driver's live location and speed
+              const speed = Number(sess.speed_kmh || sess.speed || 0)
+              return {
+                id: sess.sessionId || sess.id,
+                driver_id: sess.driverId || sess.driver_id,
+                line_id: sess.line_id || activeLine.id,
+                line_number: sess.lineNumber || sess.line_number || activeLine.line_number,
+                bus_unit: qr.bus_unit,
+                driver_name: sess.driverName || sess.profiles?.name || 'Chofer Real',
+                latitude: Number(sess.latitude || firstStop.lat),
+                longitude: Number(sess.longitude || firstStop.lng),
+                heading: Number(sess.heading || 0),
+                speed_kmh: speed,
+                next_stop_id: `stop-${activeLine.line_number}-active`,
+                next_stop_name: 'Recorrido Activo',
+                eta_minutes: speed > 2 ? 5 : 0,
+                status: speed > 2 ? 'moving' : 'stopped',
+                passenger_count: Number(sess.passenger_count || sess.total_passengers || 0),
+                timestamp: sess.timestamp || new Date().toISOString(),
+                reports_count: 0,
+                direction: 'ida',
+                ramal: `${activeLine.line_number}-A`,
+                qr_code: qr.qr_token
               }
-            } catch (e) {
-              console.error('Error logging active buses:', e)
+            } else {
+              // Active but NOT scanned yet — stands still!
+              return {
+                id: `bus-idle-${qr.id}`,
+                driver_id: 'none',
+                line_id: activeLine.id,
+                line_number: activeLine.line_number,
+                bus_unit: qr.bus_unit,
+                driver_name: 'Sin chofer asignado',
+                latitude: Number(firstStop.lat),
+                longitude: Number(firstStop.lng),
+                heading: 0,
+                speed_kmh: 0,
+                next_stop_id: `stop-${activeLine.line_number}-idle`,
+                next_stop_name: 'En espera de chofer',
+                eta_minutes: 0,
+                status: 'stopped',
+                passenger_count: 0,
+                timestamp: new Date().toISOString(),
+                reports_count: 0,
+                direction: 'ida',
+                ramal: `${activeLine.line_number}-A`,
+                qr_code: qr.qr_token
+              }
             }
-            
-            // Map live simulated buses to activeSessions and merge local active sessions
-            const sessionsFromBuses = mergedBuses.map((bus: any) => ({
+          })
+
+          // Merge with simulated buses from json.data (skip for Line 0 to keep it strictly real-world GPS only)
+          const mergedBuses = [...activeBuses]
+          if (json.data && activeLine.line_number !== '0') {
+            json.data.forEach((mb: any) => {
+              const exists = mergedBuses.some(b => {
+                const bUnit = (b.bus_unit || '').replace(/\D/g, '')
+                const mbUnit = (mb.bus_unit || '').replace(/\D/g, '')
+                return bUnit && mbUnit && bUnit === mbUnit
+              })
+              if (!exists) {
+                mergedBuses.push(mb)
+              }
+            })
+          }
+
+          setBuses(mergedBuses)
+
+          try {
+            if (mergedBuses.length > 0) {
+              const todayStr = new Date().toISOString().split('T')[0]
+              const key = `mock_active_buses_line_${activeLine.line_number}_${todayStr}`
+              const storedBuses = JSON.parse(localStorage.getItem(key) || '[]')
+              const currentUnits = mergedBuses.map((b: any) => `Coche ${b.bus_unit}`)
+              const merged = Array.from(new Set([...storedBuses, ...currentUnits]))
+              localStorage.setItem(key, JSON.stringify(merged))
+            }
+          } catch (e) {
+            console.error('Error logging active buses:', e)
+          }
+          
+          // Map live or scanned buses to activeSessions (excluding non-scanned idle ones)
+          const sessionsFromBuses = mergedBuses
+            .filter((bus: any) => bus.driver_id !== 'none')
+            .map((bus: any) => ({
               id: bus.id,
               bus_unit: bus.bus_unit,
               line_id: bus.line_id,
               line_number: bus.line_number,
               qr_code: bus.qr_code,
-              started_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+              started_at: bus.timestamp || new Date().toISOString(),
               total_passengers: bus.passenger_count,
               profiles: { name: bus.driver_name },
               latitude: bus.latitude,
@@ -884,8 +981,7 @@ export default function CompanyDashboard() {
               status: bus.status
             }))
 
-            setActiveSessions(sessionsFromBuses)
-          }
+          setActiveSessions(sessionsFromBuses)
         })
         .catch(() => {})
     }
@@ -893,7 +989,7 @@ export default function CompanyDashboard() {
     fetchBuses()
     const interval = setInterval(fetchBuses, 5000)
     return () => clearInterval(interval)
-  }, [activeLine])
+  }, [activeLine, qrCodes])
 
   // Initialize stops timeframes when activeLine stops are loaded, persisted to localStorage
   useEffect(() => {
@@ -2800,8 +2896,8 @@ export default function CompanyDashboard() {
                         <div style={{ color: '#fff', fontSize: '13px', fontWeight: 600 }}>
                           Unidad {bus.unit}
                         </div>
-                        <div style={{ fontSize: '10px', color: '#8f94a5', marginTop: '2px' }}>
-                          Inactivo / En terminal
+                        <div style={{ fontSize: '10px', color: bus.is_active ? themeColor : '#8f94a5', marginTop: '2px', fontWeight: bus.is_active ? 600 : 'normal' }}>
+                          {bus.is_active ? 'Activo / Sin chofer' : 'Inactivo / En terminal'}
                         </div>
                       </div>
                     </div>
