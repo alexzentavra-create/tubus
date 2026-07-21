@@ -21663,6 +21663,79 @@ export default function UserMapPage() {
     return () => clearTimeout(timer)
   }, [userBoardedBus, activeTravelRoute, destCoord])
 
+  // Automatic Proximity Boarding detector
+  const proximityStartTimesRef = useRef<Record<string, number>>({})
+  useEffect(() => {
+    if (userBoardedBus || !userCoords || buses.length === 0) {
+      proximityStartTimesRef.current = {}
+      return
+    }
+
+    const now = Date.now()
+    const activeTimes = proximityStartTimesRef.current
+
+    buses.forEach((bus) => {
+      // Approximate distance in meters
+      const dist = Math.hypot(userCoords.lat - bus.latitude, userCoords.lng - bus.longitude) * 111320
+      if (dist <= 10) {
+        if (!activeTimes[bus.id]) {
+          activeTimes[bus.id] = now
+          console.log(`[TuBus Proximity] User is within 10m of Bus ${bus.bus_unit}. Starting countdown...`)
+        } else {
+          const elapsed = now - activeTimes[bus.id]
+          if (elapsed >= 120000) { // 2 minutes proximity threshold
+            console.log(`[TuBus Proximity] Proximity threshold met for Bus ${bus.bus_unit}! Auto-boarding user...`)
+            setUserBoardedBus(true)
+            setTrackedBusId(bus.id)
+            
+            // Log boarding
+            try {
+              const activeUserStr = localStorage.getItem('active_user')
+              const activeUser = activeUserStr ? JSON.parse(activeUserStr) : null
+              const userName = activeUser?.name || 'Usuario Pasajero'
+              const userAge = activeUser?.age ? parseInt(activeUser.age) : 25
+              const boardingsKey = `mock_boardings_line_${bus.line_number}`
+              const boardings = JSON.parse(localStorage.getItem(boardingsKey) || '[]')
+              boardings.push({
+                date: new Date().toISOString().split('T')[0],
+                age: userAge,
+                name: userName,
+                action: 'Subió',
+                stop: 'Cercanía GPS',
+                bus_unit: bus.bus_unit,
+                timestamp: new Date().toISOString()
+              })
+              localStorage.setItem(boardingsKey, JSON.stringify(boardings))
+
+              // Increment passenger count in mock sessions database
+              const activeSessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+              const updated = activeSessions.map((s: any) => {
+                const sUnit = (s.bus_unit || s.busUnit || '').replace(/\D/g, '')
+                const bUnit = (bus.bus_unit || '').replace(/\D/g, '')
+                if (sUnit && bUnit && sUnit === bUnit) {
+                  const current = Number(s.total_passengers || 0)
+                  return { ...s, total_passengers: current + 1 }
+                }
+                return s
+              })
+              localStorage.setItem('mock_active_sessions', JSON.stringify(updated))
+            } catch (e) {
+              console.error(e)
+            }
+            
+            toast.success(`🚶‍♂️ ¡Subida automática detectada! Detectamos que subiste al Interno ${bus.bus_unit} por cercanía GPS.`)
+            delete activeTimes[bus.id]
+          }
+        }
+      } else {
+        if (activeTimes[bus.id]) {
+          console.log(`[TuBus Proximity] User moved away from Bus ${bus.bus_unit}. Resetting countdown.`)
+          delete activeTimes[bus.id]
+        }
+      }
+    })
+  }, [userCoords, buses, userBoardedBus])
+
   const [ticketPrices, setTicketPrices] = useState<{ min: number; max: number; loading: boolean }>({
     min: 728.28,
     max: 1227.76,
@@ -25490,6 +25563,7 @@ export default function UserMapPage() {
                               try {
                                 const activeUserStr = localStorage.getItem('active_user')
                                 const activeUser = activeUserStr ? JSON.parse(activeUserStr) : null
+                                const userName = activeUser?.name || 'Usuario Pasajero'
                                 const userAge = activeUser?.age ? parseInt(activeUser.age) : 25
                                 const lineNum = activeTravelRoute?.line_number || '12'
                                 const boardingsKey = `mock_boardings_line_${lineNum}`
@@ -25497,10 +25571,26 @@ export default function UserMapPage() {
                                 boardings.push({
                                   date: new Date().toISOString().split('T')[0],
                                   age: userAge,
+                                  name: userName,
+                                  action: 'Subió',
+                                  stop: activeTravelRoute?.originStop?.name || 'Parada Origen',
                                   bus_unit: upcoming.bus_unit,
                                   timestamp: new Date().toISOString()
                                 })
                                 localStorage.setItem(boardingsKey, JSON.stringify(boardings))
+
+                                // Increment passenger count in mock sessions database
+                                const activeSessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+                                const updated = activeSessions.map((s: any) => {
+                                  const sUnit = (s.bus_unit || s.busUnit || '').replace(/\D/g, '')
+                                  const bUnit = (upcoming.bus_unit || '').replace(/\D/g, '')
+                                  if (sUnit && bUnit && sUnit === bUnit) {
+                                    const current = Number(s.total_passengers || 0)
+                                    return { ...s, total_passengers: current + 1 }
+                                  }
+                                  return s
+                                })
+                                localStorage.setItem('mock_active_sessions', JSON.stringify(updated))
                               } catch (e) {
                                 console.error('Error logging boarding:', e)
                               }
