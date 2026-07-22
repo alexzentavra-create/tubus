@@ -21057,6 +21057,7 @@ interface UserPrefs {
   darkMap: boolean
   language: 'es' | 'en'
   fontSize: 'normal' | 'large'
+  textScale?: number
   showPassengerCount: boolean
   autoZoomOnBus: boolean
   favBuses?: string[]
@@ -21069,7 +21070,7 @@ interface UserPrefs {
 const DEFAULT_PREFS: UserPrefs = {
   favBusLines: [], favStops: [],
   notifyNearbyBus: true, notifyNearbyRadius: 0.5, notifyFavLines: true,
-  darkMap: false, language: 'es', fontSize: 'normal',
+  darkMap: false, language: 'es', fontSize: 'normal', textScale: 1.0,
   showPassengerCount: true, autoZoomOnBus: true,
   favBuses: [], favDrivers: [],
   filterByPassengers: false,
@@ -21085,6 +21086,78 @@ function loadPrefs(): UserPrefs {
   } catch { return DEFAULT_PREFS }
 }
 function savePrefs(p: UserPrefs) { localStorage.setItem('tubus_user_prefs', JSON.stringify(p)) }
+
+const TRANSLATIONS: Record<string, string> = {
+  // Navigation
+  'Mapa': 'Map',
+  'Favoritos': 'Favorites',
+  'Preferencias': 'Settings',
+  'Mi Perfil': 'My Profile',
+  'Cerrar Sesión': 'Logout',
+
+  // Settings
+  'Apariencia': 'Appearance',
+  'Mapa oscuro': 'Dark Map',
+  'Idioma': 'Language',
+  'Guía interactiva': 'Interactive Guide',
+  'Tour de la Aplicación': 'App Tour',
+  'Reiniciar Tutorial': 'Restart Tutorial',
+  'Mapa y viaje': 'Map & Journey',
+  'Tránsito en tiempo real': 'Real-time Traffic',
+  'Zoom automático al tocar bus': 'Auto-zoom on Bus Tap',
+  'Mostrar cantidad de pasajeros': 'Show Passenger Count',
+  'Accesibilidad': 'Accessibility',
+  'Tamaño de texto': 'Text Size',
+  'Normal': 'Normal',
+  'Grande': 'Large',
+  'Ajustar:': 'Adjust:',
+  'Próximamente': 'Coming Soon',
+  'Historial de viajes': 'Travel History',
+  'Alertas de demora por línea': 'Delay alerts by line',
+  'Compartir ubicación': 'Share location',
+
+  // Favorites
+  'Líneas favoritas': 'Favorite Lines',
+  'No tenés líneas favoritas agregadas.': "You don't have any favorite lines added.",
+  'Paradas favoritas': 'Favorite Stops',
+  'No tenés paradas favoritas agregadas.': "You don't have any favorite stops added.",
+  'Viajes programados': 'Scheduled Trips',
+  'No tenés viajes programados.': "You don't have any scheduled trips.",
+  'Buses Favoritos': 'Favorite Buses',
+  'Choferes Favoritos': 'Favorite Drivers',
+  'Configuración de Avisos': 'Notification Settings',
+  'Aviso cuando un bus favorito está cerca': 'Notify when a favorite bus is nearby',
+  'Aviso cuando hay un bus cercano': 'Notify when a bus is nearby',
+  'Radio:': 'Radius:',
+  'Filtrar avisos por cantidad de pasajeros': 'Filter notifications by passenger count',
+
+  // Profile
+  'Detalles de la cuenta': 'Account Details',
+  'Nombre': 'Name',
+  'Teléfono': 'Phone',
+  'Correo': 'Email',
+  'Editar Perfil': 'Edit Profile',
+  'Guardar cambios': 'Save Changes',
+  'Cancelar': 'Cancel',
+  'Tus Anuncios': 'Your Ads',
+  'Enviar nuevo anuncio': 'Submit New Ad',
+  'Mis puntos de fidelidad': 'My Loyalty Points',
+  'Chat de soporte con la línea': 'Support Chat',
+
+  // Drawer & Search
+  'Buscar líneas o paradas...': 'Search lines or stops...',
+  'Ingresá origen': 'Enter origin',
+  'Ingresá destino': 'Enter destination',
+  'Buscar recorrido': 'Find route',
+  'Líneas de colectivo': 'Bus Lines',
+  'Paradas cercanas': 'Nearby Stops',
+  'Buses en servicio': 'Active Buses',
+  'Ya subí al colectivo': 'I am on the bus',
+  'Bajar del colectivo': 'Get off the bus',
+  'Colectivo actual': 'Current Bus',
+  'Buses simulados': 'Simulated Buses',
+  'O INGRESAR MANUALMENTE:': 'OR ENTER MANUALLY:',
+}
 
 const TUFIX_ADS = [
   {
@@ -22536,6 +22609,57 @@ export default function UserMapPage() {
       }
     }
   }, [prefs.darkMap])
+
+  // Dynamic font sizing controller for visual accessibility
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const root = document.getElementById('passenger-root')
+    if (!root) return
+
+    const scale = prefs.fontSize === 'large' ? (prefs.textScale || 1.2) : 1.0
+
+    const applyFontScale = (node: HTMLElement, scaleFactor: number) => {
+      const elements = node.querySelectorAll('[style]')
+      elements.forEach((el: any) => {
+        const fs = el.style.fontSize
+        if (fs && fs.endsWith('px')) {
+          let orig = el.getAttribute('data-orig-font-size')
+          if (!orig) {
+            orig = fs
+            el.setAttribute('data-orig-font-size', orig)
+          }
+          const val = parseFloat(orig)
+          if (!isNaN(val)) {
+            el.style.fontSize = (val * scaleFactor) + 'px'
+          }
+        }
+      })
+    }
+
+    // Apply scaling immediately
+    applyFontScale(root, scale)
+
+    // Set up MutationObserver to intercept dynamically rendered elements
+    const observer = new MutationObserver(() => {
+      observer.disconnect()
+      applyFontScale(root, scale)
+      observer.observe(root, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style']
+      })
+    })
+
+    observer.observe(root, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['style']
+    })
+
+    return () => observer.disconnect()
+  }, [prefs.fontSize, prefs.textScale])
 
   // Turn off traffic overlay if no lines are selected
   useEffect(() => {
@@ -24109,7 +24233,7 @@ export default function UserMapPage() {
       )}
 
       {/* Inner App Container with conditional Phone Mockup styling */}
-      <div style={{
+      <div id="passenger-root" style={{
         position: 'relative',
         display: 'flex',
         overflow: 'hidden',
@@ -24226,11 +24350,12 @@ export default function UserMapPage() {
           {NAV_ITEMS.map(item => {
             const Icon = item.icon
             const active = activePanel === item.id
+            const translatedLabel = prefs.language === 'en' ? (TRANSLATIONS[item.label] || item.label) : item.label
             return (
               <button
                 key={item.id}
                 onClick={() => setActivePanel(item.id)}
-                title={collapsed ? item.label : undefined}
+                title={collapsed ? translatedLabel : undefined}
                 style={{
                   width: '100%', display: 'flex', alignItems: 'center',
                   gap: collapsed ? 0 : '10px',
@@ -24246,7 +24371,7 @@ export default function UserMapPage() {
                 <Icon size={16} style={{ color: active ? 'var(--platinum)' : 'var(--text-muted)', flexShrink: 0 }} />
                 {!collapsed && (
                   <span style={{ color: active ? 'var(--text-primary)' : 'var(--text-secondary)', fontSize: '13px', fontWeight: active ? 600 : 400, whiteSpace: 'nowrap' }}>
-                    {item.label}
+                    {translatedLabel}
                   </span>
                 )}
               </button>
@@ -27365,16 +27490,21 @@ function SettingsPanel({
   onToggleTraffic: (val: boolean) => void
   isMobile: boolean
 }) {
+  const t = (text: string) => {
+    if (prefs.language !== 'en') return text
+    return TRANSLATIONS[text] || text
+  }
+
   return (
     <div>
-      <PanelTitle>Preferencias</PanelTitle>
+      <PanelTitle>{t('Preferencias')}</PanelTitle>
 
-      <SectionHeader icon={<Moon size={13} />} title="Apariencia" />
+      <SectionHeader icon={<Moon size={13} />} title={t('Apariencia')} />
       <GlassCard>
-        <ToggleRow label="Mapa oscuro" value={prefs.darkMap} onChange={v => onUpdatePrefs({ darkMap: v })} />
+        <ToggleRow label={t('Mapa oscuro')} value={prefs.darkMap} onChange={v => onUpdatePrefs({ darkMap: v })} />
         <Divider />
         <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Idioma</span>
+          <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>{t('Idioma')}</span>
           <div style={{ display: 'flex', gap: '4px' }}>
             {(['es', 'en'] as const).map(lang => (
               <button key={lang} onClick={() => onUpdatePrefs({ language: lang })} style={{ padding: '5px 12px', borderRadius: '8px', border: '1px solid rgba(184,200,224,0.15)', background: prefs.language === lang ? 'rgba(184,200,224,0.15)' : 'transparent', color: prefs.language === lang ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: '12px', cursor: 'pointer', textTransform: 'uppercase' }}>{lang}</button>
@@ -27385,10 +27515,10 @@ function SettingsPanel({
 
       {onRestartOnboarding && (
         <>
-          <SectionHeader icon={<Sliders size={13} />} title="Guía interactiva" style={{ marginTop: '20px' }} />
+          <SectionHeader icon={<Sliders size={13} />} title={t('Guía interactiva')} style={{ marginTop: '20px' }} />
           <GlassCard>
             <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Tour de la Aplicación</span>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>{t('Tour de la Aplicación')}</span>
               <button
                 onClick={onRestartOnboarding}
                 style={{
@@ -27402,35 +27532,68 @@ function SettingsPanel({
                   fontWeight: 600
                 }}
               >
-                Reiniciar Tutorial
+                {t('Reiniciar Tutorial')}
               </button>
             </div>
           </GlassCard>
         </>
       )}
 
-      <SectionHeader icon={<NavIcon size={13} />} title="Mapa y viaje" style={{ marginTop: '20px' }} />
+      <SectionHeader icon={<NavIcon size={13} />} title={t('Mapa y viaje')} style={{ marginTop: '20px' }} />
       <GlassCard>
-        <ToggleRow label="Tránsito en tiempo real" value={showTraffic} onChange={onToggleTraffic} />
+        <ToggleRow label={t('Tránsito en tiempo real')} value={showTraffic} onChange={onToggleTraffic} />
         <Divider />
-        <ToggleRow label="Zoom automático al tocar bus" value={prefs.autoZoomOnBus} onChange={v => onUpdatePrefs({ autoZoomOnBus: v })} />
+        <ToggleRow label={t('Zoom automático al tocar bus')} value={prefs.autoZoomOnBus} onChange={v => onUpdatePrefs({ autoZoomOnBus: v })} />
         <Divider />
-        <ToggleRow label="Mostrar cantidad de pasajeros" value={prefs.showPassengerCount} onChange={v => onUpdatePrefs({ showPassengerCount: v })} />
+        <ToggleRow label={t('Mostrar cantidad de pasajeros')} value={prefs.showPassengerCount} onChange={v => onUpdatePrefs({ showPassengerCount: v })} />
       </GlassCard>
 
-      <SectionHeader icon={<Globe size={13} />} title="Accesibilidad" style={{ marginTop: '20px' }} />
+      <SectionHeader icon={<Globe size={13} />} title={t('Accesibilidad')} style={{ marginTop: '20px' }} />
       <GlassCard>
-        <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Tamaño de texto</span>
-          <div style={{ display: 'flex', gap: '4px' }}>
-            {(['normal', 'large'] as const).map(sz => (
-              <button key={sz} onClick={() => onUpdatePrefs({ fontSize: sz })} style={{ padding: '5px 12px', borderRadius: '8px', border: '1px solid rgba(184,200,224,0.15)', background: prefs.fontSize === sz ? 'rgba(184,200,224,0.15)' : 'transparent', color: prefs.fontSize === sz ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: '12px', cursor: 'pointer' }}>{sz === 'normal' ? 'Normal' : 'Grande'}</button>
-            ))}
+        <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>{t('Tamaño de texto')}</span>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              {(['normal', 'large'] as const).map(sz => (
+                <button
+                  key={sz}
+                  onClick={() => onUpdatePrefs({ fontSize: sz, textScale: sz === 'large' ? (prefs.textScale || 1.2) : 1.0 })}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(184,200,224,0.15)',
+                    background: prefs.fontSize === sz ? 'rgba(184,200,224,0.15)' : 'transparent',
+                    color: prefs.fontSize === sz ? 'var(--text-primary)' : 'var(--text-muted)',
+                    fontSize: '12px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {sz === 'normal' ? t('Normal') : t('Grande')}
+                </button>
+              ))}
+            </div>
           </div>
+          {prefs.fontSize === 'large' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px', width: '100%' }}>
+              <span style={{ color: 'var(--text-muted)', fontSize: '11px', minWidth: '45px' }}>{t('Ajustar:')}</span>
+              <input
+                type="range"
+                min="1.0"
+                max="1.45"
+                step="0.05"
+                value={prefs.textScale || 1.2}
+                onChange={e => onUpdatePrefs({ textScale: parseFloat(e.target.value) })}
+                style={{ flex: 1, accentColor: '#3B82F6', height: '4px', cursor: 'pointer' }}
+              />
+              <span style={{ color: 'var(--text-primary)', fontSize: '11px', fontFamily: 'DM Mono', minWidth: '35px', textAlign: 'right' }}>
+                {Math.round((prefs.textScale || 1.2) * 100)}%
+              </span>
+            </div>
+          )}
         </div>
       </GlassCard>
 
-      <SectionHeader icon={<Sliders size={13} />} title="Próximamente" style={{ marginTop: '20px' }} />
+      <SectionHeader icon={<Sliders size={13} />} title={t('Próximamente')} style={{ marginTop: '20px' }} />
       <GlassCard>
         {[
           'Historial de viajes',
@@ -27442,8 +27605,8 @@ function SettingsPanel({
         ].map((item, i, arr) => (
           <div key={item}>
             <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{item}</span>
-              <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '999px', background: 'rgba(184,200,224,0.06)', color: 'var(--text-muted)', border: '1px solid rgba(184,200,224,0.1)' }}>pronto</span>
+              <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t(item)}</span>
+              <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '999px', background: 'rgba(184,200,224,0.06)', color: 'var(--text-muted)', border: '1px solid rgba(184,200,224,0.1)' }}>{prefs.language === 'en' ? 'soon' : 'pronto'}</span>
             </div>
             {i < arr.length - 1 && <Divider />}
           </div>
