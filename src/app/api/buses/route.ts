@@ -27,6 +27,8 @@ function getHeading(pt1: { lat: number; lng: number }, pt2: { lat: number; lng: 
 
 function generateFallbackSimulatedBuses(lineId: string, lineNumber: string): BusPosition[] {
   const cleanedLineNum = lineNumber.replace(/^0+/, '')
+  // Only generate fallback simulated buses for Line 12 as requested. All other lines start at 0 buses.
+  if (cleanedLineNum !== '12') return []
   const localRoute = OFFICIAL_ROUTES[cleanedLineNum]
   if (!localRoute) return []
 

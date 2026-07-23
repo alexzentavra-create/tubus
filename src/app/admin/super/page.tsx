@@ -539,7 +539,7 @@ export default function SuperAdminDashboard() {
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
     totalUsers: 4820, totalDrivers: 24, totalCompanies: 7,
-    activeBuses: 18, pendingReports: 3, todayLogins: 142,
+    activeBuses: 8, pendingReports: 3, todayLogins: 142,
   })
 
   // Modal active states

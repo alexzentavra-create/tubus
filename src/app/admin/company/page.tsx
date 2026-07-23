@@ -521,7 +521,7 @@ export default function CompanyDashboard() {
     'T-Rojo': { rating: '4.8', punctuality: '93%', dailyPas: 510 },
   }
 
-  const activeStats = LINE_STATS[activeLine.line_number] || { rating: '4.7', punctuality: '85%', dailyPas: 1200 }
+  const activeStats = LINE_STATS[activeLine.line_number] || { rating: '0.0', punctuality: '0%', dailyPas: 0 }
   
   const [liveDailyPassengers, setLiveDailyPassengers] = useState<number>(0)
   const [floatingIndicators, setFloatingIndicators] = useState<Array<{ id: number; text: string }>>([])
@@ -2583,7 +2583,7 @@ export default function CompanyDashboard() {
                   const totalCrossings = crossings.length
                   const punctualityPct = totalCrossings > 0
                     ? Math.round((onTimeCount / totalCrossings) * 100)
-                    : (activeLine.line_number === '0' ? 0 : 92)
+                    : (activeLine.line_number === '12' ? 92 : 0)
 
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center' }}>
@@ -5175,13 +5175,13 @@ function CalendarTab({ themeColor, activeLine, activeStats }: { themeColor: stri
       const recordedBuses = JSON.parse(localStorage.getItem(key) || '[]')
       activeBuses = recordedBuses.length > 0
         ? recordedBuses
-        : (activeLine.line_number === '0'
+        : (activeLine.line_number !== '12'
            ? []
            : (item.type === 'day'
               ? [`Coche ${item.bus}`, `Coche 30${(seed % 4) + 1}`, `Coche 305`]
               : [`Coche 301`, `Coche 302`, `Coche 304`, `Coche 305`].slice(0, item.busesCount || 4)));
     } catch (e) {
-      activeBuses = activeLine.line_number === '0' ? [] : [`Coche 301`, `Coche 302`, `Coche 305`]
+      activeBuses = activeLine.line_number === '12' ? [`Coche 301`, `Coche 302`, `Coche 305`] : []
     }
 
     const peakHour = (seed % 2 === 0) ? '08:00 - 09:30 (Pico Mañana)' : '17:30 - 19:00 (Pico Tarde)';

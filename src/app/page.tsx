@@ -21260,6 +21260,8 @@ const initializeSimulatedBuses = (availableLines: BusLine[]): SimulatedBusState[
   const allBuses: SimulatedBusState[] = []
 
   availableLines.forEach(line => {
+    // Only generate simulated buses for Line 12 as requested. All other lines start at 0 buses.
+    if (line.line_number !== '12') return
     const routeKey = line.line_number.replace(/^0+/, '')
     const officialRoute = OFFICIAL_ROUTES[routeKey]
     if (!officialRoute) return
