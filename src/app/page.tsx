@@ -10,7 +10,7 @@ import {
   Navigation as NavIcon, LayoutDashboard, Menu,
   Locate, Plus, Minus, Sun, Route, Activity, Clock,
   Megaphone, MessageSquare, PlusCircle, CheckCircle2, MessageCircle, Edit2, Award,
-  HelpCircle, Upload, Smartphone, CreditCard, PhoneCall
+  HelpCircle, Upload, Smartphone, CreditCard, PhoneCall, Sparkles
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { getStoredGeneralTerms, getStoredAdsTerms } from '@/lib/termsData'
@@ -28029,6 +28029,10 @@ function ProfilePanel({
 
   const [showMercadoPagoModal, setShowMercadoPagoModal] = useState(false)
   const [showMpQrScanModal, setShowMpQrScanModal] = useState(false)
+  const [showAiImageModal, setShowAiImageModal] = useState(false)
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [isGeneratingAiImg, setIsGeneratingAiImg] = useState(false)
+  const [generatedAiImgUrl, setGeneratedAiImgUrl] = useState<string | null>(null)
   const [activeQrTab, setActiveQrTab] = useState<'qr1' | 'qr2'>('qr1')
   const [pendingAd, setPendingAd] = useState<any>(null)
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
@@ -29013,6 +29017,37 @@ function ProfilePanel({
                         onChange={handleAdImageUpload}
                         style={{ display: 'none' }}
                       />
+
+                      {/* AI Image Creation Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAiPrompt(adTitle ? `Anuncio publicitario para ${adTitle}: ${adDesc}` : 'Promoción comercial moderna para negocio local');
+                          setGeneratedAiImgUrl(null);
+                          setShowAiImageModal(true);
+                        }}
+                        style={{
+                          width: '100%',
+                          marginTop: '8px',
+                          padding: '10px',
+                          borderRadius: '10px',
+                          background: 'linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%)',
+                          border: 'none',
+                          color: '#FFFFFF',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <Sparkles size={14} />
+                        ✨ Crear Imagen de Anuncio con IA (Gratis)
+                      </button>
                     </div>
                   )}
                 </div>
