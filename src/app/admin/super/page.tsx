@@ -7,9 +7,10 @@ import {
   ChevronRight, Star, Wifi, Search, Bell, Mail, Calendar,
   Share2, Printer, Plus, Trash2, ChevronDown, CheckCircle2,
   Circle, Flag, Info, Megaphone, MessageSquare, Eye, EyeOff,
-  BookOpen, Globe, Award, ListChecks, Key, Filter, History as HistoryIcon
+  BookOpen, Globe, Award, ListChecks, Key, Filter, History as HistoryIcon, ShieldCheck
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+import { getStoredGeneralTerms, getStoredAdsTerms, saveStoredGeneralTerms, saveStoredAdsTerms } from '@/lib/termsData'
 import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre'
 import { MOCK_LINES, getMockStopsForLine, getMockRoutePathForLine } from '@/lib/mockData'
 import {
@@ -513,7 +514,7 @@ const DEFAULT_CHATS = [
   ]}
 ]
 
-type Tab = 'overview' | 'linemaps' | 'drivers' | 'ads' | 'chat' | 'reports' | 'provincemap' | 'todos' | 'news'
+type Tab = 'overview' | 'linemaps' | 'drivers' | 'ads' | 'chat' | 'reports' | 'provincemap' | 'todos' | 'news' | 'terms'
 
 interface Todo {
   id: string
@@ -530,6 +531,11 @@ interface Todo {
 export default function SuperAdminDashboard() {
   const supabase = createClient()
   const [tab, setTab] = useState<Tab>('overview')
+  const [adminTermsTab, setAdminTermsTab] = useState<'general' | 'ads'>('general')
+  const [generalTermsInput, setGeneralTermsInput] = useState(getStoredGeneralTerms())
+  const [adsTermsInput, setAdsTermsInput] = useState(getStoredAdsTerms())
+  const [generalVersionInput, setGeneralVersionInput] = useState('v2.4')
+  const [adsVersionInput, setAdsVersionInput] = useState('v2.1')
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
     totalUsers: 4820, totalDrivers: 24, totalCompanies: 7,
@@ -1831,6 +1837,193 @@ export default function SuperAdminDashboard() {
     )
   }
 
+  const renderTermsDetail = () => {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {/* Header Card */}
+        <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <div style={{ fontSize: '18px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShieldCheck size={20} style={{ color: '#10B981' }} /> Editor de Términos y Condiciones
+            </div>
+            <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>
+              Administrá los textos legales y reglas de publicación de la aplicación. Todos los cambios guardados se sincronizan en tiempo real en los popups de usuarios y anunciantes.
+            </p>
+          </div>
+
+          {/* Sub-tab selection */}
+          <div style={{ display: 'flex', background: '#1b1d2e', borderRadius: '8px', padding: '3px', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <button
+              onClick={() => setAdminTermsTab('general')}
+              style={{
+                padding: '8px 16px',
+                border: 'none',
+                background: adminTermsTab === 'general' ? '#10B981' : 'transparent',
+                color: '#fff',
+                fontSize: '12px',
+                fontWeight: 600,
+                borderRadius: '6px',
+                cursor: 'pointer',
+                transition: 'all 150ms',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              📜 Términos Generales de App
+            </button>
+            <button
+              onClick={() => setAdminTermsTab('ads')}
+              style={{
+                padding: '8px 16px',
+                border: 'none',
+                background: adminTermsTab === 'ads' ? '#3B82F6' : 'transparent',
+                color: '#fff',
+                fontSize: '12px',
+                fontWeight: 600,
+                borderRadius: '6px',
+                cursor: 'pointer',
+                transition: 'all 150ms',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              📢 Reglas y Términos de Anuncios
+            </button>
+          </div>
+        </div>
+
+        {/* Content Grid: Left Editor | Right Live Popup Preview */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+          {/* Left Column: Editor Form */}
+          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>
+                {adminTermsTab === 'general' ? 'Editando: Términos y Condiciones Generales' : 'Editando: Términos y Reglas de Publicación de Anuncios'}
+              </span>
+              <span style={{ fontSize: '10px', color: '#10B981', fontFamily: 'DM Mono' }}>● Sincronización activa</span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '10px', color: '#8f94a5', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 600 }}>Versión</label>
+                <input
+                  type="text"
+                  value={adminTermsTab === 'general' ? generalVersionInput : adsVersionInput}
+                  onChange={e => adminTermsTab === 'general' ? setGeneralVersionInput(e.target.value) : setAdsVersionInput(e.target.value)}
+                  style={{ width: '100%', padding: '8px 10px', background: '#181b2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', fontSize: '12px', outline: 'none' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '10px', color: '#8f94a5', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 600 }}>Estado</label>
+                <div style={{ padding: '8px 10px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '6px', color: '#10B981', fontSize: '11px', fontWeight: 700, textAlign: 'center' }}>
+                  VIGENTE EN LA APP
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '10px', color: '#8f94a5', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 600 }}>Cuerpo del Documento (Markdown / Texto)</label>
+              <textarea
+                value={adminTermsTab === 'general' ? generalTermsInput : adsTermsInput}
+                onChange={e => adminTermsTab === 'general' ? setGeneralTermsInput(e.target.value) : setAdsTermsInput(e.target.value)}
+                rows={16}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  background: '#181b2e',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '8px',
+                  color: '#fff',
+                  fontSize: '12px',
+                  fontFamily: 'DM Sans, sans-serif',
+                  lineHeight: '1.5',
+                  outline: 'none',
+                  resize: 'vertical'
+                }}
+              />
+            </div>
+
+            <button
+              onClick={() => {
+                if (adminTermsTab === 'general') {
+                  saveStoredGeneralTerms(generalTermsInput, generalVersionInput)
+                } else {
+                  saveStoredAdsTerms(adsTermsInput, adsVersionInput)
+                }
+                toast.success('¡Términos y condiciones guardados y sincronizados en tiempo real!')
+              }}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: adminTermsTab === 'general' ? 'linear-gradient(135deg, #10B981, #059669)' : 'linear-gradient(135deg, #3B82F6, #1D4ED8)',
+                border: 'none',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                transition: 'all 150ms'
+              }}
+            >
+              💾 Guardar y Sincronizar Términos
+            </button>
+          </div>
+
+          {/* Right Column: Live Popup Preview */}
+          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>
+                👁️ Vista Previa del Popup para el Usuario
+              </span>
+              <span style={{ fontSize: '10px', color: '#8f94a5' }}>Previsualización en pantalla</span>
+            </div>
+
+            <div style={{
+              flex: 1,
+              background: '#181b2e',
+              border: '1px solid ' + (adminTermsTab === 'general' ? 'rgba(16,185,129,0.4)' : 'rgba(59,130,246,0.4)'),
+              borderRadius: '14px',
+              display: 'flex',
+              flexDirection: 'column',
+              maxHeight: '480px',
+              overflow: 'hidden',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+            }}>
+              <div style={{
+                padding: '12px 16px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: adminTermsTab === 'general' ? 'rgba(16,185,129,0.08)' : 'rgba(59,130,246,0.08)'
+              }}>
+                <h4 style={{ fontSize: '13px', fontWeight: 700, margin: 0, color: '#fff' }}>
+                  {adminTermsTab === 'general' ? '📜 Términos y Condiciones Generales' : '📢 Términos y Reglas de Publicación'}
+                </h4>
+                <span style={{ fontSize: '10px', color: adminTermsTab === 'general' ? '#10B981' : '#3B82F6', fontWeight: 600 }}>
+                  {adminTermsTab === 'general' ? generalVersionInput : adsVersionInput}
+                </span>
+              </div>
+
+              <div style={{ flex: 1, overflowY: 'auto', padding: '16px', color: '#a3a6b8', fontSize: '12px', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                {adminTermsTab === 'general' ? generalTermsInput : adsTermsInput}
+              </div>
+
+              <div style={{ padding: '10px 16px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', justifyContent: 'flex-end', background: 'rgba(0,0,0,0.2)' }}>
+                <button style={{ padding: '6px 14px', borderRadius: '6px', border: 'none', background: adminTermsTab === 'general' ? '#10B981' : '#3B82F6', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'default' }}>
+                  Entendido y Aceptar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const logout = async () => {
     await supabase.auth.signOut()
     window.location.href = '/login'
@@ -1846,6 +2039,7 @@ export default function SuperAdminDashboard() {
     { id: 'provincemap', label: 'Mapa Argentina', icon: Globe },
     { id: 'todos', label: 'Tareas', icon: ListChecks },
     { id: 'news', label: 'Noticias', icon: BookOpen },
+    { id: 'terms', label: 'Términos y Condiciones', icon: ShieldCheck },
   ]
 
   if (loading) {
@@ -2773,6 +2967,7 @@ export default function SuperAdminDashboard() {
             </div>
           </div>
         )}
+        {tab === 'terms' && renderTermsDetail()}
       </main>
     </div>
   )

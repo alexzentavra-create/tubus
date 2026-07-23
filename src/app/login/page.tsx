@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bus, Mail, Lock, Eye, EyeOff, ArrowRight, User, BarChart2, Calendar } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+import { getStoredGeneralTerms } from '@/lib/termsData'
 import toast from 'react-hot-toast'
 
 type Mode = 'login' | 'register'
@@ -349,6 +350,14 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [acceptTerms, setAcceptTerms] = useState(false)
+  const [showTermsModal, setShowTermsModal] = useState(false)
+  const [generalTermsText, setGeneralTermsText] = useState(getStoredGeneralTerms())
+
+  useEffect(() => {
+    const syncTerms = () => setGeneralTermsText(getStoredGeneralTerms())
+    window.addEventListener('storage', syncTerms)
+    return () => window.removeEventListener('storage', syncTerms)
+  }, [])
   const [city, setCity] = useState('buenos_aires')
   const [form, setForm] = useState({ email:'', password:'', name:'', age:'', weeklyTrips:'' })
   const [bannedEmail, setBannedEmail] = useState<string | null>(null)
@@ -677,7 +686,7 @@ export default function LoginPage() {
                       href="#"
                       onClick={(e) => {
                         e.preventDefault()
-                        toast.success('Términos y condiciones aceptados')
+                        setShowTermsModal(true)
                       }}
                       style={{ color: 'var(--text-primary)', textDecoration: 'underline' }}
                     >
@@ -727,6 +736,54 @@ export default function LoginPage() {
               </p>
             </motion.div>
           </AnimatePresence>
+
+      {/* General Terms & Conditions Popup Modal */}
+      {showTermsModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(5, 8, 16, 0.85)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 99999, padding: '20px'
+        }}>
+          <div style={{
+            width: '100%', maxWidth: '580px', background: '#121527',
+            border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '16px',
+            display: 'flex', flexDirection: 'column', maxHeight: '85vh',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7)', overflow: 'hidden'
+          }}>
+            <div style={{
+              padding: '16px 20px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: 'rgba(255,255,255,0.02)'
+            }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#fff' }}>
+                Términos y Condiciones Generales
+              </h3>
+              <button
+                onClick={() => setShowTermsModal(false)}
+                style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', color: '#fff', cursor: 'pointer' }}
+              >✕</button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px', color: '#a3a6b8', fontSize: '13px', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+              {generalTermsText}
+            </div>
+            <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', justifyContent: 'flex-end', gap: '10px', background: 'rgba(0,0,0,0.2)' }}>
+              <button
+                onClick={() => setShowTermsModal(false)}
+                style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#8f94a5', fontSize: '12px', cursor: 'pointer' }}
+              >
+                Cerrar
+              </button>
+              <button
+                onClick={() => { setAcceptTerms(true); setShowTermsModal(false); toast.success('Términos y condiciones aceptados'); }}
+                style={{ padding: '8px 18px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #10B981, #059669)', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Entendido y Aceptar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {bannedEmail && (
         <div style={{
           position: 'fixed',
