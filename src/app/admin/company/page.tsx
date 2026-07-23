@@ -74,50 +74,10 @@ function PasswordRow({ password, themeColor }: { password: string; themeColor: s
   )
 }
 
-// Simple QR SVG generator
+import { QRCodeDisplay } from '@/components/common/QRCodeDisplay'
+
 function QRDisplay({ token, busUnit }: { token: string; busUnit: string }) {
-  const size = 120
-  const cells = 21
-  const cellSize = size / cells
-
-  const hash = token.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
-  const grid: boolean[][] = Array.from({length: cells}, (_, r) =>
-    Array.from({length: cells}, (_, c) => {
-      // Finder pattern top-left
-      if (r < 7 && c < 7) {
-        return r === 0 || r === 6 || c === 0 || c === 6 || (r >= 2 && r <= 4 && c >= 2 && c <= 4)
-      }
-      // Finder pattern top-right
-      if (r < 7 && c >= cells - 7) {
-        const cc = c - (cells - 7)
-        return r === 0 || r === 6 || cc === 0 || cc === 6 || (r >= 2 && r <= 4 && cc >= 2 && cc <= 4)
-      }
-      // Finder pattern bottom-left
-      if (r >= cells - 7 && c < 7) {
-        const rr = r - (cells - 7)
-        return rr === 0 || rr === 6 || c === 0 || c === 6 || (rr >= 2 && rr <= 4 && c >= 2 && c <= 4)
-      }
-      
-      // Random-looking modules based on hash
-      return ((r * 17 + c * 23 + hash) % 2) === 0
-    })
-  )
-
-  return (
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:'10px'}}>
-      <div style={{padding:'12px',background:'#fff',borderRadius:'10px',display:'inline-block'}}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} shapeRendering="crispEdges">
-          {grid.map((row, r) => row.map((cell, c) =>
-            cell ? <rect key={`${r}-${c}`} x={c*cellSize} y={r*cellSize} width={cellSize} height={cellSize} fill="#000"/> : null
-          ))}
-        </svg>
-      </div>
-      <div style={{textAlign:'center'}}>
-        <div style={{color:'#fff',fontWeight:700,fontSize:'14px',fontFamily:'DM Sans,sans-serif'}}>Unidad {busUnit}</div>
-        <div style={{color:'var(--text-muted)',fontSize:'10px',fontFamily:'DM Mono',marginTop:'2px',letterSpacing:'0.04em'}}>{token.slice(0,24)}...</div>
-      </div>
-    </div>
-  )
+  return <QRCodeDisplay token={token} busUnit={busUnit} size={160} />
 }
 
 export default function CompanyDashboard() {

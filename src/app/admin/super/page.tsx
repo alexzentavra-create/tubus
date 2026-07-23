@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { getStoredGeneralTerms, getStoredAdsTerms, saveStoredGeneralTerms, saveStoredAdsTerms } from '@/lib/termsData'
+import { QRCodeDisplay } from '@/components/common/QRCodeDisplay'
 import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre'
 import { MOCK_LINES, getMockStopsForLine, getMockRoutePathForLine } from '@/lib/mockData'
 import {
@@ -3860,56 +3861,8 @@ function DriversTab() {
                 </button>
               </div>
 
-              {/* QR Vector SVG */}
-              <div style={{
-                background: '#fff',
-                padding: '16px',
-                borderRadius: '12px',
-                boxShadow: '0 10px 20px rgba(0,0,0,0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <svg width="180" height="180" viewBox="0 0 29 29">
-                  <rect x="0" y="0" width="7" height="7" fill={lineColor}/>
-                  <rect x="1" y="1" width="5" height="5" fill="#fff"/>
-                  <rect x="2" y="2" width="3" height="3" fill={lineColor}/>
-                  
-                  <rect x="22" y="0" width="7" height="7" fill={lineColor}/>
-                  <rect x="23" y="1" width="5" height="5" fill="#fff"/>
-                  <rect x="24" y="2" width="3" height="3" fill={lineColor}/>
-                  
-                  <rect x="0" y="22" width="7" height="7" fill={lineColor}/>
-                  <rect x="1" y="23" width="5" height="5" fill="#fff"/>
-                  <rect x="2" y="24" width="3" height="3" fill={lineColor}/>
-                  
-                  <rect x="18" y="18" width="5" height="5" fill={lineColor}/>
-                  <rect x="19" y="19" width="3" height="3" fill="#fff"/>
-                  <rect x="20" y="20" width="1" height="1" fill={lineColor}/>
-                  
-                  <rect x="8" y="2" width="2" height="1" fill={lineColor}/>
-                  <rect x="12" y="1" width="1" height="3" fill={lineColor}/>
-                  <rect x="16" y="3" width="3" height="2" fill={lineColor}/>
-                  <rect x="10" y="6" width="4" height="1" fill={lineColor}/>
-                  
-                  <rect x="2" y="10" width="1" height="4" fill={lineColor}/>
-                  <rect x="6" y="8" width="3" height="2" fill={lineColor}/>
-                  <rect x="11" y="10" width="2" height="2" fill={lineColor}/>
-                  <rect x="15" y="9" width="1" height="4" fill={lineColor}/>
-                  <rect x="18" y="12" width="3" height="1" fill={lineColor}/>
-                  <rect x="22" y="10" width="4" height="2" fill={lineColor}/>
-                  
-                  <rect x="9" y="15" width="2" height="3" fill={lineColor}/>
-                  <rect x="14" y="16" width="3" height="1" fill={lineColor}/>
-                  <rect x="19" y="15" width="1" height="3" fill={lineColor}/>
-                  <rect x="25" y="16" width="2" height="2" fill={lineColor}/>
-                  
-                  <rect x="10" y="22" width="3" height="2" fill={lineColor}/>
-                  <rect x="15" y="24" width="2" height="3" fill={lineColor}/>
-                  <rect x="18" y="26" width="4" height="1" fill={lineColor}/>
-                  <rect x="25" y="23" width="1" height="3" fill={lineColor}/>
-                </svg>
-              </div>
+              {/* High-density authentic QR Code */}
+              <QRCodeDisplay token={selectedQr.qr_token || selectedQr.token || selectedQr.bus_unit} busUnit={selectedQr.bus_unit} size={180} showLabel={false} />
 
               {/* Info & Code */}
               <div style={{ textAlign: 'center', width: '100%' }}>
