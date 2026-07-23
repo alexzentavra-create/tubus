@@ -21365,6 +21365,197 @@ const calculateRouteTimeMinutes = (route: any, allLines: any[]) => {
   return Math.round(walkTime + busTime)
 }
 
+// Minimal non-invasive Map Ad Banner (10s timer, trip stop segment filter, loop rotation)
+function MapAdBanner({
+  activeTravelRoute,
+  selectedLines,
+  adSubmissions
+}: {
+  activeTravelRoute: any
+  selectedLines: any[]
+  adSubmissions: any[]
+}) {
+  const [currentAdIndex, setCurrentAdIndex] = useState<number>(0)
+  const [progress, setProgress] = useState<number>(0)
+  const [isMinimized, setIsMinimized] = useState<boolean>(false)
+
+  const activeLineNumber = activeTravelRoute?.line_number || selectedLines[0]?.line_number || '12'
+
+  // Filter ads with 'mapa' placement and stop matching within trip range
+  const qualifiedMapAds = useMemo(() => {
+    const activeAds = adSubmissions.filter(ad => ad.status === 'approved' || ad.status === 'pending' || !ad.status)
+    
+    return activeAds.filter(ad => {
+      // Check if ad has 'mapa' placement enabled
+      const hasMapPlacement =
+        ad.placements?.includes('mapa') ||
+        (ad.adScheduleDetails &&
+          Object.values(ad.adScheduleDetails).some((d: any) => d.placements?.includes('mapa'))) ||
+        ad.hasMapAd
+      
+      if (!hasMapPlacement) return false
+
+      // Check line match
+      const lineMatch = !ad.targetAudience || ad.targetAudience === 'todos' || ad.targetAudience === `Línea ${activeLineNumber}` || ad.lineNumber === activeLineNumber
+      if (!lineMatch) return false
+
+      // Trip Stop Segment Filter: ONLY show ads for stops WITHIN origin -> destination range
+      if (activeTravelRoute && activeTravelRoute.originStop && activeTravelRoute.destStop && ad.selectedStops && ad.selectedStops.length > 0) {
+        const originIdx = Number(activeTravelRoute.originStop.stop_number || activeTravelRoute.originStop.pathIndex || 0)
+        const destIdx = Number(activeTravelRoute.destStop.stop_number || activeTravelRoute.destStop.pathIndex || 999)
+        
+        const minIdx = Math.min(originIdx, destIdx)
+        const maxIdx = Math.max(originIdx, destIdx)
+
+        const matchedLine = MOCK_LINES.find(l => l.line_number === activeLineNumber)
+        if (matchedLine) {
+          const allStops = getMockStopsForLine(matchedLine)
+          const targetStops = allStops.filter(s => ad.selectedStops.includes(s.name) || ad.selectedStops.includes(s.id))
+          const isWithinTrip = targetStops.some(s => {
+            const num = Number(s.stop_number || s.pathIndex || 0)
+            return num >= minIdx && num <= maxIdx
+          })
+          if (!isWithinTrip) return false
+        }
+      }
+
+      return true
+    })
+  }, [adSubmissions, activeTravelRoute, selectedLines, activeLineNumber])
+
+  useEffect(() => {
+    setCurrentAdIndex(0)
+    setProgress(0)
+  }, [qualifiedMapAds.length])
+
+  // 10-second timer & rotation loop
+  useEffect(() => {
+    if (qualifiedMapAds.length === 0 || isMinimized) return
+
+    const intervalMs = 100
+    const totalMs = 10000 // 10 seconds per ad
+
+    const timer = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 100) {
+          setCurrentAdIndex(idx => (idx + 1) % qualifiedMapAds.length)
+          return 0
+        }
+        return prev + (intervalMs / totalMs) * 100
+      })
+    }, intervalMs)
+
+    return () => clearInterval(timer)
+  }, [qualifiedMapAds.length, isMinimized])
+
+  if (qualifiedMapAds.length === 0) return null
+
+  const currentAd = qualifiedMapAds[currentAdIndex % qualifiedMapAds.length]
+  if (!currentAd) return null
+
+  if (isMinimized) {
+    return (
+      <button
+        onClick={() => setIsMinimized(false)}
+        style={{
+          position: 'absolute',
+          top: '74px',
+          right: '14px',
+          zIndex: 1000,
+          background: 'rgba(0, 158, 227, 0.95)',
+          color: '#fff',
+          border: 'none',
+          padding: '6px 12px',
+          borderRadius: '20px',
+          fontSize: '11px',
+          fontWeight: 700,
+          cursor: 'pointer',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}
+      >
+        <span>📌 Anuncio en mapa (${qualifiedMapAds.length})</span>
+      </button>
+    )
+  }
+
+  return (
+    <div style={{
+      position: 'absolute',
+      top: '74px',
+      left: '14px',
+      right: '14px',
+      margin: '0 auto',
+      maxWidth: '380px',
+      zIndex: 999,
+      background: 'rgba(18, 21, 39, 0.95)',
+      backdropFilter: 'blur(12px)',
+      WebkitBackdropFilter: 'blur(12px)',
+      borderRadius: '12px',
+      border: '1px solid rgba(59, 130, 246, 0.4)',
+      overflow: 'hidden',
+      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+      display: 'flex',
+      flexDirection: 'column',
+      fontFamily: 'DM Sans, sans-serif'
+    }}>
+      {/* 10-second animated progress line */}
+      <div style={{ width: '100%', height: '3px', background: 'rgba(255,255,255,0.08)' }}>
+        <div style={{
+          height: '100%',
+          width: `${progress}%`,
+          background: 'linear-gradient(90deg, #3B82F6, #10B981)',
+          transition: 'width 100ms linear'
+        }} />
+      </div>
+
+      <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Ad Image / Icon */}
+        {currentAd.imageUrl ? (
+          <img
+            src={currentAd.imageUrl}
+            alt={currentAd.title}
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80'
+            }}
+            style={{ width: '42px', height: '42px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(255,255,255,0.1)' }}
+          />
+        ) : (
+          <div style={{ width: '42px', height: '42px', borderRadius: '8px', background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', color: '#fff', flexShrink: 0 }}>
+            📌
+          </div>
+        )}
+
+        {/* Ad Details */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginBottom: '2px' }}>
+            <span style={{ fontSize: '12px', fontWeight: 700, color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {currentAd.title}
+            </span>
+            <span style={{ fontSize: '9px', background: 'rgba(59,130,246,0.2)', color: '#60A5FA', padding: '1px 5px', borderRadius: '4px', fontWeight: 600, flexShrink: 0, fontFamily: 'DM Mono' }}>
+              📌 Mapa · 10s
+            </span>
+          </div>
+          <div style={{ fontSize: '11px', color: '#A3A6B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {currentAd.description}
+          </div>
+        </div>
+
+        {/* Close / Minimize */}
+        <button
+          onClick={() => setIsMinimized(true)}
+          style={{ background: 'none', border: 'none', color: '#8F94A5', cursor: 'pointer', fontSize: '14px', padding: '2px', display: 'flex', alignItems: 'center' }}
+          title="Minimizar anuncio"
+        >
+          ✕
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function UserMapPage() {
   const supabase      = createClient()
   const channelRef    = useRef<any>(null)
@@ -22519,6 +22710,51 @@ export default function UserMapPage() {
     const existingAds = localStorage.getItem('bu_submitted_ads')
     if (!existingAds) {
       const mockAds = [
+        {
+          id: 'ad-map-1',
+          title: 'Café Martínez Palermo - 20% OFF',
+          imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400&q=80',
+          budget: 70,
+          description: 'Mostrá tu boleto de Línea 12 y obtené 20% de descuento en desayunos.',
+          status: 'approved',
+          placements: ['mapa'],
+          hasMapAd: true,
+          targetAudience: 'Línea 12',
+          lineNumber: '12',
+          selectedStops: ['Av. Santa Fe y Av. Callao', 'Plaza Italia'],
+          userEmail: 'contacto@cafemartinez.com',
+          userName: 'Café Martínez'
+        },
+        {
+          id: 'ad-map-2',
+          title: 'Farmacia Central Callao 24hs',
+          imageUrl: 'https://images.unsplash.com/photo-1586015555751-63bb77f4322a?w=400&q=80',
+          budget: 50,
+          description: 'Atención 24hs en Av. Callao y Sta Fe. Descuentos en dermocosmética.',
+          status: 'approved',
+          placements: ['mapa'],
+          hasMapAd: true,
+          targetAudience: 'Línea 12',
+          lineNumber: '12',
+          selectedStops: ['Av. Santa Fe y Av. Callao', 'Hospital de Clínicas'],
+          userEmail: 'promos@farmaciacentral.com',
+          userName: 'Farmacia Central'
+        },
+        {
+          id: 'ad-map-3',
+          title: 'Gimnasio Megatlon Plaza Italia',
+          imageUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&q=80',
+          budget: 80,
+          description: 'Pase libre por 3 días para pasajeros en tránsito por Plaza Italia.',
+          status: 'approved',
+          placements: ['mapa'],
+          hasMapAd: true,
+          targetAudience: 'Línea 12',
+          lineNumber: '12',
+          selectedStops: ['Plaza Italia', 'Jardín Botánico'],
+          userEmail: 'palermo@megatlon.com.ar',
+          userName: 'Megatlon Palermo'
+        },
         {
           id: 'ad-1',
           title: 'Cervecería Patagonia - Cupones',
@@ -25572,6 +25808,13 @@ export default function UserMapPage() {
             })()}
           </div>
         )}
+
+        {/* Map Ad Minimal Floating Banner (10s timer, trip filter, loop) */}
+        <MapAdBanner
+          activeTravelRoute={activeTravelRoute}
+          selectedLines={selectedLines}
+          adSubmissions={adSubmissions}
+        />
 
         {/* Upcoming Bus Overlay Card */}
         {activeTravelRoute && (
