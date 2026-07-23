@@ -514,7 +514,7 @@ const DEFAULT_CHATS = [
   ]}
 ]
 
-type Tab = 'overview' | 'linemaps' | 'drivers' | 'ads' | 'chat' | 'reports' | 'provincemap' | 'todos' | 'news' | 'terms'
+type Tab = 'overview' | 'linemaps' | 'drivers' | 'company_admins' | 'ads' | 'chat' | 'reports' | 'provincemap' | 'todos' | 'news' | 'terms'
 
 interface Todo {
   id: string
@@ -558,6 +558,58 @@ export default function SuperAdminDashboard() {
   const [userFilterStatus, setUserFilterStatus] = useState<string>('all')
   const [showUserPassword, setShowUserPassword] = useState<Record<string, boolean>>({})
   const [showHistoryModalForUser, setShowHistoryModalForUser] = useState<any | null>(null)
+  const [lineAdminSearchTerm, setLineAdminSearchTerm] = useState('')
+  const [selectedLineAdminId, setSelectedLineAdminId] = useState<string>('la-12')
+  const [showAdminPassword, setShowAdminPassword] = useState<Record<string, boolean>>({})
+  const [liveLineAdmins, setLiveLineAdmins] = useState<any[]>([
+    {
+      id: 'la-12', name: 'Carlos Martínez', email: 'linea12@bienparada.ar', password: 'bienparada', lineNumber: '12', companyName: 'Transportes Callao S.A.', status: 'Activo', lastLogin: 'Hoy 09:14 hs', sessionDuration: '3 hs 42 min', lastActive: 'Hace 5 min',
+      activityLogs: [
+        { id: 'log-1', action: 'Modificó Frecuencia', detail: 'Ajustó intervalo de salida a 6 minutos en hora pico.', timestamp: 'Hoy 10:30 hs' },
+        { id: 'log-2', action: 'Generó Código QR', detail: 'Registró nuevo QR de acceso para la Unidad 304.', timestamp: 'Ayer 16:45 hs' },
+        { id: 'log-3', action: 'Actualizó Recorrido', detail: 'Añadió parada temporal en Av. Santa Fe y Callao.', timestamp: 'Hace 2 días' },
+        { id: 'log-4', action: 'Aprobó Chofer', detail: 'Dio de alta al chofer Roberto Sánchez.', timestamp: 'Hace 3 días' }
+      ]
+    },
+    {
+      id: 'la-39', name: 'Esteban Ortiz', email: 'linea39@bienparada.ar', password: 'linea39pass', lineNumber: '39', companyName: 'Transportes Santa Fe S.A.C.I.', status: 'Activo', lastLogin: 'Hoy 08:30 hs', sessionDuration: '4 hs 15 min', lastActive: 'Hace 12 min',
+      activityLogs: [
+        { id: 'log-39-1', action: 'Publicó Aviso', detail: 'Emitió alerta por desvío en estación Chacarita por obras.', timestamp: 'Hoy 09:15 hs' },
+        { id: 'log-39-2', action: 'Ajuste de Tarifa', detail: 'Verificó cuadro tarifario de boleto mínimo.', timestamp: 'Ayer 11:20 hs' }
+      ]
+    },
+    {
+      id: 'la-60', name: 'Jorge Rodríguez', email: 'linea60@bienparada.ar', password: 'linea60pass', lineNumber: '60', companyName: 'MONSA S.A.', status: 'Activo', lastLogin: 'Ayer 17:45 hs', sessionDuration: '1 hr 50 min', lastActive: 'Ayer',
+      activityLogs: [
+        { id: 'log-60-1', action: 'Corte de Calle', detail: 'Notificó corte parcial en Panamericana y Tigre.', timestamp: 'Ayer 18:00 hs' },
+        { id: 'log-60-2', action: 'Revisión de Flota', detail: 'Inspeccionó 8 unidades activas en ramal Tigre.', timestamp: 'Ayer 15:30 hs' }
+      ]
+    },
+    {
+      id: 'la-152', name: 'Mariano Silva', email: 'linea152@bienparada.ar', password: 'linea152pass', lineNumber: '152', companyName: 'Empresa Tandilense S.A.', status: 'Activo', lastLogin: 'Hoy 10:05 hs', sessionDuration: '2 hs 10 min', lastActive: 'Hace 25 min',
+      activityLogs: [
+        { id: 'log-152-1', action: 'Modificación de Parada', detail: 'Reubicó parada Plaza Italia por reparación de calzada.', timestamp: 'Hoy 10:20 hs' }
+      ]
+    },
+    {
+      id: 'la-59', name: 'Hugo Bianchi', email: 'linea59@bienparada.ar', password: 'linea59pass', lineNumber: '59', companyName: 'Microomnibus Ciudad de Buenos Aires S.A.', status: 'Inactivo', lastLogin: 'Hace 3 días', sessionDuration: '45 min', lastActive: 'Hace 3 días',
+      activityLogs: [
+        { id: 'log-59-1', action: 'Actualizó Horarios', detail: 'Cargó grilla de horarios de fin de semana.', timestamp: 'Hace 3 días' }
+      ]
+    },
+    {
+      id: 'la-37', name: 'Roberto Sánchez', email: 'linea37@bienparada.ar', password: 'linea37pass', lineNumber: '37', companyName: '4 de Septiembre S.A.', status: 'Activo', lastLogin: 'Hoy 07:50 hs', sessionDuration: '5 hs 02 min', lastActive: 'Hace 4 min',
+      activityLogs: [
+        { id: 'log-37-1', action: 'Alerta de Tránsito', detail: 'Registró embotellamiento en zona Aeroparque.', timestamp: 'Hoy 08:10 hs' }
+      ]
+    },
+    {
+      id: 'la-28', name: 'Pablo García', email: 'linea28@bienparada.ar', password: 'linea28pass', lineNumber: '28', companyName: 'DOTA S.A.', status: 'Activo', lastLogin: 'Hoy 09:40 hs', sessionDuration: '1 hr 30 min', lastActive: 'Hace 18 min',
+      activityLogs: [
+        { id: 'log-28-1', action: 'Verificación de Flota', detail: 'Revisó estatus de 12 coches en ramal Retiro.', timestamp: 'Hoy 10:00 hs' }
+      ]
+    }
+  ])
   const [liveUserList, setLiveUserList] = useState<any[]>(MOCK_USERS)
 
   // Real-time synchronization with app localStorage for active passenger profile & history
@@ -1837,6 +1889,284 @@ export default function SuperAdminDashboard() {
     )
   }
 
+  const renderCompanyAdminsDetail = () => {
+    const filteredAdmins = liveLineAdmins.filter(a => {
+      const q = lineAdminSearchTerm.toLowerCase().trim()
+      return !q ||
+        a.name.toLowerCase().includes(q) ||
+        a.email.toLowerCase().includes(q) ||
+        a.lineNumber.toLowerCase().includes(q) ||
+        a.companyName.toLowerCase().includes(q)
+    })
+
+    const selectedAdmin = liveLineAdmins.find(a => a.id === selectedLineAdminId) || filteredAdmins[0] || liveLineAdmins[0]
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {/* Header Summary Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px' }}>
+            <span style={{ fontSize: '10px', color: '#8f94a5', textTransform: 'uppercase', fontWeight: 600 }}>Total Admins de Línea</span>
+            <div style={{ fontSize: '22px', fontWeight: 800, color: '#fff', marginTop: '4px' }}>{liveLineAdmins.length} Registrados</div>
+          </div>
+          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px' }}>
+            <span style={{ fontSize: '10px', color: '#8f94a5', textTransform: 'uppercase', fontWeight: 600 }}>En Sesión Activa</span>
+            <div style={{ fontSize: '22px', fontWeight: 800, color: '#10B981', marginTop: '4px' }}>
+              {liveLineAdmins.filter(a => a.status === 'Activo').length} Admins
+            </div>
+          </div>
+          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px' }}>
+            <span style={{ fontSize: '10px', color: '#8f94a5', textTransform: 'uppercase', fontWeight: 600 }}>Acciones Auditadas</span>
+            <div style={{ fontSize: '22px', fontWeight: 800, color: '#3B82F6', marginTop: '4px' }}>
+              {liveLineAdmins.reduce((acc, a) => acc + (a.activityLogs?.length || 0), 0)} Registros
+            </div>
+          </div>
+          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px' }}>
+            <span style={{ fontSize: '10px', color: '#8f94a5', textTransform: 'uppercase', fontWeight: 600 }}>Sincronización</span>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: '#10B981', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#10B981' }} /> En Tiempo Real
+            </div>
+          </div>
+        </div>
+
+        {/* Search Toolbar */}
+        <div style={{ background: '#121527', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Building2 size={16} style={{ color: '#10B981' }} /> Control de Administradores de Empresa y Línea
+          </div>
+          <div style={{ position: 'relative', width: '280px' }}>
+            <input
+              type="text"
+              placeholder="Buscar por nombre, email o número de línea..."
+              value={lineAdminSearchTerm}
+              onChange={e => setLineAdminSearchTerm(e.target.value)}
+              style={{ width: '100%', padding: '6px 10px 6px 28px', background: '#181b2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', fontSize: '11px', outline: 'none' }}
+            />
+            <Search size={11} style={{ position: 'absolute', left: '9px', top: '9px', color: '#8f94a5' }} />
+          </div>
+        </div>
+
+        {/* Two Columns Grid: Left Admins List | Right Detail & Audit Log */}
+        <div style={{ display: 'flex', gap: '20px' }}>
+          {/* Left Column: Line Admins List */}
+          <div style={{ width: '42%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
+              <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 600 }}>Administradores de Línea Registrados</span>
+              <span style={{ fontSize: '10px', color: '#10B981', fontFamily: 'DM Mono' }}>● En tiempo real</span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '520px', overflowY: 'auto', paddingRight: '4px' }}>
+              {filteredAdmins.map(a => {
+                const isSelected = selectedAdmin?.id === a.id
+                const isPassVisible = !!showAdminPassword[a.id]
+
+                return (
+                  <div
+                    key={a.id}
+                    onClick={() => setSelectedLineAdminId(a.id)}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      background: isSelected ? 'rgba(16,185,129,0.12)' : '#121527',
+                      border: '1px solid ' + (isSelected ? '#10B981' : 'rgba(255,255,255,0.06)'),
+                      cursor: 'pointer',
+                      transition: 'all 150ms'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 800, color: '#fff', flexShrink: 0 }}>
+                        L{a.lineNumber}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '13px', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.name}</span>
+                          <span style={{ fontSize: '8px', fontWeight: 700, color: a.status === 'Activo' ? '#10B981' : '#ef4444', background: a.status === 'Activo' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', padding: '2px 6px', borderRadius: '8px' }}>
+                            {a.status}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '10px', color: '#8f94a5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {a.companyName}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Email & Password reveal line */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.25)', padding: '6px 10px', borderRadius: '6px', fontSize: '11px' }}>
+                      <span style={{ color: '#8f94a5', fontSize: '10px' }}>{a.email}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#F59E0B', fontFamily: 'DM Mono' }}>
+                        <Key size={10} />
+                        <span>{isPassVisible ? a.password : '••••••••••••'}</span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setShowAdminPassword(prev => ({ ...prev, [a.id]: !prev[a.id] }))
+                          }}
+                          style={{ background: 'none', border: 'none', color: '#8f94a5', cursor: 'pointer', padding: 0, display: 'flex' }}
+                          title={isPassVisible ? 'Ocultar contraseña' : 'Ver contraseña'}
+                        >
+                          {isPassVisible ? <EyeOff size={11} /> : <Eye size={11} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', color: '#8f94a5' }}>
+                      <span>🕒 Último ingreso: <strong style={{ color: '#fff' }}>{a.lastLogin}</strong></span>
+                      <span>⏱️ Sesión: <strong style={{ color: '#10B981' }}>{a.sessionDuration}</strong></span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Right Column: Selected Admin Detail & Audit Log */}
+          <div style={{ width: '58%', background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {selectedAdmin ? (
+              <>
+                {/* Admin Header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{ width: '48px', height: '48px', borderRadius: '10px', background: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 800, color: '#fff' }}>
+                    L{selectedAdmin.lineNumber}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '16px', fontWeight: 800, color: '#fff' }}>{selectedAdmin.name}</div>
+                    <div style={{ fontSize: '11px', color: '#8f94a5', marginTop: '2px' }}>{selectedAdmin.companyName}</div>
+                  </div>
+                  <span style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 700, color: selectedAdmin.status === 'Activo' ? '#10B981' : '#ef4444', background: selectedAdmin.status === 'Activo' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', padding: '4px 12px', borderRadius: '12px', textTransform: 'uppercase' }}>
+                    {selectedAdmin.status}
+                  </span>
+                </div>
+
+                {/* Credentials & Access Card */}
+                <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(245,158,11,0.2)', padding: '12px 16px', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', color: '#F59E0B', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Key size={12} /> Credenciales de Administrador de Empresa
+                    </span>
+                    <span style={{ fontSize: '9px', background: 'rgba(245,158,11,0.15)', color: '#F59E0B', padding: '2px 6px', borderRadius: '4px', fontFamily: 'DM Mono' }}>
+                      🔒 Acceso Concedido
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '4px', fontSize: '11px' }}>
+                    <div>
+                      <span style={{ color: '#8f94a5', display: 'block', fontSize: '9px' }}>EMAIL REGISTRADO</span>
+                      <span style={{ color: '#fff', fontWeight: 600, wordBreak: 'break-all' }}>{selectedAdmin.email}</span>
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#8f94a5', display: 'block', fontSize: '9px' }}>CONTRASEÑA ENCRIPTADA</span>
+                        <button
+                          onClick={() => setShowAdminPassword(prev => ({ ...prev, [selectedAdmin.id]: !prev[selectedAdmin.id] }))}
+                          style={{ background: 'none', border: 'none', color: '#3B82F6', fontSize: '10px', cursor: 'pointer', padding: 0, fontWeight: 600 }}
+                        >
+                          {showAdminPassword[selectedAdmin.id] ? 'Ocultar' : 'Ver'}
+                        </button>
+                      </div>
+                      <span style={{ color: '#F59E0B', fontFamily: 'DM Mono', fontWeight: 700 }}>
+                        {showAdminPassword[selectedAdmin.id] ? selectedAdmin.password : '••••••••••••'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Session Timestamps Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '9px', color: '#8f94a5' }}>ÚLTIMO INGRESO</div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff', marginTop: '4px' }}>{selectedAdmin.lastLogin}</div>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '9px', color: '#8f94a5' }}>TIEMPO EN SESIÓN</div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#10B981', marginTop: '4px' }}>{selectedAdmin.sessionDuration}</div>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.03)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '9px', color: '#8f94a5' }}>ÚLTIMA ACTIVIDAD</div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#3B82F6', marginTop: '4px' }}>{selectedAdmin.lastActive}</div>
+                  </div>
+                </div>
+
+                {/* Audit Log / Actions History Section */}
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      📝 Historial de Cambios y Registro de Auditoría
+                    </span>
+                    <span style={{ fontSize: '10px', color: '#8f94a5' }}>
+                      {selectedAdmin.activityLogs?.length || 0} acciones registradas
+                    </span>
+                  </div>
+
+                  <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '240px', paddingRight: '4px' }}>
+                    {(!selectedAdmin.activityLogs || selectedAdmin.activityLogs.length === 0) ? (
+                      <div style={{ padding: '20px', textAlign: 'center', color: '#8f94a5', fontSize: '11px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                        Sin registro de cambios recientes para este administrador.
+                      </div>
+                    ) : (
+                      selectedAdmin.activityLogs.map((log: any) => (
+                        <div
+                          key={log.id}
+                          style={{
+                            background: 'rgba(0,0,0,0.25)',
+                            border: '1px solid rgba(255,255,255,0.06)',
+                            borderRadius: '8px',
+                            padding: '10px 12px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#10B981' }}>{log.action}</span>
+                            <span style={{ fontSize: '9px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{log.timestamp}</span>
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#a3a6b8', lineHeight: '1.4' }}>
+                            {log.detail}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Action Contact Button */}
+                <button
+                  onClick={() => {
+                    handleMessageUser(selectedAdmin.name, selectedAdmin.email)
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    background: 'linear-gradient(135deg, rgba(16,185,129,0.2) 0%, rgba(59,130,246,0.2) 100%)',
+                    border: '1px solid rgba(16,185,129,0.4)',
+                    borderRadius: '8px',
+                    color: '#fff',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  💬 Abrir Chat de Soporte Técnico con {selectedAdmin.name}
+                </button>
+              </>
+            ) : (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8f94a5', fontSize: '12px' }}>
+                Seleccione un administrador de la lista
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   const renderTermsDetail = () => {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -2033,6 +2363,7 @@ export default function SuperAdminDashboard() {
     { id: 'overview', label: 'Panel Control', icon: BarChart2 },
     { id: 'linemaps', label: 'Mapas de Línea', icon: Bus },
     { id: 'drivers', label: 'Choferes y QR', icon: Users },
+    { id: 'company_admins', label: 'Admins de Línea', icon: Building2 },
     { id: 'ads', label: 'Publicidad', icon: Megaphone },
     { id: 'chat', label: 'Mensajería', icon: MessageSquare },
     { id: 'reports', label: 'Denuncias', icon: AlertTriangle },
@@ -2967,6 +3298,7 @@ export default function SuperAdminDashboard() {
             </div>
           </div>
         )}
+        {tab === 'company_admins' && renderCompanyAdminsDetail()}
         {tab === 'terms' && renderTermsDetail()}
       </main>
     </div>
