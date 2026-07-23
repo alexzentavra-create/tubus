@@ -1873,7 +1873,7 @@ export default function SuperAdminDashboard() {
               }}>
                 <div style={{
                   width: '100%',
-                  maxWidth: activeDetail === 'users' ? '900px' : '800px',
+                  maxWidth: activeDetail === 'users' ? '1100px' : '800px',
                   background: '#121527',
                   border: '1px solid rgba(255, 255, 255, 0.08)',
                   borderRadius: '16px',
