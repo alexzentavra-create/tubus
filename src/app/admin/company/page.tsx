@@ -237,7 +237,7 @@ export default function CompanyDashboard() {
 
   useEffect(() => {
     const defaultMsgs = [
-      { id: 'msg-1', sender: 'superadmin', text: '¡Hola! Bienvenido al canal de soporte oficial de TuBus. ¿En qué podemos ayudarte hoy con el panel de tu línea?', time: '09:00' }
+      { id: 'msg-1', sender: 'superadmin', text: '¡Hola! Bienvenido al canal de soporte oficial de BienParada. ¿En qué podemos ayudarte hoy con el panel de tu línea?', time: '09:00' }
     ]
     const stored = localStorage.getItem('mock_support_messages')
     if (stored) {
@@ -387,7 +387,7 @@ export default function CompanyDashboard() {
 
         // Generate email if missing
         if (!email) {
-          email = `${d.name.toLowerCase().replace(/[^a-z0-9]/g, '.').replace(/\.+/g, '.')}.linea${activeLine.line_number}@tubus.ar`
+          email = `${d.name.toLowerCase().replace(/[^a-z0-9]/g, '.').replace(/\.+/g, '.')}.linea${activeLine.line_number}@bienparada.ar`
           d.email = email
           needsUpdate = true
         }
@@ -1419,7 +1419,7 @@ export default function CompanyDashboard() {
       toast.error('Por favor, completa los campos requeridos (Nombre, Legajo y DNI)');
       return;
     }
-    const email = newDriverEmail.trim() || `${newDriverName.trim().toLowerCase().replace(/\s+/g, '.')}.linea${activeLine.line_number}@tubus.ar`
+    const email = newDriverEmail.trim() || `${newDriverName.trim().toLowerCase().replace(/\s+/g, '.')}.linea${activeLine.line_number}@bienparada.ar`
     const password = newDriverPassword.trim() || Math.random().toString(36).slice(2, 10)
 
     const newDriver = {
@@ -1567,7 +1567,7 @@ export default function CompanyDashboard() {
       const url = URL.createObjectURL(blob)
       const link = document.createElement("a")
       link.setAttribute("href", url)
-      link.setAttribute("download", `TuBus_Export_Linea_${activeLine.line_number}.csv`)
+      link.setAttribute("download", `BienParada_Export_Linea_${activeLine.line_number}.csv`)
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -3296,7 +3296,7 @@ export default function CompanyDashboard() {
               <div style={{ position: 'absolute', top: '8px', right: '8px', fontSize: '9px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(0,198,137,0.15)', color: '#00c689', fontWeight: 700 }}>
                 CAPTURA PREVIA
               </div>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>TuBus Panel · Línea {activeLine.line_number}</div>
+              <div style={{ fontSize: '13px', fontWeight: 700, color: '#fff', marginBottom: '4px' }}>BienParada Panel · Línea {activeLine.line_number}</div>
               <div style={{ fontSize: '10px', color: '#8f94a5', marginBottom: '12px' }}>{format(new Date(), 'dd/MM/yyyy HH:mm')} hs</div>
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '11px', color: '#fff' }}>
@@ -3316,7 +3316,7 @@ export default function CompanyDashboard() {
             {/* Sharing Channels List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
               <a
-                href={`mailto:?subject=TuBus - Panel Administrativo de la Linea ${activeLine.line_number}&body=Hola! Te comparto una vista del panel de control de TuBus para la linea ${activeLine.line_number}: http://tubus.com/shared/snapshot?line=${activeLine.line_number}`}
+                href={`mailto:?subject=BienParada - Panel Administrativo de la Linea ${activeLine.line_number}&body=Hola! Te comparto una vista del panel de control de BienParada para la linea ${activeLine.line_number}: http://bienparada.com/shared/snapshot?line=${activeLine.line_number}`}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -3337,7 +3337,7 @@ export default function CompanyDashboard() {
               </a>
 
               <a
-                href={`https://wa.me/?text=Hola! Te comparto una vista del panel de control de TuBus para la linea ${activeLine.line_number}: http://tubus.com/shared/snapshot?line=${activeLine.line_number}`}
+                href={`https://wa.me/?text=Hola! Te comparto una vista del panel de control de BienParada para la linea ${activeLine.line_number}: http://bienparada.com/shared/snapshot?line=${activeLine.line_number}`}
                 target="_blank"
                 rel="noreferrer"
                 style={{
@@ -3386,7 +3386,7 @@ export default function CompanyDashboard() {
 
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText(`http://tubus.com/shared/snapshot?line=${activeLine.line_number}`)
+                  navigator.clipboard.writeText(`http://bienparada.com/shared/snapshot?line=${activeLine.line_number}`)
                   toast.success('¡Enlace de captura copiado al portapapeles!')
                   setShowShareModal(false)
                 }}
@@ -3696,7 +3696,7 @@ export default function CompanyDashboard() {
                     <label style={{ display: 'block', color: '#8f94a5', fontSize: '12px', marginBottom: '6px', fontWeight: 500 }}>Email <span style={{ color: '#8f94a5', fontWeight: 400, fontSize: '11px' }}>(se autogenera si se deja vacío)</span></label>
                     <input
                       type="email"
-                      placeholder={`ej. ${(newDriverName || 'juan.perez').toLowerCase().replace(/\s+/g, '.')}.linea${activeLine.line_number}@tubus.ar`}
+                      placeholder={`ej. ${(newDriverName || 'juan.perez').toLowerCase().replace(/\s+/g, '.')}.linea${activeLine.line_number}@bienparada.ar`}
                       value={newDriverEmail}
                       onChange={(e) => setNewDriverEmail(e.target.value)}
                       style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}

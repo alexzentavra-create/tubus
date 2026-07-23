@@ -21082,11 +21082,11 @@ const DEFAULT_PREFS: UserPrefs = {
 function loadPrefs(): UserPrefs {
   if (typeof window === 'undefined') return DEFAULT_PREFS
   try {
-    const raw = localStorage.getItem('tubus_user_prefs')
+    const raw = localStorage.getItem('bienparada_user_prefs')
     return raw ? { ...DEFAULT_PREFS, ...JSON.parse(raw) } : DEFAULT_PREFS
   } catch { return DEFAULT_PREFS }
 }
-function savePrefs(p: UserPrefs) { localStorage.setItem('tubus_user_prefs', JSON.stringify(p)) }
+function savePrefs(p: UserPrefs) { localStorage.setItem('bienparada_user_prefs', JSON.stringify(p)) }
 
 const TRANSLATIONS: Record<string, string> = {
   // Navigation
@@ -21486,7 +21486,7 @@ export default function UserMapPage() {
     checkViewport()
     window.addEventListener('resize', checkViewport)
 
-    const completed = localStorage.getItem('tubus_onboarding_completed')
+    const completed = localStorage.getItem('bienparada_onboarding_completed')
     if (!completed) {
       setShowWelcome(true)
     }
@@ -21648,7 +21648,7 @@ export default function UserMapPage() {
       transitionDuration: 1000
     }))
 
-    toast.success("✨ ¡Viaje terminado! Gracias por viajar con TuBus.")
+    toast.success("✨ ¡Viaje terminado! Gracias por viajar con BienParada.")
   }
 
   useEffect(() => {
@@ -21754,11 +21754,11 @@ export default function UserMapPage() {
       if (dist <= 10) {
         if (!activeTimes[bus.id]) {
           activeTimes[bus.id] = now
-          console.log(`[TuBus Proximity] User is within 10m of Bus ${bus.bus_unit}. Starting countdown...`)
+          console.log(`[BienParada Proximity] User is within 10m of Bus ${bus.bus_unit}. Starting countdown...`)
         } else {
           const elapsed = now - activeTimes[bus.id]
           if (elapsed >= 120000) { // 2 minutes proximity threshold
-            console.log(`[TuBus Proximity] Proximity threshold met for Bus ${bus.bus_unit}! Auto-boarding user...`)
+            console.log(`[BienParada Proximity] Proximity threshold met for Bus ${bus.bus_unit}! Auto-boarding user...`)
             setUserBoardedBus(true)
             setTrackedBusId(bus.id)
             
@@ -21803,7 +21803,7 @@ export default function UserMapPage() {
         }
       } else {
         if (activeTimes[bus.id]) {
-          console.log(`[TuBus Proximity] User moved away from Bus ${bus.bus_unit}. Resetting countdown.`)
+          console.log(`[BienParada Proximity] User moved away from Bus ${bus.bus_unit}. Resetting countdown.`)
           delete activeTimes[bus.id]
         }
       }
@@ -22229,7 +22229,7 @@ export default function UserMapPage() {
       const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=es`
       const res = await fetch(url, {
         headers: {
-          'User-Agent': 'TuBus Buenos Aires App'
+          'User-Agent': 'BienParada Buenos Aires App'
         }
       })
       if (res.ok) {
@@ -22430,7 +22430,7 @@ export default function UserMapPage() {
         : '-58.5315,-34.7056,-58.3351,-34.5265'
       const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(text)}&format=json&accept-language=es&limit=5&viewbox=${viewbox}&bounded=1`
       const res = await fetch(url, {
-        headers: { 'User-Agent': 'TuBus Travel Planner App' }
+        headers: { 'User-Agent': 'BienParada Travel Planner App' }
       })
       if (res.ok) {
         const data = await res.json()
@@ -24316,7 +24316,7 @@ export default function UserMapPage() {
           </div>
           {!collapsed && (
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '15px', letterSpacing: '-0.01em' }}>TuBus</div>
+              <div style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '15px', letterSpacing: '-0.01em' }}>BienParada</div>
               <div style={{ color: 'var(--text-muted)', fontSize: '10px', fontFamily: 'DM Mono', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.email || 'usuario'}</div>
             </div>
           )}
@@ -26476,7 +26476,7 @@ export default function UserMapPage() {
                       }
                     }}
                     onRestartOnboarding={() => {
-                      localStorage.removeItem('tubus_onboarding_completed')
+                      localStorage.removeItem('bienparada_onboarding_completed')
                       setOnboardingStep(0)
                       setActivePanel('map')
                     }}
@@ -26624,7 +26624,7 @@ export default function UserMapPage() {
                   borderBottom: prefs.darkMap ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)'
                 }}>
                   <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#3B82F6', letterSpacing: '0.05em' }}>
-                    📢 Beneficio Exclusivo TuBus
+                    📢 Beneficio Exclusivo BienParada
                   </span>
                   <button
                     onClick={() => setTriggeredAd(null)}
@@ -26677,7 +26677,7 @@ export default function UserMapPage() {
                   </button>
                   <button
                     onClick={() => {
-                      window.open(triggeredAd.targetUrl || 'https://tubus.com.ar', '_blank')
+                      window.open(triggeredAd.targetUrl || 'https://bienparada.com.ar', '_blank')
                       setTriggeredAd(null)
                     }}
                     style={{
@@ -26863,7 +26863,7 @@ export default function UserMapPage() {
                   <button
                     onClick={() => {
                       setShowWelcome(false)
-                      localStorage.setItem('tubus_onboarding_completed', 'true')
+                      localStorage.setItem('bienparada_onboarding_completed', 'true')
                     }}
                     style={{
                       background: 'transparent',
@@ -26950,7 +26950,7 @@ export default function UserMapPage() {
                       <button
                         onClick={() => {
                           setOnboardingStep(-1)
-                          localStorage.setItem('tubus_onboarding_completed', 'true')
+                          localStorage.setItem('bienparada_onboarding_completed', 'true')
                         }}
                         style={{ background: 'none', border: 'none', color: '#9CA3AF', cursor: 'pointer' }}
                       >
@@ -26968,7 +26968,7 @@ export default function UserMapPage() {
                       <button
                         onClick={() => {
                           setOnboardingStep(-1)
-                          localStorage.setItem('tubus_onboarding_completed', 'true')
+                          localStorage.setItem('bienparada_onboarding_completed', 'true')
                         }}
                         style={{
                           background: 'transparent',
@@ -27000,7 +27000,7 @@ export default function UserMapPage() {
                             }
                           } else {
                             setOnboardingStep(-1)
-                            localStorage.setItem('tubus_onboarding_completed', 'true')
+                            localStorage.setItem('bienparada_onboarding_completed', 'true')
                           }
                         }}
                         style={{
@@ -27997,7 +27997,7 @@ function ProfilePanel({
       id: Date.now().toString(),
       title: adTitle,
       description: adDesc,
-      targetUrl: adUrl || 'https://tubus.com.ar',
+      targetUrl: adUrl || 'https://bienparada.com.ar',
       imageUrl: adUploadedImg || adImg || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80',
       budget: Number(adBudget) || 50,
       startDate: adStartDate,
@@ -28045,7 +28045,7 @@ function ProfilePanel({
 
     // Simulated Admin support reply
     setTimeout(() => {
-      let replyText = '¡Hola! Recibimos tu consulta en el soporte de TuBus. Un representante técnico se comunicará en breve.'
+      let replyText = '¡Hola! Recibimos tu consulta en el soporte de BienParada. Un representante técnico se comunicará en breve.'
       
       const lower = chatInput.toLowerCase()
       if (lower.includes('anuncio') || lower.includes('publicidad') || lower.includes('campaña')) {
@@ -28317,7 +28317,7 @@ function ProfilePanel({
           <div>
             <PanelTitle>Portal de Anuncios</PanelTitle>
             <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '16px', lineHeight: '1.4' }}>
-              Publicitá tu negocio dentro del mapa de TuBus. Tus campañas se mostrarán como banners informativos o promociones directas para los pasajeros.
+              Publicitá tu negocio dentro del mapa de BienParada. Tus campañas se mostrarán como banners informativos o promociones directas para los pasajeros.
             </div>
 
             {/* Ad Creation Form */}
@@ -28780,7 +28780,7 @@ function ProfilePanel({
                       style={{ marginTop: '2px', cursor: 'pointer', width: '15px', height: '15px', accentColor: '#F59E0B' }}
                     />
                     <div style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                      Acepto los <span onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowRulesModal(true); }} style={{ color: '#3B82F6', textDecoration: 'underline', fontWeight: 600, cursor: 'pointer' }}>Términos y Reglas de Publicación</span> de TuBus.
+                      Acepto los <span onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowRulesModal(true); }} style={{ color: '#3B82F6', textDecoration: 'underline', fontWeight: 600, cursor: 'pointer' }}>Términos y Reglas de Publicación</span> de BienParada.
                     </div>
                   </label>
                 </div>
@@ -28920,7 +28920,7 @@ function ProfilePanel({
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
             <PanelTitle>Soporte Técnico</PanelTitle>
             <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '12px', lineHeight: '1.4' }}>
-              Chat interactivo de soporte al pasajero. Consultanos tus dudas técnicas sobre TuBus y te responderemos inmediatamente.
+              Chat interactivo de soporte al pasajero. Consultanos tus dudas técnicas sobre BienParada y te responderemos inmediatamente.
             </div>
 
             {/* Messages Window */}
@@ -28940,7 +28940,7 @@ function ProfilePanel({
               boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)'
             }}>
               {chatMessages.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '11px' }}>Comenzá a chatear con soporte de TuBus...</div>
+                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)', fontSize: '11px' }}>Comenzá a chatear con soporte de BienParada...</div>
               ) : (
                 chatMessages.map(msg => {
                   const isUser = msg.sender === 'user'
@@ -29030,7 +29030,7 @@ function ProfilePanel({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <PanelTitle>Puntos y Referidos</PanelTitle>
             <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '4px', lineHeight: '1.4' }}>
-              Recomendá TuBus a tus amigos o marcas locales. Por cada nuevo registro o anunciante que use tu enlace de referidos, ganarás puntos que podés canjear por campañas publicitarias gratis.
+              Recomendá BienParada a tus amigos o marcas locales. Por cada nuevo registro o anunciante que use tu enlace de referidos, ganarás puntos que podés canjear por campañas publicitarias gratis.
             </div>
 
             {/* Points Summary Card */}
@@ -29080,7 +29080,7 @@ function ProfilePanel({
                 <input
                   type="text"
                   readOnly
-                  value={`https://tubus.com.ar/join?ref=${(localName || 'usuario').toLowerCase().replace(/\s+/g, '-')}`}
+                  value={`https://bienparada.com.ar/join?ref=${(localName || 'usuario').toLowerCase().replace(/\s+/g, '-')}`}
                   style={{
                     flex: 1,
                     background: prefs.darkMap ? 'rgba(15,23,42,0.6)' : '#F1F5F9',
@@ -29095,7 +29095,7 @@ function ProfilePanel({
                 />
                 <button
                   onClick={() => {
-                    const link = `https://tubus.com.ar/join?ref=${(localName || 'usuario').toLowerCase().replace(/\s+/g, '-')}`;
+                    const link = `https://bienparada.com.ar/join?ref=${(localName || 'usuario').toLowerCase().replace(/\s+/g, '-')}`;
                     navigator.clipboard.writeText(link);
                     toast.success('¡Enlace de referidos copiado al portapapeles!');
                   }}
@@ -29154,7 +29154,7 @@ function ProfilePanel({
                               ...pointsHistory
                             ];
                             updatePoints(points - reward.cost, newHistory);
-                            toast.success(`¡Canje exitoso! Código generado: TUBUS-REF-${reward.cost}-${Math.floor(1000 + Math.random() * 9000)}`);
+                            toast.success(`¡Canje exitoso! Código generado: BIENPARADA-REF-${reward.cost}-${Math.floor(1000 + Math.random() * 9000)}`);
                           }}
                           style={{
                             padding: '4px 10px',
@@ -29730,7 +29730,7 @@ function ProfilePanel({
                           <div style={{ display: 'flex', justifySelf: 'stretch', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
                               <span style={{ fontSize: '5px' }}>🔔</span>
-                              <span style={{ fontSize: '4.5px', fontWeight: 'bold', color: '#111827' }}>TuBus</span>
+                              <span style={{ fontSize: '4.5px', fontWeight: 'bold', color: '#111827' }}>BienParada</span>
                             </div>
                             <span style={{ fontSize: '3px', color: '#6B7280' }}>ahora</span>
                           </div>
@@ -29900,7 +29900,7 @@ function ProfilePanel({
               background: 'rgba(16, 185, 129, 0.08)'
             }}>
               <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                📜 Términos y Condiciones Generales de TuBus
+                📜 Términos y Condiciones Generales de BienParada
               </h3>
               <button
                 onClick={() => setShowGeneralTermsModal(false)}
@@ -30079,7 +30079,7 @@ function ProfilePanel({
                                 return {
                                   ...item,
                                   status: 'approved',
-                                  adminComment: '¡Tu anuncio ha sido verificado y ya está circulando en la red TuBus!',
+                                  adminComment: '¡Tu anuncio ha sido verificado y ya está circulando en la red BienParada!',
                                   activated_at: new Date().toISOString() // Track active time
                                 };
                               }

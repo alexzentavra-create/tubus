@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch(url, {
       headers: {
         'apikey': apiKey,
-        'User-Agent': 'TuBus Buenos Aires'
+        'User-Agent': 'BienParada Buenos Aires'
       }
     })
 

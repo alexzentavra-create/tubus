@@ -143,7 +143,7 @@ export async function GET(request: NextRequest) {
     console.log(`[Transitland API] Fetching real-time vehicles for Line ${lineNumber} from URL: ${url}`)
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'TuBus Buenos Aires'
+        'User-Agent': 'BienParada Buenos Aires'
       }
     })
 

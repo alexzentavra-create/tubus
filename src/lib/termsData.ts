@@ -1,25 +1,25 @@
-export const DEFAULT_GENERAL_TERMS = `# Términos y Condiciones Generales de la Aplicación TuBus
+export const DEFAULT_GENERAL_TERMS = `# Términos y Condiciones Generales de la Aplicación BienParada
 
 **Última actualización:** 23 de Julio, 2026 | **Versión:** 2.4
 
-Bienvenido a **TuBus**. Al acceder y utilizar nuestra plataforma de movilidad y seguimiento de transporte público en tiempo real, aceptas cumplir con los siguientes términos y condiciones de servicio.
+Bienvenido a **BienParada**. Al acceder y utilizar nuestra plataforma de movilidad y seguimiento de transporte público en tiempo real, aceptas cumplir con los siguientes términos y condiciones de servicio.
 
 ---
 
 ### 1. Naturaleza del Servicio
-TuBus proporciona información de transporte público, ubicaciones de colectivos en tiempo real mediante GPS de flota y cálculo de proximidad, mapas de recorridos, paradas cercanas y facilidades para pasajeros y empresas operadoras en la República Argentina y la región.
+BienParada proporciona información de transporte público, ubicaciones de colectivos en tiempo real mediante GPS de flota y cálculo de proximidad, mapas de recorridos, paradas cercanas y facilidades para pasajeros y empresas operadoras en la República Argentina y la región.
 
 ---
 
 ### 2. Uso Aceptable y Registro de Cuenta
 - Los usuarios deben proporcionar datos de registro veraces (nombre, email y contraseña encriptada).
 - Se prohíbe el uso automatizado, extracción masiva no autorizada (scraping) o interferencia con el servicio de geolocalización.
-- TuBus se reserva el derecho de suspender o revocar cuentas en caso de uso inadecuado o sospecha de fraude.
+- BienParada se reserva el derecho de suspender o revocar cuentas en caso de uso inadecuado o sospecha de fraude.
 
 ---
 
 ### 3. Precisión de la Información GPS
-Los tiempos de arribo, demoras y frecuencias mostrados en tiempo real son estimaciones calculadas mediante el monitoreo de unidades activas, tráfico urbano e informes de la comunidad. TuBus no garantiza la exactitud milimétrica de los tiempos debido a imponderables de tránsito o cortes de arterias viales.
+Los tiempos de arribo, demoras y frecuencias mostrados en tiempo real son estimaciones calculadas mediante el monitoreo de unidades activas, tráfico urbano e informes de la comunidad. BienParada no garantiza la exactitud milimétrica de los tiempos debido a imponderables de tránsito o cortes de arterias viales.
 
 ---
 
@@ -29,19 +29,19 @@ Los datos personales registrados se procesan bajo normas de cifrado y privacidad
 ---
 
 ### 5. Modificaciones de los Términos
-El equipo de Administración de TuBus se reserva la facultad de actualizar estos términos. Las modificaciones surtirán efecto inmediatamente después de su publicación.
+El equipo de Administración de BienParada se reserva la facultad de actualizar estos términos. Las modificaciones surtirán efecto inmediatamente después de su publicación.
 `
 
-export const DEFAULT_ADS_TERMS = `# Términos y Reglas de Publicación de Anuncios y Contenido Comercial en TuBus
+export const DEFAULT_ADS_TERMS = `# Términos y Reglas de Publicación de Anuncios y Contenido Comercial en BienParada
 
 **Última actualización:** 23 de Julio, 2026 | **Versión:** 2.1
 
-Al enviar una campaña publicitaria, cupón de descuento o anuncio patrocinado en TuBus, el anunciante acepta los siguientes términos de publicación y políticas comerciales:
+Al enviar una campaña publicitaria, cupón de descuento o anuncio patrocinado en BienParada, el anunciante acepta los siguientes términos de publicación y políticas comerciales:
 
 ---
 
 ### 1. Proceso de Revisión y Aprobación
-Todas las campañas enviadas a la plataforma TuBus quedan sujetas a revisión previa por parte del equipo de Super Administración. TuBus se reserva el derecho de aprobar, solicitar modificaciones o rechazar cualquier anuncio que incumpla las políticas del servicio.
+Todas las campañas enviadas a la plataforma BienParada quedan sujetas a revisión previa por parte del equipo de Super Administración. BienParada se reserva el derecho de aprobar, solicitar modificaciones o rechazar cualquier anuncio que incumpla las políticas del servicio.
 
 ---
 

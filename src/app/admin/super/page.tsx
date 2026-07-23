@@ -657,7 +657,7 @@ export default function SuperAdminDashboard() {
       userAvatar: 'SV',
       bannerBg: 'linear-gradient(135deg, #f59e0b, #b45309)',
       bannerText: 'Mostaza Mega Deluxe 🍔',
-      bannerTagline: '20% OFF presentando tu boleto de TuBus en caja.'
+      bannerTagline: '20% OFF presentando tu boleto de BienParada en caja.'
     },
     {
       id: 'ad-3',
@@ -856,8 +856,8 @@ export default function SuperAdminDashboard() {
 
 
   const handleSendAdReferral = (advertiserName: string) => {
-    const uniqueRefLink = `https://tubus.com.ar/join?ref=${advertiserName.toLowerCase().replace(/\s+/g, '-')}`
-    const promoMsg = `¡Hola! Aquí tienes tu enlace único de referidos de TuBus: ${uniqueRefLink}. Compartilo para que nuevos usuarios se registren y ganes puntos canjeables por publicidad gratuita.`
+    const uniqueRefLink = `https://bienparada.com.ar/join?ref=${advertiserName.toLowerCase().replace(/\s+/g, '-')}`
+    const promoMsg = `¡Hola! Aquí tienes tu enlace único de referidos de BienParada: ${uniqueRefLink}. Compartilo para que nuevos usuarios se registren y ganes puntos canjeables por publicidad gratuita.`
 
     const existingChat = chats.find(c => c.name.toLowerCase().includes(advertiserName.toLowerCase()))
     let targetChatId = ''
@@ -3108,7 +3108,7 @@ function SingleLineMap({ line, onMessageAdmin, theme }: { line: any, onMessageAd
     }
   }
 
-  const adminInCharge = LINE_ADMINS[line.id] || { name: 'Operaciones Gral', email: 'ops@tubus.com.ar' }
+  const adminInCharge = LINE_ADMINS[line.id] || { name: 'Operaciones Gral', email: 'ops@bienparada.com.ar' }
   const lineStopsList = getMockStopsForLine(line, 'ida')
 
   return (
@@ -3766,7 +3766,7 @@ function AdsTab({
                     e.stopPropagation();
                     setSelectedUser({
                       name: ad.userName || 'Anunciante Corporativo',
-                      email: ad.userEmail || 'ads@tubus.com.ar',
+                      email: ad.userEmail || 'ads@bienparada.com.ar',
                       avatar: ad.userAvatar || 'AC',
                       adTitle: ad.title
                     });
@@ -3893,7 +3893,7 @@ function AdsTab({
                             userAvatar: '?',
                             bannerBg: 'linear-gradient(135deg, #1e293b, #0f172a)',
                             bannerText: 'Espacio Disponible',
-                            bannerTagline: '¡Anunciate aquí con TuBus!',
+                            bannerTagline: '¡Anunciate aquí con BienParada!',
                             status: 'approved',
                             isActive: false,
                             timestamp: 'Hoy'
@@ -4019,7 +4019,7 @@ function AdsTab({
               onClick={() => {
                 setSelectedUser({
                   name: selectedAd.userName || 'Anunciante Corporativo',
-                  email: selectedAd.userEmail || 'ads@tubus.com.ar',
+                  email: selectedAd.userEmail || 'ads@bienparada.com.ar',
                   avatar: selectedAd.userAvatar || 'AC',
                   adTitle: selectedAd.title
                 });
@@ -4742,7 +4742,7 @@ const DRILLDOWN_DATA: Record<string, {
                 usage: 82,
                 ad: {
                   title: 'Hamburguesería Mostaza',
-                  tagline: '20% OFF presentando tu boleto de TuBus en caja.',
+                  tagline: '20% OFF presentando tu boleto de BienParada en caja.',
                   image: '🍔',
                   budget: 85000,
                   duration: '15 días',
@@ -5144,7 +5144,7 @@ function ProvinceMapTab({
   }, [selectedProvinceKey])
 
   const handleMessageAdvertiser = (ad: any) => {
-    const initMsg = `Hola ${ad.userName}, soy el Super Administrador de TuBus. Me pongo en contacto con vos por tu campaña "${ad.title}" en la parada "${ad.stop || 'Plaza Italia'}".`
+    const initMsg = `Hola ${ad.userName}, soy el Super Administrador de BienParada. Me pongo en contacto con vos por tu campaña "${ad.title}" en la parada "${ad.stop || 'Plaza Italia'}".`
     const existing = chats.find((c: any) => c.name.toLowerCase().includes(ad.userName.toLowerCase()))
     let targetId = ''
 
