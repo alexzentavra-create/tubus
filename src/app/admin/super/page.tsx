@@ -7,7 +7,7 @@ import {
   ChevronRight, Star, Wifi, Search, Bell, Mail, Calendar,
   Share2, Printer, Plus, Trash2, ChevronDown, CheckCircle2,
   Circle, Flag, Info, Megaphone, MessageSquare, Eye, EyeOff,
-  BookOpen, Globe, Award, ListChecks
+  BookOpen, Globe, Award, ListChecks, Key, Filter, History as HistoryIcon
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre'
@@ -543,6 +543,51 @@ export default function SuperAdminDashboard() {
   const [userSearchTerm, setUserSearchTerm] = useState('')
   const [growthPeriod, setGrowthPeriod] = useState<'day' | 'week' | 'month'>('week')
 
+  // Advanced user stats filters and real-time state
+  const [userFilterStop, setUserFilterStop] = useState<string>('all')
+  const [userFilterAds, setUserFilterAds] = useState<'all' | 'has_ads' | 'no_ads'>('all')
+  const [userFilterTrips, setUserFilterTrips] = useState<'all' | 'frequent' | 'occasional'>('all')
+  const [userFilterGender, setUserFilterGender] = useState<string>('all')
+  const [userFilterProvince, setUserFilterProvince] = useState<string>('all')
+  const [userFilterStatus, setUserFilterStatus] = useState<string>('all')
+  const [showUserPassword, setShowUserPassword] = useState<Record<string, boolean>>({})
+  const [showHistoryModalForUser, setShowHistoryModalForUser] = useState<any | null>(null)
+  const [liveUserList, setLiveUserList] = useState<any[]>(MOCK_USERS)
+
+  // Real-time synchronization with app localStorage for active passenger profile & history
+  useEffect(() => {
+    const syncUsersFromStorage = () => {
+      if (typeof window === 'undefined') return
+      try {
+        const profileName = localStorage.getItem('profile_name') || localStorage.getItem('tu_bus_profile_name') || 'Alejandro Zentavra'
+        const profileEmail = localStorage.getItem('profile_email') || localStorage.getItem('tu_bus_profile_email') || 'ale.zentavra@demo.com.ar'
+        const rawHistory = localStorage.getItem('bu_search_history')
+        const searchHistory = rawHistory ? JSON.parse(rawHistory) : []
+
+        setLiveUserList(prevList => {
+          const list = [...prevList]
+          const existingIdx = list.findIndex(u => u.id === 'usr-1' || u.email === profileEmail)
+          if (existingIdx !== -1) {
+            list[existingIdx] = {
+              ...list[existingIdx],
+              name: profileName,
+              email: profileEmail,
+              searches: Math.max(list[existingIdx].searches, searchHistory.length),
+              searchHistory: searchHistory.length > 0 ? searchHistory : list[existingIdx].searchHistory
+            }
+          }
+          return list
+        })
+      } catch (err) {
+        console.error('Error syncing real-time user data:', err)
+      }
+    }
+
+    syncUsersFromStorage()
+    window.addEventListener('storage', syncUsersFromStorage)
+    return () => window.removeEventListener('storage', syncUsersFromStorage)
+  }, [])
+
   // Graph mode (day, week, month)
   const [graphPeriod, setGraphPeriod] = useState<'day' | 'week' | 'month'>('week')
   const [adGraphPeriod, setAdGraphPeriod] = useState<'day' | 'week' | 'month'>('week')
@@ -938,18 +983,54 @@ export default function SuperAdminDashboard() {
 
   const renderUsersDetail = () => {
     const activeStats = GROWTH_STATS[growthPeriod]
-    const filteredUsers = MOCK_USERS.filter(u =>
-      u.name.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(userSearchTerm.toLowerCase())
-    )
-    const selectedUser = MOCK_USERS.find(u => u.id === selectedUserId) || MOCK_USERS[0]
+
+    // Active filters matching logic
+    const filteredUsers = liveUserList.filter(u => {
+      const q = userSearchTerm.toLowerCase().trim()
+      const matchesSearch = !q ||
+        u.name.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        (u.password && u.password.toLowerCase().includes(q)) ||
+        (u.province && u.province.toLowerCase().includes(q)) ||
+        (u.city && u.city.toLowerCase().includes(q))
+
+      const matchesStop = userFilterStop === 'all' || u.frequentStop === userFilterStop
+      const matchesAds = userFilterAds === 'all' ||
+        (userFilterAds === 'has_ads' && u.hasAds) ||
+        (userFilterAds === 'no_ads' && !u.hasAds)
+      const matchesTrips = userFilterTrips === 'all' ||
+        (userFilterTrips === 'frequent' && (u.dailyBuses || 0) > 1.0) ||
+        (userFilterTrips === 'occasional' && (u.dailyBuses || 0) <= 1.0)
+      const matchesGender = userFilterGender === 'all' || u.gender === userFilterGender
+      const matchesProvince = userFilterProvince === 'all' || u.province === userFilterProvince
+      const matchesStatus = userFilterStatus === 'all' || u.status === userFilterStatus
+
+      return matchesSearch && matchesStop && matchesAds && matchesTrips && matchesGender && matchesProvince && matchesStatus
+    })
+
+    const selectedUser = liveUserList.find(u => u.id === selectedUserId) || filteredUsers[0] || liveUserList[0]
+
+    const hasActiveFilters = userSearchTerm || userFilterStop !== 'all' || userFilterAds !== 'all' ||
+      userFilterTrips !== 'all' || userFilterGender !== 'all' || userFilterProvince !== 'all' || userFilterStatus !== 'all'
+
+    const clearFilters = () => {
+      setUserSearchTerm('')
+      setUserFilterStop('all')
+      setUserFilterAds('all')
+      setUserFilterTrips('all')
+      setUserFilterGender('all')
+      setUserFilterProvince('all')
+      setUserFilterStatus('all')
+    }
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {/* Growth Stats Filter */}
+        {/* Growth Stats Filter Header */}
         <div style={{ background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
-            <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>Estadísticas de Crecimiento</span>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <TrendingUp size={14} style={{ color: '#10B981' }} /> Estadísticas de Crecimiento
+            </span>
             <div style={{ display: 'flex', background: '#1b1d2e', borderRadius: '6px', padding: '3px', border: '1px solid rgba(255,255,255,0.05)' }}>
               <button onClick={() => setGrowthPeriod('day')} style={{ padding: '4px 10px', border: 'none', background: growthPeriod === 'day' ? '#10B981' : 'transparent', color: '#fff', fontSize: '11px', fontWeight: 600, borderRadius: '4px', cursor: 'pointer' }}>Día</button>
               <button onClick={() => setGrowthPeriod('week')} style={{ padding: '4px 10px', border: 'none', background: growthPeriod === 'week' ? '#10B981' : 'transparent', color: '#fff', fontSize: '11px', fontWeight: 600, borderRadius: '4px', cursor: 'pointer' }}>Semana</button>
@@ -980,53 +1061,301 @@ export default function SuperAdminDashboard() {
           </div>
         </div>
 
-        {/* Double Column Users List and Profiles */}
-        <div style={{ display: 'flex', gap: '20px' }}>
-          {/* User List */}
-          <div style={{ width: '40%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <div style={{ position: 'relative' }}>
-              <input
-                type="text"
-                placeholder="Buscar usuarios..."
-                value={userSearchTerm}
-                onChange={e => setUserSearchTerm(e.target.value)}
-                style={{ width: '100%', padding: '8px 12px 8px 30px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#fff', fontSize: '12px', outline: 'none' }}
-              />
-              <Search size={12} style={{ position: 'absolute', left: '10px', top: '11px', color: '#8f94a5' }} />
+        {/* Multi-Criteria Filters Toolbar */}
+        <div style={{ background: 'rgba(0,0,0,0.2)', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+            <div style={{ fontSize: '12px', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Filter size={13} style={{ color: '#3B82F6' }} /> Filtros de Selección de Usuarios
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '350px', overflowY: 'auto' }}>
-              {filteredUsers.map(u => {
-                const isSelected = selectedUserId === u.id
-                return (
-                  <div
-                    key={u.id}
-                    onClick={() => setSelectedUserId(u.id)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', borderRadius: '8px', background: isSelected ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.02)', border: `1px solid ${isSelected ? '#10B981' : 'rgba(255,255,255,0.05)'}`, cursor: 'pointer', transition: 'all 150ms' }}
-                  >
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 600, color: '#fff' }}>{u.avatar}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '12px', fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.name}</div>
-                      <div style={{ fontSize: '10px', color: '#8f94a5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.email}</div>
-                    </div>
-                  </div>
-                )
-              })}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '11px', color: '#8f94a5' }}>
+                Mostrando <strong style={{ color: '#10B981' }}>{filteredUsers.length}</strong> de 4,820 usuarios
+              </span>
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', fontSize: '10px', padding: '3px 8px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600 }}
+                >
+                  🔄 Limpiar Filtros
+                </button>
+              )}
             </div>
           </div>
 
-          {/* User Profile Detail */}
-          <div style={{ width: '60%', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '8px' }}>
+            {/* Search Input */}
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                placeholder="Buscar por nombre, email o clave..."
+                value={userSearchTerm}
+                onChange={e => setUserSearchTerm(e.target.value)}
+                style={{ width: '100%', padding: '6px 10px 6px 28px', background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', fontSize: '11px', outline: 'none' }}
+              />
+              <Search size={11} style={{ position: 'absolute', left: '9px', top: '9px', color: '#8f94a5' }} />
+            </div>
+
+            {/* Parada más frecuente */}
+            <select
+              value={userFilterStop}
+              onChange={e => setUserFilterStop(e.target.value)}
+              style={{ padding: '6px 8px', background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', fontSize: '11px', outline: 'none', cursor: 'pointer' }}
+            >
+              <option value="all">📍 Parada (Todas)</option>
+              <option value="Av. Santa Fe y Callao">Av. Santa Fe y Callao</option>
+              <option value="Plaza Italia (Palermo)">Plaza Italia (Palermo)</option>
+              <option value="Constitución (Tren & Colectivo)">Constitución</option>
+              <option value="Retiro (Terminal)">Retiro</option>
+              <option value="Obelisco (Metrobús 9 de Julio)">Obelisco</option>
+              <option value="Av. Corrientes y Medrano">Av. Corrientes y Medrano</option>
+              <option value="Puente Saavedra">Puente Saavedra</option>
+              <option value="Patio Olmos (Córdoba)">Patio Olmos (Córdoba)</option>
+              <option value="Peatonal Córdoba (Rosario)">Peatonal Córdoba (Rosario)</option>
+              <option value="Plaza Independencia (Mendoza)">Plaza Independencia (Mendoza)</option>
+            </select>
+
+            {/* Publicidad / Ads */}
+            <select
+              value={userFilterAds}
+              onChange={e => setUserFilterAds(e.target.value as any)}
+              style={{ padding: '6px 8px', background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', fontSize: '11px', outline: 'none', cursor: 'pointer' }}
+            >
+              <option value="all">📢 Publicidad (Todos)</option>
+              <option value="has_ads">Con Publicidad (Gratis)</option>
+              <option value="no_ads">Sin Publicidad (Premium)</option>
+            </select>
+
+            {/* Uso diario (>1 colectivo/día) */}
+            <select
+              value={userFilterTrips}
+              onChange={e => setUserFilterTrips(e.target.value as any)}
+              style={{ padding: '6px 8px', background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', fontSize: '11px', outline: 'none', cursor: 'pointer' }}
+            >
+              <option value="all">🚌 Frecuencia (Todos)</option>
+              <option value="frequent">&gt;1 colectivo/día (Frecuente)</option>
+              <option value="occasional">≤1 colectivo/día (Ocasional)</option>
+            </select>
+
+            {/* Género */}
+            <select
+              value={userFilterGender}
+              onChange={e => setUserFilterGender(e.target.value)}
+              style={{ padding: '6px 8px', background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', fontSize: '11px', outline: 'none', cursor: 'pointer' }}
+            >
+              <option value="all">🚻 Género (Todos)</option>
+              <option value="Femenino">Mujer</option>
+              <option value="Masculino">Hombre</option>
+            </select>
+
+            {/* Ciudad / Provincia */}
+            <select
+              value={userFilterProvince}
+              onChange={e => setUserFilterProvince(e.target.value)}
+              style={{ padding: '6px 8px', background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', fontSize: '11px', outline: 'none', cursor: 'pointer' }}
+            >
+              <option value="all">🌎 Provincia (Todas)</option>
+              <option value="Buenos Aires">Buenos Aires (AMBA/CABA)</option>
+              <option value="Córdoba">Córdoba</option>
+              <option value="Santa Fe">Santa Fe</option>
+              <option value="Mendoza">Mendoza</option>
+              <option value="Tucumán">Tucumán</option>
+            </select>
+
+            {/* Estado de cuenta */}
+            <select
+              value={userFilterStatus}
+              onChange={e => setUserFilterStatus(e.target.value)}
+              style={{ padding: '6px 8px', background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', fontSize: '11px', outline: 'none', cursor: 'pointer' }}
+            >
+              <option value="all">⚡ Estado (Todos)</option>
+              <option value="Activo">Activo</option>
+              <option value="Inactivo">Inactivo</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Two Columns: Left = User List with passwords & pills, Right = Selected Profile Card */}
+        <div style={{ display: 'flex', gap: '20px' }}>
+          {/* Left Column: User List */}
+          <div style={{ width: '42%', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 4px' }}>
+              <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 600 }}>Lista de Usuarios Registrados</span>
+              <span style={{ fontSize: '10px', color: '#10B981', fontFamily: 'DM Mono' }}>● En tiempo real</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
+              {filteredUsers.length === 0 ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#8f94a5', fontSize: '11px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  No se encontraron usuarios con los filtros seleccionados.
+                </div>
+              ) : (
+                filteredUsers.map(u => {
+                  const isSelected = selectedUser?.id === u.id
+                  const isPassVisible = !!showUserPassword[u.id]
+
+                  return (
+                    <div
+                      key={u.id}
+                      onClick={() => setSelectedUserId(u.id)}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px',
+                        padding: '10px 12px',
+                        borderRadius: '10px',
+                        background: isSelected ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.02)',
+                        border: '1px solid ' + (isSelected ? '#10B981' : 'rgba(255,255,255,0.06)'),
+                        cursor: 'pointer',
+                        transition: 'all 150ms'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: isSelected ? '#10B981' : '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                          {u.avatar}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span style={{ fontSize: '12px', fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.name}</span>
+                            <span style={{ fontSize: '8px', fontWeight: 700, color: u.status === 'Activo' ? '#10B981' : '#ef4444', background: u.status === 'Activo' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', padding: '1px 6px', borderRadius: '8px' }}>
+                              {u.status}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#8f94a5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {u.email}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Password line & badges */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.25)', padding: '4px 8px', borderRadius: '6px', fontSize: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#F59E0B', fontFamily: 'DM Mono' }}>
+                          <Key size={10} />
+                          <span>{isPassVisible ? u.password : '••••••••••••'}</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setShowUserPassword(prev => ({ ...prev, [u.id]: !prev[u.id] }))
+                            }}
+                            style={{ background: 'none', border: 'none', color: '#8f94a5', cursor: 'pointer', padding: 0, display: 'flex' }}
+                            title={isPassVisible ? 'Ocultar contraseña' : 'Ver contraseña'}
+                          >
+                            {isPassVisible ? <EyeOff size={10} /> : <Eye size={10} />}
+                          </button>
+                        </div>
+                        <div style={{ display: 'flex', gap: '4px' }}>
+                          <span style={{ fontSize: '8px', padding: '1px 5px', borderRadius: '4px', background: u.hasAds ? 'rgba(251,146,60,0.15)' : 'rgba(59,130,246,0.15)', color: u.hasAds ? '#FB923C' : '#3B82F6' }}>
+                            {u.hasAds ? 'Con Ads' : 'Sin Ads'}
+                          </span>
+                          {u.dailyBuses > 1.0 && (
+                            <span style={{ fontSize: '8px', padding: '1px 5px', borderRadius: '4px', background: 'rgba(16,185,129,0.15)', color: '#10B981' }}>
+                              &gt;1 bus/día
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Right Column: Selected User Profile Detail Card */}
+          <div style={{ width: '58%', background: 'rgba(0,0,0,0.15)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '18px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {selectedUser ? (
               <>
+                {/* User Header */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: '42px', height: '42px', borderRadius: '50%', background: '#8B5CF6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: 600, color: '#fff' }}>{selectedUser.avatar}</div>
-                  <div>
-                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>{selectedUser.name}</div>
-                    <div style={{ fontSize: '11px', color: '#8f94a5', marginTop: '2px' }}>Unido: {selectedUser.joinedDate}</div>
+                  <div style={{ width: '46px', height: '46px', borderRadius: '50%', background: '#8B5CF6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: 700, color: '#fff' }}>
+                    {selectedUser.avatar}
                   </div>
-                  <span style={{ marginLeft: 'auto', fontSize: '9px', fontWeight: 700, color: selectedUser.status === 'Activo' ? '#10B981' : '#ef4444', background: selectedUser.status === 'Activo' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', padding: '2px 8px', borderRadius: '10px', textTransform: 'uppercase' }}>{selectedUser.status}</span>
+                  <div>
+                    <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>{selectedUser.name}</div>
+                    <div style={{ fontSize: '11px', color: '#8f94a5', marginTop: '2px' }}>Unido el: {selectedUser.joinedDate}</div>
+                  </div>
+                  <span style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 700, color: selectedUser.status === 'Activo' ? '#10B981' : '#ef4444', background: selectedUser.status === 'Activo' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', padding: '3px 10px', borderRadius: '12px', textTransform: 'uppercase' }}>
+                    {selectedUser.status}
+                  </span>
                 </div>
 
+                {/* Credentials Card (Email + Password Reveal) */}
+                <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(245,158,11,0.2)', padding: '10px 14px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', color: '#F59E0B', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Key size={12} /> Credenciales de Acceso a la Cuenta
+                    </span>
+                    <span style={{ fontSize: '9px', background: 'rgba(245,158,11,0.15)', color: '#F59E0B', padding: '2px 6px', borderRadius: '4px', fontFamily: 'DM Mono' }}>
+                      🔒 BCrypt Hashed
+                    </span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px', fontSize: '11px' }}>
+                    <div>
+                      <span style={{ color: '#8f94a5', display: 'block', fontSize: '9px' }}>EMAIL REGISTRADO</span>
+                      <span style={{ color: '#fff', fontWeight: 500, wordBreak: 'break-all' }}>{selectedUser.email}</span>
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ color: '#8f94a5', display: 'block', fontSize: '9px' }}>CONTRASEÑA ENCRIPTADA</span>
+                        <button
+                          onClick={() => setShowUserPassword(prev => ({ ...prev, [selectedUser.id]: !prev[selectedUser.id] }))}
+                          style={{ background: 'none', border: 'none', color: '#3B82F6', fontSize: '10px', cursor: 'pointer', padding: 0, fontWeight: 600 }}
+                        >
+                          {showUserPassword[selectedUser.id] ? 'Ocultar' : 'Ver'}
+                        </button>
+                      </div>
+                      <span style={{ color: '#F59E0B', fontFamily: 'DM Mono', fontWeight: 600 }}>
+                        {showUserPassword[selectedUser.id] ? selectedUser.password : '••••••••••••'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Profile Key Demographics & Habits Badges */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', fontSize: '11px' }}>
+                  <div style={{ background: 'rgba(255,255,255,0.03)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <span style={{ color: '#8f94a5', fontSize: '9px', display: 'block' }}>UBICACIÓN (CIUDAD & PROVINCIA)</span>
+                    <span style={{ color: '#fff', fontWeight: 600 }}>🌎 {selectedUser.city || 'CABA'}, {selectedUser.province || 'Buenos Aires'}</span>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.03)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <span style={{ color: '#8f94a5', fontSize: '9px', display: 'block' }}>GÉNERO</span>
+                    <span style={{ color: '#fff', fontWeight: 600 }}>👤 {selectedUser.gender || 'No especificado'}</span>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.03)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <span style={{ color: '#8f94a5', fontSize: '9px', display: 'block' }}>PARADA MÁS FRECUENTE</span>
+                    <span style={{ color: '#10B981', fontWeight: 600 }}>📍 {selectedUser.frequentStop || 'Av. Santa Fe y Callao'}</span>
+                  </div>
+                  <div style={{ background: 'rgba(255,255,255,0.03)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <span style={{ color: '#8f94a5', fontSize: '9px', display: 'block' }}>PLAN & PUBLICIDAD</span>
+                    <span style={{ color: selectedUser.hasAds ? '#FB923C' : '#3B82F6', fontWeight: 600 }}>
+                      📢 {selectedUser.hasAds ? 'Con Publicidad (Gratis)' : 'Sin Publicidad (Premium)'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Travel Search History Button Action */}
+                <button
+                  onClick={() => setShowHistoryModalForUser(selectedUser)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    background: 'linear-gradient(135deg, rgba(16,185,129,0.2) 0%, rgba(59,130,246,0.2) 100%)',
+                    border: '1px solid rgba(16,185,129,0.4)',
+                    borderRadius: '8px',
+                    color: '#fff',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    transition: 'all 150ms'
+                  }}
+                >
+                  <HistoryIcon size={14} style={{ color: '#10B981' }} />
+                  📜 Ver Historial de Búsquedas de Viaje ({selectedUser.searchHistory?.length || selectedUser.searches} búsquedas)
+                </button>
+
+                {/* Behavior description */}
                 <div style={{ fontSize: '11px', color: '#a3a6b8', background: 'rgba(255,255,255,0.03)', padding: '10px 12px', borderRadius: '8px', borderLeft: '3px solid #10B981', lineHeight: '1.4' }}>
                   {selectedUser.behavior}
                 </div>
@@ -1047,7 +1376,7 @@ export default function SuperAdminDashboard() {
                   </div>
                   <div style={{ background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '8px', textAlign: 'center', overflow: 'hidden' }}>
                     <div style={{ fontSize: '9px', color: '#8f94a5' }}>Favoritos</div>
-                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#fff', marginTop: '6px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{selectedUser.favLines[0]}</div>
+                    <div style={{ fontSize: '10px', fontWeight: 700, color: '#fff', marginTop: '6px', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{selectedUser.favLines ? selectedUser.favLines[0] : 'N/A'}</div>
                   </div>
                 </div>
 
@@ -1055,12 +1384,12 @@ export default function SuperAdminDashboard() {
                 <div>
                   <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 600, display: 'block', marginBottom: '8px' }}>Uso Semanal (Búsquedas y viajes por día)</span>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', height: '80px', background: 'rgba(0,0,0,0.2)', padding: '10px 14px', borderRadius: '8px' }}>
-                    {selectedUser.weeklyUsage.map((day, idx) => {
-                      const maxVal = Math.max(...selectedUser.weeklyUsage.map(d=>d.count)) || 1
+                    {selectedUser.weeklyUsage.map((day: any, idx: number) => {
+                      const maxVal = Math.max(...selectedUser.weeklyUsage.map((d: any)=>d.count)) || 1
                       const pctHeight = (day.count / maxVal) * 100
                       return (
                         <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flex: 1 }}>
-                          <div style={{ width: '12px', height: `${pctHeight * 0.5 + 4}px`, background: '#10B981', borderRadius: '3px', position: 'relative' }} title={`${day.count} actividades`} />
+                          <div style={{ width: '12px', height: (pctHeight * 0.5 + 4) + 'px', background: '#10B981', borderRadius: '3px', position: 'relative' }} title={day.count + ' actividades'} />
                           <span style={{ fontSize: '8px', color: '#8f94a5' }}>{day.day}</span>
                         </div>
                       )
@@ -1069,10 +1398,146 @@ export default function SuperAdminDashboard() {
                 </div>
               </>
             ) : (
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8f94a5', fontSize: '12px' }}>Seleccione un usuario de la lista</div>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8f94a5', fontSize: '12px' }}>
+                Seleccione un usuario de la lista
+              </div>
             )}
           </div>
         </div>
+
+        {/* Modal Overlay: Travel Search History Modal */}
+        {showHistoryModalForUser && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '20px'
+          }}>
+            <div style={{
+              width: '100%',
+              maxWidth: '650px',
+              background: '#181b2e',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              borderRadius: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              maxHeight: '80vh',
+              boxShadow: '0 25px 50px rgba(0, 0, 0, 0.6)',
+              overflow: 'hidden'
+            }}>
+              {/* Modal Header */}
+              <div style={{
+                padding: '16px 20px',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'rgba(16,185,129,0.05)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <HistoryIcon size={18} style={{ color: '#10B981' }} />
+                  <div>
+                    <h3 style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: '#fff' }}>
+                      Historial de Búsquedas de Viaje
+                    </h3>
+                    <span style={{ fontSize: '11px', color: '#8f94a5' }}>
+                      Usuario: <strong style={{ color: '#10B981' }}>{showHistoryModalForUser.name}</strong> ({showHistoryModalForUser.email})
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowHistoryModalForUser(null)}
+                  style={{
+                    background: 'rgba(255,255,255,0.08)',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '28px',
+                    height: '28px',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer'
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {(!showHistoryModalForUser.searchHistory || showHistoryModalForUser.searchHistory.length === 0) ? (
+                  <div style={{ padding: '30px', textAlign: 'center', color: '#8f94a5', fontSize: '12px' }}>
+                    Este usuario aún no ha realizado búsquedas de viaje en su perfil.
+                  </div>
+                ) : (
+                  showHistoryModalForUser.searchHistory.map((item: any, idx: number) => (
+                    <div
+                      key={item.id || idx}
+                      style={{
+                        background: 'rgba(0,0,0,0.25)',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                        borderRadius: '10px',
+                        padding: '12px 14px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '10px', color: '#8f94a5', fontFamily: 'DM Mono', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Clock size={10} style={{ color: '#3B82F6' }} /> {item.timestamp}
+                        </span>
+                        {item.lineUsed && (
+                          <span style={{ fontSize: '9px', fontWeight: 700, color: '#10B981', background: 'rgba(16,185,129,0.15)', padding: '2px 8px', borderRadius: '6px' }}>
+                            {item.lineUsed}
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <MapPin size={12} style={{ color: '#3B82F6', flexShrink: 0 }} />
+                          <div style={{ minWidth: 0 }}>
+                            <span style={{ fontSize: '9px', color: '#8f94a5', display: 'block' }}>ORIGEN</span>
+                            <span style={{ fontSize: '11px', color: '#fff', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
+                              {item.originName}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <MapPin size={12} style={{ color: '#EF4444', flexShrink: 0 }} />
+                          <div style={{ minWidth: 0 }}>
+                            <span style={{ fontSize: '9px', color: '#8f94a5', display: 'block' }}>DESTINO</span>
+                            <span style={{ fontSize: '11px', color: '#fff', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
+                              {item.destName}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {item.durationMin && (
+                        <div style={{ fontSize: '9px', color: '#8f94a5', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px', marginTop: '4px', display: 'flex', gap: '12px' }}>
+                          <span>⏱️ Tiempo estimado: <strong>{item.durationMin} min</strong></span>
+                          <span>📍 Coordenadas: [{item.originCoord?.join(', ')}] ➔ [{item.destCoord?.join(', ')}]</span>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
