@@ -29926,6 +29926,444 @@ function ProfilePanel({
         </div>
       )}
 
+      {/* Mercado Pago Unified Payment Modal (Direct App & QR Options) */}
+      {showMercadoPagoModal && (() => {
+        const mpModalContent = (
+          <div style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(5, 8, 16, 0.88)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100000,
+            padding: '16px'
+          }}>
+            <div style={{
+              background: '#F5F5F5',
+              borderRadius: '20px',
+              width: '100%',
+              maxWidth: '440px',
+              maxHeight: '92vh',
+              boxShadow: '0 25px 50px rgba(0, 0, 0, 0.7)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              color: '#111827',
+              fontFamily: 'system-ui, -apple-system, sans-serif'
+            }}>
+              {/* Header */}
+              <div style={{
+                background: '#009EE3',
+                padding: '16px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '18px', fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.02em' }}>mercado pago</span>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowMercadoPagoModal(false);
+                    setPendingAd(null);
+                  }}
+                  style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', color: '#fff', cursor: 'pointer', fontSize: '14px' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Content Body */}
+              {isProcessingPayment ? (
+                <div style={{ padding: '40px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', minHeight: '280px' }}>
+                  <div style={{
+                    width: '44px',
+                    height: '44px',
+                    border: '4px solid rgba(0, 158, 227, 0.15)',
+                    borderTop: '4px solid #009EE3',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }} />
+                  <style>{`
+                    @keyframes spin {
+                      0% { transform: rotate(0deg); }
+                      100% { transform: rotate(360deg); }
+                    }
+                  `}</style>
+                  <div style={{ fontSize: '15px', fontWeight: 700, color: '#374151' }}>Procesando tu pago...</div>
+                  <div style={{ fontSize: '12px', color: '#6B7280', textAlign: 'center' }}>Conectando con la red de Mercado Pago.</div>
+                </div>
+              ) : paymentSuccess ? (
+                <div style={{ padding: '40px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', minHeight: '280px' }}>
+                  <div style={{
+                    width: '60px',
+                    height: '60px',
+                    borderRadius: '50%',
+                    background: '#00A650',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '32px',
+                    color: '#FFFFFF',
+                    boxShadow: '0 4px 14px rgba(0, 166, 80, 0.4)'
+                  }}>
+                    ✓
+                  </div>
+                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#00A650' }}>¡Pago Registrado!</div>
+                  <div style={{ fontSize: '13px', color: '#374151', textAlign: 'center', lineHeight: '1.5' }}>
+                    Tu campaña publicitaria ha sido enviada a revisión por el Super Administrador y se activará en breve.
+                  </div>
+                </div>
+              ) : (
+                <div style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {/* Summary Box */}
+                  <div style={{
+                    background: '#FFFFFF',
+                    borderRadius: '12px',
+                    border: '1px solid #E5E7EB',
+                    padding: '14px 18px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.04)'
+                  }}>
+                    <div>
+                      <span style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>Campaña</span>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#111827', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {pendingAd?.title || 'Anuncio BienParada'}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>Total</span>
+                      <div style={{ fontSize: '20px', fontWeight: 800, color: '#009EE3' }}>
+                        $ {paymentAmount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payment Methods Section Header */}
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Seleccioná tu método de pago
+                  </div>
+
+                  {/* Payment Method 1: Mercado Pago Direct App Launcher */}
+                  <div style={{
+                    background: '#FFFFFF',
+                    borderRadius: '14px',
+                    border: '1px solid #E5E7EB',
+                    padding: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.04)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(0,158,227,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
+                        🚀
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#111827' }}>Mercado Pago Directo (Pago en App)</div>
+                        <div style={{ fontSize: '11px', color: '#6B7280' }}>Abre la app de Mercado Pago directamente en tu teléfono</div>
+                      </div>
+                    </div>
+
+                    <a
+                      href="https://www.mercadopago.com.ar"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => {
+                        toast.success("Abriendo Mercado Pago...");
+                        setTimeout(() => {
+                          setIsProcessingPayment(true);
+                          setTimeout(() => {
+                            setIsProcessingPayment(false);
+                            setPaymentSuccess(true);
+
+                            const exists = adSubmissions.some((item: any) => item.id === pendingAd?.id);
+                            let updatedList: any[] = [];
+                            if (exists) {
+                              updatedList = adSubmissions.map((item: any) => {
+                                if (item.id === pendingAd?.id) {
+                                  return { ...item, status: 'pending', adminComment: 'Pago en proceso por Mercado Pago Directo.', created_at: new Date().toISOString() };
+                                }
+                                return item;
+                              });
+                            } else if (pendingAd) {
+                              updatedList = [pendingAd, ...adSubmissions];
+                            }
+                            setAdSubmissions(updatedList);
+                            localStorage.setItem('bu_submitted_ads', JSON.stringify(updatedList));
+
+                            setTimeout(() => {
+                              setShowMercadoPagoModal(false);
+                              setPaymentSuccess(false);
+                              setPendingAd(null);
+                            }, 1500);
+                          }, 1200);
+                        }, 500);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        borderRadius: '10px',
+                        background: '#009EE3',
+                        color: '#FFFFFF',
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        textDecoration: 'none',
+                        textAlign: 'center',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        boxShadow: '0 4px 12px rgba(0,158,227,0.3)',
+                        boxSizing: 'border-box'
+                      }}
+                    >
+                      💳 Pagar con Mercado Pago Directo
+                    </a>
+                  </div>
+
+                  {/* Payment Method 2: QR Code Scan & Display */}
+                  <div style={{
+                    background: '#FFFFFF',
+                    borderRadius: '14px',
+                    border: '1px solid #E5E7EB',
+                    padding: '16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.04)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,230,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
+                        📱
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '13px', fontWeight: 700, color: '#111827' }}>Pago por Código QR Mercado Pago</div>
+                        <div style={{ fontSize: '11px', color: '#6B7280' }}>Escaneá el código con tu celular o billetera virtual</div>
+                      </div>
+                    </div>
+
+                    {/* QR Selector Tabs */}
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setActiveQrTab('qr1')}
+                        style={{
+                          flex: 1, padding: '7px 8px', borderRadius: '8px',
+                          border: '1px solid ' + (activeQrTab === 'qr1' ? '#009EE3' : '#E5E7EB'),
+                          background: activeQrTab === 'qr1' ? '#009EE3' : '#F9FAFB',
+                          color: activeQrTab === 'qr1' ? '#FFFFFF' : '#4B5563',
+                          fontSize: '11px', fontWeight: 700, cursor: 'pointer'
+                        }}
+                      >
+                        📱 QR 1 (Cobro Directo)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveQrTab('qr2')}
+                        style={{
+                          flex: 1, padding: '7px 8px', borderRadius: '8px',
+                          border: '1px solid ' + (activeQrTab === 'qr2' ? '#009EE3' : '#E5E7EB'),
+                          background: activeQrTab === 'qr2' ? '#009EE3' : '#F9FAFB',
+                          color: activeQrTab === 'qr2' ? '#FFFFFF' : '#4B5563',
+                          fontSize: '11px', fontWeight: 700, cursor: 'pointer'
+                        }}
+                      >
+                        💳 QR 2 (Cartel Caja #1)
+                      </button>
+                    </div>
+
+                    {/* QR Image Box */}
+                    <div style={{
+                      background: '#F9FAFB',
+                      padding: '12px',
+                      borderRadius: '12px',
+                      border: '1px solid #E5E7EB',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }}>
+                      <img
+                        src={activeQrTab === 'qr1' ? '/images/mercadopago_qr.png' : '/images/mercadopago_qr_2.png'}
+                        alt="Código QR Mercado Pago"
+                        style={{ width: 'auto', maxHeight: '200px', maxWidth: '100%', borderRadius: '8px', display: 'block', objectFit: 'contain' }}
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsProcessingPayment(true);
+                        setTimeout(() => {
+                          setIsProcessingPayment(false);
+                          setPaymentSuccess(true);
+
+                          const exists = adSubmissions.some((item: any) => item.id === pendingAd?.id);
+                          let updatedList: any[] = [];
+                          if (exists) {
+                            updatedList = adSubmissions.map((item: any) => {
+                              if (item.id === pendingAd?.id) {
+                                return { ...item, status: 'pending', adminComment: 'Pago por QR verificado. En revisión.', created_at: new Date().toISOString() };
+                              }
+                              return item;
+                            });
+                          } else if (pendingAd) {
+                            updatedList = [pendingAd, ...adSubmissions];
+                          }
+                          setAdSubmissions(updatedList);
+                          localStorage.setItem('bu_submitted_ads', JSON.stringify(updatedList));
+
+                          toast.success("¡Pago mediante QR verificado con éxito!");
+
+                          setTimeout(() => {
+                            setShowMercadoPagoModal(false);
+                            setPaymentSuccess(false);
+                            setPendingAd(null);
+                          }, 1500);
+                        }, 1200);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '11px',
+                        borderRadius: '10px',
+                        border: '1px solid #10B981',
+                        background: 'rgba(16,185,129,0.1)',
+                        color: '#059669',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      ✅ Confirmar Pago Realizado por QR
+                    </button>
+                  </div>
+
+                  {/* Cancel Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowMercadoPagoModal(false);
+                      setPendingAd(null);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: '8px',
+                      border: '1px solid #E5E7EB',
+                      background: '#FFFFFF',
+                      color: '#6B7280',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+
+        if (typeof document === 'undefined') return null;
+        return createPortal(mpModalContent, document.body);
+      })()}
+
+      {/* Mercado Pago simulated modal */}
+      {/* Modal: Terms and Rules of Ads Publication */}
+      {showRulesModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(5, 8, 16, 0.85)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 99999, padding: '20px'
+        }}>
+          <div style={{
+            width: '100%', maxWidth: '620px', background: '#121527',
+            border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: '16px',
+            display: 'flex', flexDirection: 'column', maxHeight: '85vh',
+            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.7)', overflow: 'hidden'
+          }}>
+            <div style={{
+              padding: '16px 20px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: 'rgba(59, 130, 246, 0.08)'
+            }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                📢 Términos y Reglas de Publicación de Anuncios
+              </h3>
+              <button
+                onClick={() => setShowRulesModal(false)}
+                style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', color: '#fff', cursor: 'pointer' }}
+              >✕</button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px', color: '#a3a6b8', fontSize: '13px', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+              {adsTermsText}
+            </div>
+            <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', justifyContent: 'flex-end', gap: '10px', background: 'rgba(0,0,0,0.2)' }}>
+              <button
+                onClick={() => setShowRulesModal(false)}
+                style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#8f94a5', fontSize: '12px', cursor: 'pointer' }}
+              >
+                Cerrar
+              </button>
+              <button
+                onClick={() => { setAdTermsAccepted(true); setShowRulesModal(false); toast.success('Reglas de publicación aceptadas'); }}
+                style={{ padding: '8px 18px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Entendido y Aceptar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: General App Terms & Conditions */}
+      {showGeneralTermsModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(5, 8, 16, 0.85)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 99999, padding: '20px'
+        }}>
+          <div style={{
+            width: '100%', maxWidth: '620px', background: '#121527',
+            border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '16px',
+            display: 'flex', flexDirection: 'column', maxHeight: '85vh',
+            boxShadow: '0 25px 50px rgba(0, 0, 0, 0.7)', overflow: 'hidden'
+          }}>
+            <div style={{
+              padding: '16px 20px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: 'rgba(16, 185, 129, 0.08)'
+            }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                📜 Términos y Condiciones Generales de BienParada
+              </h3>
+              <button
+                onClick={() => setShowGeneralTermsModal(false)}
+                style={{ background: 'rgba(255,255,255,0.08)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', color: '#fff', cursor: 'pointer' }}
+              >✕</button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '20px', color: '#a3a6b8', fontSize: '13px', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+              {generalTermsText}
+            </div>
+            <div style={{ padding: '14px 20px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', justifyContent: 'flex-end', background: 'rgba(0,0,0,0.2)' }}>
+              <button
+                onClick={() => setShowGeneralTermsModal(false)}
+                style={{ padding: '8px 20px', borderRadius: '8px', border: 'none', background: '#10B981', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal: Mercado Pago Dual QR Code & Direct App Launcher */}
       {showMpQrScanModal && (
         <div style={{
