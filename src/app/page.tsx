@@ -27786,6 +27786,7 @@ function ProfilePanel({
 
   const [showMercadoPagoModal, setShowMercadoPagoModal] = useState(false)
   const [showMpQrScanModal, setShowMpQrScanModal] = useState(false)
+  const [activeQrTab, setActiveQrTab] = useState<'qr1' | 'qr2'>('qr1')
   const [pendingAd, setPendingAd] = useState<any>(null)
   const [isProcessingPayment, setIsProcessingPayment] = useState(false)
   const [paymentSuccess, setPaymentSuccess] = useState(false)
@@ -29925,7 +29926,7 @@ function ProfilePanel({
         </div>
       )}
 
-      {/* Modal: Mercado Pago QR Scanner Direct Payment */}
+      {/* Modal: Mercado Pago Dual QR Code & Direct App Launcher */}
       {showMpQrScanModal && (
         <div style={{
           position: 'fixed',
@@ -29936,13 +29937,14 @@ function ProfilePanel({
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 100001,
-          padding: '20px'
+          padding: '16px'
         }}>
           <div style={{
             background: '#F5F5F5',
             borderRadius: '20px',
             width: '100%',
-            maxWidth: '420px',
+            maxWidth: '430px',
+            maxHeight: '90vh',
             boxShadow: '0 25px 50px rgba(0, 0, 0, 0.6)',
             overflow: 'hidden',
             display: 'flex',
@@ -29953,7 +29955,7 @@ function ProfilePanel({
             {/* Header yellow bar */}
             <div style={{
               background: '#FFE600',
-              padding: '16px 20px',
+              padding: '14px 18px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -29968,53 +29970,126 @@ function ProfilePanel({
                 </button>
                 <span style={{ fontSize: '16px', fontWeight: 700, color: '#111827' }}>Cobrar con QR</span>
               </div>
-              <span style={{ fontSize: '11px', fontWeight: 700, color: '#009EE3', background: 'rgba(0,158,227,0.1)', padding: '4px 8px', borderRadius: '6px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 700, color: '#009EE3', background: 'rgba(0,158,227,0.12)', padding: '4px 8px', borderRadius: '6px' }}>
                 Mercado Pago
               </span>
             </div>
 
+            {/* QR Selection Tabs */}
+            <div style={{ padding: '12px 18px 0', background: '#F5F5F5', display: 'flex', gap: '8px' }}>
+              <button
+                onClick={() => setActiveQrTab('qr1')}
+                style={{
+                  flex: 1,
+                  padding: '8px 10px',
+                  borderRadius: '8px',
+                  border: '1px solid ' + (activeQrTab === 'qr1' ? '#009EE3' : '#D1D5DB'),
+                  background: activeQrTab === 'qr1' ? '#009EE3' : '#FFFFFF',
+                  color: activeQrTab === 'qr1' ? '#FFFFFF' : '#4B5563',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 150ms'
+                }}
+              >
+                📱 QR 1 (Cobro App)
+              </button>
+              <button
+                onClick={() => setActiveQrTab('qr2')}
+                style={{
+                  flex: 1,
+                  padding: '8px 10px',
+                  borderRadius: '8px',
+                  border: '1px solid ' + (activeQrTab === 'qr2' ? '#009EE3' : '#D1D5DB'),
+                  background: activeQrTab === 'qr2' ? '#009EE3' : '#FFFFFF',
+                  color: activeQrTab === 'qr2' ? '#FFFFFF' : '#4B5563',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 150ms'
+                }}
+              >
+                💳 QR 2 (Cartel Caja #1)
+              </button>
+            </div>
+
             {/* Amount Box */}
-            <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+            <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px', overflowY: 'auto' }}>
               <div style={{
                 width: '100%',
                 background: '#FFFFFF',
                 borderRadius: '12px',
                 border: '1px solid #E5E7EB',
-                padding: '14px 20px',
+                padding: '12px 18px',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center'
               }}>
-                <span style={{ fontSize: '14px', fontWeight: 600, color: '#374151' }}>Total</span>
-                <span style={{ fontSize: '20px', fontWeight: 800, color: '#111827' }}>
-                  $ {paymentAmount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                </span>
+                <div>
+                  <span style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>Concepto</span>
+                  <div style={{ fontSize: '12px', fontWeight: 600, color: '#374151', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    Campaña: {pendingAd?.title || 'Anuncio BienParada'}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', fontWeight: 700 }}>Total</span>
+                  <div style={{ fontSize: '18px', fontWeight: 800, color: '#009EE3' }}>
+                    $ {paymentAmount.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
               </div>
 
-              <div style={{ fontSize: '13px', color: '#4B5563', textAlign: 'center', lineHeight: '1.4', padding: '0 8px' }}>
-                Pídele a tu cliente que escanee el QR con la app de Mercado Pago u otra billetera virtual.
+              <div style={{ fontSize: '12px', color: '#4B5563', textAlign: 'center', lineHeight: '1.4' }}>
+                Escaneá el código QR desde la app de Mercado Pago o presioná el botón para abrir tu cuenta automáticamente.
               </div>
 
-              {/* QR Image */}
+              {/* QR Image Container */}
               <div style={{
                 background: '#FFFFFF',
-                padding: '16px',
+                padding: '14px',
                 borderRadius: '16px',
                 boxShadow: '0 8px 20px rgba(0,0,0,0.08)',
                 border: '1px solid #E5E7EB',
                 display: 'flex',
                 justifyContent: 'center',
-                alignItems: 'center'
+                alignItems: 'center',
+                maxHeight: '260px'
               }}>
                 <img
-                  src="/images/mercadopago_qr.png"
+                  src={activeQrTab === 'qr1' ? '/images/mercadopago_qr.png' : '/images/mercadopago_qr_2.png'}
                   alt="Código QR Mercado Pago"
-                  style={{ width: '260px', height: 'auto', borderRadius: '8px', display: 'block' }}
+                  style={{ width: 'auto', maxHeight: '230px', maxWidth: '100%', borderRadius: '8px', display: 'block', objectFit: 'contain' }}
                 />
               </div>
 
               {/* Action Buttons */}
-              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                {/* Direct Mercado Pago App Launcher Link */}
+                <a
+                  href="https://www.mercadopago.com.ar"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    width: '100%',
+                    padding: '11px',
+                    borderRadius: '10px',
+                    background: '#009EE3',
+                    color: '#FFFFFF',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    textDecoration: 'none',
+                    textAlign: 'center',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    boxShadow: '0 4px 12px rgba(0,158,227,0.3)',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  🚀 Abrir Mercado Pago y Pagar Directo
+                </a>
+
                 <button
                   onClick={() => {
                     setShowMpQrScanModal(false);
@@ -30030,7 +30105,7 @@ function ProfilePanel({
                             return {
                               ...item,
                               status: 'pending',
-                              adminComment: 'Pago verificado por QR Mercado Pago. En revisión por moderación.',
+                              adminComment: 'Pago registrado por Mercado Pago. En revisión por moderación.',
                               created_at: new Date().toISOString()
                             };
                           }
@@ -30042,7 +30117,7 @@ function ProfilePanel({
                       setAdSubmissions(updatedList);
                       localStorage.setItem('bu_submitted_ads', JSON.stringify(updatedList));
 
-                      toast.success("¡Pago mediante QR verificado con éxito!");
+                      toast.success("¡Pago mediante Mercado Pago verificado con éxito!");
 
                       setTimeout(() => {
                         setShowMercadoPagoModal(false);
@@ -30053,15 +30128,14 @@ function ProfilePanel({
                   }}
                   style={{
                     width: '100%',
-                    padding: '12px',
+                    padding: '11px',
                     borderRadius: '10px',
-                    border: 'none',
-                    background: '#009EE3',
-                    color: '#FFFFFF',
-                    fontSize: '13px',
+                    border: '1px solid #10B981',
+                    background: 'rgba(16,185,129,0.1)',
+                    color: '#059669',
+                    fontSize: '12px',
                     fontWeight: 700,
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 12px rgba(0,158,227,0.3)'
+                    cursor: 'pointer'
                   }}
                 >
                   ✅ Ya Realicé el Pago en Mercado Pago
@@ -30071,12 +30145,12 @@ function ProfilePanel({
                   onClick={() => setShowMpQrScanModal(false)}
                   style={{
                     width: '100%',
-                    padding: '10px',
-                    borderRadius: '10px',
+                    padding: '8px',
+                    borderRadius: '8px',
                     border: 'none',
                     background: 'transparent',
-                    color: '#009EE3',
-                    fontSize: '12px',
+                    color: '#6B7280',
+                    fontSize: '11px',
                     fontWeight: 600,
                     cursor: 'pointer'
                   }}
