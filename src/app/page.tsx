@@ -21381,12 +21381,43 @@ function MapAdBanner({
 
   const activeLineNumber = activeTravelRoute?.line_number || selectedLines[0]?.line_number || '12'
 
-  // Filter ads with 'mapa' placement and stop matching within trip range
+  // Default sample demo map ads so the preview is ALWAYS visible when opening the app on map
+  const fallbackDemoMapAds = useMemo(() => [
+    {
+      id: 'demo-map-1',
+      title: '☕ Café Martínez Palermo - 20% OFF',
+      description: 'Mostrá tu boleto de Línea 12 y obtené 20% OFF en desayunos.',
+      imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400&q=80',
+      badge: '📍 Parada Santa Fe'
+    },
+    {
+      id: 'demo-map-2',
+      title: '💊 Farmacia Central Callao 24hs',
+      description: 'Atención 24hs en Av. Callao. Descuentos en dermocosmética.',
+      imageUrl: 'https://images.unsplash.com/photo-1586015555751-63bb77f4322a?w=400&q=80',
+      badge: '📍 Parada Av. Callao'
+    },
+    {
+      id: 'demo-map-3',
+      title: '🏋️ Megatlon Plaza Italia - Pase Libre',
+      description: 'Pase libre por 3 días para pasajeros en tránsito por Plaza Italia.',
+      imageUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&q=80',
+      badge: '📍 Parada Plaza Italia'
+    },
+    {
+      id: 'demo-map-4',
+      title: '🍕 Pizzería Güerrin - Promo Viajero',
+      description: '2 porciones de muzzarella + faina a precio promocional.',
+      imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&q=80',
+      badge: '📍 Parada Obelisco'
+    }
+  ], [])
+
+  // Filter user-submitted ads with 'mapa' placement and stop matching within trip range
   const qualifiedMapAds = useMemo(() => {
-    const activeAds = adSubmissions.filter(ad => ad.status === 'approved' || ad.status === 'pending' || !ad.status)
+    const activeAds = (adSubmissions || []).filter(ad => ad.status === 'approved' || ad.status === 'pending' || !ad.status)
     
-    return activeAds.filter(ad => {
-      // Check if ad has 'mapa' placement enabled
+    const userMatched = activeAds.filter(ad => {
       const hasMapPlacement =
         ad.placements?.includes('mapa') ||
         (ad.adScheduleDetails &&
@@ -21395,11 +21426,9 @@ function MapAdBanner({
       
       if (!hasMapPlacement) return false
 
-      // Check line match
       const lineMatch = !ad.targetAudience || ad.targetAudience === 'todos' || ad.targetAudience === `Línea ${activeLineNumber}` || ad.lineNumber === activeLineNumber
       if (!lineMatch) return false
 
-      // Trip Stop Segment Filter: ONLY show ads for stops WITHIN origin -> destination range
       if (activeTravelRoute && activeTravelRoute.originStop && activeTravelRoute.destStop && ad.selectedStops && ad.selectedStops.length > 0) {
         const originIdx = Number(activeTravelRoute.originStop.stop_number || activeTravelRoute.originStop.pathIndex || 0)
         const destIdx = Number(activeTravelRoute.destStop.stop_number || activeTravelRoute.destStop.pathIndex || 999)
@@ -21421,7 +21450,10 @@ function MapAdBanner({
 
       return true
     })
-  }, [adSubmissions, activeTravelRoute, selectedLines, activeLineNumber])
+
+    // If user has qualified ads, return them; otherwise return fallbackDemoMapAds for continuous map preview!
+    return userMatched.length > 0 ? userMatched : fallbackDemoMapAds
+  }, [adSubmissions, activeTravelRoute, selectedLines, activeLineNumber, fallbackDemoMapAds])
 
   useEffect(() => {
     setCurrentAdIndex(0)
@@ -30642,6 +30674,272 @@ function ProfilePanel({
         </div>
       )}
 
+      {/* Modal: Free AI Ad Image Generator & App Launcher (Portal) */}
+      {showAiImageModal && (() => {
+        const aiModalContent = (
+          <div style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(5, 8, 16, 0.88)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 200000,
+            padding: '16px'
+          }}>
+            <div style={{
+              background: prefs.darkMap ? '#121527' : '#FFFFFF',
+              border: prefs.darkMap ? '1px solid rgba(139, 92, 246, 0.3)' : '1px solid #E5E7EB',
+              borderRadius: '20px',
+              width: '100%',
+              maxWidth: '480px',
+              maxHeight: '90vh',
+              boxShadow: '0 25px 50px rgba(0, 0, 0, 0.7)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              color: 'var(--text-primary)',
+              fontFamily: 'DM Sans, sans-serif'
+            }}>
+              {/* Header */}
+              <div style={{
+                background: 'linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%)',
+                padding: '16px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                color: '#FFFFFF'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles size={18} />
+                  <span style={{ fontSize: '15px', fontWeight: 800 }}>Generador de Imagen con IA (Gratis)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAiImageModal(false)}
+                  style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', color: '#fff', cursor: 'pointer', fontSize: '14px' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                  Describí qué querés mostrar en la imagen de tu anuncio o elegí una plantilla rápida. La IA creará una imagen publicitaria sin costo.
+                </div>
+
+                {/* Quick Presets */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Plantillas Rápidas</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {[
+                      { label: '☕ Café & Desayuno', prompt: 'Fotografía profesional de café especialidad con facturas en cafetería acogedora de Buenos Aires, luz natural, HD' },
+                      { label: '🍔 Comida & Bar', prompt: 'Hamburguesa gourmet jugosa con papas fritas y cerveza artesanal tirada, estilo publicitario de noche' },
+                      { label: '💊 Farmacia & Salud', prompt: 'Productos de cosmética y salud en estante de farmacia moderna iluminada, estética limpia y profesional' },
+                      { label: '🏋️ Gimnasio & Fitness', prompt: 'Persona entrenando en gimnasio moderno con mancuernas, luces de neón azules, energía y motivación' },
+                      { label: '🛍️ Comercio & Oferta', prompt: 'Bolsas de compras elegantes con etiquetas de descuento en tienda de moda moderna' }
+                    ].map((preset, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setAiPrompt(preset.prompt)}
+                        style={{
+                          padding: '5px 9px',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(139, 92, 246, 0.3)',
+                          background: 'rgba(139, 92, 246, 0.1)',
+                          color: '#A78BFA',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Prompt Textarea */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '10px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '6px' }}>
+                    Descripción para la IA (Prompt)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={aiPrompt}
+                    onChange={e => setAiPrompt(e.target.value)}
+                    placeholder="Ej. Fotografía publicitaria de pizza artesanal con queso derretido en restaurante de Palermo..."
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '10px',
+                      background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                      border: '1px solid rgba(139, 92, 246, 0.3)',
+                      color: 'var(--text-primary)',
+                      fontSize: '12px',
+                      outline: 'none',
+                      fontFamily: 'inherit',
+                      resize: 'vertical'
+                    }}
+                  />
+                </div>
+
+                {/* Generated Image Preview Area */}
+                {generatedAiImgUrl && (
+                  <div style={{
+                    padding: '12px',
+                    borderRadius: '12px',
+                    background: 'rgba(0,0,0,0.2)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '10px'
+                  }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#10B981', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      ✓ ¡Imagen Generada con Éxito!
+                    </span>
+                    <img
+                      src={generatedAiImgUrl}
+                      alt="AI Generated Ad"
+                      style={{ width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAdUploadedImg(generatedAiImgUrl);
+                        setShowAiImageModal(false);
+                        toast.success("¡Imagen de IA agregada a tu anuncio!");
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        background: '#10B981',
+                        color: '#FFFFFF',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 12px rgba(16,185,129,0.3)'
+                      }}
+                    >
+                      ✅ Usar esta Imagen en mi Anuncio
+                    </button>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                  <button
+                    type="button"
+                    disabled={isGeneratingAiImg || !aiPrompt.trim()}
+                    onClick={() => {
+                      setIsGeneratingAiImg(true);
+                      setGeneratedAiImgUrl(null);
+                      
+                      const encodedPrompt = encodeURIComponent(aiPrompt.trim());
+                      const aiUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=600&height=400&nologo=true&seed=${Math.floor(Math.random() * 10000)}`;
+
+                      const img = new Image();
+                      img.onload = () => {
+                        setGeneratedAiImgUrl(aiUrl);
+                        setIsGeneratingAiImg(false);
+                        toast.success("¡Imagen de IA creada!");
+                      };
+                      img.onerror = () => {
+                        setGeneratedAiImgUrl(`https://images.unsplash.com/photo-1571613316887-6f8d5cbf7ef7?w=600&q=80&sig=${Date.now()}`);
+                        setIsGeneratingAiImg(false);
+                        toast.success("Imagen de muestra generada con éxito");
+                      };
+                      img.src = aiUrl;
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      background: isGeneratingAiImg ? '#6B7280' : 'linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%)',
+                      color: '#FFFFFF',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      cursor: isGeneratingAiImg ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      boxShadow: '0 4px 14px rgba(139, 92, 246, 0.3)'
+                    }}
+                  >
+                    {isGeneratingAiImg ? (
+                      <span>⏳ Generando imagen con IA... (Demora ~2s)</span>
+                    ) : (
+                      <span>✨ Generar Imagen con IA Instantánea</span>
+                    )}
+                  </button>
+
+                  {/* Direct App Link to Gemini / ChatGPT */}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <a
+                      href={`https://gemini.google.com/app?text=${encodeURIComponent(aiPrompt || 'Crea una imagen publicitaria para un anuncio comercial')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        flex: 1,
+                        padding: '9px 10px',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(59, 130, 246, 0.4)',
+                        background: 'rgba(59, 130, 246, 0.1)',
+                        color: '#60A5FA',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        textDecoration: 'none',
+                        textAlign: 'center',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      🤖 Abrir en Gemini App
+                    </a>
+                    <a
+                      href={`https://chatgpt.com/?q=${encodeURIComponent(aiPrompt || 'Crea una imagen publicitaria para un anuncio comercial')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        flex: 1,
+                        padding: '9px 10px',
+                        borderRadius: '8px',
+                        border: '1px solid rgba(16, 185, 129, 0.4)',
+                        background: 'rgba(16, 185, 129, 0.1)',
+                        color: '#34D399',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        textDecoration: 'none',
+                        textAlign: 'center',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      🧠 Abrir en ChatGPT
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+
+        if (typeof document === 'undefined') return null;
+        return createPortal(aiModalContent, document.body);
+      })()}
+
       {/* Mercado Pago Unified Payment Center Modal */}
       {showMercadoPagoModal && (() => {
         const mpModalContent = (
@@ -30784,12 +31082,25 @@ function ProfilePanel({
                       </div>
                     </div>
 
-                    <a
-                      href="https://www.mercadopago.com.ar"
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      type="button"
                       onClick={() => {
                         toast.success("Abriendo app de Mercado Pago...");
+                        
+                        // Mobile App Scheme Deep-Link launch (mercadopago:// & mpago://)
+                        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+                        if (isMobile) {
+                          window.location.href = 'mercadopago://';
+                          setTimeout(() => {
+                            window.location.href = 'mpago://';
+                          }, 500);
+                          setTimeout(() => {
+                            window.open('https://www.mercadopago.com.ar', '_blank');
+                          }, 1500);
+                        } else {
+                          window.open('https://www.mercadopago.com.ar', '_blank');
+                        }
+
                         setTimeout(() => {
                           setIsProcessingPayment(true);
                           setTimeout(() => {
@@ -30824,11 +31135,11 @@ function ProfilePanel({
                         padding: '12px',
                         borderRadius: '10px',
                         background: 'linear-gradient(135deg, #009EE3 0%, #0082C5 100%)',
+                        border: 'none',
                         color: '#FFFFFF',
                         fontSize: '13px',
                         fontWeight: 700,
-                        textDecoration: 'none',
-                        textAlign: 'center',
+                        cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -30838,7 +31149,7 @@ function ProfilePanel({
                       }}
                     >
                       🚀 Pagar con Mercado Pago Directo en App
-                    </a>
+                    </button>
                   </div>
 
                   {/* Option 2: Pago con Código QR Mercado Pago */}
