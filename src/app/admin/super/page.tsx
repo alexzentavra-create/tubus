@@ -2366,6 +2366,7 @@ export default function SuperAdminDashboard() {
     { id: 'drivers', label: 'Choferes y QR', icon: Users },
     { id: 'company_admins', label: 'Admins de Línea', icon: Building2 },
     { id: 'ads', label: 'Publicidad', icon: Megaphone },
+    { id: 'pois', label: 'Puntos de Interés', icon: MapPin },
     { id: 'chat', label: 'Mensajería', icon: MessageSquare },
     { id: 'reports', label: 'Denuncias', icon: AlertTriangle },
     { id: 'provincemap', label: 'Mapa Argentina', icon: Globe },

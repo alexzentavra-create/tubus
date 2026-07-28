@@ -22047,7 +22047,7 @@ function MapAdBanner({
   const [showWelcome, setShowWelcome]       = useState(false)
 
   // Uber Travel Assistant & Map Modes State
-  const [activeMode, setActiveMode] = useState<'normal' | 'tourist' | 'clubbing' | 'shopping'>('normal')
+  const [activeMode, setActiveMode]               = useState<'normal' | 'tourist' | 'clubbing' | 'shopping' | 'restaurants'>('normal')
   const [selectedCity, setSelectedCity] = useState<'buenos_aires' | 'santa_cruz'>('buenos_aires')
   const [touristYellowSelected, setTouristYellowSelected] = useState(false)
   const [touristRedSelected, setTouristRedSelected] = useState(false)
@@ -24427,6 +24427,7 @@ function MapAdBanner({
             { id: 'normal', label: 'Normal' },
             { id: 'tourist', label: 'Turismo' },
             { id: 'clubbing', label: 'Bares' },
+            { id: 'restaurants', label: 'Restaurantes y Comidas' },
             { id: 'shopping', label: 'Compras' }
           ] as const).map(m => {
             const active = activeMode === m.id
@@ -25317,40 +25318,79 @@ function MapAdBanner({
             ))
           ))}
 
-          {/* Render Clubbing & Shopping Custom Markers */}
-          {(activeMode === 'clubbing' || activeMode === 'shopping') && MOCK_PLACES
-            .filter(place => place.city === selectedCity && place.type === activeMode)
-            .map(place => (
-              <Marker key={place.id} longitude={place.lng} latitude={place.lat} anchor="bottom">
-                <div
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedPlace(place);
-                  }}
-                  style={{
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer',
-                    transform: 'scale(1)', transition: 'transform 0.15s'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.15)'}
-                  onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                >
-                  <div style={{
-                    background: activeMode === 'clubbing' ? '#EC4899' : '#10B981',
-                    color: 'white', fontSize: '9px', padding: '2px 6px', borderRadius: '8px',
-                    fontWeight: 'bold', boxShadow: '0 2px 6px rgba(0,0,0,0.3)', whiteSpace: 'nowrap',
-                    border: '1.5px solid white'
-                  }}>
-                    {place.name}
+          {/* Render Custom POI Markers (Turismo, Bares, Restaurantes, Compras) */}
+          {(() => {
+            if (activeMode === 'normal') return null;
+
+            let customPois: any[] = [];
+            if (typeof window !== 'undefined') {
+              try {
+                const saved = localStorage.getItem('bu_custom_pois');
+                if (saved) customPois = JSON.parse(saved);
+              } catch {}
+            }
+
+            const defaultMockList = [
+              { id: 'r-1', name: 'Pizzería Güerrin', type: 'restaurants', city: 'buenos_aires', rating: 4.8, lat: -34.6041, lng: -58.3860, description: 'Tradicional pizzería porteña sobre Av. Corrientes desde 1932.', imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&q=80' },
+              { id: 'r-2', name: 'Don Julio Parrilla', type: 'restaurants', city: 'buenos_aires', rating: 4.9, lat: -34.5880, lng: -58.4230, description: 'Premiada parrilla de cortes de carne argentina premium en Palermo.', imageUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&q=80' },
+              { id: 'r-3', name: 'El Preferido de Palermo', type: 'restaurants', city: 'buenos_aires', rating: 4.7, lat: -34.5885, lng: -58.4245, description: 'Bodegón porteño de charcutería y platillos criollos tradicionales.', imageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80' }
+            ];
+
+            const allPois = [...customPois, ...defaultMockList, ...MOCK_PLACES];
+            const uniquePoisDict: Record<string, any> = {};
+            allPois.forEach((p: any) => { if (p && p.id && !uniquePoisDict[p.id]) uniquePoisDict[p.id] = p; });
+            const combinedPois: any[] = Object.values(uniquePoisDict);
+
+            const activePois = combinedPois.filter((p: any) => p.type === activeMode || (activeMode === 'tourist' && p.type === 'tourist'));
+
+            return activePois.map((place: any) => {
+              let markerBg = '#F59E0B'; // tourist gold
+              let markerIcon = '🏛️';
+
+              if (place.type === 'clubbing') {
+                markerBg = '#8B5CF6';
+                markerIcon = '🍺';
+              } else if (place.type === 'restaurants') {
+                markerBg = '#EF4444';
+                markerIcon = '🍕';
+              } else if (place.type === 'shopping') {
+                markerBg = '#10B981';
+                markerIcon = '🛍️';
+              }
+
+              return (
+                <Marker key={place.id} longitude={place.lng} latitude={place.lat} anchor="bottom">
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedPlace(place);
+                    }}
+                    style={{
+                      display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer',
+                      transform: 'scale(1)', transition: 'transform 0.15s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.15)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                  >
+                    <div style={{
+                      background: markerBg,
+                      color: 'white', fontSize: '10px', padding: '3px 8px', borderRadius: '10px',
+                      fontWeight: 'bold', boxShadow: '0 3px 8px rgba(0,0,0,0.4)', whiteSpace: 'nowrap',
+                      border: '1.5px solid white', display: 'flex', alignItems: 'center', gap: '4px'
+                    }}>
+                      <span>{markerIcon}</span>
+                      <span>{place.name}</span>
+                    </div>
+                    <div style={{
+                      width: '12px', height: '12px', borderRadius: '50%',
+                      background: markerBg,
+                      border: '2px solid white', marginTop: '-3px', boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                    }} />
                   </div>
-                  <div style={{
-                    width: '12px', height: '12px', borderRadius: '50%',
-                    background: activeMode === 'clubbing' ? '#EC4899' : '#10B981',
-                    border: '2px solid white', marginTop: '-3px', boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                  }} />
-                </div>
-              </Marker>
-            ))
-          }
+                </Marker>
+              );
+            });
+          })()}
 
           {/* Render Smaller Tourist Landmarks along the route */}
           {activeMode === 'tourist' && showAllTouristStops && MOCK_PLACES
@@ -25765,14 +25805,14 @@ function MapAdBanner({
                         textTransform: 'uppercase',
                         letterSpacing: '0.05em'
                       }}>
-                        {selectedPlace.type === 'clubbing' ? '🍷 Bar / Club' : '🛍️ Compras'}
+                        {selectedPlace.type === 'clubbing' ? '🍺 Bar / Cervecería' : selectedPlace.type === 'restaurants' ? '🍕 Restaurante / Comida' : selectedPlace.type === 'shopping' ? '🛍️ Compras & Moda' : '🏛️ Punto de Interés'}
                       </span>
                     </div>
                   </div>
                 ) : (
                   <div style={{ padding: '12px 14px 0 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '9px', fontWeight: 800, color: '#F59E0B', textTransform: 'uppercase' }}>
-                      {selectedPlace.type === 'clubbing' ? '🍷 Bar / Club' : '🛍️ Compras'}
+                      {selectedPlace.type === 'clubbing' ? '🍺 Bar / Cervecería' : selectedPlace.type === 'restaurants' ? '🍕 Restaurante / Comida' : selectedPlace.type === 'shopping' ? '🛍️ Compras & Moda' : '🏛️ Punto de Interés'}
                     </span>
                     <button
                       onClick={() => setSelectedPlace(null)}
