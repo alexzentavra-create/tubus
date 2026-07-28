@@ -28933,6 +28933,11 @@ function ProfilePanel({
   const [showPassword, setShowPassword] = useState(false)
 
   // 2FA Security Modal State
+  // History Naming & Search States
+  const [historySearchTerm, setHistorySearchTerm] = useState('')
+  const [editingNameId, setEditingNameId] = useState<string | null>(null)
+  const [nameInput, setNameInput] = useState('')
+
   const [twoFaModal, setTwoFaModal] = useState<{
     isOpen: boolean
     type: 'password' | 'email' | 'phone'
@@ -29263,7 +29268,9 @@ function ProfilePanel({
   const handleClearHistory = () => {
     if (confirm('¿Estás seguro de que querés borrar todo tu historial de búsqueda?')) {
       setSearchHistory([])
+      localStorage.removeItem('bu_search_history')
       localStorage.removeItem('tu_bus_search_history')
+      toast.success('Historial borrado por completo')
     }
   }
 
@@ -29271,7 +29278,24 @@ function ProfilePanel({
     e.stopPropagation()
     const updated = searchHistory.filter(h => h.id !== id)
     setSearchHistory(updated)
+    localStorage.setItem('bu_search_history', JSON.stringify(updated))
     localStorage.setItem('tu_bus_search_history', JSON.stringify(updated))
+    toast.success('Viaje eliminado del historial')
+  }
+
+  const handleSaveTripName = (id: string) => {
+    const updated = searchHistory.map(item => {
+      if (item.id === id) {
+        return { ...item, customName: nameInput.trim() }
+      }
+      return item
+    })
+    setSearchHistory(updated)
+    localStorage.setItem('bu_search_history', JSON.stringify(updated))
+    localStorage.setItem('tu_bus_search_history', JSON.stringify(updated))
+    setEditingNameId(null)
+    setNameInput('')
+    toast.success('¡Nombre del viaje guardado!')
   }
 
   const handleSelectHistoryItem = (item: any) => {
@@ -29638,68 +29662,162 @@ function ProfilePanel({
         )}
 
         {/* ── HISTORY TAB ── */}
-        {activeTab === 'history' && (
-          <div>
-            <PanelTitle>Historial de Viajes</PanelTitle>
-            <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '14px', lineHeight: '1.4' }}>
-              Hacé clic en cualquier búsqueda del historial para cargar los colectivos recomendados y el trayecto directamente sobre el mapa.
-            </div>
+        {activeTab === 'history' && (() => {
+          const q = historySearchTerm.toLowerCase().trim()
+          const filteredHistory = searchHistory.filter(item => {
+            if (!q) return true
+            return (
+              (item.customName && item.customName.toLowerCase().includes(q)) ||
+              (item.originName && item.originName.toLowerCase().includes(q)) ||
+              (item.destName && item.destName.toLowerCase().includes(q))
+            )
+          })
 
-            {searchHistory.length === 0 ? (
-              <EmptyHint text="No realizaste búsquedas de viaje todavía." />
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {searchHistory.map(item => (
-                  <div
-                    key={item.id}
-                    onClick={() => handleSelectHistoryItem(item)}
-                    style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '12px', cursor: 'pointer', position: 'relative', display: 'flex', flexDirection: 'column', gap: '6px', transition: 'background 200ms' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
+          return (
+            <div>
+              <PanelTitle>Historial de Viajes</PanelTitle>
+              <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '14px', lineHeight: '1.4' }}>
+                Hacé clic en cualquier búsqueda del historial para cargar los colectivos recomendados y el trayecto directamente sobre el mapa.
+              </div>
+
+              {/* Search Bar for History */}
+              <div style={{ position: 'relative', marginBottom: '14px' }}>
+                <input
+                  type="text"
+                  value={historySearchTerm}
+                  onChange={e => setHistorySearchTerm(e.target.value)}
+                  placeholder="Buscar por nombre de viaje o calle..."
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px 10px 36px',
+                    borderRadius: '10px',
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    color: 'var(--text-primary)',
+                    fontSize: '13px',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                {historySearchTerm && (
+                  <button
+                    onClick={() => setHistorySearchTerm('')}
+                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingRight: '24px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1 }}>
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+
+              {searchHistory.length === 0 ? (
+                <EmptyHint text="No realizaste búsquedas de viaje todavía." />
+              ) : filteredHistory.length === 0 ? (
+                <EmptyHint text="No se encontraron viajes que coincidan con tu búsqueda." />
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {filteredHistory.map(item => (
+                    <div
+                      key={item.id}
+                      style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px', position: 'relative', display: 'flex', flexDirection: 'column', gap: '8px', transition: 'background 200ms' }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
+                    >
+                      {/* Top Header: Custom Name & Edit/Delete Buttons */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        {editingNameId === item.id ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1, paddingRight: '10px' }}>
+                            <input
+                              type="text"
+                              value={nameInput}
+                              onChange={e => setNameInput(e.target.value)}
+                              placeholder="Ej. Trabajo, Facultad..."
+                              autoFocus
+                              onKeyDown={e => e.key === 'Enter' && handleSaveTripName(item.id)}
+                              style={{ flex: 1, padding: '6px 10px', borderRadius: '8px', background: '#FFFFFF', border: '1px solid #3B82F6', color: '#000000', fontSize: '12px', outline: 'none' }}
+                            />
+                            <button
+                              onClick={() => handleSaveTripName(item.id)}
+                              style={{ padding: '6px 12px', borderRadius: '8px', background: '#10B981', color: 'white', border: 'none', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                              Guardar
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, flexWrap: 'wrap' }}>
+                            {item.customName ? (
+                              <span style={{ fontSize: '13px', fontWeight: 800, color: '#3B82F6', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <Star size={13} style={{ fill: '#3B82F6', color: '#3B82F6' }} />
+                                {item.customName}
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                                Sin nombre
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingNameId(item.id)
+                                setNameInput(item.customName || '')
+                              }}
+                              style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)', color: '#3B82F6', fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px' }}
+                            >
+                              <Edit2 size={10} /> {item.customName ? 'Editar nombre' : 'Nombra este viaje'}
+                            </button>
+                          </div>
+                        )}
+
+                        <button
+                          onClick={(e) => handleRemoveHistoryItem(item.id, e)}
+                          style={{ border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px', flexShrink: 0 }}
+                          title="Eliminar viaje del historial"
+                        >
+                          <X size={15} style={{ color: '#FF4D6A' }} />
+                        </button>
+                      </div>
+
+                      {/* Origin and Destination Clickable Container */}
+                      <div onClick={() => handleSelectHistoryItem(item)} style={{ cursor: 'pointer' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-primary)', fontWeight: 600 }}>
                           <MapPin size={11} style={{ color: '#10B981', flexShrink: 0 }} />
-                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '210px' }}>{item.originName}</span>
+                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.originName}</span>
                         </div>
                         <div style={{ height: '8px', borderLeft: '1px dashed rgba(255,255,255,0.2)', marginLeft: '5px' }} />
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-primary)', fontWeight: 600 }}>
                           <MapPin size={11} style={{ color: '#EF4444', flexShrink: 0 }} />
-                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '210px' }}>{item.destName}</span>
+                          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.destName}</span>
                         </div>
                       </div>
-                      <button
-                        onClick={(e) => handleRemoveHistoryItem(item.id, e)}
-                        style={{ border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px', position: 'absolute', top: '10px', right: '10px' }}
-                      >
-                        <X size={14} style={{ color: '#FF4D6A' }} />
-                      </button>
-                    </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px', marginTop: '2px' }}>
-                      <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'DM Mono' }}>
-                        {new Date(item.timestamp).toLocaleDateString('es-AR')} {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                      <span style={{ fontSize: '10px', background: 'rgba(59,130,246,0.15)', color: '#93C5FD', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
-                        Recargar
-                      </span>
+                      {/* Card Footer */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '6px', marginTop: '2px' }}>
+                        <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'DM Mono' }}>
+                          {new Date(item.timestamp).toLocaleDateString('es-AR')} {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <button
+                          onClick={() => handleSelectHistoryItem(item)}
+                          style={{ border: 'none', background: 'rgba(59,130,246,0.15)', color: '#93C5FD', padding: '3px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+                        >
+                          Recargar
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
 
-                <button
-                  onClick={handleClearHistory}
-                  style={{ marginTop: '10px', padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'var(--text-muted)', fontSize: '12px', cursor: 'pointer', width: '100%', transition: 'all 200ms' }}
-                  onMouseEnter={e => { e.currentTarget.style.color = '#FF4D6A'; e.currentTarget.style.borderColor = 'rgba(255,77,106,0.3)' }}
-                  onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' }}
-                >
-                  Borrar historial completo
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+                  <button
+                    onClick={handleClearHistory}
+                    style={{ marginTop: '10px', padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: 'var(--text-muted)', fontSize: '12px', cursor: 'pointer', width: '100%', transition: 'all 200ms' }}
+                    onMouseEnter={e => { e.currentTarget.style.color = '#FF4D6A'; e.currentTarget.style.borderColor = 'rgba(255,77,106,0.3)' }}
+                    onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)' }}
+                  >
+                    Borrar historial completo
+                  </button>
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         {/* ── ADVERTISING TAB ── */}
         {activeTab === 'ads' && (
