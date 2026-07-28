@@ -22171,6 +22171,7 @@ function MapAdBanner({
   // Branch & Interno filtering state
   const [branchFilter, setBranchFilter]     = useState<string>('all')
   const [trackedBusId, setTrackedBusId]     = useState<string | null>(null)
+  const [enRutaMinimized, setEnRutaMinimized] = useState<boolean>(false)
   const [directionFilter, setDirectionFilter] = useState<'all' | 'ida' | 'vuelta'>('all')
 
   // Travel Planner state
@@ -25099,8 +25100,8 @@ function MapAdBanner({
         <Map
           {...viewState}
           onMove={e => setViewState(e.viewState)}
-          onDragStart={() => setTrackedBusId(null)}
-          onZoomStart={() => setTrackedBusId(null)}
+          onDragStart={() => { setTrackedBusId(null); setEnRutaMinimized(false); }}
+          onZoomStart={() => { setTrackedBusId(null); setEnRutaMinimized(false); }}
           mapStyle={prefs.darkMap ? (CARTODB_DARK as any) : (CARTODB_LIGHT as any)}
           style={{ width: '100%', height: '100%' }}
           onClick={e => {
@@ -26358,49 +26359,93 @@ function MapAdBanner({
         {activeTravelRoute && (
           <div style={{
             position: 'absolute',
-            bottom: isMobile ? 'calc(env(safe-area-inset-bottom) + 80px)' : '20px',
+            bottom: isMobile ? 'calc(env(safe-area-inset-bottom) + 84px)' : '84px',
             left: '14px',
             right: '14px',
             margin: '0 auto',
-            maxWidth: '380px',
+            maxWidth: enRutaMinimized ? '340px' : '380px',
             zIndex: 100,
             background: prefs.darkMap ? 'rgba(15, 23, 42, 0.96)' : 'rgba(255, 255, 255, 0.98)',
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)',
-            borderRadius: '16px',
-            border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
-            padding: '12px 14px',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-            fontFamily: 'DM Sans, sans-serif'
+            borderRadius: enRutaMinimized ? '30px' : '16px',
+            border: enRutaMinimized ? '1.5px solid #10B981' : (prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)'),
+            padding: enRutaMinimized ? '8px 14px' : '12px 14px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
+            fontFamily: 'DM Sans, sans-serif',
+            transition: 'all 200ms ease-out'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: activeTravelRoute.color }} />
-                <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                  Línea {activeTravelRoute.line_number} en Ruta
-                </span>
+            {!enRutaMinimized && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: activeTravelRoute.color }} />
+                  <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                    Línea {activeTravelRoute.line_number} en Ruta
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    setActiveTravelRoute(null)
+                    setTravelRoute(null)
+                    setSolvedRoutes([])
+                    setOriginCoord(null)
+                    setOriginInput('')
+                    setDestCoord(null)
+                    setDestInput('')
+                    setMapSelectionMode(null)
+                    setTrackedBusId(null)
+                    setSelectedBoardingBusId(null)
+                    setSelectedLines([])
+                    setTempLinesSelection([])
+                    setEnRutaMinimized(false)
+                    setShowLineSelector(true)
+                    setLineSelectorTab('route')
+                    setDrawerState('half')
+                    toast.success("Búsqueda de recorrido reiniciada")
+                  }}
+                  style={{
+                    background: 'rgba(239,68,68,0.12)', border: 'none', color: '#EF4444', fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer'
+                  }}
+                >
+                  Volver
+                </button>
               </div>
-              <button
-                onClick={() => {
-                  setActiveTravelRoute(null)
-                  setTrackedBusId(null)
-                  setSelectedLines([])
-                  setSolvedRoutes([])
-                  setShowLineSelector(true)
-                  setLineSelectorTab('route')
-                  setDrawerState('half')
-                }}
-                style={{
-                  background: 'none', border: 'none', color: '#EF4444', fontSize: '11px', fontWeight: 700, cursor: 'pointer'
-                }}
-              >
-                Volver
-              </button>
-            </div>
+            )}
 
             {(() => {
               const { upcoming, nextBus, upcomingDist, nextDist } = getUpcomingBusesForRoute(activeTravelRoute)
               
+              if (enRutaMinimized) {
+                const arrivalMins = upcoming ? Math.ceil(upcomingDist / 1000 / (upcoming.speed_kmh > 2 ? upcoming.speed_kmh / 60 : 0.3)) : null;
+                return (
+                  <div
+                    onClick={() => setEnRutaMinimized(false)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', cursor: 'pointer' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', boxShadow: '0 0 8px #10B981' }} />
+                      <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                        🚌 {upcoming ? `Interno ${upcoming.bus_unit}` : 'En camino'} (Línea {activeTravelRoute.line_number})
+                      </span>
+                      {arrivalMins !== null && (
+                        <span style={{ fontSize: '11px', color: '#10B981', fontWeight: 700 }}>
+                          · {arrivalMins} min
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setEnRutaMinimized(false); }}
+                      style={{
+                        background: 'rgba(16,185,129,0.15)', color: '#10B981', border: 'none',
+                        borderRadius: '12px', padding: '4px 10px', fontSize: '10px', fontWeight: 800, cursor: 'pointer'
+                      }}
+                    >
+                      ⛶ Ampliar
+                    </button>
+                  </div>
+                );
+              }
+
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   {upcoming ? (
@@ -26427,11 +26472,12 @@ function MapAdBanner({
                         <button
                           onClick={() => {
                             setTrackedBusId(upcoming.id)
+                            setEnRutaMinimized(true)
                             setViewState(v => ({
                               ...v,
                               latitude: upcoming.latitude,
                               longitude: upcoming.longitude,
-                              zoom: 15.5,
+                              zoom: 16.5,
                               transitionDuration: 1000
                             }))
                             toast.success(`Siguiendo Interno ${upcoming.bus_unit} en tiempo real`)
