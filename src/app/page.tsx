@@ -29007,6 +29007,7 @@ function ProfilePanel({
   }
   
   // Ad Submission Form States
+  const [selectedAdType, setSelectedAdType] = useState<'standard' | 'map' | 'notification'>('standard')
   const [adTitle, setAdTitle] = useState('')
   const [adMapPickerActive, setAdMapPickerActive] = useState<boolean>(false)
   const [adPickedCoord, setAdPickedCoord]         = useState<{ lat: number; lng: number } | null>(null)
@@ -29833,6 +29834,89 @@ function ProfilePanel({
                 <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <PlusCircle size={15} style={{ color: '#F59E0B' }} />
                   Crear Nueva Campaña
+                </div>
+
+                {/* 3 Ad Types Selector Menu */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+                    Tipo de Anuncio / Modalidad de Campaña *
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {/* Option 1: Banner Standard */}
+                    <div
+                      onClick={() => setSelectedAdType('standard')}
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: '12px',
+                        border: selectedAdType === 'standard' ? '2px solid #10B981' : (prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)'),
+                        background: selectedAdType === 'standard' ? 'rgba(16, 185, 129, 0.08)' : 'transparent',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: selectedAdType === 'standard' ? '#10B981' : 'var(--text-primary)' }}>
+                          1ª Opción: Banner Informativo Estándar
+                        </span>
+                        <span style={{ fontSize: '10px', background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', padding: '2px 8px', borderRadius: '10px', fontWeight: 700 }}>
+                          Sin costo extra (+$0)
+                        </span>
+                      </div>
+                      <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                        Se muestra como banner visual informativo en las pantallas de la aplicación.
+                      </p>
+                    </div>
+
+                    {/* Option 2: On Map Interactive Pin */}
+                    <div
+                      onClick={() => setSelectedAdType('map')}
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: '12px',
+                        border: selectedAdType === 'map' ? '2px solid #3B82F6' : (prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)'),
+                        background: selectedAdType === 'map' ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: selectedAdType === 'map' ? '#3B82F6' : 'var(--text-primary)' }}>
+                          2ª Opción: Anuncio Interactivo en Mapa
+                        </span>
+                        <span style={{ fontSize: '10px', background: 'rgba(59, 130, 246, 0.15)', color: '#3B82F6', padding: '2px 8px', borderRadius: '10px', fontWeight: 700 }}>
+                          +$20 ARS extra
+                        </span>
+                      </div>
+                      <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                        Destaca la ubicación de tu comercio con un marcador interactivo en el mapa principal.
+                      </p>
+                    </div>
+
+                    {/* Option 3: Geofenced Push Notification */}
+                    <div
+                      onClick={() => setSelectedAdType('notification')}
+                      style={{
+                        padding: '12px 14px',
+                        borderRadius: '12px',
+                        border: selectedAdType === 'notification' ? '2px solid #F59E0B' : (prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)'),
+                        background: selectedAdType === 'notification' ? 'rgba(245, 158, 11, 0.08)' : 'transparent',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: selectedAdType === 'notification' ? '#F59E0B' : 'var(--text-primary)' }}>
+                          3ª Opción: Notificación Geolocalizada al Celular
+                        </span>
+                        <span style={{ fontSize: '10px', background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', padding: '2px 8px', borderRadius: '10px', fontWeight: 700 }}>
+                          +$100 ARS extra
+                        </span>
+                      </div>
+                      <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                        Envía una alerta Push con vibración al celular del pasajero en tiempo real al pasar cerca del local.
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <div style={{ marginBottom: '12px' }}>
