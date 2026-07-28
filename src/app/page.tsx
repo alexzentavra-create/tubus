@@ -28068,13 +28068,141 @@ function MapAdBanner({
   )
 }
 
+
+// Card for Saved Ads & Coupons in Favoritos Tab
+function FavAdCard({
+  ad,
+  onRemove,
+  onSelectLocation
+}: {
+  ad: any
+  onRemove: () => void
+  onSelectLocation?: (lat: number, lng: number, title: string) => void
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyCode = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (ad.promoCode) {
+      navigator.clipboard?.writeText(ad.promoCode);
+      setCopied(true);
+      toast.success("¡Código copiado al portapapeles!");
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div style={{
+      background: 'rgba(255,255,255,0.03)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: '12px',
+      padding: '12px',
+      marginBottom: '8px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '10px'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <img
+          src={ad.imageUrl || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80'}
+          alt={ad.title}
+          onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80' }}
+          style={{ width: '48px', height: '48px', borderRadius: '8px', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }}
+        />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {ad.title}
+          </div>
+          <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: '1.3' }}>
+            {ad.description || ad.desc}
+          </div>
+        </div>
+        <button
+          onClick={onRemove}
+          style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '12px', padding: '4px', fontWeight: 600 }}
+          title="Quitar de favoritos"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Promo Code Box */}
+      <div style={{
+        background: 'rgba(16, 185, 129, 0.08)',
+        border: '1px solid rgba(16, 185, 129, 0.25)',
+        borderRadius: '8px',
+        padding: '8px 12px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '8px'
+      }}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ fontSize: '9px', color: '#10B981', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            🎁 Código Desbloqueado
+          </span>
+          <span style={{ fontSize: '13px', fontWeight: 800, color: '#10B981', fontFamily: 'DM Mono' }}>
+            {ad.promoCode || 'BIENPARADA-OFF'}
+          </span>
+        </div>
+        <button
+          onClick={handleCopyCode}
+          style={{
+            padding: '5px 10px',
+            borderRadius: '6px',
+            border: 'none',
+            background: copied ? '#10B981' : '#3B82F6',
+            color: '#FFFFFF',
+            fontSize: '10px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+        >
+          {copied ? '¡Copiado!' : 'Copiar'}
+        </button>
+      </div>
+
+      {/* Location Button */}
+      {(ad.locationName || ad.lat) && (
+        <button
+          onClick={() => {
+            const lat = ad.lat || -34.5882;
+            const lng = ad.lng || -58.4101;
+            onSelectLocation && onSelectLocation(lat, lng, ad.title);
+          }}
+          style={{
+            padding: '6px 10px',
+            borderRadius: '6px',
+            border: '1px solid rgba(59, 130, 246, 0.3)',
+            background: 'rgba(59, 130, 246, 0.08)',
+            color: '#60A5FA',
+            fontSize: '11px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            alignSelf: 'flex-start'
+          }}
+        >
+          📍 {ad.locationName || 'Ver ubicación en el mapa'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── Favourites Panel ─────────────────────────────────────────────────────────
-function FavouritesPanel({ prefs, lines, buses, onSelectLine, onUpdatePrefs, onSelectBus, onSelectTrip, isMobile }: {
-  prefs: UserPrefs; lines: BusLine[]; buses: BusPosition[]
+function FavouritesPanel({
+  prefs, lines, buses, adSubmissions = [], onSelectLine, onUpdatePrefs, onSelectBus, onSelectTrip, onSelectLocation, isMobile
+}: {
+  prefs: UserPrefs; lines: BusLine[]; buses: BusPosition[]; adSubmissions?: any[]
   onSelectLine: (l: BusLine) => void
   onUpdatePrefs: (p: Partial<UserPrefs>) => void
   onSelectBus: (b: BusPosition) => void
   onSelectTrip: (t: any) => void
+  onSelectLocation?: (lat: number, lng: number, title: string) => void
   isMobile: boolean
 }) {
   const favLines = lines.filter(l => prefs.favBusLines.includes(l.id))
@@ -28141,6 +28269,77 @@ function FavouritesPanel({ prefs, lines, buses, onSelectLine, onUpdatePrefs, onS
           />
         ))
       )}
+
+      <SectionHeader icon={<Megaphone size={13} />} title="Anuncios y Descuentos Guardados" style={{ marginTop: '20px' }} />
+      {(() => {
+        let savedIds: string[] = [];
+        try {
+          savedIds = JSON.parse(localStorage.getItem('bu_fav_ads') || '[]');
+        } catch {}
+
+        const allAds = [
+          {
+            id: 'demo-map-1',
+            title: 'Café Martínez Palermo - 20% OFF',
+            description: 'Mostrá tu boleto de Línea 12 y obtené 20% OFF en desayunos.',
+            imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400&q=80',
+            locationName: 'Av. Santa Fe 3200, Palermo',
+            lat: -34.5882, lng: -58.4101,
+            promoCode: 'PALERMO-COFFEE20'
+          },
+          {
+            id: 'demo-map-2',
+            title: 'Farmacia Central Callao 24hs',
+            description: 'Atención 24hs en Av. Callao. Descuentos en dermocosmética.',
+            imageUrl: 'https://images.unsplash.com/photo-1586015555751-63bb77f4322a?w=400&q=80',
+            locationName: 'Av. Callao 1450, Recoleta',
+            lat: -34.5935, lng: -58.3942,
+            promoCode: 'SALUD-CALLAO24'
+          },
+          {
+            id: 'demo-map-3',
+            title: 'Megatlon Plaza Italia - Pase Libre',
+            description: 'Pase libre por 3 días para pasajeros en tránsito por Plaza Italia.',
+            imageUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&q=80',
+            locationName: 'Av. Santa Fe 4200, Palermo',
+            lat: -34.5812, lng: -58.4211,
+            promoCode: 'MEGATLON-PASERUTAS'
+          },
+          {
+            id: 'demo-map-4',
+            title: 'Pizzería Güerrin - Promo Viajero',
+            description: '2 porciones de muzzarella tradicional + faina a precio promocional.',
+            imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&q=80',
+            locationName: 'Av. Corrientes 1368, Centro',
+            lat: -34.6041, lng: -58.3860,
+            promoCode: 'GUERRIN-MUZZA'
+          },
+          ...adSubmissions
+        ];
+
+        const savedAdsList = allAds.filter(ad => savedIds.includes(ad.id));
+
+        if (savedAdsList.length === 0) {
+          return <EmptyHint text="Tocá '⭐ Guardar en Favoritos' en cualquier anuncio para guardar sus cupones de descuento" />;
+        }
+
+        return savedAdsList.map(ad => (
+          <FavAdCard
+            key={ad.id}
+            ad={ad}
+            onRemove={() => {
+              const updated = savedIds.filter(id => id !== ad.id);
+              localStorage.setItem('bu_fav_ads', JSON.stringify(updated));
+              toast.success("Anuncio quitado de favoritos");
+              // Force render update
+              onUpdatePrefs({});
+            }}
+            onSelectLocation={(lat, lng, title) => {
+              onSelectLocation && onSelectLocation(lat, lng, title);
+            }}
+          />
+        ));
+      })()}
 
       <SectionHeader icon={<Bell size={13} />} title="Notificaciones" style={{ marginTop: '20px' }} />
       <GlassCard>
