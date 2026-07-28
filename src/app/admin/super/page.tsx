@@ -538,6 +538,43 @@ export default function SuperAdminDashboard() {
   const [generalVersionInput, setGeneralVersionInput] = useState('v2.4')
   const [adsVersionInput, setAdsVersionInput] = useState('v2.1')
 
+  // Upcoming Features Management State
+  const [upcomingFeatures, setUpcomingFeatures] = useState<any[]>(() => {
+    try {
+      const stored = localStorage.getItem('bu_upcoming_features')
+      if (stored) return JSON.parse(stored)
+    } catch (e) {}
+    return []
+  })
+  const [newFeatureTitle, setNewFeatureTitle] = useState('')
+  const [newFeatureBadge, setNewFeatureBadge] = useState('pronto')
+
+  const handleAddUpcomingFeature = () => {
+    if (!newFeatureTitle.trim()) {
+      toast.error('Ingresá el título de la función próximamente.')
+      return
+    }
+    const newFeature = {
+      id: `feat-${Date.now()}`,
+      title: newFeatureTitle.trim(),
+      badge: newFeatureBadge,
+      active: true,
+      createdAt: new Date().toLocaleDateString('es-AR')
+    }
+    const updated = [newFeature, ...upcomingFeatures]
+    setUpcomingFeatures(updated)
+    localStorage.setItem('bu_upcoming_features', JSON.stringify(updated))
+    setNewFeatureTitle('')
+    toast.success('¡Función "Próximamente" agregada con éxito para los usuarios!')
+  }
+
+  const handleDeleteUpcomingFeature = (id: string) => {
+    const updated = upcomingFeatures.filter(f => f.id !== id)
+    setUpcomingFeatures(updated)
+    localStorage.setItem('bu_upcoming_features', JSON.stringify(updated))
+    toast.success('Función eliminada del panel del usuario')
+  }
+
   // Super Admin 2FA Settings States
   const [twoFaConfig, setTwoFaConfig] = useState(() => {
     try {
@@ -3323,6 +3360,191 @@ export default function SuperAdminDashboard() {
         )}
         {tab === 'company_admins' && renderCompanyAdminsDetail()}
         {tab === 'terms' && renderTermsDetail()}
+        {tab === 'security_2fa' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '900px', margin: '0 auto' }}>
+            {/* 2FA Messaging Settings */}
+            <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '16px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Lock size={22} style={{ color: '#3B82F6' }} />
+                </div>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#FFFFFF' }}>🔐 Configuración de Seguridad 2FA y Mensajería</h2>
+                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#8F94A5' }}>Administrá los remitentes y plantillas de correo/SMS utilizados para verificar la identidad de los usuarios.</p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8F94A5', textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'DM Mono' }}>
+                      📧 Remitente de Correo (Email Sender)
+                    </label>
+                    <input
+                      type="email"
+                      value={twoFaConfig.emailSender}
+                      onChange={e => setTwoFaConfig({ ...twoFaConfig, emailSender: e.target.value })}
+                      placeholder="seguridad@bienparada.com.ar"
+                      style={{ width: '100%', padding: '12px', borderRadius: '10px', background: '#1B1D2E', border: '1px solid rgba(255,255,255,0.1)', color: '#FFFFFF', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8F94A5', textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'DM Mono' }}>
+                      📱 Remitente de SMS (Gateway Sender)
+                    </label>
+                    <input
+                      type="text"
+                      value={twoFaConfig.smsSender}
+                      onChange={e => setTwoFaConfig({ ...twoFaConfig, smsSender: e.target.value })}
+                      placeholder="+54 11 0800-BIENPARADA"
+                      style={{ width: '100%', padding: '12px', borderRadius: '10px', background: '#1B1D2E', border: '1px solid rgba(255,255,255,0.1)', color: '#FFFFFF', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8F94A5', textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'DM Mono' }}>
+                    ⏱️ Tiempo de Expiración del Código (Minutos)
+                  </label>
+                  <input
+                    type="number"
+                    value={twoFaConfig.expirationMinutes}
+                    onChange={e => setTwoFaConfig({ ...twoFaConfig, expirationMinutes: Number(e.target.value) })}
+                    style={{ width: '200px', padding: '12px', borderRadius: '10px', background: '#1B1D2E', border: '1px solid rgba(255,255,255,0.1)', color: '#FFFFFF', fontSize: '13px', outline: 'none' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8F94A5', textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'DM Mono' }}>
+                    ✉️ Plantilla de Mensaje por Correo Electrónico (Usá {"{{CODE}}"} y {"{{NAME}}"})
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={twoFaConfig.emailTemplate}
+                    onChange={e => setTwoFaConfig({ ...twoFaConfig, emailTemplate: e.target.value })}
+                    style={{ width: '100%', padding: '12px', borderRadius: '10px', background: '#1B1D2E', border: '1px solid rgba(255,255,255,0.1)', color: '#FFFFFF', fontSize: '13px', outline: 'none', boxSizing: 'border-box', resize: 'vertical' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8F94A5', textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'DM Mono' }}>
+                    💬 Plantilla de Mensaje por SMS (Usá {"{{CODE}}"})
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={twoFaConfig.smsTemplate}
+                    onChange={e => setTwoFaConfig({ ...twoFaConfig, smsTemplate: e.target.value })}
+                    style={{ width: '100%', padding: '12px', borderRadius: '10px', background: '#1B1D2E', border: '1px solid rgba(255,255,255,0.1)', color: '#FFFFFF', fontSize: '13px', outline: 'none', boxSizing: 'border-box', resize: 'vertical' }}
+                  />
+                </div>
+
+                <button
+                  onClick={handleSave2FaConfig}
+                  style={{
+                    padding: '12px 20px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #10B981, #059669)',
+                    color: 'white',
+                    fontSize: '13px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    width: 'fit-content'
+                  }}
+                >
+                  <CheckCircle2 size={16} /> Guardar Configuración 2FA
+                </button>
+              </div>
+            </div>
+
+            {/* Upcoming Features Manager */}
+            <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '16px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Megaphone size={22} style={{ color: '#10B981' }} />
+                </div>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#FFFFFF' }}>🚀 Gestión de Funciones "Próximamente"</h2>
+                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#8F94A5' }}>Agregá nuevas características en desarrollo que aparecerán automáticamente en la sección de Preferencias de los usuarios.</p>
+                </div>
+              </div>
+
+              {/* Form to add upcoming feature */}
+              <div style={{ background: '#1B1D2E', padding: '16px', borderRadius: '12px', marginBottom: '20px', display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'flex-end' }}>
+                <div style={{ flex: 1, minWidth: '220px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8F94A5', textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'DM Mono' }}>Título de la Función Próximamente</label>
+                  <input
+                    type="text"
+                    value={newFeatureTitle}
+                    onChange={e => setNewFeatureTitle(e.target.value)}
+                    placeholder="Ej. Incorporación de Línea 102"
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: '#121527', border: '1px solid rgba(255,255,255,0.1)', color: '#FFFFFF', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                </div>
+                <div style={{ width: '160px' }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8F94A5', textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'DM Mono' }}>Estado / Etiqueta</label>
+                  <select
+                    value={newFeatureBadge}
+                    onChange={e => setNewFeatureBadge(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', background: '#121527', border: '1px solid rgba(255,255,255,0.1)', color: '#FFFFFF', fontSize: '13px', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' }}
+                  >
+                    <option value="pronto">pronto</option>
+                    <option value="en desarrollo">en desarrollo</option>
+                    <option value="muy pronto">muy pronto</option>
+                  </select>
+                </div>
+                <button
+                  onClick={handleAddUpcomingFeature}
+                  style={{ padding: '10px 18px', borderRadius: '8px', border: 'none', background: '#10B981', color: 'white', fontWeight: 700, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Plus size={16} /> Agregar
+                </button>
+              </div>
+
+              {/* List of active upcoming features */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <h4 style={{ fontSize: '12px', fontWeight: 700, color: '#8F94A5', textTransform: 'uppercase', margin: '0 0 4px', fontFamily: 'DM Mono' }}>Funciones Activas ({upcomingFeatures.length + 1})</h4>
+
+                {/* Base feature */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: '10px', background: '#1B1D2E', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>Compartir ubicación</span>
+                    <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '999px', background: 'rgba(16,185,129,0.15)', color: '#10B981', border: '1px solid rgba(16,185,129,0.3)', fontWeight: 700 }}>base</span>
+                  </div>
+                  <span style={{ fontSize: '11px', color: '#8F94A5' }}>Función fija por defecto</span>
+                </div>
+
+                {upcomingFeatures.length === 0 ? (
+                  <div style={{ padding: '20px', textAlign: 'center', color: '#8F94A5', fontSize: '13px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px dashed rgba(255,255,255,0.08)' }}>
+                    No hay funciones adicionales agregadas. Solo "Compartir ubicación" es visible para los usuarios.
+                  </div>
+                ) : (
+                  upcomingFeatures.map(feat => (
+                    <div key={feat.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderRadius: '10px', background: '#1B1D2E', border: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 600, color: '#FFFFFF' }}>{feat.title}</span>
+                        <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '999px', background: 'rgba(59,130,246,0.15)', color: '#3B82F6', border: '1px solid rgba(59,130,246,0.3)', fontWeight: 700 }}>
+                          {feat.badge}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteUpcomingFeature(feat.id)}
+                        style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#EF4444', borderRadius: '6px', padding: '5px 10px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        title="Eliminar del panel del usuario"
+                      >
+                        <Trash2 size={12} /> Eliminar
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   )

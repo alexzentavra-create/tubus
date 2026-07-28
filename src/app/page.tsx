@@ -28809,25 +28809,49 @@ function SettingsPanel({
         </div>
       </GlassCard>
 
+      {/* Dynamic Upcoming Features loaded from Super Admin */}
       <SectionHeader icon={<Sliders size={13} />} title={t('Próximamente')} style={{ marginTop: '20px' }} />
-      <GlassCard>
-        {[
-          'Historial de viajes',
-          'Incorporación de Línea 39',
-          'Incorporación de Línea 59',
-          'Incorporación de Línea 102',
-          'Alertas de demora por línea',
-          'Compartir ubicación'
-        ].map((item, i, arr) => (
-          <div key={item}>
-            <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t(item)}</span>
-              <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '999px', background: 'rgba(184,200,224,0.06)', color: 'var(--text-muted)', border: '1px solid rgba(184,200,224,0.1)' }}>{prefs.language === 'en' ? 'soon' : 'pronto'}</span>
-            </div>
-            {i < arr.length - 1 && <Divider />}
-          </div>
-        ))}
-      </GlassCard>
+      {(() => {
+        const [dynamicFeatures, setDynamicFeatures] = useState<any[]>(() => {
+          try {
+            const stored = typeof window !== 'undefined' ? localStorage.getItem('bu_upcoming_features') : null
+            if (stored) return JSON.parse(stored)
+          } catch (e) {}
+          return []
+        })
+
+        useEffect(() => {
+          const syncFeatures = () => {
+            try {
+              const stored = localStorage.getItem('bu_upcoming_features')
+              if (stored) setDynamicFeatures(JSON.parse(stored))
+            } catch (e) {}
+          }
+          window.addEventListener('storage', syncFeatures)
+          return () => window.removeEventListener('storage', syncFeatures)
+        }, [])
+
+        const list = [
+          { id: 'base-share-loc', title: 'Compartir ubicación', badge: 'pronto' },
+          ...dynamicFeatures.filter((f: any) => f.active !== false)
+        ]
+
+        return (
+          <GlassCard>
+            {list.map((item: any, i: number, arr: any[]) => (
+              <div key={item.id || item.title}>
+                <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t(item.title)}</span>
+                  <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '999px', background: 'rgba(184,200,224,0.06)', color: 'var(--text-muted)', border: '1px solid rgba(184,200,224,0.1)' }}>
+                    {item.badge || (prefs.language === 'en' ? 'soon' : 'pronto')}
+                  </span>
+                </div>
+                {i < arr.length - 1 && <Divider />}
+              </div>
+            ))}
+          </GlassCard>
+        )
+      })()}
 
       {/* Space underneath for mobile viewports to elevate above navigation bar */}
       {isMobile && (
