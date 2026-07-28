@@ -23636,6 +23636,30 @@ function MapAdBanner({
               }
 
               if (triggered) {
+                // System level notification for lock screen / sleep mode
+                try {
+                  if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+                    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                      navigator.serviceWorker.ready.then(reg => {
+                        reg.showNotification('🚨 ¡ALERTA DE COLECTIVO BIENPARADA!', {
+                          body: `El Interno ${bus.bus_unit} (Línea ${bus.line_number}) está a menos de ${alarm.thresholdValue} ${alarm.thresholdType === 'meters' ? 'metros' : alarm.thresholdType === 'minutes' ? 'minutos' : 'cuadras'} de tu posición.`,
+                          icon: '/icons/icon-192.png',
+                          badge: '/icons/badge-72.png',
+                          tag: 'bus-alarm-alert',
+                          renotify: true,
+                          requireInteraction: true,
+                          vibrate: [400, 200, 400, 200, 800, 200, 1000]
+                        } as any)
+                      })
+                    } else {
+                      new Notification('🚨 ¡ALERTA DE COLECTIVO BIENPARADA!', {
+                        body: `El Interno ${bus.bus_unit} (Línea ${bus.line_number}) está a menos de ${alarm.thresholdValue} ${alarm.thresholdType === 'meters' ? 'metros' : alarm.thresholdType === 'minutes' ? 'minutos' : 'cuadras'} de tu posición.`,
+                        icon: '/icons/icon-192.png'
+                      })
+                    }
+                  }
+                } catch (err) {}
+
                 if (alarm.notificationType === 'ringing') {
                   setActiveRingingAlarm({
                     ...alarm,
@@ -23956,6 +23980,7 @@ function MapAdBanner({
 
   const handleBusClick = (bus: BusPosition) => {
     setSelectedBus(bus)
+    setEnRutaMinimized(true)
     if (prefs.autoZoomOnBus)
       setViewState(v => ({ ...v, longitude: bus.longitude, latitude: bus.latitude, zoom: 15 }))
   }
@@ -26356,7 +26381,7 @@ function MapAdBanner({
         />
 
         {/* Upcoming Bus Overlay Card */}
-        {activeTravelRoute && (
+        {activeTravelRoute && activePanel === 'map' && (
           <div style={{
             position: 'absolute',
             bottom: isMobile ? 'calc(env(safe-area-inset-bottom) + 84px)' : '84px',
@@ -32683,6 +32708,9 @@ function MiniPopup({
 
               <button
                 onClick={() => {
+                  if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'granted') {
+                    Notification.requestPermission()
+                  }
                   const alarm = {
                     id: `alarm-bus-${bus.id}-${Date.now()}`,
                     type: 'bus_alarm',
@@ -32697,7 +32725,7 @@ function MiniPopup({
                     notificationType: alarmNotificationType
                   }
                   onAddAlarm(alarm)
-                  toast.success(`Alarma activada para el Interno ${bus.bus_unit}`)
+                  toast.success(`🔔 Alarma activada (Modo Suspensión / Pantalla Bloqueada activo) para Interno ${bus.bus_unit}`, { duration: 5000 })
                 }}
                 style={{
                   background: '#F59E0B', color: 'white', border: 'none', borderRadius: '8px',
