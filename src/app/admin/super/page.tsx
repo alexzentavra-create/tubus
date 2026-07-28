@@ -7,7 +7,7 @@ import {
   ChevronRight, Star, Wifi, Search, Bell, Mail, Calendar,
   Share2, Printer, Plus, Trash2, ChevronDown, CheckCircle2,
   Circle, Flag, Info, Megaphone, MessageSquare, Eye, EyeOff,
-  BookOpen, Globe, Award, ListChecks, Key, Filter, History as HistoryIcon, ShieldCheck
+  BookOpen, Globe, Award, ListChecks, Key, Filter, History as HistoryIcon, ShieldCheck, Lock
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { getStoredGeneralTerms, getStoredAdsTerms, saveStoredGeneralTerms, saveStoredAdsTerms } from '@/lib/termsData'
@@ -515,7 +515,7 @@ const DEFAULT_CHATS = [
   ]}
 ]
 
-type Tab = 'overview' | 'linemaps' | 'drivers' | 'company_admins' | 'ads' | 'chat' | 'reports' | 'provincemap' | 'todos' | 'news' | 'terms'
+type Tab = 'overview' | 'linemaps' | 'drivers' | 'company_admins' | 'ads' | 'chat' | 'reports' | 'provincemap' | 'todos' | 'news' | 'terms' | 'security_2fa'
 
 interface Todo {
   id: string
@@ -537,6 +537,26 @@ export default function SuperAdminDashboard() {
   const [adsTermsInput, setAdsTermsInput] = useState(getStoredAdsTerms())
   const [generalVersionInput, setGeneralVersionInput] = useState('v2.4')
   const [adsVersionInput, setAdsVersionInput] = useState('v2.1')
+
+  // Super Admin 2FA Settings States
+  const [twoFaConfig, setTwoFaConfig] = useState(() => {
+    try {
+      const stored = localStorage.getItem('bu_super_admin_2fa_config')
+      if (stored) return JSON.parse(stored)
+    } catch (e) {}
+    return {
+      emailSender: 'seguridad@bienparada.com.ar',
+      smsSender: '+54 11 0800-BIENPARADA',
+      emailTemplate: 'BienParada 2FA: Tu código de verificación de seguridad para el cambio de datos es: {{CODE}}. Válido por 10 minutos.',
+      smsTemplate: 'BienParada SMS 2FA: Código de autenticación: {{CODE}}. No lo compartas con nadie.',
+      expirationMinutes: 10
+    }
+  })
+
+  const handleSave2FaConfig = () => {
+    localStorage.setItem('bu_super_admin_2fa_config', JSON.stringify(twoFaConfig))
+    toast.success('¡Configuración de Seguridad 2FA y Mensajería guardada correctamente!')
+  }
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
     totalUsers: 4820, totalDrivers: 24, totalCompanies: 7,
@@ -2373,6 +2393,7 @@ export default function SuperAdminDashboard() {
     { id: 'todos', label: 'Tareas', icon: ListChecks },
     { id: 'news', label: 'Noticias', icon: BookOpen },
     { id: 'terms', label: 'Términos y Condiciones', icon: ShieldCheck },
+    { id: 'security_2fa', label: 'Seguridad 2FA', icon: Lock },
   ]
 
   if (loading) {

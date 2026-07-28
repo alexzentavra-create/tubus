@@ -10,7 +10,7 @@ import {
   Navigation as NavIcon, LayoutDashboard, Menu,
   Locate, Plus, Minus, Sun, Route, Activity, Clock,
   Megaphone, MessageSquare, PlusCircle, CheckCircle2, MessageCircle, Edit2, Award,
-  HelpCircle, Upload, Smartphone, CreditCard, PhoneCall, Sparkles
+  HelpCircle, Upload, Smartphone, CreditCard, PhoneCall, Sparkles, Eye, EyeOff, Lock, ShieldCheck
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { getStoredGeneralTerms, getStoredAdsTerms } from '@/lib/termsData'
@@ -28904,6 +28904,22 @@ function ProfilePanel({
   const [localPhone, setLocalPhone] = useState(profilePhone)
   const [localEmail, setLocalEmail] = useState(profileEmail)
   const [localAvatar, setLocalAvatar] = useState(profileAvatar)
+  const [localCountry, setLocalCountry] = useState<string>(() => typeof window !== 'undefined' ? localStorage.getItem('tu_bus_profile_country') || 'Argentina' : 'Argentina')
+  const [localPassword, setLocalPassword] = useState<string>(() => typeof window !== 'undefined' ? localStorage.getItem('tu_bus_profile_password') || 'bienparada2026' : 'bienparada2026')
+  const [showPassword, setShowPassword] = useState(false)
+
+  // 2FA Security Modal State
+  const [twoFaModal, setTwoFaModal] = useState<{
+    isOpen: boolean
+    type: 'password' | 'email' | 'phone'
+    step: 'select_method' | 'simulated_sent' | 'verify_code' | 'new_value'
+    deliveryMethod?: 'email' | 'sms'
+    generatedCode?: string
+    codeInput?: string
+    newValue?: string
+    confirmValue?: string
+    targetRecipient?: string
+  } | null>(null)
   
   // Points & Referral System States
   const [points, setPoints] = useState<number>(350)
@@ -29151,6 +29167,59 @@ function ProfilePanel({
     }
   }, [chatMessages, activeTab])
 
+  const getSuperAdmin2FaConfig = () => {
+    try {
+      const stored = localStorage.getItem('bu_super_admin_2fa_config')
+      if (stored) return JSON.parse(stored)
+    } catch (e) {}
+    return {
+      emailSender: 'seguridad@bienparada.com.ar',
+      smsSender: '+54 11 0800-BIENPARADA',
+      emailTemplate: 'BienParada 2FA: Tu código de verificación de seguridad para el cambio de datos es: {{CODE}}. Válido por 10 minutos.',
+      smsTemplate: 'BienParada SMS 2FA: Código de autenticación: {{CODE}}. No lo compartas con nadie.',
+      expirationMinutes: 10
+    }
+  }
+
+  const trigger2fa = (type: 'password' | 'email' | 'phone') => {
+    const code = Math.floor(100000 + Math.random() * 900000).toString()
+    if (type === 'password') {
+      setTwoFaModal({
+        isOpen: true,
+        type: 'password',
+        step: 'select_method',
+        generatedCode: code,
+        codeInput: '',
+        newValue: '',
+        confirmValue: ''
+      })
+    } else if (type === 'email') {
+      // Email change requires SMS 2FA
+      setTwoFaModal({
+        isOpen: true,
+        type: 'email',
+        step: 'simulated_sent',
+        deliveryMethod: 'sms',
+        targetRecipient: localPhone || '+54 11 5555-5555',
+        generatedCode: code,
+        codeInput: '',
+        newValue: ''
+      })
+    } else if (type === 'phone') {
+      // Phone change requires Email 2FA
+      setTwoFaModal({
+        isOpen: true,
+        type: 'phone',
+        step: 'simulated_sent',
+        deliveryMethod: 'email',
+        targetRecipient: localEmail || 'usuario@bienparada.com.ar',
+        generatedCode: code,
+        codeInput: '',
+        newValue: ''
+      })
+    }
+  }
+
   const handleSaveProfile = () => {
     setProfileName(localName)
     setProfilePhone(localPhone)
@@ -29161,8 +29230,10 @@ function ProfilePanel({
     localStorage.setItem('tu_bus_profile_phone', localPhone)
     localStorage.setItem('tu_bus_profile_email', localEmail)
     localStorage.setItem('tu_bus_profile_avatar', localAvatar)
+    localStorage.setItem('tu_bus_profile_country', localCountry)
+    localStorage.setItem('tu_bus_profile_password', localPassword)
 
-    alert('¡Perfil guardado con éxito!')
+    toast.success('¡Perfil y cambios guardados con éxito!')
   }
 
   const handleClearHistory = () => {
@@ -29423,9 +29494,9 @@ function ProfilePanel({
             </div>
 
             <GlassCard>
-              <div style={{ padding: '16px' }}>
+              <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {/* Name */}
-                <div style={{ marginBottom: '14px' }}>
+                <div>
                   <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'DM Mono' }}>Nombre y Apellido</label>
                   <input
                     type="text"
@@ -29435,9 +29506,19 @@ function ProfilePanel({
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: '#FFFFFF', border: '1px solid #3B82F6', color: '#000000', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
+
                 {/* Phone */}
-                <div style={{ marginBottom: '14px' }}>
-                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'DM Mono' }}>Teléfono de contacto</label>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <label style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', fontFamily: 'DM Mono' }}>Teléfono de contacto</label>
+                    <button
+                      type="button"
+                      onClick={() => trigger2fa('phone')}
+                      style={{ background: 'rgba(59, 130, 246, 0.12)', border: '1px solid rgba(59, 130, 246, 0.3)', color: '#3B82F6', fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <Lock size={10} /> Cambiar
+                    </button>
+                  </div>
                   <input
                     type="tel"
                     value={localPhone}
@@ -29446,9 +29527,19 @@ function ProfilePanel({
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: '#FFFFFF', border: '1px solid #3B82F6', color: '#000000', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
                   />
                 </div>
+
                 {/* Email */}
                 <div>
-                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'DM Mono' }}>Dirección de Email</label>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <label style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', fontFamily: 'DM Mono' }}>Dirección de Email</label>
+                    <button
+                      type="button"
+                      onClick={() => trigger2fa('email')}
+                      style={{ background: 'rgba(59, 130, 246, 0.12)', border: '1px solid rgba(59, 130, 246, 0.3)', color: '#3B82F6', fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <Lock size={10} /> Cambiar
+                    </button>
+                  </div>
                   <input
                     type="email"
                     value={localEmail}
@@ -29456,6 +29547,48 @@ function ProfilePanel({
                     placeholder="ejemplo@email.com"
                     style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: '#FFFFFF', border: '1px solid #3B82F6', color: '#000000', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
                   />
+                </div>
+
+                {/* Password with Eye toggle & Cambiar button */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <label style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', fontFamily: 'DM Mono' }}>Contraseña de Seguridad</label>
+                    <button
+                      type="button"
+                      onClick={() => trigger2fa('password')}
+                      style={{ background: 'rgba(59, 130, 246, 0.12)', border: '1px solid rgba(59, 130, 246, 0.3)', color: '#3B82F6', fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <Lock size={10} /> Cambiar
+                    </button>
+                  </div>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={localPassword}
+                      onChange={e => setLocalPassword(e.target.value)}
+                      style={{ width: '100%', padding: '10px 38px 10px 12px', borderRadius: '10px', background: '#FFFFFF', border: '1px solid #3B82F6', color: '#000000', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(prev => !prev)}
+                      style={{ position: 'absolute', right: '10px', background: 'none', border: 'none', cursor: 'pointer', color: '#64748B', display: 'flex', alignItems: 'center' }}
+                      title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Country Dropdown */}
+                <div>
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'DM Mono' }}>País de Origen</label>
+                  <select
+                    value={localCountry}
+                    onChange={e => setLocalCountry(e.target.value)}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: '#FFFFFF', border: '1px solid #3B82F6', color: '#000000', fontSize: '13px', outline: 'none', boxSizing: 'border-box', cursor: 'pointer' }}
+                  >
+                    <option value="Argentina">🇦🇷 Argentina</option>
+                  </select>
                 </div>
               </div>
             </GlassCard>
