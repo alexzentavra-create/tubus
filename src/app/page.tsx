@@ -30530,7 +30530,17 @@ function ProfilePanel({
                         fontFamily: 'DM Mono',
                         marginTop: '2px'
                       }}>
-                        {msg.timestamp}
+                        {(() => {
+                          const ts = msg.timestamp
+                          if (!ts) return ''
+                          if (typeof ts === 'string' && (ts.includes('T') || ts.includes('-'))) {
+                            const d = new Date(ts)
+                            if (!isNaN(d.getTime())) {
+                              return `${d.toLocaleDateString('es-AR')} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                            }
+                          }
+                          return String(ts)
+                        })()}
                       </div>
                     </div>
                   )
