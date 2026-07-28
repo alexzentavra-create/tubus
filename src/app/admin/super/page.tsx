@@ -532,6 +532,127 @@ interface Todo {
 export default function SuperAdminDashboard() {
   const supabase = createClient()
   const [tab, setTab] = useState<Tab>('overview')
+
+  // Super Admin Dual Identity (Alejandro / Nestor)
+  const [adminIdentity, setAdminIdentity] = useState<string | null>(null)
+  const [showIdentityModal, setShowIdentityModal] = useState<boolean>(false)
+
+  // Avatar Circle Colors
+  const [colorAlejandro, setColorAlejandro] = useState<string>('#3B82F6')
+  const [colorNestor, setColorNestor] = useState<string>('#10B981')
+  const [showColorPickerFor, setShowColorPickerFor] = useState<string | null>(null)
+
+  // Real-time Chat Drawer State
+  const [showSuperAdminChat, setShowSuperAdminChat] = useState<boolean>(false)
+  const [chatMessages, setChatMessages] = useState<any[]>([])
+  const [chatInputText, setChatInputText] = useState<string>('')
+  const [counterpartOnline, setCounterpartOnline] = useState<boolean>(true)
+
+  // Super Admin Line Generator State
+  const [newLineNumber, setNewLineNumber] = useState<string>('')
+  const [newLineName, setNewLineName] = useState<string>('')
+  const [newLineColor, setNewLineColor] = useState<string>('#8B5CF6')
+
+  // Activity Audit Logs
+  const [auditLogs, setAuditLogs] = useState<any[]>([])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const storedIdentity = sessionStorage.getItem('super_admin_identity') || localStorage.getItem('super_admin_identity')
+    if (!storedIdentity) {
+      setShowIdentityModal(true)
+    } else {
+      setAdminIdentity(storedIdentity)
+    }
+
+    const colorA = localStorage.getItem('admin_color_Alejandro') || '#3B82F6'
+    const colorN = localStorage.getItem('admin_color_Nestor') || '#10B981'
+    setColorAlejandro(colorA)
+    setColorNestor(colorN)
+
+    const savedLogs = JSON.parse(localStorage.getItem('bu_super_admin_audit_logs') || '[]')
+    setAuditLogs(savedLogs)
+
+    const savedChat = JSON.parse(localStorage.getItem('bu_super_admin_internal_chat') || '[]')
+    setChatMessages(savedChat)
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'bu_super_admin_internal_chat' && e.newValue) {
+        setChatMessages(JSON.parse(e.newValue))
+      }
+      if (e.key === 'bu_super_admin_audit_logs' && e.newValue) {
+        setAuditLogs(JSON.parse(e.newValue))
+      }
+    }
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
+
+  const logActivity = (action: string) => {
+    const actor = adminIdentity || 'Super Admin'
+    const now = new Date()
+    const timeStr = `${now.toLocaleDateString('es-AR')} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+    const entry = { id: Date.now().toString(), actor, action, timestamp: timeStr }
+    const updated = [entry, ...auditLogs]
+    setAuditLogs(updated)
+    localStorage.setItem('bu_super_admin_audit_logs', JSON.stringify(updated))
+  }
+
+  const handleSelectIdentity = (name: 'Alejandro' | 'Nestor') => {
+    setAdminIdentity(name)
+    sessionStorage.setItem('super_admin_identity', name)
+    localStorage.setItem('super_admin_identity', name)
+    setShowIdentityModal(false)
+    toast.success(`¡Bienvenido ${name}!`)
+    logActivity(`Inicio de sesión en panel Super Admin como ${name}`)
+  }
+
+  const handleSendChatMessage = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!chatInputText.trim()) return
+    const sender = adminIdentity || 'Alejandro'
+    const now = new Date()
+    const msg = {
+      id: Date.now().toString(),
+      sender,
+      text: chatInputText.trim(),
+      timestamp: `${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+    }
+    const updated = [...chatMessages, msg]
+    setChatMessages(updated)
+    localStorage.setItem('bu_super_admin_internal_chat', JSON.stringify(updated))
+    setChatInputText('')
+    logActivity(`Envió mensaje a chat interno de Super Admin`)
+  }
+
+  const handleCreateNewLineAdmin = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newLineNumber.trim()) return
+    const num = newLineNumber.trim()
+    const name = newLineName.trim() || `Línea ${num}`
+    const createdLines = JSON.parse(localStorage.getItem('bu_created_lines') || '[]')
+    
+    if (createdLines.some((l: any) => l.number === num)) {
+      toast.error(`La Línea ${num} ya existe.`)
+      return
+    }
+
+    const newLineObj = {
+      number: num,
+      name,
+      color: newLineColor,
+      email: `linea${num}@bienparada.ar`,
+      password: 'Bienparada',
+      createdAt: new Date().toISOString()
+    }
+
+    const updated = [...createdLines, newLineObj]
+    localStorage.setItem('bu_created_lines', JSON.stringify(updated))
+    setNewLineNumber('')
+    setNewLineName('')
+    toast.success(`¡Línea ${num} creada con éxito! Credenciales: linea${num}@bienparada.ar / Bienparada`)
+    logActivity(`Creó nueva Línea de Colectivo ${num} (${name}) con panel clonado desde 0`)
+  }
   const [adminTermsTab, setAdminTermsTab] = useState<'general' | 'ads'>('general')
   const [generalTermsInput, setGeneralTermsInput] = useState(getStoredGeneralTerms())
   const [adsTermsInput, setAdsTermsInput] = useState(getStoredAdsTerms())
@@ -2664,6 +2785,71 @@ export default function SuperAdminDashboard() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            {/* Online Admin Presence Avatar Circles */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', position: 'relative' }}>
+              {/* Alejandro Avatar Circle */}
+              <div
+                onClick={() => setShowColorPickerFor(showColorPickerFor === 'Alejandro' ? null : 'Alejandro')}
+                style={{
+                  width: '32px', height: '32px', borderRadius: '50%', background: colorAlejandro, color: '#FFFFFF',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '13px',
+                  cursor: 'pointer', border: '2px solid #0F172A', boxShadow: '0 0 8px rgba(0,0,0,0.5)'
+                }}
+                title="Alejandro (Clic para cambiar color)"
+              >
+                A
+              </div>
+
+              {/* Nestor Avatar Circle */}
+              <div
+                onClick={() => setShowColorPickerFor(showColorPickerFor === 'Nestor' ? null : 'Nestor')}
+                style={{
+                  width: '32px', height: '32px', borderRadius: '50%', background: colorNestor, color: '#FFFFFF',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '13px',
+                  cursor: 'pointer', border: '2px solid #0F172A', boxShadow: '0 0 8px rgba(0,0,0,0.5)'
+                }}
+                title="Nestor (Clic para cambiar color)"
+              >
+                N
+              </div>
+
+              {/* Color Picker Popover */}
+              {showColorPickerFor && (
+                <div style={{
+                  position: 'absolute', top: '42px', right: 0, background: '#1E293B', border: '1px solid rgba(255,255,255,0.15)',
+                  borderRadius: '12px', padding: '10px', display: 'flex', gap: '6px', zIndex: 9999
+                }}>
+                  {['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'].map(c => (
+                    <div
+                      key={c}
+                      onClick={() => {
+                        if (showColorPickerFor === 'Alejandro') {
+                          setColorAlejandro(c)
+                          localStorage.setItem('admin_color_Alejandro', c)
+                        } else {
+                          setColorNestor(c)
+                          localStorage.setItem('admin_color_Nestor', c)
+                        }
+                        setShowColorPickerFor(null)
+                        toast.success('Color de insignia guardado')
+                      }}
+                      style={{ width: '22px', height: '22px', borderRadius: '50%', background: c, cursor: 'pointer', border: '1px solid #FFF' }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Chat Super Admin Button */}
+            <button
+              onClick={() => setShowSuperAdminChat(prev => !prev)}
+              style={{
+                padding: '8px 14px', borderRadius: '10px', background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)',
+                color: '#60A5FA', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
+              }}
+            >
+              💬 Chat Super Admin
+            </button>
           {/* Light/Dark Mode Toggle Button */}
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}

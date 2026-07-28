@@ -470,7 +470,10 @@ export default function LoginPage() {
               name: 'Néstor García', email: lowerEmail, lineNumber: '12', driverId: 'mock-driver-nestor'
             }))
             window.location.href = '/driver'
-          } else if (lowerEmail === 'linea12@bienparada.ar' && passLower === 'bienparada') {
+          } else if (lowerEmail.startsWith('linea') && lowerEmail.endsWith('@bienparada.ar') && passLower === 'bienparada') {
+            const lineNum = lowerEmail.replace('linea', '').replace('@bienparada.ar', '')
+            localStorage.setItem('active_company_line', lineNum)
+            localStorage.setItem('active_user', JSON.stringify({ role: 'company_admin', lineNumber: lineNum, email: lowerEmail }))
             window.location.href = '/admin/company'
           } else {
             // Generic fallback — completely unrecognized account
@@ -537,13 +540,21 @@ export default function LoginPage() {
       if (url.includes('placeholder.supabase.co')) {
         try {
           const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
-          mockUsers.push({
+          const userId = 'usr_' + Date.now()
+          const newUserData = {
+            id: userId,
             name: form.name,
             email: form.email,
             password: form.password,
             age: parseInt(form.age) || 25,
-            weeklyTrips: parseInt(form.weeklyTrips) || 0
-          })
+            role: 'user'
+          }
+          mockUsers.push(newUserData)
+          // Set fresh 0 state for new user
+          localStorage.setItem('active_user', JSON.stringify(newUserData))
+          localStorage.setItem('bu_search_history_' + userId, JSON.stringify([]))
+          localStorage.setItem('bu_user_ads_' + userId, JSON.stringify([]))
+          localStorage.setItem('bu_user_points_' + userId, '0')
           localStorage.setItem('mock_users', JSON.stringify(mockUsers))
         } catch (e) {
           console.error(e)
@@ -588,7 +599,7 @@ export default function LoginPage() {
           }} animate={{boxShadow:['0 0 16px rgba(34,211,160,0.1)','0 0 32px rgba(34,211,160,0.24)','0 0 16px rgba(34,211,160,0.1)']}} transition={{duration:3,repeat:Infinity,ease:'easeInOut'}}>
             <img src="/images/logo.jpg" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </motion.div>
-          <h1 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'24px',color:'var(--text-primary)',letterSpacing:'-0.02em',margin:0,textShadow:'0 2px 24px rgba(0,0,0,0.5)'}}>BienParada</h1>
+          <h1 style={{fontFamily:'Syne,sans-serif',fontWeight:900,fontSize:'26px',color:'var(--text-primary)',letterSpacing:'0.04em',margin:0,textShadow:'0 2px 24px rgba(0,0,0,0.5)'}}>Bien Parada</h1>
           <p style={{color:'var(--text-secondary)',fontSize:'11px',marginTop:'2px',fontFamily:'DM Sans,sans-serif'}}>Seguí tu colectivo en tiempo real</p>
         </div>
 
@@ -640,14 +651,14 @@ export default function LoginPage() {
 
                 {mode==='register' && (<>
                   <Input type="number" placeholder="Edad" value={form.age} onChange={set('age')} right={<Calendar size={15}/>}/>
-                  <Input type="number" placeholder="Veces por semana que tomás el colectivo" value={form.weeklyTrips} onChange={set('weeklyTrips')} right={<BarChart2 size={15}/>}/>
+                  
                 </>)}
 
                 <div style={{display:'flex',flexDirection:'column',gap:'4px',margin:'2px 0 4px'}}>
                   <label style={{fontSize:'11px',color:'var(--text-secondary)',fontFamily:'DM Sans,sans-serif',fontWeight:500}}>Seleccionar Ciudad</label>
                   <select
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
+                    value="buenos_aires"
+                    disabled
                     style={{
                       width:'100%',
                       padding:'11px 14px',
@@ -659,12 +670,11 @@ export default function LoginPage() {
                       fontFamily:'DM Sans,sans-serif',
                       outline:'none',
                       boxShadow:'0 2px 8px rgba(0,0,0,0.3) inset',
-                      cursor:'pointer',
+                      cursor:'not-allowed',
                       boxSizing:'border-box' as const
                     }}
                   >
                     <option value="buenos_aires" style={{background:'#0a0e14',color:'#fff'}}>Buenos Aires, Argentina</option>
-                    <option value="santa_cruz" style={{background:'#0a0e14',color:'#fff'}}>Santa Cruz de la Sierra, Bolivia</option>
                   </select>
                 </div>
 

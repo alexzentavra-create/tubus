@@ -95,6 +95,13 @@ export default function CompanyDashboard() {
   const [activeSessions, setActiveSessions] = useState<any[]>([])
 
   const [selectedLineNumber, setSelectedLineNumber] = useState<string>('12')
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const activeLine = localStorage.getItem('active_company_line') || '12'
+      setSelectedLineNumber(activeLine)
+    }
+  }, [])
   const activeLine = MOCK_LINES.find(l => l.line_number === selectedLineNumber) || MOCK_LINES[0]
   const themeColor = activeLine.color
   const [buses, setBuses] = useState<any[]>([])

@@ -29008,6 +29008,27 @@ function ProfilePanel({
   
   // Ad Submission Form States
   const [selectedAdType, setSelectedAdType] = useState<'standard' | 'map' | 'notification'>('standard')
+
+  // Synchronize Top 3-Option Menu with Canales de Publicación in horario detallado
+  const handleSelectAdTypeSync = (type: 'standard' | 'map' | 'notification') => {
+    setSelectedAdType(type)
+    const placementMap: Record<string, string> = {
+      standard: 'portada',
+      map: 'mapa',
+      notification: 'notificaciones'
+    }
+    const targetPlacement = placementMap[type]
+    setAdScheduleDetails(prev => {
+      const updated = { ...prev }
+      Object.keys(updated).forEach(slotKey => {
+        updated[slotKey] = {
+          ...updated[slotKey],
+          placements: [targetPlacement]
+        }
+      })
+      return updated
+    })
+  }
   const [adTitle, setAdTitle] = useState('')
   const [adMapPickerActive, setAdMapPickerActive] = useState<boolean>(false)
   const [adPickedCoord, setAdPickedCoord]         = useState<{ lat: number; lng: number } | null>(null)
@@ -29572,8 +29593,7 @@ function ProfilePanel({
                     type="tel"
                     value={localPhone}
                     onChange={e => setLocalPhone(e.target.value)}
-                    placeholder="Ej. +54 9 11 1234-5678"
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: '#FFFFFF', border: '1px solid #3B82F6', color: '#000000', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                    placeholder="Ej. +54 9 11 1234-5678" readOnly style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', boxSizing: 'border-box', cursor: 'not-allowed' }}
                   />
                 </div>
 
@@ -29844,7 +29864,7 @@ function ProfilePanel({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {/* Option 1: Banner Standard */}
                     <div
-                      onClick={() => setSelectedAdType('standard')}
+                      onClick={() => handleSelectAdTypeSync('standard')}
                       style={{
                         padding: '12px 14px',
                         borderRadius: '12px',
@@ -29869,7 +29889,7 @@ function ProfilePanel({
 
                     {/* Option 2: On Map Interactive Pin */}
                     <div
-                      onClick={() => setSelectedAdType('map')}
+                      onClick={() => handleSelectAdTypeSync('map')}
                       style={{
                         padding: '12px 14px',
                         borderRadius: '12px',
@@ -29894,7 +29914,7 @@ function ProfilePanel({
 
                     {/* Option 3: Geofenced Push Notification */}
                     <div
-                      onClick={() => setSelectedAdType('notification')}
+                      onClick={() => handleSelectAdTypeSync('notification')}
                       style={{
                         padding: '12px 14px',
                         borderRadius: '12px',
