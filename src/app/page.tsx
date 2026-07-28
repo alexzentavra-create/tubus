@@ -25572,13 +25572,40 @@ function MapAdBanner({
             <Marker longitude={adLocationMarker.lng} latitude={adLocationMarker.lat} anchor="bottom">
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <div style={{
-                  background: '#3B82F6', color: '#FFF', fontSize: '10px', fontWeight: 800,
-                  padding: '3px 8px', borderRadius: '6px', boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
-                  marginBottom: '2px', whiteSpace: 'nowrap'
+                  background: '#1E40AF', color: '#FFF', fontSize: '11px', fontWeight: 800,
+                  padding: '4px 10px', borderRadius: '8px', boxShadow: '0 6px 16px rgba(0,0,0,0.4)',
+                  marginBottom: '4px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '8px',
+                  border: '1px solid rgba(255,255,255,0.2)'
                 }}>
-                  📍 {adLocationMarker.title}
+                  <span>📍 {adLocationMarker.title}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setAdLocationMarker(null);
+                      toast.success("Marcador de ubicación quitado del mapa");
+                    }}
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.9)',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '18px',
+                      height: '18px',
+                      color: '#FFF',
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      lineHeight: 1
+                    }}
+                    title="Quitar marcador del mapa"
+                  >
+                    ✕
+                  </button>
                 </div>
-                <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#3B82F6', border: '3px solid #FFF', boxShadow: '0 0 12px rgba(59,130,246,0.8)' }} />
+                <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: '#3B82F6', border: '3px solid #FFF', boxShadow: '0 0 16px rgba(59,130,246,0.9)' }} />
               </div>
             </Marker>
           )}
