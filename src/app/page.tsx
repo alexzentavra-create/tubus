@@ -5,7 +5,7 @@ import Map, { Marker, Popup, NavigationControl, GeolocateControl, Source, Layer 
 import { toast } from 'react-hot-toast'
 import { motion, AnimatePresence, useDragControls } from 'framer-motion'
 import {
-  Bus, Search, ChevronDown, X, Star, MapPin, Bell, AlertTriangle,
+  Bus, Search, ChevronDown, X, Star, MapPin, Bell, AlertTriangle, Check,
   LogOut, Heart, ChevronRight, User, Sliders, Moon, Globe,
   Navigation as NavIcon, LayoutDashboard, Menu,
   Locate, Plus, Minus, Sun, Route, Activity, Clock,
@@ -22190,6 +22190,7 @@ function MapAdBanner({
   const [originCoord, setOriginCoord]             = useState<{ lat: number; lng: number } | null>(null)
   const [destCoord, setDestCoord]                 = useState<{ lat: number; lng: number } | null>(null)
   const [pinNearbyStopsMode, setPinNearbyStopsMode] = useState(false)
+  const [pinConfirmed, setPinConfirmed]             = useState(false)
   const [nearbyStopsPinCoord, setNearbyStopsPinCoord] = useState<{ lat: number; lng: number } | null>(null)
   const [travelRoute, setTravelRoute]             = useState<any>(null)
   const [selectedBoardingBusId, setSelectedBoardingBusId] = useState<string | null>(null)
@@ -25155,7 +25156,12 @@ function MapAdBanner({
         {/* ── MAP ── */}
         <Map
           {...viewState}
-          onMove={e => setViewState(e.viewState)}
+          onMove={e => {
+            setViewState(e.viewState)
+            if (pinNearbyStopsMode && !pinConfirmed) {
+              setNearbyStopsPinCoord({ lat: e.viewState.latitude, lng: e.viewState.longitude })
+            }
+          }}
           onDragStart={() => { setTrackedBusId(null); setEnRutaMinimized(false); }}
           onZoomStart={() => { setTrackedBusId(null); setEnRutaMinimized(false); }}
           mapStyle={prefs.darkMap ? (CARTODB_DARK as any) : (CARTODB_LIGHT as any)}
@@ -25501,27 +25507,32 @@ function MapAdBanner({
             </Marker>
           ))}
 
-          {/* Draggable Nearby Stops Pin */}
-          {pinNearbyStopsMode && nearbyStopsPinCoord && (
+          {/* Confirmed Nearby Stops Pin Marker */}
+          {pinNearbyStopsMode && pinConfirmed && nearbyStopsPinCoord && (
             <Marker
               longitude={nearbyStopsPinCoord.lng}
               latitude={nearbyStopsPinCoord.lat}
-              draggable
-              onDragEnd={e => {
-                setNearbyStopsPinCoord({ lat: e.lngLat.lat, lng: e.lngLat.lng })
-                const activeLines = lines.length > 0 ? lines : MOCK_LINES
-                const allStops = activeLines.flatMap(line => getMockStopsForLine(line))
-                const filteredStops = allStops.filter(stop => {
-                  const distance = distanceKm({ latitude: stop.latitude, longitude: stop.longitude }, { lat: e.lngLat.lat, lng: e.lngLat.lng })
-                  return distance < 0.8
-                })
-                setNearbyStops(filteredStops)
-              }}
               anchor="bottom"
             >
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ background: '#FF4D6A', color: 'white', fontSize: '10px', padding: '3px 8px', borderRadius: '10px', fontWeight: 'bold', marginBottom: '4px', boxShadow: '0 2px 8px rgba(0,0,0,0.5)', whiteSpace: 'nowrap' }}>Arrastrá el Pin</div>
-                <MapPin size={32} style={{ color: '#FF4D6A', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
+              <div
+                onClick={() => {
+                  setPinConfirmed(false)
+                  setNearbyStops([])
+                  toast("Mové el mapa para reubicar el pin y presioná OK")
+                }}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer' }}
+                title="Toca para reubicar el pin"
+              >
+                <div style={{
+                  background: '#FF4D6A', color: 'white', fontSize: '10px',
+                  padding: '3px 8px', borderRadius: '10px', fontWeight: 'bold',
+                  marginBottom: '4px', boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                  whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px'
+                }}>
+                  <span>📍 Pin de Paradas</span>
+                  <span style={{ fontSize: '9px', opacity: 0.8 }}>(Reubicar)</span>
+                </div>
+                <MapPin size={34} style={{ color: '#FF4D6A', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
               </div>
             </Marker>
           )}
@@ -26138,6 +26149,51 @@ function MapAdBanner({
             );
           })()}
         </Map>
+
+        {/* Center-screen static pin overlay for nearby stops positioning */}
+        {pinNearbyStopsMode && !pinConfirmed && activePanel === 'map' && (
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -100%)',
+            zIndex: 25,
+            pointerEvents: 'none',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+          }}>
+            <div style={{
+              background: '#FF4D6A',
+              color: 'white',
+              fontSize: '11px',
+              fontWeight: 800,
+              padding: '5px 12px',
+              borderRadius: '20px',
+              marginBottom: '6px',
+              boxShadow: '0 4px 14px rgba(255, 77, 106, 0.45)',
+              whiteSpace: 'nowrap',
+              letterSpacing: '0.02em',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontFamily: 'DM Sans, sans-serif'
+            }}>
+              <MapPin size={13} />
+              <span>Mové el mapa para ubicar el pin</span>
+            </div>
+            <MapPin size={46} style={{ color: '#FF4D6A', filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.4))' }} />
+            <div style={{
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              background: '#FF4D6A',
+              marginTop: '-6px',
+              boxShadow: '0 0 14px #FF4D6A',
+              animation: 'pulse 1.5s infinite'
+            }} />
+          </div>
+        )}
 
         {/* Center-screen static map pin selection overlay */}
         {mapSelectionMode && (
@@ -27199,17 +27255,18 @@ function MapAdBanner({
             {/* Pin Nearby Stops Button */}
             <button
               onClick={() => {
-                setPinNearbyStopsMode(prev => !prev)
-                setTravelPlannerOpen(false)
-                if (!nearbyStopsPinCoord) {
-                  setNearbyStopsPinCoord({ lat: -34.5972, lng: -58.3930 })
-                  const activeLines = lines.length > 0 ? lines : MOCK_LINES
-                  const allStops = activeLines.flatMap(line => getMockStopsForLine(line))
-                  const stops = allStops.filter(stop => {
-                    const distance = distanceKm({ latitude: stop.latitude, longitude: stop.longitude }, { lat: -34.5972, lng: -58.3930 })
-                    return distance < 0.8
-                  })
-                  setNearbyStops(stops)
+                if (!pinNearbyStopsMode) {
+                  setPinNearbyStopsMode(true)
+                  setPinConfirmed(false)
+                  setTravelPlannerOpen(false)
+                  setNearbyStops([])
+                  const centerCoord = { lat: viewState.latitude, lng: viewState.longitude }
+                  setNearbyStopsPinCoord(centerCoord)
+                  toast("Mové el mapa para colocar el pin en la posición deseada y presioná OK")
+                } else {
+                  setPinNearbyStopsMode(false)
+                  setPinConfirmed(false)
+                  setNearbyStops([])
                 }
               }}
               style={{
@@ -27394,7 +27451,112 @@ function MapAdBanner({
 
         {/* ── BOTTOM SHEETS ── */}
         <AnimatePresence>
-          {(pinNearbyStopsMode || nearbyStops.length > 0) && activePanel === 'map' ? (
+          {/* Floating OK Confirmation Bar during Pin positioning */}
+        {pinNearbyStopsMode && !pinConfirmed && activePanel === 'map' && (
+          <div style={{
+            position: 'absolute',
+            bottom: isMobile ? '84px' : '24px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 35,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            background: prefs.darkMap ? 'rgba(10, 14, 26, 0.95)' : 'rgba(255, 255, 255, 0.96)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            padding: '10px 18px',
+            borderRadius: '30px',
+            border: '1px solid rgba(255, 77, 106, 0.35)',
+            boxShadow: '0 12px 36px rgba(0,0,0,0.35)',
+            pointerEvents: 'auto',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '50%',
+                background: 'rgba(255, 77, 106, 0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <MapPin size={15} style={{ color: '#FF4D6A' }} />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'DM Sans', whiteSpace: 'nowrap' }}>
+                  Ubicación del Pin
+                </span>
+                <span style={{ fontSize: '10px', color: 'var(--text-secondary)', fontFamily: 'DM Sans' }}>
+                  Mové el mapa al punto y presioná OK
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                const coord = nearbyStopsPinCoord || { lat: viewState.latitude, lng: viewState.longitude };
+                setPinConfirmed(true);
+                const activeLines = lines.length > 0 ? lines : MOCK_LINES;
+                const allStops = activeLines.flatMap(line => getMockStopsForLine(line));
+                const filteredStops = allStops.filter(stop => {
+                  const distance = distanceKm({ latitude: stop.latitude, longitude: stop.longitude }, coord);
+                  return distance < 0.8;
+                });
+                setNearbyStops(filteredStops);
+                if (filteredStops.length === 0) {
+                  toast("No se encontraron paradas cercanas en esta ubicación (radio 800m). Probá mover el mapa a otra zona.");
+                } else {
+                  const uniqueLineCount = Array.from(new Set(filteredStops.map(s => s.line_id))).length;
+                  toast.success(`📍 ${uniqueLineCount} líneas de colectivo disponibles cerca del pin`);
+                }
+              }}
+              style={{
+                background: 'linear-gradient(135deg, #10B981, #059669)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '20px',
+                padding: '8px 18px',
+                fontSize: '13px',
+                fontWeight: 800,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)',
+                transition: 'transform 0.15s ease'
+              }}
+            >
+              <Check size={16} />
+              <span>OK</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setPinNearbyStopsMode(false);
+                setPinConfirmed(false);
+                setNearbyStops([]);
+              }}
+              style={{
+                background: prefs.darkMap ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                color: 'var(--text-secondary)',
+                border: '1px solid rgba(184,200,224,0.15)',
+                borderRadius: '50%',
+                width: '30px',
+                height: '30px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+              title="Cancelar"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
+        {(pinNearbyStopsMode && pinConfirmed || nearbyStops.length > 0) && activePanel === 'map' ? (
             <NearbyStops
               key="stops"
               stops={nearbyStops}
@@ -27404,6 +27566,7 @@ function MapAdBanner({
               darkMap={prefs.darkMap}
               onClose={() => {
                 setPinNearbyStopsMode(false)
+                setPinConfirmed(false)
                 setNearbyStops([])
               }}
               onToggleLine={(line) => {
