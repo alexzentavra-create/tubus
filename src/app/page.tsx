@@ -22171,6 +22171,14 @@ function MapAdBanner({
   // Branch & Interno filtering state
   const [branchFilter, setBranchFilter]     = useState<string>('all')
   const [trackedBusId, setTrackedBusId]     = useState<string | null>(null)
+  const [adMapPickerActive, setAdMapPickerActive] = useState<boolean>(false)
+  const [adPickedCoord, setAdPickedCoord]         = useState<{ lat: number; lng: number } | null>(null)
+  const [adPickedAddress, setAdPickedAddress]     = useState<string>('')
+  const [showActiveAdsDirectoryModal, setShowActiveAdsDirectoryModal] = useState<boolean>(false)
+  const [selectedDirectoryLineFilter, setSelectedDirectoryLineFilter] = useState<string>('all')
+  const [selectedDirectoryPromoFilter, setSelectedDirectoryPromoFilter] = useState<string>('all')
+  const [directorySearchQuery, setDirectorySearchQuery] = useState<string>('')
+  const [selectedBottomAdDetail, setSelectedBottomAdDetail] = useState<any>(null)
   const [enRutaMinimized, setEnRutaMinimized] = useState<boolean>(false)
   const [directionFilter, setDirectionFilter] = useState<'all' | 'ida' | 'vuelta'>('all')
 
@@ -24800,7 +24808,29 @@ function MapAdBanner({
                       scrollSnapAlign: 'start',
                       cursor: 'pointer'
                     }}
-                    onClick={() => window.open(ad.url, '_blank')}
+                    onClick={() => {
+                      const fullAd = {
+                        id: 'tufix-' + idx,
+                        title: ad.title,
+                        description: ad.desc,
+                        imageUrl: ad.image,
+                        promoCode: 'TUFIX-' + (2026 + idx * 15),
+                        businessAddress: idx === 0 ? 'Av. Santa Fe 2100, Palermo' : idx === 1 ? 'Av. Corrientes 1380, Centro' : 'Av. Cabildo 1800, Belgrano',
+                        businessCoord: idx === 0 ? { lat: -34.5889, lng: -58.4042 } : idx === 1 ? { lat: -34.6037, lng: -58.4173 } : { lat: -34.5621, lng: -58.4561 },
+                        placement: 'bottom'
+                      }
+                      // Increment viewed count in storage
+                      try {
+                        const submittedStr = localStorage.getItem('bu_submitted_ads') || '[]'
+                        const submitted = JSON.parse(submittedStr)
+                        const found = submitted.find((a: any) => a.id === fullAd.id)
+                        if (found) {
+                          found.views = (found.views || 0) + 1
+                          localStorage.setItem('bu_submitted_ads', JSON.stringify(submitted))
+                        }
+                      } catch (e) {}
+                      setSelectedBottomAdDetail(fullAd)
+                    }}
                   >
                     <img
                       src={ad.image}
@@ -24849,7 +24879,7 @@ function MapAdBanner({
                 </span>
               </div>
               <button
-                onClick={() => window.open(TUFIX_ADS[currentAdIndex]?.url || 'https://tufix.com', '_blank')}
+                onClick={() => setShowActiveAdsDirectoryModal(true)}
                 style={{
                   padding: '5px 12px', background: '#10B981', color: 'white', border: 'none', borderRadius: '6px',
                   fontSize: '10px', fontWeight: 700, cursor: 'pointer', transition: 'all 200ms', flexShrink: 0, marginLeft: '8px'
@@ -28801,6 +28831,14 @@ function ProfilePanel({
   
   // Ad Submission Form States
   const [adTitle, setAdTitle] = useState('')
+  const [adMapPickerActive, setAdMapPickerActive] = useState<boolean>(false)
+  const [adPickedCoord, setAdPickedCoord]         = useState<{ lat: number; lng: number } | null>(null)
+  const [adPickedAddress, setAdPickedAddress]     = useState<string>('')
+  const [showActiveAdsDirectoryModal, setShowActiveAdsDirectoryModal] = useState<boolean>(false)
+  const [selectedDirectoryLineFilter, setSelectedDirectoryLineFilter] = useState<string>('all')
+  const [selectedDirectoryPromoFilter, setSelectedDirectoryPromoFilter] = useState<string>('all')
+  const [directorySearchQuery, setDirectorySearchQuery] = useState<string>('')
+  const [selectedBottomAdDetail, setSelectedBottomAdDetail] = useState<any>(null)
   const [adDesc, setAdDesc] = useState('')
   const [adUrl, setAdUrl] = useState('')
   const [adImg, setAdImg] = useState('')
@@ -29056,7 +29094,10 @@ function ProfilePanel({
       id: Date.now().toString(),
       title: adTitle,
       description: adDesc,
-      targetUrl: adUrl || 'https://bienparada.com.ar',
+      businessAddress: adPickedAddress || 'Av. Corrientes 1380, CABA',
+      businessCoord: adPickedCoord || { lat: -34.6037, lng: -58.4173 },
+      placement: 'bottom',
+      promoCode: 'BIENPARADA-' + Math.floor(1000 + Math.random() * 9000),
       imageUrl: adUploadedImg || adImg || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80',
       budget: Number(adBudget) || 50,
       startDate: adStartDate,
@@ -29422,19 +29463,35 @@ function ProfilePanel({
                 </div>
 
                 <div style={{ marginBottom: '12px' }}>
-                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>Link de Destino (Opcional)</label>
-                  <input
-                    type="url"
-                    value={adUrl}
-                    onChange={e => setAdUrl(e.target.value)}
-                    placeholder="https://tupagina.com"
-                    style={{
-                      width: '100%', padding: '10px 12px', borderRadius: '10px',
-                      background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
-                      border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
-                      color: 'var(--text-primary)', fontSize: '13px', outline: 'none', transition: 'border-color 0.2s'
-                    }}
-                  />
+                  <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>📍 Ubicación del Comercio / Negocio *</label>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      readOnly
+                      value={adPickedAddress || (adPickedCoord ? `${adPickedCoord.lat.toFixed(4)}, ${adPickedCoord.lng.toFixed(4)}` : '')}
+                      placeholder="Tocá para fijar ubicación en el mapa..."
+                      style={{
+                        flex: 1, padding: '10px 12px', borderRadius: '10px',
+                        background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                        border: adPickedCoord ? '1px solid #10B981' : (prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)'),
+                        color: 'var(--text-primary)', fontSize: '12px', outline: 'none'
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAdMapPickerActive(true)
+                        setActivePanel('map')
+                        toast.success("Mové el mapa para ubicar el marcador y confirmá la posición de tu negocio.")
+                      }}
+                      style={{
+                        padding: '10px 14px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '10px',
+                        fontSize: '11px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap'
+                      }}
+                    >
+                      📍 Fijar en Mapa
+                    </button>
+                  </div>
                 </div>
 
                 {/* targetAudience input */}

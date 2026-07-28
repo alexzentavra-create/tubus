@@ -3960,6 +3960,26 @@ function AdsTab({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div>
         <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Panel de Anuncios y Patrocinios</h3>
+        {/* Placement Category Sub-tabs */}
+        <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
+          {[
+            { id: 'all', label: 'Todos los Anuncios' },
+            { id: 'top', label: '📍 Top Banner (Mapa)' },
+            { id: 'bottom', label: '🖼️ Panel Inferior (Tarjetas)' },
+            { id: 'notification', label: '🔔 Notificaciones' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => (window as any).__superAdPlacementFilter = tab.id}
+              style={{
+                padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)',
+                background: 'rgba(255,255,255,0.05)', color: '#fff', fontSize: '11px', fontWeight: 600, cursor: 'pointer'
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
         <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Monitoreo de ingresos recaudados en Pesos Argentinos (ARS) y control de campañas en paradas</p>
       </div>
 
