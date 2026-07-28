@@ -21369,15 +21369,32 @@ const calculateRouteTimeMinutes = (route: any, allLines: any[]) => {
 function MapAdBanner({
   activeTravelRoute,
   selectedLines,
-  adSubmissions
+  adSubmissions,
+  setAdSubmissions,
+  activePanel,
+  onDropAdLocationPin
 }: {
   activeTravelRoute: any
   selectedLines: any[]
   adSubmissions: any[]
+  setAdSubmissions: React.Dispatch<React.SetStateAction<any[]>>
+  activePanel: string
+  onDropAdLocationPin: (lat: number, lng: number, title: string) => void
 }) {
   const [currentAdIndex, setCurrentAdIndex] = useState<number>(0)
   const [progress, setProgress] = useState<number>(0)
-  const [isMinimized, setIsMinimized] = useState<boolean>(false)
+  const [bannerState, setBannerState] = useState<'minimized' | 'compact' | 'expanded'>('compact')
+  const [showReportModal, setShowReportModal] = useState<boolean>(false)
+  const [reportReason, setReportReason] = useState<string>('Contenido engañoso / Falso')
+  const [reportComment, setReportComment] = useState<string>('')
+  const [savedAdIds, setSavedAdIds] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        return JSON.parse(localStorage.getItem('bu_fav_ads') || '[]')
+      } catch { return [] }
+    }
+    return []
+  })
 
   const activeLineNumber = activeTravelRoute?.line_number || selectedLines[0]?.line_number || '12'
 
@@ -21385,31 +21402,55 @@ function MapAdBanner({
   const fallbackDemoMapAds = useMemo(() => [
     {
       id: 'demo-map-1',
-      title: '☕ Café Martínez Palermo - 20% OFF',
-      description: 'Mostrá tu boleto de Línea 12 y obtené 20% OFF en desayunos.',
+      title: 'Café Martínez Palermo - 20% OFF',
+      description: 'Mostrá tu boleto de Línea 12 y obtené 20% OFF en desayunos. Café especialidad y facturas recién horneadas.',
       imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400&q=80',
-      badge: '📍 Parada Santa Fe'
+      badge: '📍 Parada Santa Fe',
+      locationName: 'Av. Santa Fe 3200, Palermo, CABA',
+      lat: -34.5882,
+      lng: -58.4101,
+      promoCode: 'PALERMO-COFFEE20',
+      views: 14,
+      used: 5
     },
     {
       id: 'demo-map-2',
-      title: '💊 Farmacia Central Callao 24hs',
-      description: 'Atención 24hs en Av. Callao. Descuentos en dermocosmética.',
+      title: 'Farmacia Central Callao 24hs',
+      description: 'Atención 24hs en Av. Callao. Descuentos exclusivos en dermocosmética y cuidado personal.',
       imageUrl: 'https://images.unsplash.com/photo-1586015555751-63bb77f4322a?w=400&q=80',
-      badge: '📍 Parada Av. Callao'
+      badge: '📍 Parada Av. Callao',
+      locationName: 'Av. Callao 1450, Recoleta, CABA',
+      lat: -34.5935,
+      lng: -58.3942,
+      promoCode: 'SALUD-CALLAO24',
+      views: 28,
+      used: 9
     },
     {
       id: 'demo-map-3',
-      title: '🏋️ Megatlon Plaza Italia - Pase Libre',
-      description: 'Pase libre por 3 días para pasajeros en tránsito por Plaza Italia.',
+      title: 'Megatlon Plaza Italia - Pase Libre',
+      description: 'Pase libre por 3 días para pasajeros en tránsito por Plaza Italia. Acceso completo a máquinas y pileta.',
       imageUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&q=80',
-      badge: '📍 Parada Plaza Italia'
+      badge: '📍 Parada Plaza Italia',
+      locationName: 'Av. Santa Fe 4200, Palermo, CABA',
+      lat: -34.5812,
+      lng: -58.4211,
+      promoCode: 'MEGATLON-PASERUTAS',
+      views: 42,
+      used: 12
     },
     {
       id: 'demo-map-4',
-      title: '🍕 Pizzería Güerrin - Promo Viajero',
-      description: '2 porciones de muzzarella + faina a precio promocional.',
+      title: 'Pizzería Güerrin - Promo Viajero',
+      description: '2 porciones de muzzarella tradicional + faina a precio promocional presentando tu app BienParada.',
       imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&q=80',
-      badge: '📍 Parada Obelisco'
+      badge: '📍 Parada Obelisco',
+      locationName: 'Av. Corrientes 1368, Centro, CABA',
+      lat: -34.6041,
+      lng: -58.3860,
+      promoCode: 'GUERRIN-MUZZA',
+      views: 56,
+      used: 21
     }
   ], [])
 
@@ -21451,7 +21492,6 @@ function MapAdBanner({
       return true
     })
 
-    // If user has qualified ads, return them; otherwise return fallbackDemoMapAds for continuous map preview!
     return userMatched.length > 0 ? userMatched : fallbackDemoMapAds
   }, [adSubmissions, activeTravelRoute, selectedLines, activeLineNumber, fallbackDemoMapAds])
 
@@ -21462,7 +21502,7 @@ function MapAdBanner({
 
   // 10-second timer & rotation loop
   useEffect(() => {
-    if (qualifiedMapAds.length === 0 || isMinimized) return
+    if (qualifiedMapAds.length === 0 || bannerState === 'expanded') return
 
     const intervalMs = 100
     const totalMs = 10000 // 10 seconds per ad
@@ -21478,117 +21518,493 @@ function MapAdBanner({
     }, intervalMs)
 
     return () => clearInterval(timer)
-  }, [qualifiedMapAds.length, isMinimized])
+  }, [qualifiedMapAds.length, bannerState])
 
+  // Rule 3: Hide top ad banner completely if user is NOT on the map view!
+  if (activePanel !== 'map') return null
   if (qualifiedMapAds.length === 0) return null
 
   const currentAd = qualifiedMapAds[currentAdIndex % qualifiedMapAds.length]
   if (!currentAd) return null
 
-  if (isMinimized) {
+  const isSaved = savedAdIds.includes(currentAd.id)
+
+  // Track +1 Showed / Views metric when expanded
+  const handleExpandDetail = () => {
+    setBannerState('expanded');
+    
+    // Register +1 "Showed / Vistas"
+    const updated = (adSubmissions.length > 0 ? adSubmissions : fallbackDemoMapAds).map((ad: any) => {
+      if (ad.id === currentAd.id) {
+        return { ...ad, views: (ad.views || 0) + 1 };
+      }
+      return ad;
+    });
+    if (adSubmissions.length > 0) {
+      setAdSubmissions(updated);
+      localStorage.setItem('bu_submitted_ads', JSON.stringify(updated));
+    }
+  };
+
+  // Save to Favourites & Track +1 Used / Canjeados metric
+  const handleSaveAd = () => {
+    const newSaved = [...savedAdIds, currentAd.id];
+    setSavedAdIds(newSaved);
+    localStorage.setItem('bu_fav_ads', JSON.stringify(newSaved));
+
+    // Register +1 "Used / Canjeados"
+    const updated = (adSubmissions.length > 0 ? adSubmissions : fallbackDemoMapAds).map((ad: any) => {
+      if (ad.id === currentAd.id) {
+        return { ...ad, used: (ad.used || 0) + 1 };
+      }
+      return ad;
+    });
+    if (adSubmissions.length > 0) {
+      setAdSubmissions(updated);
+      localStorage.setItem('bu_submitted_ads', JSON.stringify(updated));
+    }
+
+    toast.success("⭐ Anuncio guardado en Favoritos. ¡Código de descuento desbloqueado!");
+  };
+
+  // Submit Ad Report to Super Admin
+  const handleReportAd = () => {
+    if (!reportComment.trim()) {
+      toast.error('Por favor ingresá un comentario detallando el motivo de la denuncia.');
+      return;
+    }
+
+    const newReport = {
+      id: 'rep-' + Date.now(),
+      adId: currentAd.id,
+      adTitle: currentAd.title,
+      reason: reportReason,
+      comment: reportComment,
+      userEmail: 'usuario@bienparada.com.ar',
+      timestamp: new Date().toISOString(),
+      status: 'pending'
+    };
+
+    try {
+      const existingReports = JSON.parse(localStorage.getItem('bu_ad_reports') || '[]');
+      const updatedReports = [newReport, ...existingReports];
+      localStorage.setItem('bu_ad_reports', JSON.stringify(updatedReports));
+    } catch {}
+
+    setShowReportModal(false);
+    setReportComment('');
+    toast.success("🚩 Denuncia enviada con éxito. Será revisada por la Administración.");
+  };
+
+  // STATE 1: MINIMIZED CAPSULE (Top Centered + Marquee Carousel Title)
+  if (bannerState === 'minimized') {
     return (
-      <button
-        onClick={() => setIsMinimized(false)}
+      <div
+        onClick={() => setBannerState('compact')}
         style={{
           position: 'absolute',
-          top: '74px',
-          right: '14px',
+          top: '16px',
+          left: '50%',
+          transform: 'translateX(-50%)',
           zIndex: 1000,
-          background: 'rgba(0, 158, 227, 0.95)',
-          color: '#fff',
-          border: 'none',
-          padding: '6px 12px',
-          borderRadius: '20px',
-          fontSize: '11px',
+          background: 'linear-gradient(135deg, #009EE3 0%, #007EB5 100%)',
+          color: '#FFFFFF',
+          padding: '6px 14px',
+          borderRadius: '24px',
+          fontSize: '12px',
           fontWeight: 700,
           cursor: 'pointer',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          boxShadow: '0 4px 16px rgba(0, 158, 227, 0.4)',
           display: 'flex',
           alignItems: 'center',
-          gap: '6px'
+          gap: '8px',
+          maxWidth: '260px',
+          overflow: 'hidden',
+          transition: 'all 0.2s'
         }}
       >
-        <span>📌 Anuncio en mapa (${qualifiedMapAds.length})</span>
-      </button>
-    )
+        <span style={{ flexShrink: 0 }}>📌</span>
+        {/* Marquee Carousel Scrolling Title */}
+        <div style={{ flex: 1, overflow: 'hidden', whiteSpace: 'nowrap', position: 'relative' }}>
+          <div style={{
+            display: 'inline-block',
+            animation: 'marqueeScroll 12s linear infinite',
+            paddingLeft: '100%'
+          }}>
+            {currentAd.title}
+          </div>
+          <style>{`
+            @keyframes marqueeScroll {
+              0% { transform: translateX(0); }
+              100% { transform: translateX(-100%); }
+            }
+          `}</style>
+        </div>
+      </div>
+    );
   }
 
+  // STATE 2: COMPACT BANNER (Top Centered + 10s Timer Progress Line)
   return (
-    <div style={{
-      position: 'absolute',
-      top: '74px',
-      left: '14px',
-      right: '14px',
-      margin: '0 auto',
-      maxWidth: '380px',
-      zIndex: 999,
-      background: 'rgba(18, 21, 39, 0.95)',
-      backdropFilter: 'blur(12px)',
-      WebkitBackdropFilter: 'blur(12px)',
-      borderRadius: '12px',
-      border: '1px solid rgba(59, 130, 246, 0.4)',
-      overflow: 'hidden',
-      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      flexDirection: 'column',
-      fontFamily: 'DM Sans, sans-serif'
-    }}>
-      {/* 10-second animated progress line */}
-      <div style={{ width: '100%', height: '3px', background: 'rgba(255,255,255,0.08)' }}>
-        <div style={{
-          height: '100%',
-          width: `${progress}%`,
-          background: 'linear-gradient(90deg, #3B82F6, #10B981)',
-          transition: 'width 100ms linear'
-        }} />
-      </div>
-
-      <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-        {/* Ad Image / Icon */}
-        {currentAd.imageUrl ? (
-          <img
-            src={currentAd.imageUrl}
-            alt={currentAd.title}
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80'
-            }}
-            style={{ width: '42px', height: '42px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(255,255,255,0.1)' }}
-          />
-        ) : (
-          <div style={{ width: '42px', height: '42px', borderRadius: '8px', background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', color: '#fff', flexShrink: 0 }}>
-            📌
-          </div>
-        )}
-
-        {/* Ad Details */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginBottom: '2px' }}>
-            <span style={{ fontSize: '12px', fontWeight: 700, color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {currentAd.title}
-            </span>
-            <span style={{ fontSize: '9px', background: 'rgba(59,130,246,0.2)', color: '#60A5FA', padding: '1px 5px', borderRadius: '4px', fontWeight: 600, flexShrink: 0, fontFamily: 'DM Mono' }}>
-              📌 Mapa · 10s
-            </span>
-          </div>
-          <div style={{ fontSize: '11px', color: '#A3A6B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {currentAd.description}
-          </div>
+    <>
+      <div
+        onClick={handleExpandDetail}
+        style={{
+          position: 'absolute',
+          top: '16px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 'calc(100% - 32px)',
+          maxWidth: '380px',
+          zIndex: 1000,
+          background: 'rgba(18, 21, 39, 0.96)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          borderRadius: '14px',
+          border: '1px solid rgba(59, 130, 246, 0.4)',
+          overflow: 'hidden',
+          boxShadow: '0 8px 28px rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          flexDirection: 'column',
+          fontFamily: 'DM Sans, sans-serif',
+          cursor: 'pointer',
+          transition: 'transform 0.15s'
+        }}
+      >
+        {/* 10-second animated progress line */}
+        <div style={{ width: '100%', height: '3px', background: 'rgba(255,255,255,0.08)' }}>
+          <div style={{
+            height: '100%',
+            width: `${progress}%`,
+            background: 'linear-gradient(90deg, #3B82F6, #10B981)',
+            transition: 'width 100ms linear'
+          }} />
         </div>
 
-        {/* Close / Minimize */}
-        <button
-          onClick={() => setIsMinimized(true)}
-          style={{ background: 'none', border: 'none', color: '#8F94A5', cursor: 'pointer', fontSize: '14px', padding: '2px', display: 'flex', alignItems: 'center' }}
-          title="Minimizar anuncio"
-        >
-          ✕
-        </button>
-      </div>
-    </div>
-  )
-}
+        <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* Ad Image Thumbnail */}
+          {currentAd.imageUrl ? (
+            <img
+              src={currentAd.imageUrl}
+              alt={currentAd.title}
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80'
+              }}
+              style={{ width: '44px', height: '44px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0, border: '1px solid rgba(255,255,255,0.1)' }}
+            />
+          ) : (
+            <div style={{ width: '44px', height: '44px', borderRadius: '8px', background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', color: '#fff', flexShrink: 0 }}>
+              📌
+            </div>
+          )}
 
-export default function UserMapPage() {
+          {/* Ad Details */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginBottom: '2px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: '#FFFFFF', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {currentAd.title}
+              </span>
+              <span style={{ fontSize: '9px', background: 'rgba(59,130,246,0.2)', color: '#60A5FA', padding: '2px 6px', borderRadius: '4px', fontWeight: 600, flexShrink: 0, fontFamily: 'DM Mono' }}>
+                📌 Mapa · 10s
+              </span>
+            </div>
+            <div style={{ fontSize: '11px', color: '#A3A6B8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {currentAd.description}
+            </div>
+          </div>
+
+          {/* Close / Minimize Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setBannerState('minimized');
+            }}
+            style={{ background: 'none', border: 'none', color: '#8F94A5', cursor: 'pointer', fontSize: '16px', padding: '4px', display: 'flex', alignItems: 'center' }}
+            title="Minimizar anuncio"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+
+      {/* STATE 3: EXPANDED DETAIL VIEW MODAL */}
+      {bannerState === 'expanded' && (() => {
+        const detailModalContent = (
+          <div style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(5, 8, 16, 0.88)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100003,
+            padding: '16px'
+          }}>
+            <div style={{
+              background: '#121527',
+              border: '1px solid rgba(59, 130, 246, 0.4)',
+              borderRadius: '20px',
+              width: '100%',
+              maxWidth: '460px',
+              maxHeight: '90vh',
+              boxShadow: '0 25px 50px rgba(0, 0, 0, 0.8)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              color: '#FFFFFF',
+              fontFamily: 'DM Sans, sans-serif'
+            }}>
+              {/* Header Image */}
+              <div style={{ position: 'relative', height: '160px', width: '100%', overflow: 'hidden', background: '#000' }}>
+                <img
+                  src={currentAd.imageUrl || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600&q=80'}
+                  alt={currentAd.title}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.85 }}
+                />
+                <button
+                  onClick={() => setBannerState('compact')}
+                  style={{
+                    position: 'absolute', top: '12px', right: '12px',
+                    background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%',
+                    width: '32px', height: '32px', color: '#fff', cursor: 'pointer', fontSize: '16px'
+                  }}
+                >
+                  ✕
+                </button>
+                <div style={{
+                  position: 'absolute', bottom: '12px', left: '14px',
+                  background: 'rgba(59,130,246,0.9)', color: '#fff',
+                  fontSize: '10px', fontWeight: 800, padding: '3px 8px', borderRadius: '6px',
+                  textTransform: 'uppercase', letterSpacing: '0.04em'
+                }}>
+                  Anuncio Patrocinado
+                </div>
+              </div>
+
+              {/* Modal Body */}
+              <div style={{ padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#FFFFFF', margin: '0 0 6px' }}>
+                    {currentAd.title}
+                  </h3>
+                  <p style={{ fontSize: '13px', color: '#A3A6B8', margin: 0, lineHeight: '1.5' }}>
+                    {currentAd.description}
+                  </p>
+                </div>
+
+                {/* Promo Code Box (Blurred until saved) */}
+                <div style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: '12px',
+                  padding: '14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '8px',
+                  alignItems: 'center'
+                }}>
+                  <span style={{ fontSize: '10px', color: '#8F94A5', textTransform: 'uppercase', fontWeight: 700 }}>
+                    🎁 Código Promocional de Descuento
+                  </span>
+
+                  <div style={{
+                    fontSize: '18px',
+                    fontWeight: 800,
+                    letterSpacing: '0.08em',
+                    color: isSaved ? '#10B981' : '#60A5FA',
+                    filter: isSaved ? 'none' : 'blur(5px)',
+                    userSelect: isSaved ? 'text' : 'none',
+                    transition: 'all 0.3s ease',
+                    background: 'rgba(0,0,0,0.3)',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    width: '100%',
+                    textAlign: 'center',
+                    fontFamily: 'DM Mono'
+                  }}>
+                    {currentAd.promoCode || 'BIENPARADA-OFF20'}
+                  </div>
+
+                  {!isSaved && (
+                    <span style={{ fontSize: '11px', color: '#F59E0B', fontWeight: 600 }}>
+                      🔒 Guardá el anuncio en Favoritos para desbloquear tu código de descuento
+                    </span>
+                  )}
+                </div>
+
+                {/* Location & Map Pin Trigger */}
+                <div style={{
+                  background: 'rgba(59, 130, 246, 0.08)',
+                  border: '1px solid rgba(59, 130, 246, 0.2)',
+                  borderRadius: '12px',
+                  padding: '12px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '10px'
+                }}>
+                  <div>
+                    <span style={{ fontSize: '10px', color: '#60A5FA', textTransform: 'uppercase', fontWeight: 700 }}>Ubicación</span>
+                    <div style={{ fontSize: '12px', color: '#FFFFFF', fontWeight: 600, marginTop: '2px' }}>
+                      {currentAd.locationName || currentAd.badge || 'Av. Santa Fe 3200, Palermo'}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      const lat = currentAd.lat || -34.5882;
+                      const lng = currentAd.lng || -58.4101;
+                      onDropAdLocationPin(lat, lng, currentAd.title);
+                      setBannerState('compact');
+                      toast.success("📍 Marcador ubicado en el mapa");
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      background: '#3B82F6',
+                      color: '#FFFFFF',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      flexShrink: 0
+                    }}
+                  >
+                    📍 Ver en Mapa
+                  </button>
+                </div>
+
+                {/* Action Buttons: Save & Report */}
+                <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+                  <button
+                    onClick={handleSaveAd}
+                    disabled={isSaved}
+                    style={{
+                      flex: 2,
+                      padding: '12px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      background: isSaved ? 'rgba(16,185,129,0.2)' : 'linear-gradient(135deg, #10B981, #059669)',
+                      color: isSaved ? '#10B981' : '#FFFFFF',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: isSaved ? 'default' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <Star size={14} style={{ fill: isSaved ? '#10B981' : 'none' }} />
+                    {isSaved ? 'Guardado en Favoritos' : '⭐ Guardar en Favoritos'}
+                  </button>
+
+                  <button
+                    onClick={() => setShowReportModal(true)}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      borderRadius: '10px',
+                      border: '1px solid rgba(239,68,68,0.3)',
+                      background: 'rgba(239,68,68,0.1)',
+                      color: '#EF4444',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <AlertTriangle size={14} />
+                    Denunciar
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Nested Report Modal */}
+            {showReportModal && (
+              <div style={{
+                position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                zIndex: 100004, padding: '16px'
+              }}>
+                <div style={{
+                  background: '#181B2F', border: '1px solid rgba(239,68,68,0.4)',
+                  borderRadius: '16px', width: '100%', maxWidth: '400px', padding: '20px',
+                  display: 'flex', flexDirection: 'column', gap: '14px', color: '#fff'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#EF4444', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      🚩 Denunciar Anuncio
+                    </h4>
+                    <button onClick={() => setShowReportModal(false)} style={{ background: 'none', border: 'none', color: '#8F94A5', cursor: 'pointer' }}>✕</button>
+                  </div>
+
+                  <div style={{ fontSize: '11px', color: '#A3A6B8' }}>
+                    Seleccioná el motivo de la denuncia para enviar el reporte al Super Administrador:
+                  </div>
+
+                  <select
+                    value={reportReason}
+                    onChange={e => setReportReason(e.target.value)}
+                    style={{
+                      width: '100%', padding: '10px', borderRadius: '8px',
+                      background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#fff', fontSize: '12px', outline: 'none'
+                    }}
+                  >
+                    <option value="Contenido engañoso / Falso">Contenido engañoso / Falso</option>
+                    <option value="Ubicación o datos incorrectos">Ubicación o datos incorrectos</option>
+                    <option value="Contenido inapropiado / Infracción">Contenido inapropiado / Infracción</option>
+                    <option value="Otro motivo">Otro motivo</option>
+                  </select>
+
+                  <textarea
+                    rows={3}
+                    value={reportComment}
+                    onChange={e => setReportComment(e.target.value)}
+                    placeholder="Elaborá detalles del reporte..."
+                    style={{
+                      width: '100%', padding: '10px', borderRadius: '8px',
+                      background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#fff', fontSize: '12px', outline: 'none', fontFamily: 'inherit'
+                    }}
+                  />
+
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => setShowReportModal(false)}
+                      style={{ flex: 1, padding: '9px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#8F94A5', fontSize: '12px', cursor: 'pointer' }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleReportAd}
+                      style={{ flex: 1, padding: '9px', borderRadius: '8px', border: 'none', background: '#EF4444', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                    >
+                      Enviar Denuncia
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+
+        if (typeof document === 'undefined') return null;
+        return createPortal(detailModalContent, document.body);
+      })()}
+    </>
+  );
+}export default function UserMapPage() {
   const supabase      = createClient()
   const channelRef    = useRef<any>(null)
   const mockTickRef   = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -21804,6 +22220,7 @@ export default function UserMapPage() {
   const [chatMessages, setChatMessages] = useState<any[]>([])
 
   const [userWalkingToDest, setUserWalkingToDest] = useState<boolean>(false)
+  const [adLocationMarker, setAdLocationMarker] = useState<{ lat: number, lng: number, title: string } | null>(null)
 
   const handleLeftBus = () => {
     if (activeTravelRoute) {
@@ -25150,6 +25567,22 @@ export default function UserMapPage() {
             </Marker>
           )}
 
+          {/* Ad Location Dropped Pin Marker */}
+          {adLocationMarker && (
+            <Marker longitude={adLocationMarker.lng} latitude={adLocationMarker.lat} anchor="bottom">
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <div style={{
+                  background: '#3B82F6', color: '#FFF', fontSize: '10px', fontWeight: 800,
+                  padding: '3px 8px', borderRadius: '6px', boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+                  marginBottom: '2px', whiteSpace: 'nowrap'
+                }}>
+                  📍 {adLocationMarker.title}
+                </div>
+                <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#3B82F6', border: '3px solid #FFF', boxShadow: '0 0 12px rgba(59,130,246,0.8)' }} />
+              </div>
+            </Marker>
+          )}
+
           {/* Travel Walking Dotted lines */}
           {showTravelPins && (activeTravelRoute || travelRoute) && originCoord && destCoord && (
             <Source id="travel-route-geojson" type="geojson" data={{
@@ -25846,6 +26279,12 @@ export default function UserMapPage() {
           activeTravelRoute={activeTravelRoute}
           selectedLines={selectedLines}
           adSubmissions={adSubmissions}
+          setAdSubmissions={setAdSubmissions}
+          activePanel={activePanel}
+          onDropAdLocationPin={(lat, lng, title) => {
+            setAdLocationMarker({ lat, lng, title });
+            setViewState(v => ({ ...v, latitude: lat, longitude: lng, zoom: 15 }));
+          }}
         />
 
         {/* Upcoming Bus Overlay Card */}

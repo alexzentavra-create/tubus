@@ -4043,6 +4043,14 @@ function AdsTab({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '12px', background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
                   <div style={{ fontSize: '11px', color: '#8f94a5' }}>Parada asignada: <strong style={{ color: '#fff' }}>{ad.stop} ({ad.route})</strong></div>
                   <div style={{ fontSize: '11px', color: '#8f94a5' }}>Vigencia contratada: <strong style={{ color: '#fff' }}>{ad.duration}</strong></div>
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed rgba(255,255,255,0.06)' }}>
+                    <div style={{ fontSize: '11px', color: '#60A5FA', fontWeight: 600 }}>
+                      👁️ Vistas (Showed): <strong style={{ color: '#fff' }}>{ad.views || ad.viewsCount || 0}</strong>
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#10B981', fontWeight: 600 }}>
+                      🎟️ Canjeados (Used): <strong style={{ color: '#fff' }}>{ad.used || ad.usedCount || 0}</strong>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Advertiser Profile button */}
