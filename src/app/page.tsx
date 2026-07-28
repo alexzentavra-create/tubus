@@ -22179,6 +22179,7 @@ function MapAdBanner({
   const [selectedDirectoryPromoFilter, setSelectedDirectoryPromoFilter] = useState<string>('all')
   const [directorySearchQuery, setDirectorySearchQuery] = useState<string>('')
   const [selectedBottomAdDetail, setSelectedBottomAdDetail] = useState<any>(null)
+  const [activeAdLocationMarkers, setActiveAdLocationMarkers] = useState<any[]>([])
   const [enRutaMinimized, setEnRutaMinimized] = useState<boolean>(false)
   const [directionFilter, setDirectionFilter] = useState<'all' | 'ida' | 'vuelta'>('all')
 
@@ -27242,26 +27243,7 @@ function MapAdBanner({
 
 
 
-            {/* Custom Timer Alarm Button */}
-            <button
-              onClick={() => {
-                setAlarmPinMode(prev => !prev)
-                setAlarmPinCoord(null)
-                setPinNearbyStopsMode(false)
-                toast.success(alarmPinMode ? "Modo de alarma desactivado." : "Hacé click en el mapa para marcar tu parada para el recordatorio.")
-              }}
-              style={{
-                width: '40px', height: '40px', borderRadius: '50%',
-                background: alarmPinMode ? '#F59E0B' : (prefs.darkMap ? 'rgba(10,14,20,0.9)' : 'rgba(255,255,255,0.9)'),
-                border: alarmPinMode ? '1px solid #F59E0B' : (prefs.darkMap ? '1px solid rgba(184,200,224,0.15)' : '1px solid rgba(0,0,0,0.1)'),
-                boxShadow: prefs.darkMap ? '0 4px 12px rgba(0,0,0,0.5)' : '0 4px 12px rgba(0,0,0,0.1)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', color: alarmPinMode ? 'white' : 'var(--text-primary)', transition: 'all 200ms'
-              }}
-              title="Recordatorio de Colectivo en Parada Personalizada"
-            >
-              <Clock size={16} />
-            </button>
+            
 
             {/* Theme Toggle Button */}
             <button
@@ -27332,8 +27314,14 @@ function MapAdBanner({
                         { lat: trip.originStop.latitude, lng: trip.originStop.longitude },
                         { lat: trip.destStop.latitude, lng: trip.destStop.longitude }
                       )
-                      setActivePanel('map')
                       setDrawerState('half')
+                    }}
+                    onSelectLocation={(lat, lng, title) => {
+                      const newMarker = { id: 'fav-' + Date.now() + Math.random(), lat, lng, title };
+                      setActiveAdLocationMarkers((prev: any[]) => [...prev, newMarker]);
+                      setActivePanel('map');
+                      setViewState((v: any) => ({ ...v, latitude: lat, longitude: lng, zoom: 15 }));
+                      toast.success(`📍 Marcador de ${title} agregado al mapa`);
                     }}
                   />
                 )}
@@ -28240,24 +28228,20 @@ function MapAdBanner({
 // Card for Saved Ads & Coupons in Favoritos Tab
 function FavAdCard({
   ad,
+  userName,
   onRemove,
   onSelectLocation
 }: {
   ad: any
+  userName?: string
   onRemove: () => void
-  onSelectLocation?: (lat: number, lng: number, title: string) => void
+  onSelectLocation?: (lat: number, lng: number, title: string, address?: string) => void
 }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopyCode = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (ad.promoCode) {
-      navigator.clipboard?.writeText(ad.promoCode);
-      setCopied(true);
-      toast.success("¡Código copiado al portapapeles!");
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
+  // Generate a unique user-bound code that cannot be copied or shared
+  const baseCode = ad.promoCode || 'BIENPARADA-OFF';
+  const nameSlug = (userName || 'PASAJERO').replace(/\s+/g, '').toUpperCase().slice(0, 4);
+  const idSlug = (ad.id || '99').slice(-3);
+  const userUniqueCode = `${baseCode}-${nameSlug}${idSlug}`;
 
   return (
     <div style={{
@@ -28294,41 +28278,25 @@ function FavAdCard({
         </button>
       </div>
 
-      {/* Promo Code Box */}
+      {/* Uncopyable & Unique Promo Code Box */}
       <div style={{
         background: 'rgba(16, 185, 129, 0.08)',
         border: '1px solid rgba(16, 185, 129, 0.25)',
         borderRadius: '8px',
         padding: '8px 12px',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: '8px'
+        flexDirection: 'column',
+        gap: '2px',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        MozUserSelect: 'none'
       }}>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontSize: '9px', color: '#10B981', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            🎁 Código Desbloqueado
-          </span>
-          <span style={{ fontSize: '13px', fontWeight: 800, color: '#10B981', fontFamily: 'DM Mono' }}>
-            {ad.promoCode || 'BIENPARADA-OFF'}
-          </span>
-        </div>
-        <button
-          onClick={handleCopyCode}
-          style={{
-            padding: '5px 10px',
-            borderRadius: '6px',
-            border: 'none',
-            background: copied ? '#10B981' : '#3B82F6',
-            color: '#FFFFFF',
-            fontSize: '10px',
-            fontWeight: 700,
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-        >
-          {copied ? '¡Copiado!' : 'Copiar'}
-        </button>
+        <span style={{ fontSize: '9px', color: '#10B981', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          🎁 CÓDIGO ÚNICO PERSONAL (NO COPIABLE)
+        </span>
+        <span style={{ fontSize: '13px', fontWeight: 800, color: '#10B981', fontFamily: 'DM Mono', userSelect: 'none', WebkitUserSelect: 'none' }}>
+          {userUniqueCode}
+        </span>
       </div>
 
       {/* Location Button */}
@@ -28502,6 +28470,7 @@ function FavouritesPanel({
               // Force render update
               onUpdatePrefs({});
             }}
+            userName="Pasajero"
             onSelectLocation={(lat, lng, title) => {
               onSelectLocation && onSelectLocation(lat, lng, title);
             }}
