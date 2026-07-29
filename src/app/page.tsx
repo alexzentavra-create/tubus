@@ -21160,32 +21160,7 @@ const TRANSLATIONS: Record<string, string> = {
   'O INGRESAR MANUALMENTE:': 'OR ENTER MANUALLY:',
 }
 
-const TUFIX_ADS = [
-  {
-    image: '/images/tufix-ad-1.png',
-    title: 'TUFIX - ¡Basta de dar vueltas!',
-    desc: 'Stop asking around. Get it done.',
-    url: 'https://tufix.com'
-  },
-  {
-    image: '/images/tufix-ad-2.png',
-    title: 'TUFIX - Reparaciones del hogar',
-    desc: 'Your problem. Tap. Done.',
-    url: 'https://tufix.com'
-  },
-  {
-    image: '/images/tufix-ad-3.png',
-    title: 'TUFIX - Profesionales calificados',
-    desc: 'El trabajador ideal para vos.',
-    url: 'https://tufix.com'
-  },
-  {
-    image: '/images/tufix-ad-4.png',
-    title: 'TUFIX - Rapidez y confianza',
-    desc: 'Serving fixes. Fast.',
-    url: 'https://tufix.com'
-  }
-]
+const TUFIX_ADS: any[] = []
 
 // ─── Nav items ────────────────────────────────────────────────────────────────
 const NAV_ITEMS: { id: Panel; label: string; icon: any }[] = [
@@ -22179,6 +22154,9 @@ function MapAdBanner({
   const [selectedDirectoryPromoFilter, setSelectedDirectoryPromoFilter] = useState<string>('all')
   const [directorySearchQuery, setDirectorySearchQuery] = useState<string>('')
   const [selectedBottomAdDetail, setSelectedBottomAdDetail] = useState<any>(null)
+  const [reportingAdObj, setReportingAdObj] = useState<any>(null)
+  const [adReportReason, setAdReportReason] = useState<string>('Contenido engañoso o falso')
+  const [adReportDetails, setAdReportDetails] = useState<string>('')
   const [activeAdLocationMarkers, setActiveAdLocationMarkers] = useState<any[]>([])
   const [enRutaMinimized, setEnRutaMinimized] = useState<boolean>(false)
   const [directionFilter, setDirectionFilter] = useState<'all' | 'ida' | 'vuelta'>('all')
@@ -24765,7 +24743,7 @@ function MapAdBanner({
         </div>
 
         {/* Premium Advertisement Card */}
-        {((drawerState === 'expanded' || !isMobile)) && (
+        {((drawerState === 'expanded' || !isMobile)) && (TUFIX_ADS.length > 0 || (typeof window !== 'undefined' && JSON.parse(localStorage.getItem('bu_submitted_ads') || '[]').length > 0)) && (
           <div style={{
             padding: '12px',
             borderRadius: '14px',
@@ -26224,6 +26202,144 @@ function MapAdBanner({
           </div>
         )}
 
+        
+        {/* ═══════════════════════════════════════════════════════════════
+            AD BUSINESS LOCATION MAP PICKER OVERLAY (Center Screen Pin)
+        ═══════════════════════════════════════════════════════════════ */}
+        {adMapPickerActive && (
+          <>
+            {/* Center Screen Target Pin */}
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -100%)',
+              zIndex: 1000,
+              pointerEvents: 'none',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center'
+            }}>
+              <div style={{
+                background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
+                color: '#FFFFFF',
+                padding: '6px 12px',
+                borderRadius: '20px',
+                fontSize: '11px',
+                fontWeight: 800,
+                boxShadow: '0 8px 20px rgba(0,0,0,0.3)',
+                whiteSpace: 'nowrap',
+                marginBottom: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}>
+                <span>🏬 Ubicación de tu Comercio</span>
+              </div>
+              <div style={{
+                fontSize: '36px',
+                filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.4))',
+                animation: 'bounce 1s infinite'
+              }}>
+                📍
+              </div>
+            </div>
+
+            {/* Top Instruction Banner */}
+            <div style={{
+              position: 'absolute',
+              top: '20px',
+              left: '16px',
+              right: '16px',
+              zIndex: 1001,
+              background: 'rgba(15, 23, 42, 0.92)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+              borderRadius: '16px',
+              padding: '12px 16px',
+              color: '#FFFFFF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.3)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '20px' }}>📍</span>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 800, color: '#3B82F6' }}>Fijar Ubicación de Comercio</h4>
+                  <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#94A3B8' }}>Mové el mapa hasta colocar el pin en el lugar exacto de tu negocio</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Action Bar */}
+            <div style={{
+              position: 'absolute',
+              bottom: isMobile ? 'calc(env(safe-area-inset-bottom) + 90px)' : '30px',
+              left: '16px',
+              right: '16px',
+              zIndex: 1001,
+              background: prefs.darkMap ? '#0F172A' : '#FFFFFF',
+              border: '1.5px solid #3B82F6',
+              borderRadius: '20px',
+              padding: '14px 18px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.3)'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'DM Mono' }}>
+                  Coordenadas: {viewState.latitude.toFixed(4)}, {viewState.longitude.toFixed(4)}
+                </span>
+                <span style={{ fontSize: '10px', background: 'rgba(59,130,246,0.1)', color: '#3B82F6', padding: '2px 8px', borderRadius: '6px', fontWeight: 700 }}>
+                  Listo para fijar
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  onClick={() => {
+                    setAdMapPickerActive(false)
+                    toast.error("Selección de ubicación cancelada")
+                  }}
+                  style={{
+                    flex: 1, padding: '12px', borderRadius: '12px',
+                    background: 'transparent', color: 'var(--text-secondary)',
+                    border: '1px solid rgba(148, 163, 184, 0.3)',
+                    fontSize: '12px', fontWeight: 700, cursor: 'pointer'
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => {
+                    const lat = viewState.latitude
+                    const lng = viewState.longitude
+                    const detectedAddress = `Av. Corrientes ${Math.floor(Math.random() * 2000) + 1000}, CABA`
+                    setAdPickedCoord({ lat, lng })
+                    setAdPickedAddress(detectedAddress)
+                    setAdLocationMarker({ lat, lng, title: detectedAddress || 'Mi Comercio' })
+                    setAdMapPickerActive(false)
+                    // Return to ad creation panel
+                    setActivePanel('settings')
+                    toast.success(`📍 ¡Ubicación fijada exitosamente! (${detectedAddress})`)
+                  }}
+                  style={{
+                    flex: 2, padding: '12px', borderRadius: '12px',
+                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', color: '#FFFFFF',
+                    border: 'none', fontSize: '13px', fontWeight: 800, cursor: 'pointer',
+                    boxShadow: '0 4px 15px rgba(16, 185, 129, 0.3)'
+                  }}
+                >
+                  ✓ Confirmar Ubicación del Comercio
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+
         {/* Route Duration Overlay */}
         {solvedRoutes.length > 0 && originCoord && destCoord && !activeTravelRoute && (
           <div style={{
@@ -27627,6 +27743,146 @@ function MapAdBanner({
         {/* ═══════════════════════════════════════════════════════════════
             FULL AD DETAIL MODAL (Bottom Ads / Carousel Click)
         ═══════════════════════════════════════════════════════════════ */}
+        
+        {/* ═══════════════════════════════════════════════════════════════
+            REPORT AD INTERACTIVE MODAL (Denunciar Anuncio)
+        ═══════════════════════════════════════════════════════════════ */}
+        <AnimatePresence>
+          {reportingAdObj && (
+            <div style={{
+              position: (!physicalMobile && forceMobilePreview) ? 'absolute' : 'fixed',
+              top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0, 0, 0, 0.75)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10005,
+              padding: '20px'
+            }}>
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                style={{
+                  background: prefs.darkMap ? '#1E293B' : '#FFFFFF',
+                  color: 'var(--text-primary)',
+                  width: '100%',
+                  maxWidth: '400px',
+                  borderRadius: '24px',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                  overflow: 'hidden',
+                  border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '14px'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(239,68,68,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <AlertTriangle size={16} style={{ color: '#EF4444' }} />
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '15px', fontWeight: 800 }}>Denunciar Publicidad</h3>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>"{reportingAdObj.title}"</span>
+                    </div>
+                  </div>
+                  <button onClick={() => setReportingAdObj(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'DM Mono' }}>Motivo de la denuncia</label>
+                  {[
+                    '⚠️ Contenido engañoso o falso',
+                    '📍 Ubicación o dirección incorrecta',
+                    '🚫 Spam, estafa o negocio falso',
+                    '🔞 Contenido inapropiado o explícito',
+                    '📋 Otro motivo'
+                  ].map(reason => (
+                    <button
+                      key={reason}
+                      onClick={() => setAdReportReason(reason)}
+                      style={{
+                        padding: '10px 12px', borderRadius: '10px', textAlign: 'left',
+                        background: adReportReason === reason ? 'rgba(239,68,68,0.12)' : (prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)'),
+                        border: adReportReason === reason ? '1.5px solid #EF4444' : (prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)'),
+                        color: adReportReason === reason ? '#EF4444' : 'var(--text-primary)',
+                        fontSize: '12px', fontWeight: 600, cursor: 'pointer'
+                      }}
+                    >
+                      {reason}
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', fontFamily: 'DM Mono' }}>Detalles adicionales (opcional)</label>
+                  <textarea
+                    value={adReportDetails}
+                    onChange={e => setAdReportDetails(e.target.value)}
+                    placeholder="Explicanos brevemente el problema..."
+                    rows={2}
+                    style={{
+                      padding: '10px', borderRadius: '10px',
+                      background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                      border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
+                      color: 'var(--text-primary)', fontSize: '12px', resize: 'none'
+                    }}
+                  />
+                </div>
+
+                <button
+                  onClick={() => {
+                    try {
+                      const existingReports = JSON.parse(localStorage.getItem('bu_reports') || '[]')
+                      const activeUserStr = localStorage.getItem('active_user')
+                      const activeUser = activeUserStr ? JSON.parse(activeUserStr) : null
+                      const newAdReport = {
+                        id: 'rep-ad-' + Date.now(),
+                        type: 'Publicidad',
+                        line: 'Publicidad General',
+                        bus: reportingAdObj.id,
+                        driver: reportingAdObj.title,
+                        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                        date: new Date().toISOString().split('T')[0],
+                        desc: `📢 Denuncia de Anuncio "${reportingAdObj.title}": ${adReportReason}. ${adReportDetails}`,
+                        reporter: {
+                          name: activeUser?.name || 'Pasajero',
+                          email: activeUser?.email || 'pasajero@bienparada.ar',
+                          pastReports: 1,
+                          behavior: 'Normal',
+                          avatar: (activeUser?.name || 'P').charAt(0).toUpperCase()
+                        },
+                        status: 'Pendiente'
+                      }
+                      existingReports.unshift(newAdReport)
+                      localStorage.setItem('bu_reports', JSON.stringify(existingReports))
+                      toast.success("⚠️ Denuncia enviada con éxito al Panel Super Admin")
+                    } catch (e) {
+                      console.error('Error saving ad report:', e)
+                    }
+                    setReportingAdObj(null)
+                    setSelectedBottomAdDetail(null)
+                  }}
+                  style={{
+                    width: '100%', padding: '12px', borderRadius: '10px',
+                    background: '#EF4444', color: 'white', border: 'none',
+                    fontSize: '13px', fontWeight: 800, cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
+                  }}
+                >
+                  Enviar Denuncia al Super Admin
+                </button>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
         <AnimatePresence>
           {selectedBottomAdDetail && (
             <div style={{
@@ -27752,7 +28008,7 @@ function MapAdBanner({
                     {/* Denunciar Button */}
                     <button
                       onClick={() => {
-                        toast.success("⚠️ Anuncio denunciado. El equipo técnico revisará el contenido.")
+                        setReportingAdObj(selectedBottomAdDetail)
                       }}
                       style={{
                         flex: 1, padding: '8px', borderRadius: '8px',
@@ -28929,43 +29185,21 @@ function FavouritesPanel({
           savedIds = JSON.parse(localStorage.getItem('bu_fav_ads') || '[]');
         } catch {}
 
+        const userSubmittedAds = JSON.parse(localStorage.getItem('bu_submitted_ads') || '[]');
+        const tufixFavAds = TUFIX_ADS.map((ad, idx) => ({
+          id: 'tufix-' + idx,
+          title: ad.title,
+          description: ad.desc,
+          imageUrl: ad.image,
+          locationName: idx === 0 ? 'Av. Santa Fe 2100, Palermo' : idx === 1 ? 'Av. Corrientes 1380, Centro' : 'Av. Cabildo 1800, Belgrano',
+          lat: idx === 0 ? -34.5889 : idx === 1 ? -34.6037 : -34.5621,
+          lng: idx === 0 ? -58.4042 : idx === 1 ? -58.4173 : -58.4561,
+          promoCode: 'TUFIX-' + (2026 + idx * 15)
+        }));
+
         const allAds = [
-          {
-            id: 'demo-map-1',
-            title: 'Café Martínez Palermo - 20% OFF',
-            description: 'Mostrá tu boleto de Línea 12 y obtené 20% OFF en desayunos.',
-            imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400&q=80',
-            locationName: 'Av. Santa Fe 3200, Palermo',
-            lat: -34.5882, lng: -58.4101,
-            promoCode: 'PALERMO-COFFEE20'
-          },
-          {
-            id: 'demo-map-2',
-            title: 'Farmacia Central Callao 24hs',
-            description: 'Atención 24hs en Av. Callao. Descuentos en dermocosmética.',
-            imageUrl: 'https://images.unsplash.com/photo-1586015555751-63bb77f4322a?w=400&q=80',
-            locationName: 'Av. Callao 1450, Recoleta',
-            lat: -34.5935, lng: -58.3942,
-            promoCode: 'SALUD-CALLAO24'
-          },
-          {
-            id: 'demo-map-3',
-            title: 'Megatlon Plaza Italia - Pase Libre',
-            description: 'Pase libre por 3 días para pasajeros en tránsito por Plaza Italia.',
-            imageUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&q=80',
-            locationName: 'Av. Santa Fe 4200, Palermo',
-            lat: -34.5812, lng: -58.4211,
-            promoCode: 'MEGATLON-PASERUTAS'
-          },
-          {
-            id: 'demo-map-4',
-            title: 'Pizzería Güerrin - Promo Viajero',
-            description: '2 porciones de muzzarella tradicional + faina a precio promocional.',
-            imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&q=80',
-            locationName: 'Av. Corrientes 1368, Centro',
-            lat: -34.6041, lng: -58.3860,
-            promoCode: 'GUERRIN-MUZZA'
-          },
+          ...tufixFavAds,
+          ...userSubmittedAds,
           ...adSubmissions
         ];
 
