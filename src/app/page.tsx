@@ -27622,7 +27622,7 @@ function MapAdBanner({
         <AnimatePresence>
           {triggeredAd && (
             <div style={{
-              position: 'fixed',
+              position: (!physicalMobile && forceMobilePreview) ? 'absolute' : 'fixed',
               top: 0, left: 0, right: 0, bottom: 0,
               background: 'rgba(0, 0, 0, 0.6)',
               backdropFilter: 'blur(8px)',
@@ -27734,10 +27734,11 @@ function MapAdBanner({
         {isMobile && (
           <div
             style={{
-              position: 'fixed',
+              position: (!physicalMobile && forceMobilePreview) ? 'absolute' : 'fixed',
               bottom: 0,
               left: 0,
               right: 0,
+              width: '100%',
               height: '64px',
               background: prefs.darkMap
                 ? 'linear-gradient(0deg, rgba(8,12,18,0.99) 0%, rgba(14,20,30,0.95) 100%)'
@@ -27830,7 +27831,7 @@ function MapAdBanner({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               style={{
-                position: 'fixed',
+                position: (!physicalMobile && forceMobilePreview) ? 'absolute' : 'fixed',
                 inset: 0,
                 background: 'rgba(6, 8, 16, 0.85)',
                 backdropFilter: 'blur(20px)',
@@ -27924,7 +27925,7 @@ function MapAdBanner({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               style={{
-                position: 'fixed',
+                position: (!physicalMobile && forceMobilePreview) ? 'absolute' : 'fixed',
                 inset: 0,
                 background: 'rgba(6, 8, 16, 0.7)',
                 backdropFilter: 'blur(15px)',
