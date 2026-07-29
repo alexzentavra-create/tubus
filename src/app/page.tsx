@@ -26471,7 +26471,7 @@ function MapAdBanner({
         {activeTravelRoute && activePanel === 'map' && (
           <div style={{
             position: 'absolute',
-            bottom: isMobile ? 'calc(env(safe-area-inset-bottom) + 95px)' : '84px',
+            bottom: isMobile ? (enRutaMinimized ? 'calc(env(safe-area-inset-bottom) + 118px)' : 'calc(env(safe-area-inset-bottom) + 95px)') : (enRutaMinimized ? '105px' : '84px'),
             maxHeight: enRutaMinimized ? 'auto' : 'calc(100vh - 180px)',
             overflowY: 'auto',
             left: '12px',
@@ -26497,32 +26497,44 @@ function MapAdBanner({
                     Línea {activeTravelRoute.line_number} en Ruta
                   </span>
                 </div>
-                <button
-                  onClick={() => {
-                    setActiveTravelRoute(null)
-                    setTravelRoute(null)
-                    setSolvedRoutes([])
-                    setOriginCoord(null)
-                    setOriginInput('')
-                    setDestCoord(null)
-                    setDestInput('')
-                    setMapSelectionMode(null)
-                    setTrackedBusId(null)
-                    setSelectedBoardingBusId(null)
-                    setSelectedLines([])
-                    setTempLinesSelection([])
-                    setEnRutaMinimized(false)
-                    setShowLineSelector(true)
-                    setLineSelectorTab('route')
-                    setDrawerState('half')
-                    toast.success("Búsqueda de recorrido reiniciada")
-                  }}
-                  style={{
-                    background: 'rgba(239,68,68,0.12)', border: 'none', color: '#EF4444', fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer'
-                  }}
-                >
-                  Volver
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setEnRutaMinimized(true)}
+                    style={{
+                      background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.25)', color: '#3B82F6',
+                      fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer'
+                    }}
+                  >
+                    ➖ Minimizar
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveTravelRoute(null)
+                      setTravelRoute(null)
+                      setSolvedRoutes([])
+                      setOriginCoord(null)
+                      setOriginInput('')
+                      setDestCoord(null)
+                      setDestInput('')
+                      setMapSelectionMode(null)
+                      setTrackedBusId(null)
+                      setSelectedBoardingBusId(null)
+                      setSelectedLines([])
+                      setTempLinesSelection([])
+                      setEnRutaMinimized(false)
+                      setShowLineSelector(true)
+                      setLineSelectorTab('route')
+                      setDrawerState('half')
+                      toast.success("Búsqueda de recorrido reiniciada")
+                    }}
+                    style={{
+                      background: 'rgba(239,68,68,0.12)', border: 'none', color: '#EF4444', fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer'
+                    }}
+                  >
+                    Volver
+                  </button>
+                </div>
               </div>
             )}
 
