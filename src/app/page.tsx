@@ -29928,32 +29928,68 @@ function ProfilePanel({
     localStorage.setItem('tu_bus_chat_messages', JSON.stringify(updated))
     setChatInput('')
 
-    // Simulated Admin support reply
-    setTimeout(() => {
-      let replyText = '¡Hola! Recibimos tu consulta en el soporte de BienParada. Un representante técnico se comunicará en breve.'
-      
-      const lower = chatInput.toLowerCase()
-      if (lower.includes('anuncio') || lower.includes('publicidad') || lower.includes('campaña')) {
-        replyText = '¡Hola! Respecto a tu consulta sobre publicidad: una vez cargado el anuncio en la pestaña "Anuncios", se aprobará automáticamente en unos segundos. Podés revisar el estado en tiempo real.'
-      } else if (lower.includes('ruta') || lower.includes('recorrido') || lower.includes('colectivo') || lower.includes('línea')) {
-        replyText = '¡Hola! Si notás algún desvío o error en el recorrido de los colectivos, recordá que los datos son simulados en tiempo real. Podés reportar la línea desde el panel correspondiente.'
-      } else if (lower.includes('turism') || lower.includes('turist') || lower.includes('amarillo') || lower.includes('rojo')) {
-        replyText = '¡Hola! Los colectivos turísticos Amarillo y Rojo recorren los principales hitos de la ciudad de Buenos Aires. Recordá activar el botón de "Puntos de interés" para ver todas las paradas en el mapa con fotos exclusivas.'
-      }
+    // Check if auto-reply greeting has ALREADY been sent in this conversation session
+    const alreadyReplied = chatMessages.some(m => 
+      m.sender === 'support' || m.sender === 'admin' || (m.text && m.text.includes('Recibimos tu consulta'))
+    )
 
-      const adminMsg = {
-        id: (Date.now() + 1).toString(),
-        sender: 'support',
-        text: replyText,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }
+    // ONLY send auto-reply ONCE when user starts conversation!
+    if (!alreadyReplied) {
+      setTimeout(() => {
+        let replyText = '¡Hola! Recibimos tu consulta en el soporte de BienParada. Un representante técnico se comunicará en breve.'
+        
+        const lower = userMsg.text.toLowerCase()
+        if (lower.includes('anuncio') || lower.includes('publicidad') || lower.includes('campaña')) {
+          replyText = '¡Hola! Respecto a tu consulta sobre publicidad: una vez cargado el anuncio en la pestaña "Anuncios", se aprobará automáticamente en unos segundos. Podés revisar el estado en tiempo real.'
+        } else if (lower.includes('ruta') || lower.includes('recorrido') || lower.includes('colectivo') || lower.includes('línea')) {
+          replyText = '¡Hola! Si notás algún desvío o error en el recorrido de los colectivos, recordá que los datos son simulados en tiempo real. Podés reportar la línea desde el panel correspondiente.'
+        } else if (lower.includes('turism') || lower.includes('turist') || lower.includes('amarillo') || lower.includes('rojo')) {
+          replyText = '¡Hola! Los colectivos turísticos Amarillo y Rojo recorren los principales hitos de la ciudad de Buenos Aires. Recordá activar el botón de "Puntos de interés" para ver todas las paradas en el mapa con fotos exclusivas.'
+        }
 
-      setChatMessages((prev: any[]) => {
-        const next = [...prev, adminMsg]
-        localStorage.setItem('tu_bus_chat_messages', JSON.stringify(next))
-        return next
-      })
-    }, 1500)
+        const adminMsg = {
+          id: (Date.now() + 1).toString(),
+          sender: 'support',
+          text: replyText,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+
+        setChatMessages((prev: any[]) => {
+          const next = [...prev, adminMsg]
+          localStorage.setItem('tu_bus_chat_messages', JSON.stringify(next))
+          localStorage.setItem('bu_support_chat', JSON.stringify(next))
+          return next
+        })
+      }, 1500)
+    }
+
+    // Sync message to Super Admin panel conversations with unread notification flag
+    try {
+      const superChatsStr = localStorage.getItem('mock_super_chats')
+      let superChats = superChatsStr ? JSON.parse(superChatsStr) : []
+      const passengerChatId = 'c-user-pasajero-1'
+      let existing = superChats.find((c: any) => c.id === passengerChatId || c.name.includes('Pasajero'))
+
+      if (existing) {
+        existing.lastMsg = userMsg.text
+        existing.history = [...(existing.history || []), { id: Date.now().toString(), sender: 'user', text: userMsg.text, timestamp: userMsg.timestamp }]
+        existing.unread = true
+        existing.unreadCount = (existing.unreadCount || 0) + 1
+      } else {
+        superChats.unshift({
+          id: passengerChatId,
+          name: localName ? `${localName} (Pasajero)` : 'Pasajero Soporte Técnico',
+          role: 'user',
+          avatar: 'PS',
+          starred: false,
+          unread: true,
+          unreadCount: 1,
+          lastMsg: userMsg.text,
+          history: [{ id: Date.now().toString(), sender: 'user', text: userMsg.text, timestamp: userMsg.timestamp }]
+        })
+      }
+      localStorage.setItem('mock_super_chats', JSON.stringify(superChats))
+    } catch (e) {}
   }
 
 

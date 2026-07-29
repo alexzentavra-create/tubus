@@ -583,6 +583,10 @@ export default function SuperAdminDashboard() {
       if (e.key === 'bu_super_admin_audit_logs' && e.newValue) {
         setAuditLogs(JSON.parse(e.newValue))
       }
+      if ((e.key === 'mock_super_chats' || e.key === 'bu_support_chat') && e.newValue) {
+        const saved = localStorage.getItem('mock_super_chats')
+        if (saved) setChats(JSON.parse(saved))
+      }
     }
     window.addEventListener('storage', handleStorageChange)
     return () => window.removeEventListener('storage', handleStorageChange)
@@ -2922,10 +2926,19 @@ export default function SuperAdminDashboard() {
       }}>
         {NAV_ITEMS.map((item) => {
           const active = tab === item.id
+          const unreadChatsCount = chats.filter((c: any) => c.unread || (c.unreadCount && c.unreadCount > 0)).length
+
           return (
             <button
               key={item.id}
-              onClick={() => setTab(item.id as Tab)}
+              onClick={() => {
+                setTab(item.id as Tab)
+                if (item.id === 'chat') {
+                  const updated = chats.map((c: any) => ({ ...c, unread: false, unreadCount: 0 }))
+                  setChats(updated)
+                  localStorage.setItem('mock_super_chats', JSON.stringify(updated))
+                }
+              }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -2944,6 +2957,20 @@ export default function SuperAdminDashboard() {
             >
               <item.icon size={14} style={{ color: active ? '#10B981' : '#8f94a5' }} />
               <span>{item.label}</span>
+              {item.id === 'chat' && unreadChatsCount > 0 && (
+                <span style={{
+                  background: '#EF4444',
+                  color: '#FFFFFF',
+                  borderRadius: '10px',
+                  padding: '2px 7px',
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  boxShadow: '0 0 10px rgba(239, 68, 68, 0.6)',
+                  marginLeft: '2px'
+                }}>
+                  {unreadChatsCount}
+                </span>
+              )}
             </button>
           )
         })}
