@@ -26471,29 +26471,29 @@ function MapAdBanner({
         {activeTravelRoute && activePanel === 'map' && (
           <div style={{
             position: 'absolute',
-            bottom: isMobile ? 'calc(env(safe-area-inset-bottom) + 110px)' : '84px',
-            maxHeight: enRutaMinimized ? 'auto' : 'calc(100vh - 200px)',
+            bottom: isMobile ? 'calc(env(safe-area-inset-bottom) + 95px)' : '84px',
+            maxHeight: enRutaMinimized ? 'auto' : 'calc(100vh - 180px)',
             overflowY: 'auto',
-            left: '14px',
-            right: '14px',
+            left: '12px',
+            right: '12px',
             margin: '0 auto',
-            maxWidth: enRutaMinimized ? '340px' : '380px',
+            maxWidth: enRutaMinimized ? '320px' : '360px',
             zIndex: 100,
             background: prefs.darkMap ? 'rgba(15, 23, 42, 0.96)' : 'rgba(255, 255, 255, 0.98)',
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)',
-            borderRadius: enRutaMinimized ? '30px' : '16px',
+            borderRadius: enRutaMinimized ? '24px' : '14px',
             border: enRutaMinimized ? '1.5px solid #10B981' : (prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)'),
-            padding: enRutaMinimized ? '8px 14px' : '12px 14px',
+            padding: enRutaMinimized ? '6px 12px' : '8px 10px',
             boxShadow: '0 8px 32px rgba(0,0,0,0.25)',
             fontFamily: 'DM Sans, sans-serif',
             transition: 'all 200ms ease-out'
           }}>
             {!enRutaMinimized && (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: activeTravelRoute.color }} />
-                  <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-primary)' }}>
                     Línea {activeTravelRoute.line_number} en Ruta
                   </span>
                 </div>
@@ -26561,27 +26561,27 @@ function MapAdBanner({
               }
 
               return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   {upcoming ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', background: prefs.darkMap ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', padding: '10px', borderRadius: '10px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: prefs.darkMap ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', padding: '6px 8px', borderRadius: '8px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Próximo colectivo</span>
-                          <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Próximo:</span>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>
                             Interno {upcoming.bus_unit}
                           </span>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Arribo estimado</span>
-                          <span style={{ fontSize: '14px', fontWeight: 700, color: '#10B981' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Llega en:</span>
+                          <span style={{ fontSize: '12px', fontWeight: 800, color: '#10B981' }}>
                             {Math.ceil(upcomingDist / 1000 / (upcoming.speed_kmh > 2 ? upcoming.speed_kmh / 60 : 0.3))} min
                           </span>
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', borderTop: prefs.darkMap ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.04)', paddingTop: '6px' }}>
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                          Distancia: {Math.round(upcomingDist)} metros
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '2px' }}>
+                        <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'DM Mono' }}>
+                          {Math.round(upcomingDist)}m
                         </span>
                         <button
                           onClick={() => {
@@ -26599,12 +26599,12 @@ function MapAdBanner({
                           style={{
                             background: trackedBusId === upcoming.id ? '#10B981' : 'rgba(34,211,160,0.12)',
                             color: trackedBusId === upcoming.id ? 'white' : '#10B981',
-                            border: 'none', borderRadius: '6px', padding: '4px 10px', fontSize: '10px', fontWeight: 700, cursor: 'pointer',
+                            border: 'none', borderRadius: '6px', padding: '2px 8px', fontSize: '9px', fontWeight: 700, cursor: 'pointer',
                             display: 'flex', alignItems: 'center', gap: '3px'
                           }}
                         >
-                          <Activity size={10} />
-                          <span>{trackedBusId === upcoming.id ? 'Siguiendo...' : 'Ver en tiempo real'}</span>
+                          <Activity size={9} />
+                          <span>{trackedBusId === upcoming.id ? 'Siguiendo...' : 'Ver en vivo'}</span>
                         </button>
                       </div>
 
@@ -26667,8 +26667,8 @@ function MapAdBanner({
                               toast.success(`🚶‍♂️ ¡Viaje iniciado! Siguiendo tu recorrido a bordo del Interno ${upcoming.bus_unit}`)
                             }}
                             style={{
-                              flex: 1, padding: '8px', borderRadius: '8px', background: '#3B82F6', color: 'white',
-                              border: 'none', fontSize: '11px', fontWeight: 800, cursor: 'pointer', display: 'flex',
+                              flex: 1, padding: '5px 8px', borderRadius: '6px', background: '#3B82F6', color: 'white',
+                              border: 'none', fontSize: '10px', fontWeight: 800, cursor: 'pointer', display: 'flex',
                               alignItems: 'center', justifyContent: 'center', gap: '4px'
                             }}
                           >
@@ -26710,20 +26710,10 @@ function MapAdBanner({
                   )}
 
                   {nextBus && !userBoardedBus && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', borderRadius: '8px', border: prefs.darkMap ? '1px dashed rgba(255,255,255,0.1)' : '1px dashed rgba(0,0,0,0.08)' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ 
-                          fontSize: '10px', color: 'var(--text-muted)' }}>Siguiente colectivo</span>
-                        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                          Interno {nextBus.bus_unit}
-                        </span>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Distancia</span>
-                        <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                          {Math.round(nextDist)} metros
-                        </div>
-                      </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 6px', borderRadius: '6px', background: 'rgba(255,255,255,0.02)' }}>
+                      <span style={{ fontSize: '9px', color: 'var(--text-muted)' }}>
+                        Siguiente: <strong style={{ color: 'var(--text-primary)' }}>Int. {nextBus.bus_unit}</strong> ({Math.round(nextDist)}m)
+                      </span>
                     </div>
                   )}
 
@@ -26761,7 +26751,7 @@ function MapAdBanner({
                         }
                       }}
                       style={{
-                        flex: 1, padding: '8px 12px', borderRadius: '8px',
+                        flex: 1, padding: '4px 8px', borderRadius: '6px',
                         background: (prefs.savedTrips || []).some((t: any) => 
                           t.line_id === activeTravelRoute.line_id && 
                           t.originStop.id === activeTravelRoute.originStop.id && 
@@ -26794,12 +26784,12 @@ function MapAdBanner({
                   {/* Alternative lines selector */}
                   {solvedRoutes.length > 1 && !userBoardedBus && (
                     <div style={{
-                      display: 'flex', flexDirection: 'column', gap: '4px',
+                      display: 'flex', alignItems: 'center', gap: '6px',
                       borderTop: prefs.darkMap ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.04)',
-                      paddingTop: '8px'
+                      paddingTop: '4px', marginTop: '2px'
                     }}>
-                      <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'DM Mono', fontWeight: 700 }}>LÍNEAS ALTERNATIVAS PARA ESTE RECORRIDO:</span>
-                      <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: '2px' }}>
+                      <span style={{ fontSize: '8px', color: 'var(--text-muted)', fontFamily: 'DM Mono', fontWeight: 700, flexShrink: 0 }}>ALTERNATIVAS:</span>
+                      <div style={{ display: 'flex', gap: '4px', overflowX: 'auto', scrollbarWidth: 'none' }}>
                         {solvedRoutes.map((r: any) => {
                           const isCurrent = r.line_id === activeTravelRoute.line_id
                           if (isCurrent) return null // Only show alternative paths
