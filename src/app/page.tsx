@@ -1,4 +1,11 @@
 'use client'
+// Per-User Storage Helper: isolates ads, history, points, and chats per account
+const getUserStorageKey = (baseKey: string, emailOverride?: string) => {
+  if (typeof window === 'undefined') return baseKey;
+  const email = emailOverride || localStorage.getItem('tu_bus_profile_email') || 'usuario@bienparada.com.ar';
+  const cleanEmail = email.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
+  return `${baseKey}_${cleanEmail}`;
+};
 import { useState, useEffect, useCallback, useRef, Fragment, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import Map, { Marker, Popup, NavigationControl, GeolocateControl, Source, Layer } from 'react-map-gl/maplibre'
@@ -23143,7 +23150,8 @@ function MapAdBanner({
   // Log successful route searches to history
   useEffect(() => {
     if (activeTravelRoute && originInput && destInput && originCoord && destCoord) {
-      const history = JSON.parse(localStorage.getItem('bu_search_history') || '[]')
+      const historyKey = getUserStorageKey('bu_search_history')
+      const history = JSON.parse(localStorage.getItem(historyKey) || localStorage.getItem('bu_search_history') || '[]')
       const exists = history.slice(0, 5).some((h: any) => h.originName === originInput && h.destName === destInput)
       if (!exists) {
         const newItem = {
@@ -23155,6 +23163,7 @@ function MapAdBanner({
           destCoord
         }
         const updated = [newItem, ...history]
+        localStorage.setItem(historyKey, JSON.stringify(updated))
         localStorage.setItem('bu_search_history', JSON.stringify(updated))
         setSearchHistory(updated)
       }
@@ -29456,18 +29465,21 @@ function ProfilePanel({
   const [pointsHistory, setPointsHistory] = useState<any[]>([])
 
   useEffect(() => {
-    const savedPoints = localStorage.getItem('user_points')
-    // Force reset old cached 350 pts values
+    const email = localStorage.getItem('tu_bus_profile_email') || 'usuario@bienparada.com.ar'
+    const pointsKey = getUserStorageKey('user_points', email)
+    const pointsHistKey = getUserStorageKey('user_points_history', email)
+
+    const savedPoints = localStorage.getItem(pointsKey) || localStorage.getItem('user_points')
     if (!savedPoints || savedPoints === '350') {
-      localStorage.setItem('user_points', '0')
+      localStorage.setItem(pointsKey, '0')
       setPoints(0)
     } else {
       setPoints(Number(savedPoints))
     }
 
-    const savedHistory = localStorage.getItem('user_points_history')
+    const savedHistory = localStorage.getItem(pointsHistKey) || localStorage.getItem('user_points_history')
     if (!savedHistory || savedHistory.includes('Juan Pérez')) {
-      localStorage.setItem('user_points_history', '[]')
+      localStorage.setItem(pointsHistKey, '[]')
       setPointsHistory([])
     } else {
       try {
@@ -29480,9 +29492,14 @@ function ProfilePanel({
 
   const updatePoints = (newVal: number, newHistory?: any[]) => {
     setPoints(newVal)
+    const email = localStorage.getItem('tu_bus_profile_email') || 'usuario@bienparada.com.ar'
+    const pointsKey = getUserStorageKey('user_points', email)
+    const pointsHistKey = getUserStorageKey('user_points_history', email)
+    localStorage.setItem(pointsKey, String(newVal))
     localStorage.setItem('user_points', String(newVal))
     if (newHistory) {
       setPointsHistory(newHistory)
+      localStorage.setItem(pointsHistKey, JSON.stringify(newHistory))
       localStorage.setItem('user_points_history', JSON.stringify(newHistory))
     }
   }
@@ -29795,6 +29812,24 @@ function ProfilePanel({
     localStorage.setItem('tu_bus_profile_avatar', localAvatar)
     localStorage.setItem('tu_bus_profile_country', localCountry)
     localStorage.setItem('tu_bus_profile_password', localPassword)
+
+    // Sync state for updated user namespace
+    const userAdsKey = getUserStorageKey('bu_submitted_ads', localEmail)
+    const userHistoryKey = getUserStorageKey('bu_search_history', localEmail)
+    const userPointsKey = getUserStorageKey('user_points', localEmail)
+    const userPointsHistoryKey = getUserStorageKey('user_points_history', localEmail)
+
+    const savedUserAds = localStorage.getItem(userAdsKey)
+    if (savedUserAds) setAdSubmissions(JSON.parse(savedUserAds))
+
+    const savedUserHistory = localStorage.getItem(userHistoryKey)
+    if (savedUserHistory) setSearchHistory(JSON.parse(savedUserHistory))
+
+    const savedUserPoints = localStorage.getItem(userPointsKey)
+    if (savedUserPoints) setPoints(Number(savedUserPoints))
+
+    const savedUserPointsHistory = localStorage.getItem(userPointsHistoryKey)
+    if (savedUserPointsHistory) setPointsHistory(JSON.parse(savedUserPointsHistory))
 
     toast.success('¡Perfil y cambios guardados con éxito!')
   }
