@@ -26235,8 +26235,9 @@ function MapAdBanner({
                     setAdPickedAddress(detectedAddress)
                     setAdLocationMarker({ lat, lng, title: detectedAddress || 'Mi Comercio' })
                     setAdMapPickerActive(false)
-                    // Return to ad creation panel
+                    // Return to ad creation panel and expand drawer
                     setActivePanel('settings')
+                    setDrawerState('expanded')
                     toast.success(`📍 ¡Ubicación fijada exitosamente! (${detectedAddress})`)
                   }}
                   style={{
