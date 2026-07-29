@@ -23144,73 +23144,17 @@ function MapAdBanner({
       setSearchHistory(JSON.parse(existingHistory))
     }
 
-    // Seed Ads if empty
+    // Always initialize adSubmissions from bu_submitted_ads (defaults to [] if empty)
     const existingAds = localStorage.getItem('bu_submitted_ads')
-    if (!existingAds) {
-      const mockAds = [
-        {
-          id: 'ad-map-1',
-          title: 'Café Martínez Palermo - 20% OFF',
-          imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400&q=80',
-          budget: 70,
-          description: 'Mostrá tu boleto de Línea 12 y obtené 20% de descuento en desayunos.',
-          status: 'approved',
-          placements: ['mapa'],
-          hasMapAd: true,
-          targetAudience: 'Línea 12',
-          lineNumber: '12',
-          selectedStops: ['Av. Santa Fe y Av. Callao', 'Plaza Italia'],
-          userEmail: 'contacto@cafemartinez.com',
-          userName: 'Café Martínez'
-        },
-        {
-          id: 'ad-map-2',
-          title: 'Farmacia Central Callao 24hs',
-          imageUrl: 'https://images.unsplash.com/photo-1586015555751-63bb77f4322a?w=400&q=80',
-          budget: 50,
-          description: 'Atención 24hs en Av. Callao y Sta Fe. Descuentos en dermocosmética.',
-          status: 'approved',
-          placements: ['mapa'],
-          hasMapAd: true,
-          targetAudience: 'Línea 12',
-          lineNumber: '12',
-          selectedStops: ['Av. Santa Fe y Av. Callao', 'Hospital de Clínicas'],
-          userEmail: 'promos@farmaciacentral.com',
-          userName: 'Farmacia Central'
-        },
-        {
-          id: 'ad-map-3',
-          title: 'Gimnasio Megatlon Plaza Italia',
-          imageUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&q=80',
-          budget: 80,
-          description: 'Pase libre por 3 días para pasajeros en tránsito por Plaza Italia.',
-          status: 'approved',
-          placements: ['mapa'],
-          hasMapAd: true,
-          targetAudience: 'Línea 12',
-          lineNumber: '12',
-          selectedStops: ['Plaza Italia', 'Jardín Botánico'],
-          userEmail: 'palermo@megatlon.com.ar',
-          userName: 'Megatlon Palermo'
-        },
-        {
-          id: 'ad-1',
-          title: 'Cervecería Patagonia - Cupones',
-          link: 'https://www.cervezapatagonia.com.ar',
-          imageUrl: 'https://images.unsplash.com/photo-1571613316887-6f8d5cbf7ef7?auto=format&fit=crop&w=300&q=80',
-          budget: '$20.000 / 30 días',
-          description: 'Cupón de descuento para pasajeros del colectivo 152.',
-          status: 'approved',
-          adminComment: 'Excelente anuncio. Aprobado y configurado.',
-          timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
-          userEmail: 'usuario@bienparada.com.ar',
-          userName: 'Alejandro'
-        }
-      ]
-      localStorage.setItem('bu_submitted_ads', JSON.stringify(mockAds))
-      setAdSubmissions(mockAds)
+    if (existingAds) {
+      try {
+        setAdSubmissions(JSON.parse(existingAds))
+      } catch (e) {
+        setAdSubmissions([])
+      }
     } else {
-      setAdSubmissions(JSON.parse(existingAds))
+      localStorage.setItem('bu_submitted_ads', '[]')
+      setAdSubmissions([])
     }
 
     // Seed Chat if empty
@@ -24743,7 +24687,7 @@ function MapAdBanner({
         </div>
 
         {/* Premium Advertisement Card */}
-        {((drawerState === 'expanded' || !isMobile)) && (TUFIX_ADS.length > 0 || (typeof window !== 'undefined' && JSON.parse(localStorage.getItem('bu_submitted_ads') || '[]').length > 0)) && (
+        {((drawerState === 'expanded' || !isMobile)) && (adSubmissions.filter((a: any) => a.status === 'approved' || !a.status).length > 0) && (
           <div style={{
             padding: '12px',
             borderRadius: '14px',
@@ -24767,107 +24711,107 @@ function MapAdBanner({
                 }
               `}</style>
               
-              <div
-                onScroll={handleAdScroll}
-                style={{
-                  display: 'flex',
-                  overflowX: 'auto',
-                  scrollSnapType: 'x mandatory',
-                  scrollbarWidth: 'none',
-                  msOverflowStyle: 'none',
-                  width: '100%'
-                }}
-                className="hide-scrollbar"
-              >
-                {TUFIX_ADS.map((ad, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      flexShrink: 0,
-                      width: '100%',
-                      scrollSnapAlign: 'start',
-                      cursor: 'pointer'
-                    }}
-                    onClick={() => {
-                      const fullAd = {
-                        id: 'tufix-' + idx,
-                        title: ad.title,
-                        description: ad.desc,
-                        imageUrl: ad.image,
-                        promoCode: 'TUFIX-' + (2026 + idx * 15),
-                        businessAddress: idx === 0 ? 'Av. Santa Fe 2100, Palermo' : idx === 1 ? 'Av. Corrientes 1380, Centro' : 'Av. Cabildo 1800, Belgrano',
-                        businessCoord: idx === 0 ? { lat: -34.5889, lng: -58.4042 } : idx === 1 ? { lat: -34.6037, lng: -58.4173 } : { lat: -34.5621, lng: -58.4561 },
-                        placement: 'bottom'
-                      }
-                      // Increment viewed count in storage
-                      try {
-                        const submittedStr = localStorage.getItem('bu_submitted_ads') || '[]'
-                        const submitted = JSON.parse(submittedStr)
-                        const found = submitted.find((a: any) => a.id === fullAd.id)
-                        if (found) {
-                          found.views = (found.views || 0) + 1
-                          localStorage.setItem('bu_submitted_ads', JSON.stringify(submitted))
-                        }
-                      } catch (e) {}
-                      setSelectedBottomAdDetail(fullAd)
-                    }}
-                  >
-                    <img
-                      src={ad.image}
-                      alt={ad.title}
-                      style={{ width: '100%', height: 'auto', display: 'block' }}
-                    />
-                  </div>
-                ))}
-              </div>
+              {(() => {
+                const activeApprovedAds = adSubmissions.filter((a: any) => a.status === 'approved' || !a.status)
+                const currentAd = activeApprovedAds[currentAdIndex] || activeApprovedAds[0]
+                if (!currentAd) return null
 
-              {/* Navigation dots overlay */}
-              <div style={{
-                position: 'absolute',
-                bottom: '8px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                display: 'flex',
-                gap: '4px',
-                background: 'rgba(0,0,0,0.5)',
-                padding: '3px 8px',
-                borderRadius: '10px',
-                zIndex: 10
-              }}>
-                {TUFIX_ADS.map((_, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      width: '6px',
-                      height: '6px',
-                      borderRadius: '50%',
-                      background: currentAdIndex === idx ? '#10B981' : 'rgba(255,255,255,0.4)',
-                      transition: 'background 200ms'
-                    }}
-                  />
-                ))}
-              </div>
+                return (
+                  <>
+                    <div
+                      onScroll={handleAdScroll}
+                      style={{
+                        display: 'flex',
+                        overflowX: 'auto',
+                        scrollSnapType: 'x mandatory',
+                        scrollbarWidth: 'none',
+                        msOverflowStyle: 'none',
+                        width: '100%'
+                      }}
+                      className="hide-scrollbar"
+                    >
+                      {activeApprovedAds.map((ad: any, idx: number) => (
+                        <div
+                          key={ad.id || idx}
+                          style={{
+                            flexShrink: 0,
+                            width: '100%',
+                            scrollSnapAlign: 'start',
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => {
+                            setSelectedBottomAdDetail(ad)
+                          }}
+                        >
+                          <img
+                            src={ad.imageUrl || ad.image || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600&q=80'}
+                            alt={ad.title}
+                            style={{ width: '100%', height: '140px', objectFit: 'cover', display: 'block' }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Navigation dots overlay */}
+                    {activeApprovedAds.length > 1 && (
+                      <div style={{
+                        position: 'absolute',
+                        bottom: '8px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        display: 'flex',
+                        gap: '4px',
+                        background: 'rgba(0,0,0,0.5)',
+                        padding: '3px 8px',
+                        borderRadius: '10px',
+                        zIndex: 10
+                      }}>
+                        {activeApprovedAds.map((_: any, idx: number) => (
+                          <div
+                            key={idx}
+                            style={{
+                              width: '6px',
+                              height: '6px',
+                              borderRadius: '50%',
+                              background: currentAdIndex === idx ? '#10B981' : 'rgba(255,255,255,0.4)',
+                              transition: 'background 200ms'
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
             </div>
             
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                  {TUFIX_ADS[currentAdIndex]?.title || 'TUFIX - Contratá Profesionales'}
-                </span>
-                <span style={{ fontSize: '9px', color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                  {TUFIX_ADS[currentAdIndex]?.desc || 'El trabajador ideal para vos.'}
-                </span>
-              </div>
-              <button
-                onClick={() => setShowActiveAdsDirectoryModal(true)}
-                style={{
-                  padding: '5px 12px', background: '#10B981', color: 'white', border: 'none', borderRadius: '6px',
-                  fontSize: '10px', fontWeight: 700, cursor: 'pointer', transition: 'all 200ms', flexShrink: 0, marginLeft: '8px'
-                }}
-              >
-                Ver más
-              </button>
-            </div>
+            {(() => {
+              const activeApprovedAds = adSubmissions.filter((a: any) => a.status === 'approved' || !a.status)
+              const currentAd = activeApprovedAds[currentAdIndex] || activeApprovedAds[0]
+              if (!currentAd) return null
+
+              return (
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                      {currentAd.title}
+                    </span>
+                    <span style={{ fontSize: '9px', color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                      {currentAd.description || currentAd.desc}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setShowActiveAdsDirectoryModal(true)}
+                    style={{
+                      padding: '5px 12px', background: '#10B981', color: 'white', border: 'none', borderRadius: '6px',
+                      fontSize: '10px', fontWeight: 700, cursor: 'pointer', transition: 'all 200ms', flexShrink: 0, marginLeft: '8px'
+                    }}
+                  >
+                    Ver más
+                  </button>
+                </div>
+              )
+            })()}
           </div>
         )}
 
@@ -29198,7 +29142,6 @@ function FavouritesPanel({
         }));
 
         const allAds = [
-          ...tufixFavAds,
           ...userSubmittedAds,
           ...adSubmissions
         ];
