@@ -26471,7 +26471,9 @@ function MapAdBanner({
         {activeTravelRoute && activePanel === 'map' && (
           <div style={{
             position: 'absolute',
-            bottom: isMobile ? 'calc(env(safe-area-inset-bottom) + 84px)' : '84px',
+            bottom: isMobile ? 'calc(env(safe-area-inset-bottom) + 110px)' : '84px',
+            maxHeight: enRutaMinimized ? 'auto' : 'calc(100vh - 200px)',
+            overflowY: 'auto',
             left: '14px',
             right: '14px',
             margin: '0 auto',
