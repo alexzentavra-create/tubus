@@ -27623,6 +27623,354 @@ function MapAdBanner({
           )}
         </AnimatePresence>
 
+        
+        {/* ═══════════════════════════════════════════════════════════════
+            FULL AD DETAIL MODAL (Bottom Ads / Carousel Click)
+        ═══════════════════════════════════════════════════════════════ */}
+        <AnimatePresence>
+          {selectedBottomAdDetail && (
+            <div style={{
+              position: (!physicalMobile && forceMobilePreview) ? 'absolute' : 'fixed',
+              top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0, 0, 0, 0.7)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10000,
+              padding: '20px'
+            }}>
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                style={{
+                  background: prefs.darkMap ? '#1E293B' : '#FFFFFF',
+                  color: 'var(--text-primary)',
+                  width: '100%',
+                  maxWidth: '420px',
+                  borderRadius: '24px',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.4)',
+                  overflow: 'hidden',
+                  border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  position: 'relative'
+                }}
+              >
+                {/* Header Badge & Close */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '14px 18px',
+                  borderBottom: prefs.darkMap ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 800, textTransform: 'uppercase', color: '#10B981', letterSpacing: '0.05em' }}>
+                      📢 Anuncio Patrocinado
+                    </span>
+                    {selectedBottomAdDetail.promoCode && (
+                      <span style={{ fontSize: '9px', background: 'rgba(16,185,129,0.12)', color: '#10B981', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                        {selectedBottomAdDetail.promoCode}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setSelectedBottomAdDetail(null)}
+                    style={{
+                      background: 'none', border: 'none', color: 'var(--text-muted)',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Ad Image */}
+                <div style={{ width: '100%', height: '200px', overflow: 'hidden', background: '#000000', position: 'relative' }}>
+                  <img
+                    src={selectedBottomAdDetail.imageUrl || selectedBottomAdDetail.image}
+                    alt={selectedBottomAdDetail.title}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                  {selectedBottomAdDetail.businessAddress && (
+                    <div style={{
+                      position: 'absolute', bottom: '10px', left: '10px', right: '10px',
+                      background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', padding: '6px 12px',
+                      borderRadius: '8px', color: '#FFFFFF', fontSize: '10px', fontWeight: 600,
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                    }}>
+                      <span>📍 {selectedBottomAdDetail.businessAddress}</span>
+                      {selectedBottomAdDetail.businessCoord && (
+                        <button
+                          onClick={() => {
+                            setViewState(v => ({
+                              ...v,
+                              latitude: selectedBottomAdDetail.businessCoord.lat,
+                              longitude: selectedBottomAdDetail.businessCoord.lng,
+                              zoom: 16.5,
+                              transitionDuration: 1000
+                            }))
+                            setSelectedBottomAdDetail(null)
+                            setShowActiveAdsDirectoryModal(false)
+                            toast.success("Ubicación del anuncio mostrada en el mapa")
+                          }}
+                          style={{
+                            background: '#3B82F6', color: 'white', border: 'none', borderRadius: '4px',
+                            padding: '3px 8px', fontSize: '9px', fontWeight: 700, cursor: 'pointer'
+                          }}
+                        >
+                          Ver en mapa
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Body Content */}
+                <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, lineHeight: 1.3 }}>
+                    {selectedBottomAdDetail.title}
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '12.5px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    {selectedBottomAdDetail.description || selectedBottomAdDetail.desc}
+                  </p>
+                </div>
+
+                {/* Actions Grid (Denunciar, Colectivo / Favoritos, Beneficio) */}
+                <div style={{
+                  padding: '14px 18px',
+                  background: prefs.darkMap ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)',
+                  borderTop: prefs.darkMap ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.06)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {/* Denunciar Button */}
+                    <button
+                      onClick={() => {
+                        toast.success("⚠️ Anuncio denunciado. El equipo técnico revisará el contenido.")
+                      }}
+                      style={{
+                        flex: 1, padding: '8px', borderRadius: '8px',
+                        background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px'
+                      }}
+                    >
+                      <AlertTriangle size={13} />
+                      <span>Denunciar</span>
+                    </button>
+
+                    {/* Favoritos Button */}
+                    {(() => {
+                      const favIds = JSON.parse(localStorage.getItem('bu_fav_ads') || '[]')
+                      const isFav = favIds.includes(selectedBottomAdDetail.id)
+                      return (
+                        <button
+                          onClick={() => {
+                            const updated = isFav 
+                              ? favIds.filter((id: string) => id !== selectedBottomAdDetail.id)
+                              : [...favIds, selectedBottomAdDetail.id]
+                            localStorage.setItem('bu_fav_ads', JSON.stringify(updated))
+                            toast.success(isFav ? "Anuncio quitado de favoritos" : "⭐ Anuncio guardado en tus Favoritos")
+                            // force render update
+                            setSelectedBottomAdDetail({ ...selectedBottomAdDetail })
+                          }}
+                          style={{
+                            flex: 1, padding: '8px', borderRadius: '8px',
+                            background: isFav ? 'rgba(16,185,129,0.12)' : (prefs.darkMap ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'),
+                            color: isFav ? '#10B981' : 'var(--text-primary)',
+                            border: isFav ? '1.5px solid #10B981' : (prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)'),
+                            fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px'
+                          }}
+                        >
+                          <Star size={13} style={{ fill: isFav ? 'currentColor' : 'none' }} />
+                          <span>{isFav ? 'Guardado' : 'Favorito'}</span>
+                        </button>
+                      )
+                    })()}
+                  </div>
+
+                  {/* Main Action Button */}
+                  <button
+                    onClick={() => {
+                      if (selectedBottomAdDetail.targetUrl) {
+                        window.open(selectedBottomAdDetail.targetUrl, '_blank')
+                      } else {
+                        toast.success("🎁 ¡Beneficio activado! Mostrá el código " + (selectedBottomAdDetail.promoCode || 'BIENPARADA-2026') + " en el local.")
+                      }
+                      setSelectedBottomAdDetail(null)
+                    }}
+                    style={{
+                      width: '100%', padding: '11px', borderRadius: '10px',
+                      background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', color: '#FFFFFF',
+                      border: 'none', fontSize: '13px', fontWeight: 700, cursor: 'pointer',
+                      boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)', display: 'flex',
+                      alignItems: 'center', justifyContent: 'center', gap: '6px'
+                    }}
+                  >
+                    <span>Obtener Beneficio Exclusivo</span>
+                    <Sparkles size={14} />
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* ═══════════════════════════════════════════════════════════════
+            ACTIVE ADS DIRECTORY EXPLORER MODAL ("Ver más" Button)
+        ═══════════════════════════════════════════════════════════════ */}
+        <AnimatePresence>
+          {showActiveAdsDirectoryModal && (
+            <div style={{
+              position: (!physicalMobile && forceMobilePreview) ? 'absolute' : 'fixed',
+              top: 0, left: 0, right: 0, bottom: 0,
+              background: 'rgba(0, 0, 0, 0.75)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+              padding: '16px'
+            }}>
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                style={{
+                  background: prefs.darkMap ? '#0F172A' : '#FFFFFF',
+                  color: 'var(--text-primary)',
+                  width: '100%',
+                  maxWidth: '460px',
+                  maxHeight: '85vh',
+                  borderRadius: '24px',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                  overflow: 'hidden',
+                  border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}
+              >
+                {/* Modal Header */}
+                <div style={{
+                  padding: '16px 20px',
+                  borderBottom: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      📢 Publicidades & Beneficios Activos
+                    </h3>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                      Explorá todos los beneficios exclusivos cerca de tus paradas
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setShowActiveAdsDirectoryModal(false)}
+                    style={{
+                      background: 'none', border: 'none', color: 'var(--text-muted)',
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Directory Content (Search & Grid) */}
+                <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {/* Category Chips */}
+                  <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: '2px' }}>
+                    {['Todas', 'Servicios', 'Gastronomía', 'Descuentos', 'En Ruta'].map((cat, idx) => (
+                      <span
+                        key={cat}
+                        style={{
+                          fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '20px',
+                          background: idx === 0 ? '#10B981' : (prefs.darkMap ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+                          color: idx === 0 ? 'white' : 'var(--text-secondary)',
+                          cursor: 'pointer', whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {cat}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* Ads List */}
+                  {(() => {
+                    // Combine default TUFIX ads + user submitted ads
+                    const userSubmitted = JSON.parse(localStorage.getItem('bu_submitted_ads') || '[]')
+                    const tufixList = TUFIX_ADS.map((ad, idx) => ({
+                      id: 'tufix-' + idx,
+                      title: ad.title,
+                      description: ad.desc,
+                      imageUrl: ad.image,
+                      promoCode: 'TUFIX-' + (2026 + idx * 15),
+                      businessAddress: idx === 0 ? 'Av. Santa Fe 2100, Palermo' : idx === 1 ? 'Av. Corrientes 1380, Centro' : 'Av. Cabildo 1800, Belgrano',
+                      businessCoord: idx === 0 ? { lat: -34.5889, lng: -58.4042 } : idx === 1 ? { lat: -34.6037, lng: -58.4173 } : { lat: -34.5621, lng: -58.4561 }
+                    }))
+
+                    const combinedAds = [...tufixList, ...userSubmitted]
+
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {combinedAds.map((ad: any, idx: number) => (
+                          <div
+                            key={ad.id || idx}
+                            onClick={() => {
+                              setSelectedBottomAdDetail(ad)
+                            }}
+                            style={{
+                              display: 'flex', gap: '12px', padding: '10px', borderRadius: '14px',
+                              background: prefs.darkMap ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                              border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
+                              cursor: 'pointer', transition: 'all 200ms ease-out'
+                            }}
+                          >
+                            <div style={{ width: '80px', height: '80px', borderRadius: '10px', overflow: 'hidden', flexShrink: 0, background: '#000' }}>
+                              <img src={ad.imageUrl || ad.image} alt={ad.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontSize: '9px', fontWeight: 800, color: '#10B981', textTransform: 'uppercase' }}>Anuncio</span>
+                                {ad.promoCode && (
+                                  <span style={{ fontSize: '8px', background: 'rgba(16,185,129,0.1)', color: '#10B981', padding: '1px 4px', borderRadius: '3px', fontWeight: 700 }}>
+                                    {ad.promoCode}
+                                  </span>
+                                )}
+                              </div>
+                              <h4 style={{ margin: '2px 0', fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                                {ad.title}
+                              </h4>
+                              <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                                {ad.description || ad.desc}
+                              </p>
+                              {ad.businessAddress && (
+                                <span style={{ fontSize: '9.5px', color: '#3B82F6', marginTop: '4px', fontWeight: 600 }}>
+                                  📍 {ad.businessAddress}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()}
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
         <AnimatePresence>
           {triggeredAd && (
             <div style={{
