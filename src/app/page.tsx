@@ -23144,17 +23144,17 @@ function MapAdBanner({
       setSearchHistory(JSON.parse(existingHistory))
     }
 
-    // Always initialize adSubmissions from bu_submitted_ads (defaults to [] if empty)
-    const existingAds = localStorage.getItem('bu_submitted_ads')
-    if (existingAds) {
+    // Always reset bu_submitted_ads to empty [] if it contains mock data or on fresh load
+    const existingAdsStr = localStorage.getItem('bu_submitted_ads')
+    if (!existingAdsStr || existingAdsStr.includes('ad-map-1') || existingAdsStr.includes('dlgfgmsk')) {
+      localStorage.setItem('bu_submitted_ads', '[]')
+      setAdSubmissions([])
+    } else {
       try {
-        setAdSubmissions(JSON.parse(existingAds))
+        setAdSubmissions(JSON.parse(existingAdsStr))
       } catch (e) {
         setAdSubmissions([])
       }
-    } else {
-      localStorage.setItem('bu_submitted_ads', '[]')
-      setAdSubmissions([])
     }
 
     // Seed Chat if empty
@@ -24687,7 +24687,7 @@ function MapAdBanner({
         </div>
 
         {/* Premium Advertisement Card */}
-        {((drawerState === 'expanded' || !isMobile)) && (adSubmissions.filter((a: any) => a.status === 'approved' || !a.status).length > 0) && (
+        {((drawerState === 'expanded' || !isMobile)) && (
           <div style={{
             padding: '12px',
             borderRadius: '14px',
@@ -24704,20 +24704,52 @@ function MapAdBanner({
               <span style={{ fontSize: '9px', fontWeight: 800, textTransform: 'uppercase', color: '#10B981', fontFamily: 'DM Mono', letterSpacing: '0.06em' }}>Anuncio</span>
               <span style={{ fontSize: '8px', color: 'var(--text-muted)' }}>Patrocinado</span>
             </div>
-            <div style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', width: '100%', border: '1px solid rgba(184, 200, 224, 0.15)' }}>
-              <style>{`
-                .hide-scrollbar::-webkit-scrollbar {
-                  display: none;
-                }
-              `}</style>
+            {(() => {
+              const activeApprovedAds = adSubmissions.filter((a: any) => a.status === 'approved' || !a.status)
               
-              {(() => {
-                const activeApprovedAds = adSubmissions.filter((a: any) => a.status === 'approved' || !a.status)
-                const currentAd = activeApprovedAds[currentAdIndex] || activeApprovedAds[0]
-                if (!currentAd) return null
-
+              if (activeApprovedAds.length === 0) {
                 return (
-                  <>
+                  <div style={{
+                    padding: '14px 12px',
+                    borderRadius: '10px',
+                    background: prefs.darkMap ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.01)',
+                    border: prefs.darkMap ? '1px dashed rgba(255,255,255,0.1)' : '1px dashed rgba(0,0,0,0.08)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '10px'
+                  }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        Sin anuncios activos por el momento
+                      </span>
+                      <span style={{ fontSize: '9.5px', color: 'var(--text-muted)' }}>
+                        Creá tu anuncio en Preferencias para promocionar tu comercio.
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setShowActiveAdsDirectoryModal(true)}
+                      style={{
+                        padding: '5px 10px', background: '#10B981', color: 'white', border: 'none', borderRadius: '6px',
+                        fontSize: '10px', fontWeight: 700, cursor: 'pointer', flexShrink: 0
+                      }}
+                    >
+                      Ver más
+                    </button>
+                  </div>
+                )
+              }
+
+              const currentAd = activeApprovedAds[currentAdIndex] || activeApprovedAds[0]
+
+              return (
+                <>
+                  <div style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', width: '100%', border: '1px solid rgba(184, 200, 224, 0.15)' }}>
+                    <style>{`
+                      .hide-scrollbar::-webkit-scrollbar {
+                        display: none;
+                      }
+                    `}</style>
                     <div
                       onScroll={handleAdScroll}
                       style={{
@@ -24752,7 +24784,6 @@ function MapAdBanner({
                       ))}
                     </div>
 
-                    {/* Navigation dots overlay */}
                     {activeApprovedAds.length > 1 && (
                       <div style={{
                         position: 'absolute',
@@ -24780,36 +24811,28 @@ function MapAdBanner({
                         ))}
                       </div>
                     )}
-                  </>
-                )
-              })()}
-            </div>
-            
-            {(() => {
-              const activeApprovedAds = adSubmissions.filter((a: any) => a.status === 'approved' || !a.status)
-              const currentAd = activeApprovedAds[currentAdIndex] || activeApprovedAds[0]
-              if (!currentAd) return null
-
-              return (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                      {currentAd.title}
-                    </span>
-                    <span style={{ fontSize: '9px', color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                      {currentAd.description || currentAd.desc}
-                    </span>
                   </div>
-                  <button
-                    onClick={() => setShowActiveAdsDirectoryModal(true)}
-                    style={{
-                      padding: '5px 12px', background: '#10B981', color: 'white', border: 'none', borderRadius: '6px',
-                      fontSize: '10px', fontWeight: 700, cursor: 'pointer', transition: 'all 200ms', flexShrink: 0, marginLeft: '8px'
-                    }}
-                  >
-                    Ver más
-                  </button>
-                </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                        {currentAd.title}
+                      </span>
+                      <span style={{ fontSize: '9px', color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                        {currentAd.description || currentAd.desc}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setShowActiveAdsDirectoryModal(true)}
+                      style={{
+                        padding: '5px 12px', background: '#10B981', color: 'white', border: 'none', borderRadius: '6px',
+                        fontSize: '10px', fontWeight: 700, cursor: 'pointer', transition: 'all 200ms', flexShrink: 0, marginLeft: '8px'
+                      }}
+                    >
+                      Ver más
+                    </button>
+                  </div>
+                </>
               )
             })()}
           </div>
