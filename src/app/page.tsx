@@ -26471,8 +26471,8 @@ function MapAdBanner({
         {activeTravelRoute && activePanel === 'map' && (
           <div style={{
             position: 'absolute',
-            bottom: isMobile ? (enRutaMinimized ? 'calc(env(safe-area-inset-bottom) + 118px)' : 'calc(env(safe-area-inset-bottom) + 95px)') : (enRutaMinimized ? '105px' : '84px'),
-            maxHeight: enRutaMinimized ? 'auto' : 'calc(100vh - 180px)',
+            bottom: isMobile ? (enRutaMinimized ? 'calc(env(safe-area-inset-bottom) + 148px)' : 'calc(env(safe-area-inset-bottom) + 140px)') : (enRutaMinimized ? '130px' : '120px'),
+            maxHeight: enRutaMinimized ? 'auto' : 'calc(100vh - 240px)',
             overflowY: 'auto',
             left: '12px',
             right: '12px',
