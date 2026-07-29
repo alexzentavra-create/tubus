@@ -25162,8 +25162,8 @@ function MapAdBanner({
               setNearbyStopsPinCoord({ lat: e.viewState.latitude, lng: e.viewState.longitude })
             }
           }}
-          onDragStart={() => { setTrackedBusId(null); setEnRutaMinimized(false); }}
-          onZoomStart={() => { setTrackedBusId(null); setEnRutaMinimized(false); }}
+          onDragStart={() => { setTrackedBusId(null); }}
+          onZoomStart={() => { setTrackedBusId(null); }}
           mapStyle={prefs.darkMap ? (CARTODB_DARK as any) : (CARTODB_LIGHT as any)}
           style={{ width: '100%', height: '100%' }}
           onClick={e => {
