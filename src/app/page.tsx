@@ -23066,10 +23066,15 @@ function MapAdBanner({
     setSelectedLines([])
 
     // Load User Profile
-    setProfileName(localStorage.getItem('profile_name') || 'Alejandro')
-    setProfilePhone(localStorage.getItem('profile_phone') || '+54 11 5555-5555')
-    setProfileEmail(localStorage.getItem('profile_email') || 'usuario@bienparada.com.ar')
-    setProfileAvatar(localStorage.getItem('profile_avatar') || 'avatar1')
+    const savedName = localStorage.getItem('profile_name') || localStorage.getItem('tu_bus_profile_name') || 'Alejandro'
+    const savedPhone = localStorage.getItem('profile_phone') || localStorage.getItem('tu_bus_profile_phone') || '+54 11 5555-5555'
+    const savedEmail = localStorage.getItem('profile_email') || localStorage.getItem('tu_bus_profile_email') || 'usuario@bienparada.com.ar'
+    const savedAvatar = localStorage.getItem('profile_avatar') || localStorage.getItem('tu_bus_profile_avatar') || 'avatar1'
+
+    setProfileName(savedName)
+    setProfilePhone(savedPhone)
+    setProfileEmail(savedEmail)
+    setProfileAvatar(savedAvatar)
 
     // Seed Search History if empty
     const existingHistory = localStorage.getItem('bu_search_history')
@@ -29801,19 +29806,25 @@ function ProfilePanel({
   }
 
   const handleSaveProfile = () => {
+    // 1. Update parent state immediately
     setProfileName(localName)
     setProfilePhone(localPhone)
     setProfileEmail(localEmail)
     setProfileAvatar(localAvatar)
 
+    // 2. Persist to all localStorage keys for consistency
+    localStorage.setItem('profile_name', localName)
     localStorage.setItem('tu_bus_profile_name', localName)
+    localStorage.setItem('profile_phone', localPhone)
     localStorage.setItem('tu_bus_profile_phone', localPhone)
+    localStorage.setItem('profile_email', localEmail)
     localStorage.setItem('tu_bus_profile_email', localEmail)
+    localStorage.setItem('profile_avatar', localAvatar)
     localStorage.setItem('tu_bus_profile_avatar', localAvatar)
     localStorage.setItem('tu_bus_profile_country', localCountry)
     localStorage.setItem('tu_bus_profile_password', localPassword)
 
-    // Sync state for updated user namespace
+    // 3. Sync user namespace data
     const userAdsKey = getUserStorageKey('bu_submitted_ads', localEmail)
     const userHistoryKey = getUserStorageKey('bu_search_history', localEmail)
     const userPointsKey = getUserStorageKey('user_points', localEmail)
@@ -29831,7 +29842,11 @@ function ProfilePanel({
     const savedUserPointsHistory = localStorage.getItem(userPointsHistoryKey)
     if (savedUserPointsHistory) setPointsHistory(JSON.parse(savedUserPointsHistory))
 
+    // 4. Notify user and dispatch storage event
     toast.success('¡Perfil y cambios guardados con éxito!')
+    try {
+      window.dispatchEvent(new Event('storage'))
+    } catch (e) {}
   }
 
   const handleClearHistory = () => {
