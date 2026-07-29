@@ -29507,23 +29507,36 @@ function ProfilePanel({
   }
   
   // Ad Submission Form States
-  const [selectedAdType, setSelectedAdType] = useState<'standard' | 'map' | 'notification'>('standard')
+  const [selectedAdTypes, setSelectedAdTypes] = useState<string[]>(['standard'])
 
   // Synchronize Top 3-Option Menu with Canales de Publicación in horario detallado
-  const handleSelectAdTypeSync = (type: 'standard' | 'map' | 'notification') => {
-    setSelectedAdType(type)
+  const handleToggleAdTypeSync = (type: 'standard' | 'map' | 'notification') => {
+    let updatedTypes: string[] = []
+    if (selectedAdTypes.includes(type)) {
+      if (selectedAdTypes.length === 1) {
+        toast.error("Debés seleccionar al menos un tipo de anuncio para tu campaña")
+        return
+      }
+      updatedTypes = selectedAdTypes.filter(t => t !== type)
+    } else {
+      updatedTypes = [...selectedAdTypes, type]
+    }
+    setSelectedAdTypes(updatedTypes)
+
     const placementMap: Record<string, string> = {
       standard: 'portada',
       map: 'mapa',
       notification: 'notificaciones'
     }
-    const targetPlacement = placementMap[type]
+    const newPlacements = updatedTypes.map(t => placementMap[t])
+    setTempPlacements(newPlacements)
+
     setAdScheduleDetails(prev => {
       const updated = { ...prev }
       Object.keys(updated).forEach(slotKey => {
         updated[slotKey] = {
           ...updated[slotKey],
-          placements: [targetPlacement]
+          placements: newPlacements
         }
       })
       return updated
@@ -30364,75 +30377,105 @@ function ProfilePanel({
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {/* Option 1: Banner Standard */}
                     <div
-                      onClick={() => handleSelectAdTypeSync('standard')}
+                      onClick={() => handleToggleAdTypeSync('standard')}
                       style={{
                         padding: '12px 14px',
                         borderRadius: '12px',
-                        border: selectedAdType === 'standard' ? '2px solid #10B981' : (prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)'),
-                        background: selectedAdType === 'standard' ? 'rgba(16, 185, 129, 0.08)' : 'transparent',
+                        border: selectedAdTypes.includes('standard') ? '2px solid #10B981' : (prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)'),
+                        background: selectedAdTypes.includes('standard') ? 'rgba(16, 185, 129, 0.08)' : 'transparent',
                         cursor: 'pointer',
                         transition: 'all 0.2s'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '13px', fontWeight: 700, color: selectedAdType === 'standard' ? '#10B981' : 'var(--text-primary)' }}>
-                          1ª Opción: Banner Informativo Estándar
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{
+                            width: '18px', height: '18px', borderRadius: '4px',
+                            background: selectedAdTypes.includes('standard') ? '#10B981' : 'transparent',
+                            border: selectedAdTypes.includes('standard') ? 'none' : '2px solid var(--text-muted)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '12px', fontWeight: 'bold'
+                          }}>
+                            {selectedAdTypes.includes('standard') && '✓'}
+                          </div>
+                          <span style={{ fontSize: '13px', fontWeight: 700, color: selectedAdTypes.includes('standard') ? '#10B981' : 'var(--text-primary)' }}>
+                            1ª Opción: Banner Informativo Estándar
+                          </span>
+                        </div>
                         <span style={{ fontSize: '10px', background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', padding: '2px 8px', borderRadius: '10px', fontWeight: 700 }}>
                           Sin costo extra (+$0)
                         </span>
                       </div>
-                      <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
-                        Se muestra como banner visual informativo en las pantallas de la aplicación.
+                      <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '4px 0 0 26px', lineHeight: 1.4 }}>
+                        Se muestra como banner visual informativo en la parte inferior del menú del mapa principal.
                       </p>
                     </div>
 
                     {/* Option 2: On Map Interactive Pin */}
                     <div
-                      onClick={() => handleSelectAdTypeSync('map')}
+                      onClick={() => handleToggleAdTypeSync('map')}
                       style={{
                         padding: '12px 14px',
                         borderRadius: '12px',
-                        border: selectedAdType === 'map' ? '2px solid #3B82F6' : (prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)'),
-                        background: selectedAdType === 'map' ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+                        border: selectedAdTypes.includes('map') ? '2px solid #3B82F6' : (prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)'),
+                        background: selectedAdTypes.includes('map') ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
                         cursor: 'pointer',
                         transition: 'all 0.2s'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '13px', fontWeight: 700, color: selectedAdType === 'map' ? '#3B82F6' : 'var(--text-primary)' }}>
-                          2ª Opción: Anuncio Interactivo en Mapa
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{
+                            width: '18px', height: '18px', borderRadius: '4px',
+                            background: selectedAdTypes.includes('map') ? '#3B82F6' : 'transparent',
+                            border: selectedAdTypes.includes('map') ? 'none' : '2px solid var(--text-muted)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '12px', fontWeight: 'bold'
+                          }}>
+                            {selectedAdTypes.includes('map') && '✓'}
+                          </div>
+                          <span style={{ fontSize: '13px', fontWeight: 700, color: selectedAdTypes.includes('map') ? '#3B82F6' : 'var(--text-primary)' }}>
+                            2ª Opción: Anuncio Interactivo en Mapa
+                          </span>
+                        </div>
                         <span style={{ fontSize: '10px', background: 'rgba(59, 130, 246, 0.15)', color: '#3B82F6', padding: '2px 8px', borderRadius: '10px', fontWeight: 700 }}>
                           +$20 ARS extra
                         </span>
                       </div>
-                      <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                      <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '4px 0 0 26px', lineHeight: 1.4 }}>
                         Destaca la ubicación de tu comercio con un marcador interactivo en el mapa principal.
                       </p>
                     </div>
 
                     {/* Option 3: Geofenced Push Notification */}
                     <div
-                      onClick={() => handleSelectAdTypeSync('notification')}
+                      onClick={() => handleToggleAdTypeSync('notification')}
                       style={{
                         padding: '12px 14px',
                         borderRadius: '12px',
-                        border: selectedAdType === 'notification' ? '2px solid #F59E0B' : (prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)'),
-                        background: selectedAdType === 'notification' ? 'rgba(245, 158, 11, 0.08)' : 'transparent',
+                        border: selectedAdTypes.includes('notification') ? '2px solid #F59E0B' : (prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)'),
+                        background: selectedAdTypes.includes('notification') ? 'rgba(245, 158, 11, 0.08)' : 'transparent',
                         cursor: 'pointer',
                         transition: 'all 0.2s'
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '13px', fontWeight: 700, color: selectedAdType === 'notification' ? '#F59E0B' : 'var(--text-primary)' }}>
-                          3ª Opción: Notificación Geolocalizada al Celular
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{
+                            width: '18px', height: '18px', borderRadius: '4px',
+                            background: selectedAdTypes.includes('notification') ? '#F59E0B' : 'transparent',
+                            border: selectedAdTypes.includes('notification') ? 'none' : '2px solid var(--text-muted)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '12px', fontWeight: 'bold'
+                          }}>
+                            {selectedAdTypes.includes('notification') && '✓'}
+                          </div>
+                          <span style={{ fontSize: '13px', fontWeight: 700, color: selectedAdTypes.includes('notification') ? '#F59E0B' : 'var(--text-primary)' }}>
+                            3ª Opción: Notificación Geolocalizada al Celular
+                          </span>
+                        </div>
                         <span style={{ fontSize: '10px', background: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B', padding: '2px 8px', borderRadius: '10px', fontWeight: 700 }}>
                           +$100 ARS extra
                         </span>
                       </div>
-                      <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '4px 0 0' }}>
+                      <p style={{ fontSize: '11px', color: 'var(--text-secondary)', margin: '4px 0 0 26px', lineHeight: 1.4 }}>
                         Envía una alerta Push con vibración al celular del pasajero en tiempo real al pasar cerca del local.
                       </p>
                     </div>
@@ -31793,10 +31836,11 @@ function ProfilePanel({
                         checked={tempPlacements.includes('portada')}
                         onChange={() => {
                           setTempPlacements(prev => {
-                            if (prev.includes('portada')) {
-                              return prev.filter(p => p !== 'portada');
-                            }
-                            return [...prev, 'portada'];
+                            const updated = prev.includes('portada') ? prev.filter(p => p !== 'portada') : [...prev, 'portada'];
+                            const placementMap: Record<string, string> = { portada: 'standard', mapa: 'map', notificaciones: 'notification' };
+                            const syncedTypes = updated.map(p => placementMap[p]).filter(Boolean);
+                            if (syncedTypes.length > 0) setSelectedAdTypes(syncedTypes);
+                            return updated;
                           });
                         }}
                         style={{ accentColor: '#10B981', marginTop: '4px', cursor: 'pointer', width: '16px', height: '16px' }}
