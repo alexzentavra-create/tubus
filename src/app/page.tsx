@@ -29451,32 +29451,30 @@ function ProfilePanel({
     targetRecipient?: string
   } | null>(null)
   
-  // Points & Referral System States
-  const [points, setPoints] = useState<number>(350)
-  const [pointsHistory, setPointsHistory] = useState<any[]>([
-    { id: 'h-1', type: 'referral', desc: 'Referido registrado (Juan Pérez)', points: 100, date: '12 Jul 2026' },
-    { id: 'h-2', type: 'referral', desc: 'Referido registrado (María Gómez)', points: 100, date: '10 Jul 2026' },
-    { id: 'h-3', type: 'ad_post', desc: 'Publicación de anuncio (Descuento Mostaza)', points: -50, date: '08 Jul 2026' },
-    { id: 'h-4', type: 'referral', desc: 'Registro inicial de bienvenida', points: 200, date: '01 Jul 2026' },
-  ])
+  // Points & Referral System States (Starts cleanly at 0 pts)
+  const [points, setPoints] = useState<number>(0)
+  const [pointsHistory, setPointsHistory] = useState<any[]>([])
 
   useEffect(() => {
     const savedPoints = localStorage.getItem('user_points')
-    if (savedPoints) {
+    // Force reset old cached 350 pts values
+    if (!savedPoints || savedPoints === '350') {
+      localStorage.setItem('user_points', '0')
+      setPoints(0)
+    } else {
       setPoints(Number(savedPoints))
-    } else {
-      localStorage.setItem('user_points', '350')
     }
+
     const savedHistory = localStorage.getItem('user_points_history')
-    if (savedHistory) {
-      setPointsHistory(JSON.parse(savedHistory))
+    if (!savedHistory || savedHistory.includes('Juan Pérez')) {
+      localStorage.setItem('user_points_history', '[]')
+      setPointsHistory([])
     } else {
-      localStorage.setItem('user_points_history', JSON.stringify([
-        { id: 'h-1', type: 'referral', desc: 'Referido registrado (Juan Pérez)', points: 100, date: '12 Jul 2026' },
-        { id: 'h-2', type: 'referral', desc: 'Referido registrado (María Gómez)', points: 100, date: '10 Jul 2026' },
-        { id: 'h-3', type: 'ad_post', desc: 'Publicación de anuncio (Descuento Mostaza)', points: -50, date: '08 Jul 2026' },
-        { id: 'h-4', type: 'referral', desc: 'Registro inicial de bienvenida', points: 200, date: '01 Jul 2026' },
-      ]))
+      try {
+        setPointsHistory(JSON.parse(savedHistory))
+      } catch {
+        setPointsHistory([])
+      }
     }
   }, [])
 
