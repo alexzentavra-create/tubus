@@ -21373,61 +21373,8 @@ function MapAdBanner({
 
   const activeLineNumber = activeTravelRoute?.line_number || selectedLines[0]?.line_number || '12'
 
-  // Default sample demo map ads so the preview is ALWAYS visible when opening the app on map
-  const fallbackDemoMapAds = useMemo(() => [
-    {
-      id: 'demo-map-1',
-      title: 'Café Martínez Palermo - 20% OFF',
-      description: 'Mostrá tu boleto de Línea 12 y obtené 20% OFF en desayunos. Café especialidad y facturas recién horneadas.',
-      imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=400&q=80',
-      badge: '📍 Parada Santa Fe',
-      locationName: 'Av. Santa Fe 3200, Palermo, CABA',
-      lat: -34.5882,
-      lng: -58.4101,
-      promoCode: 'PALERMO-COFFEE20',
-      views: 14,
-      used: 5
-    },
-    {
-      id: 'demo-map-2',
-      title: 'Farmacia Central Callao 24hs',
-      description: 'Atención 24hs en Av. Callao. Descuentos exclusivos en dermocosmética y cuidado personal.',
-      imageUrl: 'https://images.unsplash.com/photo-1586015555751-63bb77f4322a?w=400&q=80',
-      badge: '📍 Parada Av. Callao',
-      locationName: 'Av. Callao 1450, Recoleta, CABA',
-      lat: -34.5935,
-      lng: -58.3942,
-      promoCode: 'SALUD-CALLAO24',
-      views: 28,
-      used: 9
-    },
-    {
-      id: 'demo-map-3',
-      title: 'Megatlon Plaza Italia - Pase Libre',
-      description: 'Pase libre por 3 días para pasajeros en tránsito por Plaza Italia. Acceso completo a máquinas y pileta.',
-      imageUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400&q=80',
-      badge: '📍 Parada Plaza Italia',
-      locationName: 'Av. Santa Fe 4200, Palermo, CABA',
-      lat: -34.5812,
-      lng: -58.4211,
-      promoCode: 'MEGATLON-PASERUTAS',
-      views: 42,
-      used: 12
-    },
-    {
-      id: 'demo-map-4',
-      title: 'Pizzería Güerrin - Promo Viajero',
-      description: '2 porciones de muzzarella tradicional + faina a precio promocional presentando tu app BienParada.',
-      imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=400&q=80',
-      badge: '📍 Parada Obelisco',
-      locationName: 'Av. Corrientes 1368, Centro, CABA',
-      lat: -34.6041,
-      lng: -58.3860,
-      promoCode: 'GUERRIN-MUZZA',
-      views: 56,
-      used: 21
-    }
-  ], [])
+  // 0 demo map ads - only real user-submitted approved ads will appear
+  const fallbackDemoMapAds = useMemo(() => [], [])
 
   // Filter user-submitted ads with 'mapa' placement and stop matching within trip range
   const qualifiedMapAds = useMemo(() => {
