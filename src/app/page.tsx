@@ -30123,10 +30123,10 @@ function ProfilePanel({
                   </div>
                   <input
                     type="email"
+                    readOnly
                     value={localEmail}
-                    onChange={e => setLocalEmail(e.target.value)}
                     placeholder="ejemplo@email.com"
-                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: '#FFFFFF', border: '1px solid #3B82F6', color: '#000000', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                    style={{ width: '100%', padding: '10px 12px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', boxSizing: 'border-box', cursor: 'not-allowed' }}
                   />
                 </div>
 
@@ -30145,9 +30145,9 @@ function ProfilePanel({
                   <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                     <input
                       type={showPassword ? 'text' : 'password'}
+                      readOnly
                       value={localPassword}
-                      onChange={e => setLocalPassword(e.target.value)}
-                      style={{ width: '100%', padding: '10px 38px 10px 12px', borderRadius: '10px', background: '#FFFFFF', border: '1px solid #3B82F6', color: '#000000', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                      style={{ width: '100%', padding: '10px 38px 10px 12px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'var(--text-primary)', fontSize: '13px', outline: 'none', boxSizing: 'border-box', cursor: 'not-allowed' }}
                     />
                     <button
                       type="button"
