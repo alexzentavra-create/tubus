@@ -4167,6 +4167,7 @@ function DriversTab() {
               <th style={{ padding: '14px 20px', color: '#8f94a5', fontWeight: 600 }}>Correo Electrónico</th>
               <th style={{ padding: '14px 20px', color: '#8f94a5', fontWeight: 600 }}>Contraseña</th>
               <th style={{ padding: '14px 20px', color: '#8f94a5', fontWeight: 600 }}>Estado</th>
+              <th style={{ padding: '14px 20px', color: '#8f94a5', fontWeight: 600, textAlign: 'center' }}>Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -5265,6 +5266,18 @@ function ChatTab({
 function ReportsTab({ bannedUsers, onToggleBan }: { bannedUsers: string[]; onToggleBan: (email: string) => void }) {
   const [complaints, setComplaints] = useState<any[]>([])
   const [selectedReporter, setSelectedReporter] = useState<any | null>(null)
+  const [deleteReportTarget, setDeleteReportTarget] = useState<{ id: string; name: string } | null>(null)
+
+  const handleConfirmReportDelete = () => {
+    if (!deleteReportTarget) return
+    const { id, name } = deleteReportTarget
+    const updated = complaints.filter((c: any, idx: number) => idx.toString() !== id && c.driver !== name)
+    setComplaints(updated)
+    localStorage.setItem('bu_reports', JSON.stringify(updated))
+    try { window.dispatchEvent(new Event('storage')) } catch (e) {}
+    toast.success(`🗑️ "${name}" eliminada permanentemente.`)
+    setDeleteReportTarget(null)
+  }
 
   useEffect(() => {
     const list = Object.entries(LINE_DETAILS).flatMap(([lineId, details]) => {
@@ -5305,7 +5318,19 @@ function ReportsTab({ bannedUsers, onToggleBan }: { bannedUsers: string[]; onTog
                 <span style={{ fontSize: '12px', fontWeight: 700, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444', padding: '2px 8px', borderRadius: '6px' }}>{c.type}</span>
                 <span style={{ fontSize: '11px', color: '#8f94a5' }}>Chofer: <strong style={{ color: '#fff' }}>{c.driver}</strong> (Unidad {c.bus})</span>
               </div>
-              <span style={{ fontSize: '11px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{c.time}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '11px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{c.time}</span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setDeleteReportTarget({ id: i.toString(), name: `Denuncia contra ${c.driver}` })
+                  }}
+                  style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#EF4444', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  title="Eliminar Denuncia"
+                >
+                  <Trash2 size={11} />
+                </button>
+              </div>
             </div>
             
             <p style={{ fontSize: '12px', color: '#a3a6b8', margin: 0, lineHeight: 1.4 }}>{c.desc}</p>
