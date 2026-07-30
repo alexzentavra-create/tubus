@@ -341,122 +341,94 @@ const PROVINCES_DATA: Record<string, {
   }
 }
 
-// Interactive modals mock data
-const MOCK_USERS = [
+// Real registered users baseline
+const REAL_USERS = [
   {
-    id: 'usr-1',
-    name: 'Alejandro Zentavra',
-    email: 'ale.zentavra@demo.com.ar',
-    avatar: 'AZ',
-    joinedDate: '12 de Julio, 2026',
+    id: 'usr-real-1',
+    name: 'Usuario Prueba',
+    email: 'usuario@usuario.com',
+    password: 'usuario',
+    avatar: 'UP',
+    joinedDate: '01 de Enero, 2026',
     status: 'Activo',
-    searches: 48,
-    trips: 24,
-    rating: 4.8,
-    favLines: ['Línea 12', 'Línea 60'],
-    behavior: 'Usuario diario de Línea 12 y 60 en horario laboral.',
+    searches: 28,
+    trips: 18,
+    rating: 5.0,
+    favLines: ['Línea 12', 'Línea 39'],
+    behavior: 'Usuario registrado principal de la plataforma.',
+    frequentStop: 'Av. Santa Fe y Callao',
+    dailyBuses: 2.0,
+    hasAds: false,
+    gender: 'Masculino',
+    city: 'Buenos Aires',
+    province: 'Buenos Aires',
     weeklyUsage: [
       { day: 'Lun', count: 4 },
-      { day: 'Mar', count: 6 },
+      { day: 'Mar', count: 5 },
+      { day: 'Mie', count: 4 },
+      { day: 'Jue', count: 6 },
+      { day: 'Vie', count: 5 },
+      { day: 'Sab', count: 2 },
+      { day: 'Dom', count: 0 }
+    ]
+  },
+  {
+    id: 'usr-real-2',
+    name: 'Alejandro Finochietti',
+    email: 'alejandro.finochietti@bienparada.ar',
+    password: 'password123',
+    avatar: 'AF',
+    joinedDate: '15 de Mayo, 2026',
+    status: 'Activo',
+    searches: 45,
+    trips: 30,
+    rating: 5.0,
+    favLines: ['Línea 60', 'Línea 152'],
+    behavior: 'Administrador y usuario real del sistema.',
+    frequentStop: 'Plaza Italia (Palermo)',
+    dailyBuses: 3.5,
+    hasAds: false,
+    gender: 'Masculino',
+    city: 'Buenos Aires',
+    province: 'Buenos Aires',
+    weeklyUsage: [
+      { day: 'Lun', count: 6 },
+      { day: 'Mar', count: 7 },
       { day: 'Mie', count: 5 },
       { day: 'Jue', count: 8 },
       { day: 'Vie', count: 7 },
-      { day: 'Sab', count: 2 },
-      { day: 'Dom', count: 0 }
-    ]
-  },
-  {
-    id: 'usr-2',
-    name: 'Sofía Gutiérrez',
-    email: 'sofia.g@demo.com.ar',
-    avatar: 'SG',
-    joinedDate: '10 de Julio, 2026',
-    status: 'Activo',
-    searches: 15,
-    trips: 10,
-    rating: 4.5,
-    favLines: ['Línea 37'],
-    behavior: 'Uso frecuente enfocado en corredor de Av. Las Heras.',
-    weeklyUsage: [
-      { day: 'Lun', count: 2 },
-      { day: 'Mar', count: 3 },
-      { day: 'Mie', count: 2 },
-      { day: 'Jue', count: 2 },
-      { day: 'Vie', count: 1 },
-      { day: 'Sab', count: 0 },
-      { day: 'Dom', count: 0 }
-    ]
-  },
-  {
-    id: 'usr-3',
-    name: 'Mateo Lombardi',
-    email: 'mateo.l@demo.com.ar',
-    avatar: 'ML',
-    joinedDate: '07 de Julio, 2026',
-    status: 'Inactivo',
-    searches: 8,
-    trips: 4,
-    rating: 4.2,
-    favLines: ['Línea 152'],
-    behavior: 'Viajes ocasionales interurbanos de fin de semana.',
-    weeklyUsage: [
-      { day: 'Lun', count: 0 },
-      { day: 'Mar', count: 0 },
-      { day: 'Mie', count: 0 },
-      { day: 'Jue', count: 0 },
-      { day: 'Vie', count: 1 },
-      { day: 'Sab', count: 2 },
+      { day: 'Sab', count: 3 },
       { day: 'Dom', count: 1 }
-    ]
-  },
-  {
-    id: 'usr-4',
-    name: 'Mariana Peralta',
-    email: 'mariana.p@demo.com.ar',
-    avatar: 'MP',
-    joinedDate: '11 de Julio, 2026',
-    status: 'Activo',
-    searches: 22,
-    trips: 14,
-    rating: 4.9,
-    favLines: ['Línea 59', 'Línea 39'],
-    behavior: 'Patrón de viaje vespertino recurrente entre las 18:00 y 20:00.',
-    weeklyUsage: [
-      { day: 'Lun', count: 3 },
-      { day: 'Mar', count: 2 },
-      { day: 'Mie', count: 4 },
-      { day: 'Jue', count: 3 },
-      { day: 'Vie', count: 2 },
-      { day: 'Sab', count: 0 },
-      { day: 'Dom', count: 0 }
     ]
   }
 ]
 
+const MOCK_USERS = REAL_USERS
+
 const GROWTH_STATS = {
   day: {
-    newUsers: '+15',
-    activeUsers: '320',
-    churn: '2',
+    newUsers: '+2',
+    activeUsers: '2',
+    churn: '0',
     newLines: '0',
-    supportQueries: '5',
-    joinedList: ['usr-1', 'usr-4']
+    supportQueries: '1',
+    joinedList: ['usr-real-1', 'usr-real-2']
   },
   week: {
-    newUsers: '+120',
-    activeUsers: '1,840',
-    churn: '12',
+    newUsers: '+2',
+    activeUsers: '2',
+    churn: '0',
     newLines: '1',
-    supportQueries: '35',
-    joinedList: ['usr-1', 'usr-2', 'usr-4']
+    supportQueries: '3',
+    joinedList: ['usr-real-1', 'usr-real-2']
   },
   month: {
-    newUsers: '+580',
-    activeUsers: '4,820',
-    churn: '45',
+    newUsers: '+2',
+    activeUsers: '2',
+    churn: '0',
     newLines: '3',
-    supportQueries: '120',
-    joinedList: ['usr-1', 'usr-2', 'usr-3', 'usr-4']
+    supportQueries: '5',
+    joinedList: ['usr-real-1', 'usr-real-2']
   }
 }
 
@@ -793,32 +765,116 @@ export default function SuperAdminDashboard() {
       ]
     }
   ])
-  const [liveUserList, setLiveUserList] = useState<any[]>(MOCK_USERS)
+  const [liveUserList, setLiveUserList] = useState<any[]>(REAL_USERS)
 
-  // Real-time synchronization with app localStorage for active passenger profile & history
+  // Real-time synchronization with app localStorage for active passenger profile & registered users
   useEffect(() => {
     const syncUsersFromStorage = () => {
       if (typeof window === 'undefined') return
       try {
-        const profileName = localStorage.getItem('profile_name') || localStorage.getItem('tu_bus_profile_name') || 'Alejandro Zentavra'
-        const profileEmail = localStorage.getItem('profile_email') || localStorage.getItem('tu_bus_profile_email') || 'ale.zentavra@demo.com.ar'
+        const storedMockUsersStr = localStorage.getItem('mock_users')
+        const storedMockUsers: any[] = storedMockUsersStr ? JSON.parse(storedMockUsersStr) : []
+        
+        const storedSuperUsersStr = localStorage.getItem('mock_super_users')
+        const storedSuperUsers: any[] = storedSuperUsersStr ? JSON.parse(storedSuperUsersStr) : []
+
+        const activeUserStr = localStorage.getItem('active_user')
+        const activeUser = activeUserStr ? JSON.parse(activeUserStr) : null
+
+        const profileName = localStorage.getItem('profile_name') || localStorage.getItem('tu_bus_profile_name')
+        const profileEmail = localStorage.getItem('profile_email') || localStorage.getItem('tu_bus_profile_email')
         const rawHistory = localStorage.getItem('bu_search_history')
         const searchHistory = rawHistory ? JSON.parse(rawHistory) : []
 
-        setLiveUserList(prevList => {
-          const list = [...prevList]
-          const existingIdx = list.findIndex(u => u.id === 'usr-1' || u.email === profileEmail)
-          if (existingIdx !== -1) {
-            list[existingIdx] = {
-              ...list[existingIdx],
-              name: profileName,
-              email: profileEmail,
-              searches: Math.max(list[existingIdx].searches, searchHistory.length),
-              searchHistory: searchHistory.length > 0 ? searchHistory : list[existingIdx].searchHistory
-            }
+        const baseList: any[] = [...REAL_USERS]
+
+        const isFake = (email?: string, id?: string) => {
+          const lower = (email || '').toLowerCase().trim()
+          return lower.includes('demo.com.ar') ||
+                 lower.includes('ale.zentavra') ||
+                 lower.includes('sofia.g') ||
+                 lower.includes('mateo.l') ||
+                 lower.includes('mariana.p') ||
+                 id === 'usr-1' || id === 'usr-2' || id === 'usr-3' || id === 'usr-4'
+        }
+
+        const formatUserObj = (u: any, fallbackId?: string) => {
+          const email = (u.email || profileEmail || 'usuario@usuario.com').toLowerCase().trim()
+          let name = u.name || profileName
+          if (!name || name === 'Usuario') {
+            if (email.includes('alejandro.finochietti')) name = 'Alejandro Finochietti'
+            else if (email === 'usuario@usuario.com' || email === 'usuario@usuario') name = 'Usuario Prueba'
+            else name = email.split('@')[0]
           }
-          return list
+          const avatarParts = name.split(' ').map((p: string) => p[0]).join('').toUpperCase().slice(0, 2)
+          return {
+            id: u.id || fallbackId || `usr-real-${Date.now()}`,
+            name,
+            email,
+            password: u.password || '••••••••',
+            avatar: avatarParts || 'US',
+            joinedDate: u.joinedDate || 'Hoy, 2026',
+            status: u.status || 'Activo',
+            searches: Math.max(u.searches || 0, searchHistory.length),
+            trips: u.trips || Math.floor((u.searches || 1) * 0.6),
+            rating: u.rating || 5.0,
+            favLines: u.favLines || ['Línea 12', 'Línea 39'],
+            behavior: u.behavior || 'Usuario registrado en la plataforma.',
+            frequentStop: u.frequentStop || 'Av. Santa Fe y Callao',
+            dailyBuses: u.dailyBuses || 1.5,
+            hasAds: u.hasAds || false,
+            gender: u.gender || (email.includes('alejandro') ? 'Masculino' : 'Todos'),
+            city: u.city || 'Buenos Aires',
+            province: u.province || 'Buenos Aires',
+            searchHistory: searchHistory,
+            weeklyUsage: u.weeklyUsage || [
+              { day: 'Lun', count: 3 },
+              { day: 'Mar', count: 4 },
+              { day: 'Mie', count: 3 },
+              { day: 'Jue', count: 5 },
+              { day: 'Vie', count: 4 },
+              { day: 'Sab', count: 1 },
+              { day: 'Dom', count: 0 }
+            ]
+          }
+        }
+
+        const finalMap: Record<string, any> = {}
+
+        baseList.forEach(u => {
+          if (!isFake(u.email, u.id)) {
+            finalMap[u.email.toLowerCase()] = u
+          }
         })
+
+        storedSuperUsers.forEach(u => {
+          if (u.email && !isFake(u.email, u.id)) {
+            const emailKey = u.email.toLowerCase()
+            const existing = finalMap[emailKey]
+            finalMap[emailKey] = { ...existing, ...u }
+          }
+        })
+
+        storedMockUsers.forEach(u => {
+          if (u.email && !isFake(u.email, u.id)) {
+            const emailKey = u.email.toLowerCase()
+            const existing = finalMap[emailKey]
+            const formatted = formatUserObj(u, u.id)
+            finalMap[emailKey] = { ...formatted, ...existing, email: u.email, name: u.name || existing?.name || formatted.name }
+          }
+        })
+
+        if (activeUser && activeUser.email && !isFake(activeUser.email, activeUser.id)) {
+          const emailKey = activeUser.email.toLowerCase()
+          const existing = finalMap[emailKey]
+          const formatted = formatUserObj(activeUser, activeUser.id)
+          finalMap[emailKey] = { ...formatted, ...existing, email: activeUser.email, name: activeUser.name || existing?.name || formatted.name }
+        }
+
+        const mergedList = Object.values(finalMap)
+        setLiveUserList(mergedList)
+        localStorage.setItem('mock_super_users', JSON.stringify(mergedList))
+        localStorage.setItem('bu_registered_users', JSON.stringify(mergedList))
       } catch (err) {
         console.error('Error syncing real-time user data:', err)
       }
@@ -869,9 +925,9 @@ export default function SuperAdminDashboard() {
       status: 'approved',
       isActive: true,
       timestamp: 'Hace 1 día',
-      userName: 'Alejandro Zentavra',
-      userEmail: 'ale.zentavra@demo.com.ar',
-      userAvatar: 'AZ',
+      userName: 'Alejandro Finochietti',
+      userEmail: 'alejandro.finochietti@bienparada.ar',
+      userAvatar: 'AF',
       bannerBg: 'linear-gradient(135deg, #111, #ef4444)',
       bannerText: 'Coca Cola Sin Azúcar 🥤',
       bannerTagline: 'Sentí el sabor único. Disponible en todos los quioscos oficiales.'
@@ -887,9 +943,9 @@ export default function SuperAdminDashboard() {
       status: 'pending',
       isActive: false,
       timestamp: 'Hace 3 horas',
-      userName: 'Sofía Valenzuela',
-      userEmail: 'sofia.v@demo.com.ar',
-      userAvatar: 'SV',
+      userName: 'Usuario Prueba',
+      userEmail: 'usuario@usuario.com',
+      userAvatar: 'UP',
       bannerBg: 'linear-gradient(135deg, #f59e0b, #b45309)',
       bannerText: 'Mostaza Mega Deluxe 🍔',
       bannerTagline: '20% OFF presentando tu boleto de BienParada en caja.'
@@ -1343,7 +1399,7 @@ export default function SuperAdminDashboard() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '11px', color: '#8f94a5' }}>
-                Mostrando <strong style={{ color: '#10B981' }}>{filteredUsers.length}</strong> de 4,820 usuarios
+                Mostrando <strong style={{ color: '#10B981' }}>{filteredUsers.length}</strong> de {liveUserList.length} usuarios registrados
               </span>
               {hasActiveFilters && (
                 <button
@@ -3040,7 +3096,7 @@ export default function SuperAdminDashboard() {
             {/* Quick Metrics */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px' }}>
               <div
-                onClick={() => { setActiveDetail('users'); setSelectedUserId('usr-1'); }}
+                onClick={() => { setActiveDetail('users'); setSelectedUserId(liveUserList[0]?.id || 'usr-real-1'); }}
                 style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', cursor: 'pointer', transition: 'all 200ms' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(16,185,129,0.3)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)'; e.currentTarget.style.transform = 'none' }}
@@ -6099,9 +6155,9 @@ const DRILLDOWN_DATA: Record<string, {
                   image: '🥤',
                   budget: 150000,
                   duration: '30 días',
-                  userName: 'Alejandro Zentavra',
-                  userEmail: 'ale.zentavra@demo.com.ar',
-                  userAvatar: 'AZ',
+                  userName: 'Alejandro Finochietti',
+                  userEmail: 'alejandro.finochietti@bienparada.ar',
+                  userAvatar: 'AF',
                   bannerBg: 'linear-gradient(135deg, #111, #ef4444)'
                 }
               },
@@ -6115,9 +6171,9 @@ const DRILLDOWN_DATA: Record<string, {
                   image: '🍔',
                   budget: 85000,
                   duration: '15 días',
-                  userName: 'Sofía Valenzuela',
-                  userEmail: 'sofia.v@demo.com.ar',
-                  userAvatar: 'SV',
+                  userName: 'Usuario Prueba',
+                  userEmail: 'usuario@usuario.com',
+                  userAvatar: 'UP',
                   bannerBg: 'linear-gradient(135deg, #f59e0b, #b45309)'
                 }
               },
