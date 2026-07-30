@@ -25181,30 +25181,33 @@ function MapAdBanner({
 
             if (isTourist) {
               return (
-                <Marker key={stop.id} longitude={stop.longitude} latitude={stop.latitude} anchor="bottom">
+                <Marker key={stop.id} longitude={stop.longitude} latitude={stop.latitude} anchor="center">
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedTouristStop(stop);
                     }}
+                    title={stop.name}
                     style={{
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer',
-                      transform: 'scale(1)', transition: 'transform 0.15s'
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '50%',
+                      background: stopColor,
+                      border: '2px solid #FFFFFF',
+                      boxShadow: '0 3px 8px rgba(0,0,0,0.4)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '13px',
+                      color: '#FFFFFF',
+                      cursor: 'pointer',
+                      transform: 'scale(1)',
+                      transition: 'transform 0.15s'
                     }}
-                    onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.15)'}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.25)'}
                     onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                   >
-                    <div style={{
-                      background: stopColor, color: 'white', fontSize: '9px', padding: '2px 5px',
-                      borderRadius: '6px', fontWeight: 'bold', boxShadow: '0 2px 4px rgba(0,0,0,0.25)',
-                      border: '1px solid white', whiteSpace: 'nowrap'
-                    }}>
-                      {stop.name}
-                    </div>
-                    <div style={{
-                      width: '8px', height: '8px', borderRadius: '50%', background: stopColor,
-                      border: '1.5px solid white', marginTop: '-2px', boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
-                    }} />
+                    <span>🏛️</span>
                   </div>
                 </Marker>
               )
@@ -25328,33 +25331,33 @@ function MapAdBanner({
               }
 
               return (
-                <Marker key={place.id} longitude={place.lng} latitude={place.lat} anchor="bottom">
+                <Marker key={place.id} longitude={place.lng} latitude={place.lat} anchor="center">
                   <div
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedPlace(place);
                     }}
+                    title={place.name}
                     style={{
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer',
-                      transform: 'scale(1)', transition: 'transform 0.15s'
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      background: markerBg,
+                      border: '2px solid #FFFFFF',
+                      boxShadow: '0 3px 10px rgba(0,0,0,0.4)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '14px',
+                      color: '#FFFFFF',
+                      cursor: 'pointer',
+                      transform: 'scale(1)',
+                      transition: 'transform 0.15s'
                     }}
-                    onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.15)'}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.25)'}
                     onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                   >
-                    <div style={{
-                      background: markerBg,
-                      color: 'white', fontSize: '10px', padding: '3px 8px', borderRadius: '10px',
-                      fontWeight: 'bold', boxShadow: '0 3px 8px rgba(0,0,0,0.4)', whiteSpace: 'nowrap',
-                      border: '1.5px solid white', display: 'flex', alignItems: 'center', gap: '4px'
-                    }}>
-                      <span>{markerIcon}</span>
-                      <span>{place.name}</span>
-                    </div>
-                    <div style={{
-                      width: '12px', height: '12px', borderRadius: '50%',
-                      background: markerBg,
-                      border: '2px solid white', marginTop: '-3px', boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                    }} />
+                    <span>{markerIcon}</span>
                   </div>
                 </Marker>
               );
