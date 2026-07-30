@@ -515,7 +515,7 @@ const DEFAULT_CHATS = [
   ]}
 ]
 
-type Tab = 'overview' | 'linemaps' | 'drivers' | 'company_admins' | 'ads' | 'chat' | 'reports' | 'provincemap' | 'todos' | 'news' | 'terms' | 'security_2fa'
+type Tab = 'overview' | 'linemaps' | 'drivers' | 'company_admins' | 'ads' | 'pois' | 'chat' | 'reports' | 'provincemap' | 'todos' | 'news' | 'terms' | 'security_2fa'
 
 interface Todo {
   id: string
@@ -3377,6 +3377,8 @@ export default function SuperAdminDashboard() {
         )}
 
         {/* 8. Transport Industry News */}
+        {tab === 'pois' && <PoisTab />}
+
         {tab === 'news' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -4193,6 +4195,412 @@ function SingleLineMap({ line, onMessageAdmin, theme }: { line: any, onMessageAd
 }
 
 // ─── Drivers credentials and QR view component ──────────────────────────────
+
+// ─── Puntos de Interés Management Component (Real-Time Passenger App Sync) ───
+function PoisTab() {
+  const [customPois, setCustomPois] = useState<any[]>(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const saved = localStorage.getItem('bu_custom_pois')
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [showPoiModal, setShowPoiModal] = useState(false)
+  const [editingPoi, setEditingPoi] = useState<any | null>(null)
+  const [deletePoiTarget, setDeletePoiTarget] = useState<any | null>(null)
+
+  // Form State
+  const [formName, setFormName] = useState('')
+  const [formType, setFormType] = useState<'tourist' | 'clubbing' | 'restaurants' | 'shopping'>('tourist')
+  const [formCity, setFormCity] = useState('buenos_aires')
+  const [formLat, setFormLat] = useState<string>('-34.6037')
+  const [formLng, setFormLng] = useState<string>('-58.3816')
+  const [formDesc, setFormDesc] = useState('')
+  const [formImg, setFormImg] = useState('')
+  const [formRating, setFormRating] = useState<number>(4.8)
+
+  const DEFAULT_MOCK_POIS = [
+    { id: 'poi-1', name: 'Jardín Japonés', type: 'tourist', city: 'buenos_aires', rating: 4.8, lat: -34.5753, lng: -58.4090, description: 'Hermoso parque cultural y espacio de tranquilidad zen en Palermo.', imageUrl: 'https://images.unsplash.com/photo-1578637387939-43c525550085?w=600&q=80' },
+    { id: 'poi-2', name: 'Floralis Genérica', type: 'tourist', city: 'buenos_aires', rating: 4.7, lat: -34.5816, lng: -58.3948, description: 'Escultura metálica gigante articulada en la Plaza de las Naciones Unidas.', imageUrl: 'https://images.unsplash.com/photo-1589909202802-8f4aadce1849?w=600&q=80' },
+    { id: 'poi-3', name: 'Teatro Colón', type: 'tourist', city: 'buenos_aires', rating: 4.9, lat: -34.6011, lng: -58.3831, description: 'Emblemático teatro lírico neorrenacentista de acústica perfecta mundial.', imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&q=80' },
+    { id: 'poi-4', name: 'Don Julio Parrilla', type: 'restaurants', city: 'buenos_aires', rating: 4.9, lat: -34.5880, lng: -58.4230, description: 'Premiada parrilla tradicional de cortes seleccionados en Palermo.', imageUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&q=80' },
+    { id: 'poi-5', name: 'Pizzería Güerrin', type: 'restaurants', city: 'buenos_aires', rating: 4.8, lat: -34.6041, lng: -58.3860, description: 'Mítica pizzería porteña al molde sobre Av. Corrientes desde 1932.', imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&q=80' },
+    { id: 'poi-6', name: 'Bar Los Galgos', type: 'clubbing', city: 'buenos_aires', rating: 4.6, lat: -34.6055, lng: -58.3912, description: 'Clásico bar notable porteño con cócteles de autor y café de especialidad.', imageUrl: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=600&q=80' }
+  ]
+
+  // Combine custom POIs with defaults for complete display
+  const allPois = [...customPois, ...DEFAULT_MOCK_POIS]
+  const uniquePoisDict: Record<string, any> = {}
+  allPois.forEach(p => { if (p && p.id && !uniquePoisDict[p.id]) uniquePoisDict[p.id] = p })
+  const poisList = Object.values(uniquePoisDict)
+
+  const filteredPois = poisList.filter(p => {
+    const matchesCat = categoryFilter === 'all' || p.type === categoryFilter
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.description.toLowerCase().includes(searchTerm.toLowerCase())
+    return matchesCat && matchesSearch
+  })
+
+  const openCreateModal = () => {
+    setEditingPoi(null)
+    setFormName('')
+    setFormType('tourist')
+    setFormCity('buenos_aires')
+    setFormLat('-34.6037')
+    setFormLng('-58.3816')
+    setFormDesc('')
+    setFormImg('')
+    setFormRating(4.8)
+    setShowPoiModal(true)
+  }
+
+  const openEditModal = (poi: any) => {
+    setEditingPoi(poi)
+    setFormName(poi.name)
+    setFormType(poi.type || 'tourist')
+    setFormCity(poi.city || 'buenos_aires')
+    setFormLat(poi.lat?.toString() || '-34.6037')
+    setFormLng(poi.lng?.toString() || '-58.3816')
+    setFormDesc(poi.description || '')
+    setFormImg(poi.imageUrl || '')
+    setFormRating(poi.rating || 4.8)
+    setShowPoiModal(true)
+  }
+
+  const handleSavePoi = () => {
+    if (!formName.trim()) {
+      toast.error('Por favor ingrese el nombre del lugar')
+      return
+    }
+
+    const latNum = parseFloat(formLat)
+    const lngNum = parseFloat(formLng)
+    if (isNaN(latNum) || isNaN(lngNum)) {
+      toast.error('Coordenadas inválidas. Ingrese valores numéricos de latitud y longitud')
+      return
+    }
+
+    const defaultImages: Record<string, string> = {
+      tourist: 'https://images.unsplash.com/photo-1578637387939-43c525550085?w=600&q=80',
+      clubbing: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=600&q=80',
+      restaurants: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80',
+      shopping: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&q=80'
+    }
+
+    const poiItem = {
+      id: editingPoi ? editingPoi.id : `poi-${Date.now()}`,
+      name: formName.trim(),
+      type: formType,
+      city: formCity,
+      lat: latNum,
+      lng: lngNum,
+      rating: formRating,
+      description: formDesc.trim() || 'Atracción y punto de interés turístico destacado.',
+      imageUrl: formImg.trim() || defaultImages[formType]
+    }
+
+    let updatedCustom = [...customPois]
+    if (editingPoi) {
+      updatedCustom = updatedCustom.map(p => p.id === editingPoi.id ? poiItem : p)
+      const idxInDefault = DEFAULT_MOCK_POIS.findIndex(p => p.id === editingPoi.id)
+      if (idxInDefault !== -1 && !updatedCustom.some(p => p.id === editingPoi.id)) {
+        updatedCustom.push(poiItem)
+      }
+    } else {
+      updatedCustom.unshift(poiItem)
+    }
+
+    setCustomPois(updatedCustom)
+    localStorage.setItem('bu_custom_pois', JSON.stringify(updatedCustom))
+    try { window.dispatchEvent(new Event('storage')) } catch (e) {}
+
+    toast.success(editingPoi ? '¡Punto de Interés actualizado!' : '¡Nuevo Punto de Interés creado y visible en la App!')
+    setShowPoiModal(false)
+  }
+
+  const handleConfirmDeletePoi = () => {
+    if (!deletePoiTarget) return
+    const id = deletePoiTarget.id
+    const updated = customPois.filter(p => p.id !== id)
+    setCustomPois(updated)
+    localStorage.setItem('bu_custom_pois', JSON.stringify(updated))
+    try { window.dispatchEvent(new Event('storage')) } catch (e) {}
+    toast.success(`🗑️ Punto "${deletePoiTarget.name}" eliminado permanentemente.`)
+    setDeletePoiTarget(null)
+  }
+
+  const getTypeLabel = (type: string) => {
+    if (type === 'tourist') return { name: 'Turismo', color: '#F59E0B', bg: 'rgba(245,158,11,0.15)', icon: '🏛️' }
+    if (type === 'clubbing') return { name: 'Bares & Nightlife', color: '#8B5CF6', bg: 'rgba(139,92,246,0.15)', icon: '🍺' }
+    if (type === 'restaurants') return { name: 'Restaurantes', color: '#EF4444', bg: 'rgba(239,68,68,0.15)', icon: '🍕' }
+    return { name: 'Compras & Shopping', color: '#10B981', bg: 'rgba(16,185,129,0.15)', icon: '🛍️' }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Top Header & Actions */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#FFFFFF' }}>📍 Gestión de Puntos de Interés en el Mapa</h3>
+          <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Administre lugares turísticos, bares, restaurantes y comercios visibles en el mapa de pasajeros</p>
+        </div>
+
+        <button
+          onClick={openCreateModal}
+          style={{
+            padding: '10px 18px',
+            borderRadius: '10px',
+            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+            border: 'none',
+            color: '#FFFFFF',
+            fontSize: '13px',
+            fontWeight: 800,
+            cursor: 'pointer',
+            boxShadow: '0 4px 15px rgba(16,185,129,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <Plus size={16} /> Crear Nuevo Punto de Interés
+        </button>
+      </div>
+
+      {/* Filter & Search Bar */}
+      <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {[
+            { id: 'all', label: 'Todos los Puntos', icon: '📍' },
+            { id: 'tourist', label: 'Turismo', icon: '🏛️' },
+            { id: 'clubbing', label: 'Bares', icon: '🍺' },
+            { id: 'restaurants', label: 'Restaurantes', icon: '🍕' },
+            { id: 'shopping', label: 'Compras', icon: '🛍️' }
+          ].map(cat => (
+            <button
+              key={cat.id}
+              onClick={() => setCategoryFilter(cat.id)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '8px',
+                background: categoryFilter === cat.id ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${categoryFilter === cat.id ? '#10B981' : 'rgba(255,255,255,0.08)'}`,
+                color: categoryFilter === cat.id ? '#10B981' : '#94A3B8',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <span>{cat.icon}</span> {cat.label}
+            </button>
+          ))}
+        </div>
+
+        <input
+          type="text"
+          placeholder="Buscar por nombre o descripción..."
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          style={{
+            background: 'rgba(0,0,0,0.3)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '8px',
+            padding: '8px 14px',
+            color: '#FFFFFF',
+            fontSize: '12px',
+            width: '260px',
+            outline: 'none'
+          }}
+        />
+      </div>
+
+      {/* Cards Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+        {filteredPois.map(poi => {
+          const typeMeta = getTypeLabel(poi.type)
+          return (
+            <div
+              key={poi.id}
+              style={{
+                background: '#121527',
+                border: '1px solid rgba(255,255,255,0.06)',
+                borderTop: `3px solid ${typeMeta.color}`,
+                borderRadius: '12px',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+              }}
+            >
+              {/* Image Banner */}
+              <div style={{ height: '140px', width: '100%', position: 'relative', overflow: 'hidden' }}>
+                <img src={poi.imageUrl} alt={poi.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <div style={{ position: 'absolute', top: '10px', left: '10px', background: typeMeta.bg, color: typeMeta.color, border: `1px solid ${typeMeta.color}40`, borderRadius: '6px', padding: '3px 8px', fontSize: '10px', fontWeight: 800, backdropFilter: 'blur(4px)' }}>
+                  {typeMeta.icon} {typeMeta.name}
+                </div>
+                <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(15,23,42,0.85)', color: '#F59E0B', borderRadius: '6px', padding: '3px 8px', fontSize: '11px', fontWeight: 800, backdropFilter: 'blur(4px)' }}>
+                  ⭐ {poi.rating}
+                </div>
+              </div>
+
+              {/* Card Body */}
+              <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#FFFFFF' }}>{poi.name}</h4>
+                  <div style={{ fontSize: '10px', color: '#3B82F6', fontFamily: 'DM Mono', marginTop: '2px' }}>
+                    📍 Lat: {poi.lat}, Lng: {poi.lng}
+                  </div>
+                </div>
+
+                <p style={{ margin: 0, fontSize: '12px', color: '#94A3B8', lineHeight: '1.4', flex: 1 }}>
+                  {poi.description}
+                </p>
+
+                {/* Card Footer Actions */}
+                <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px', marginTop: '4px' }}>
+                  <button
+                    onClick={() => openEditModal(poi)}
+                    style={{
+                      flex: 1,
+                      padding: '7px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(59,130,246,0.15)',
+                      border: '1px solid rgba(59,130,246,0.3)',
+                      color: '#3B82F6',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ✏️ Editar
+                  </button>
+                  <button
+                    onClick={() => setDeletePoiTarget(poi)}
+                    style={{
+                      padding: '7px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(239,68,68,0.15)',
+                      border: '1px solid rgba(239,68,68,0.3)',
+                      color: '#EF4444',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <Trash2 size={12} /> Eliminar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Create / Edit Modal */}
+      {showPoiModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,8,16,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '16px' }}>
+          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '16px', padding: '24px', maxWidth: '500px', width: '100%', color: '#FFFFFF', boxShadow: '0 20px 50px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>{editingPoi ? '✏️ Editar Punto de Interés' : '➕ Crear Nuevo Punto de Interés'}</h3>
+              <button onClick={() => setShowPoiModal(false)} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '16px' }}>✕</button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '70vh', overflowY: 'auto', paddingRight: '4px' }}>
+              <div>
+                <label style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '4px' }}>NOMBRE DEL LUGAR</label>
+                <input type="text" placeholder="Ej: Jardín Japonés, Don Julio Parrilla" value={formName} onChange={e => setFormName(e.target.value)} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: '#fff', fontSize: '13px' }} />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '4px' }}>CATEGORÍA</label>
+                  <select value={formType} onChange={e => setFormType(e.target.value as any)} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: '#fff', fontSize: '12px' }}>
+                    <option value="tourist">🏛️ Turismo</option>
+                    <option value="clubbing">🍺 Bares / Nightlife</option>
+                    <option value="restaurants">🍕 Restaurantes</option>
+                    <option value="shopping">🛍️ Compras</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '4px' }}>VALORACIÓN (STARS)</label>
+                  <select value={formRating} onChange={e => setFormRating(parseFloat(e.target.value))} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: '#fff', fontSize: '12px' }}>
+                    <option value="5.0">⭐ 5.0 (Excelente)</option>
+                    <option value="4.8">⭐ 4.8 (Muy Bueno)</option>
+                    <option value="4.5">⭐ 4.5 (Recomendado)</option>
+                    <option value="4.0">⭐ 4.0 (Bueno)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '4px' }}>LATITUD</label>
+                  <input type="text" placeholder="-34.6037" value={formLat} onChange={e => setFormLat(e.target.value)} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: '#fff', fontSize: '12px', fontFamily: 'DM Mono' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '4px' }}>LONGITUD</label>
+                  <input type="text" placeholder="-58.3816" value={formLng} onChange={e => setFormLng(e.target.value)} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: '#fff', fontSize: '12px', fontFamily: 'DM Mono' }} />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '4px' }}>URL DE IMAGEN / FOTO</label>
+                <input type="text" placeholder="https://..." value={formImg} onChange={e => setFormImg(e.target.value)} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: '#fff', fontSize: '12px' }} />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '4px' }}>DESCRIPCIÓN COMPLETA</label>
+                <textarea rows={3} placeholder="Describa el lugar, atracciones principales, horarios..." value={formDesc} onChange={e => setFormDesc(e.target.value)} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: '#fff', fontSize: '12px', resize: 'vertical' }} />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+              <button onClick={() => setShowPoiModal(false)} style={{ flex: 1, padding: '10px', borderRadius: '8px', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: '#94A3B8', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={handleSavePoi} style={{ flex: 1.5, padding: '10px', borderRadius: '8px', background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', border: 'none', color: '#fff', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>✓ Guardar y Publicar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permanent Deletion Confirmation Modal */}
+      {deletePoiTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,8,16,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '16px' }}>
+          <div style={{ background: '#121527', border: '1.5px solid rgba(239, 68, 68, 0.4)', borderRadius: '16px', padding: '24px', maxWidth: '420px', width: '100%', color: '#FFFFFF', boxShadow: '0 20px 50px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EF4444' }}>
+                <AlertTriangle size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Confirmar Eliminación Permanente</h3>
+                <span style={{ fontSize: '11px', color: '#94A3B8' }}>Puntos de Interés del Mapa</span>
+              </div>
+            </div>
+            <p style={{ margin: 0, fontSize: '13px', color: '#CBD5E1', lineHeight: '1.5' }}>
+              ¿Estás seguro de que querés eliminar permanentemente el Punto de Interés <strong style={{ color: '#EF4444' }}>"${deletePoiTarget.name}"</strong>? Se eliminará de la base de datos y ya no aparecerá en la app de los usuarios.
+            </p>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+              <button onClick={() => setDeletePoiTarget(null)} style={{ flex: 1, padding: '10px 16px', borderRadius: '10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: '#94A3B8', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={handleConfirmDeletePoi} style={{ flex: 1.5, padding: '10px 16px', borderRadius: '10px', background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)', border: 'none', color: '#FFFFFF', fontSize: '12px', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 15px rgba(239,68,68,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <Trash2 size={14} /> Eliminar Definitivamente
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
 function DriversTab() {
   const [showPasswordMap, setShowPasswordMap] = useState<Record<string, boolean>>({})
   const [selectedQr, setSelectedQr] = useState<any | null>(null)
