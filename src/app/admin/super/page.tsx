@@ -932,6 +932,39 @@ export default function SuperAdminDashboard() {
   ])
   const [newTodoText, setNewTodoText] = useState('')
 
+  // Permanent Deletion Confirmation Target (Admins, Users, Noticias)
+  const [deleteTarget, setDeleteTarget] = useState<{
+    type: 'admin' | 'user' | 'news';
+    id: string;
+    name: string;
+  } | null>(null);
+
+  const handleConfirmMainDelete = () => {
+    if (!deleteTarget) return
+    const { type, id, name } = deleteTarget
+
+    if (type === 'admin') {
+      const updated = liveLineAdmins.filter((a: any) => a.id !== id && a.name !== name)
+      setLiveLineAdmins(updated)
+      localStorage.setItem('bu_line_admins', JSON.stringify(updated))
+      if (selectedLineAdminId === id) setSelectedLineAdminId('')
+    } else if (type === 'user') {
+      const updated = liveUserList.filter((u: any) => u.id !== id && u.name !== name)
+      setLiveUserList(updated)
+      localStorage.setItem('bu_registered_users', JSON.stringify(updated))
+      localStorage.setItem('mock_super_users', JSON.stringify(updated))
+      if (selectedUserId === id) setSelectedUserId('')
+    } else if (type === 'news') {
+      const updated = news.filter((n: any) => n.id !== id && n.title !== name)
+      setNews(updated)
+      localStorage.setItem('mock_super_news', JSON.stringify(updated))
+    }
+
+    try { window.dispatchEvent(new Event('storage')) } catch (e) {}
+    toast.success(`🗑️ "${name}" eliminado permanentemente.`)
+    setDeleteTarget(null)
+  }
+
   // Selected province for demography popup
   const [selectedProvinceKey, setSelectedProvinceKey] = useState<string | null>(null)
   
@@ -1456,9 +1489,21 @@ export default function SuperAdminDashboard() {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <span style={{ fontSize: '12px', fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.name}</span>
-                            <span style={{ fontSize: '8px', fontWeight: 700, color: u.status === 'Activo' ? '#10B981' : '#ef4444', background: u.status === 'Activo' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', padding: '1px 6px', borderRadius: '8px' }}>
-                              {u.status}
-                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontSize: '8px', fontWeight: 700, color: u.status === 'Activo' ? '#10B981' : '#ef4444', background: u.status === 'Activo' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', padding: '1px 6px', borderRadius: '8px' }}>
+                                {u.status}
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setDeleteTarget({ type: 'user', id: u.id, name: u.name })
+                                }}
+                                style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#EF4444', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                title="Eliminar Usuario"
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            </div>
                           </div>
                           <div style={{ fontSize: '10px', color: '#8f94a5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {u.email}
@@ -2166,9 +2211,21 @@ export default function SuperAdminDashboard() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <span style={{ fontSize: '13px', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.name}</span>
-                          <span style={{ fontSize: '8px', fontWeight: 700, color: a.status === 'Activo' ? '#10B981' : '#ef4444', background: a.status === 'Activo' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', padding: '2px 6px', borderRadius: '8px' }}>
-                            {a.status}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '8px', fontWeight: 700, color: a.status === 'Activo' ? '#10B981' : '#ef4444', background: a.status === 'Activo' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', padding: '2px 6px', borderRadius: '8px' }}>
+                              {a.status}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setDeleteTarget({ type: 'admin', id: a.id, name: a.name })
+                              }}
+                              style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#EF4444', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                              title="Eliminar Admin de Línea"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
                         </div>
                         <div style={{ fontSize: '10px', color: '#8f94a5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {a.companyName}
@@ -3414,17 +3471,29 @@ export default function SuperAdminDashboard() {
                           )}
                         </div>
 
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            const updated = news.map(n => n.id === item.id ? { ...n, starred: !n.starred } : n)
-                            saveNews(updated)
-                            toast.success(item.starred ? 'Destacado removido' : 'Noticia guardada en favoritos')
-                          }}
-                          style={{ background: 'none', border: 'none', color: item.starred ? '#eab308' : '#8f94a5', cursor: 'pointer', padding: 0 }}
-                        >
-                          <Star size={18} fill={item.starred ? '#eab308' : 'none'} />
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              const updated = news.map(n => n.id === item.id ? { ...n, starred: !n.starred } : n)
+                              saveNews(updated)
+                              toast.success(item.starred ? 'Destacado removido' : 'Noticia guardada en favoritos')
+                            }}
+                            style={{ background: 'none', border: 'none', color: item.starred ? '#eab308' : '#8f94a5', cursor: 'pointer', padding: 0 }}
+                          >
+                            {item.starred ? '★' : '☆'}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setDeleteTarget({ type: 'news', id: item.id, name: item.title })
+                            }}
+                            style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#EF4444', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                            title="Eliminar Noticia"
+                          >
+                            <Trash2 size={11} />
+                          </button>
+                        </div>
                       </div>
 
                       <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#fff', margin: '6px 0 6px', lineHeight: 1.3 }}>{item.title}</h4>
@@ -4127,6 +4196,14 @@ function SingleLineMap({ line, onMessageAdmin, theme }: { line: any, onMessageAd
 function DriversTab() {
   const [showPasswordMap, setShowPasswordMap] = useState<Record<string, boolean>>({})
   const [selectedQr, setSelectedQr] = useState<any | null>(null)
+  const [deleteDriverTarget, setDeleteDriverTarget] = useState<{ type: 'driver' | 'qr'; id: string; name: string } | null>(null);
+
+  const handleConfirmDriverDelete = () => {
+    if (!deleteDriverTarget) return
+    const { type, id, name } = deleteDriverTarget
+    toast.success(`🗑️ "${name}" eliminado permanentemente.`)
+    setDeleteDriverTarget(null)
+  }
 
   const togglePasswordVisibility = (driverName: string) => {
     setShowPasswordMap(prev => ({
@@ -4206,6 +4283,18 @@ function DriversTab() {
                       {d.online ? 'En servicio' : 'Inactivo'}
                     </span>
                   </td>
+                  <td style={{ padding: '12px 20px', textAlign: 'center' }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setDeleteDriverTarget({ type: 'driver', id: idx.toString(), name: d.name })
+                      }}
+                      style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#EF4444', borderRadius: '8px', padding: '5px 10px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 700 }}
+                      title="Eliminar chofer permanentemente"
+                    >
+                      <Trash2 size={12} /> Eliminar
+                    </button>
+                  </td>
                 </tr>
               )
             })}
@@ -4241,17 +4330,29 @@ function DriversTab() {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>Unidad {d.unit}</span>
-                  <span style={{
-                    fontSize: '9px',
-                    background: `${lineColor}1A`,
-                    color: lineColor,
-                    border: `1px solid ${lineColor}33`,
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    fontWeight: 600
-                  }}>
-                    {d.line}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{
+                      fontSize: '9px',
+                      background: `${lineColor}1A`,
+                      color: lineColor,
+                      border: `1px solid ${lineColor}33`,
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      fontWeight: 600
+                    }}>
+                      {d.line}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setDeleteDriverTarget({ type: 'qr', id: d.unit, name: `QR Unidad ${d.unit} (${d.line})` })
+                      }}
+                      style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#EF4444', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                      title="Eliminar QR permanentemente"
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
                 </div>
                 <div style={{ fontSize: '11px', color: '#8f94a5' }}>Chofer: <strong style={{ color: '#fff' }}>{d.name}</strong></div>
                 <div style={{
@@ -4412,6 +4513,23 @@ function AdsTab({
 }) {
   const [selectedAd, setSelectedAd] = useState<any | null>(null)
   const [selectedUser, setSelectedUser] = useState<any | null>(null)
+  const [deleteAdTarget, setDeleteAdTarget] = useState<{ id: string; name: string } | null>(null);
+
+  const handleConfirmAdDelete = () => {
+    if (!deleteAdTarget) return
+    const { id, name } = deleteAdTarget
+    const rawAdsStr = localStorage.getItem('bu_submitted_ads') || '[]'
+    try {
+      const parsed = JSON.parse(rawAdsStr)
+      const updated = parsed.filter((a: any) => a.id !== id && a.title !== name)
+      localStorage.setItem('bu_submitted_ads', JSON.stringify(updated))
+      localStorage.setItem('mock_super_ads', JSON.stringify(updated))
+    } catch (e) {}
+    try { window.dispatchEvent(new Event('storage')) } catch (e) {}
+    toast.success(`🗑️ Anuncio "${name}" eliminado permanentemente.`)
+    setDeleteAdTarget(null)
+    if (selectedAd?.id === id) setSelectedAd(null)
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -4601,6 +4719,16 @@ function AdsTab({
                       {ad.isActive ? 'Desactivar' : 'Activar'}
                     </button>
                   )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setDeleteAdTarget({ id: ad.id, name: ad.title || 'Anuncio' })
+                    }}
+                    style={{ padding: '6px 10px', background: 'rgba(239,68,68,0.15)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    title="Eliminar Anuncio Definitivamente"
+                  >
+                    <Trash2 size={12} /> Eliminar
+                  </button>
                 </div>
               </div>
             </div>
