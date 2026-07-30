@@ -25295,10 +25295,13 @@ function MapAdBanner({
             if (activeMode === 'normal') return null;
 
             let customPois: any[] = [];
+            let deletedPoiIds: string[] = [];
             if (typeof window !== 'undefined') {
               try {
                 const saved = localStorage.getItem('bu_custom_pois');
                 if (saved) customPois = JSON.parse(saved);
+                const savedDeleted = localStorage.getItem('bu_deleted_poi_ids');
+                if (savedDeleted) deletedPoiIds = JSON.parse(savedDeleted);
               } catch {}
             }
 
@@ -25310,7 +25313,11 @@ function MapAdBanner({
 
             const allPois = [...customPois, ...defaultMockList, ...MOCK_PLACES];
             const uniquePoisDict: Record<string, any> = {};
-            allPois.forEach((p: any) => { if (p && p.id && !uniquePoisDict[p.id]) uniquePoisDict[p.id] = p; });
+            allPois.forEach((p: any) => {
+              if (p && p.id && !deletedPoiIds.includes(p.id) && !uniquePoisDict[p.id]) {
+                uniquePoisDict[p.id] = p;
+              }
+            });
             const combinedPois: any[] = Object.values(uniquePoisDict);
 
             const activePois = combinedPois.filter((p: any) => p.type === activeMode || (activeMode === 'tourist' && p.type === 'tourist'));

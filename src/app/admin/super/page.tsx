@@ -13,7 +13,7 @@ import { createClient } from '@/lib/supabase'
 import { getStoredGeneralTerms, getStoredAdsTerms, saveStoredGeneralTerms, saveStoredAdsTerms } from '@/lib/termsData'
 import { QRCodeDisplay } from '@/components/common/QRCodeDisplay'
 import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre'
-import { MOCK_LINES, getMockStopsForLine, getMockRoutePathForLine } from '@/lib/mockData'
+import { MOCK_LINES, MOCK_PLACES, getMockStopsForLine, getMockRoutePathForLine } from '@/lib/mockData'
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell
@@ -4208,11 +4208,35 @@ function PoisTab() {
     }
   })
 
+  const [deletedPoiIds, setDeletedPoiIds] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const saved = localStorage.getItem('bu_deleted_poi_ids')
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [showPoiModal, setShowPoiModal] = useState(false)
   const [editingPoi, setEditingPoi] = useState<any | null>(null)
   const [deletePoiTarget, setDeletePoiTarget] = useState<any | null>(null)
+
+  // Sync real-time storage updates
+  useEffect(() => {
+    const syncFromStorage = () => {
+      try {
+        const savedCustom = localStorage.getItem('bu_custom_pois')
+        if (savedCustom) setCustomPois(JSON.parse(savedCustom))
+        const savedDeleted = localStorage.getItem('bu_deleted_poi_ids')
+        if (savedDeleted) setDeletedPoiIds(JSON.parse(savedDeleted))
+      } catch (e) {}
+    }
+    window.addEventListener('storage', syncFromStorage)
+    return () => window.removeEventListener('storage', syncFromStorage)
+  }, [])
 
   // Form State
   const [formName, setFormName] = useState('')
@@ -4225,18 +4249,20 @@ function PoisTab() {
   const [formRating, setFormRating] = useState<number>(4.8)
 
   const DEFAULT_MOCK_POIS = [
-    { id: 'poi-1', name: 'Jardín Japonés', type: 'tourist', city: 'buenos_aires', rating: 4.8, lat: -34.5753, lng: -58.4090, description: 'Hermoso parque cultural y espacio de tranquilidad zen en Palermo.', imageUrl: 'https://images.unsplash.com/photo-1578637387939-43c525550085?w=600&q=80' },
-    { id: 'poi-2', name: 'Floralis Genérica', type: 'tourist', city: 'buenos_aires', rating: 4.7, lat: -34.5816, lng: -58.3948, description: 'Escultura metálica gigante articulada en la Plaza de las Naciones Unidas.', imageUrl: 'https://images.unsplash.com/photo-1589909202802-8f4aadce1849?w=600&q=80' },
-    { id: 'poi-3', name: 'Teatro Colón', type: 'tourist', city: 'buenos_aires', rating: 4.9, lat: -34.6011, lng: -58.3831, description: 'Emblemático teatro lírico neorrenacentista de acústica perfecta mundial.', imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&q=80' },
-    { id: 'poi-4', name: 'Don Julio Parrilla', type: 'restaurants', city: 'buenos_aires', rating: 4.9, lat: -34.5880, lng: -58.4230, description: 'Premiada parrilla tradicional de cortes seleccionados en Palermo.', imageUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&q=80' },
-    { id: 'poi-5', name: 'Pizzería Güerrin', type: 'restaurants', city: 'buenos_aires', rating: 4.8, lat: -34.6041, lng: -58.3860, description: 'Mítica pizzería porteña al molde sobre Av. Corrientes desde 1932.', imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&q=80' },
+    { id: 'r-1', name: 'Pizzería Güerrin', type: 'restaurants', city: 'buenos_aires', rating: 4.8, lat: -34.6041, lng: -58.3860, description: 'Mítica pizzería porteña al molde sobre Av. Corrientes desde 1932.', imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&q=80' },
+    { id: 'r-2', name: 'Don Julio Parrilla', type: 'restaurants', city: 'buenos_aires', rating: 4.9, lat: -34.5880, lng: -58.4230, description: 'Premiada parrilla de cortes de carne argentina premium en Palermo.', imageUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&q=80' },
+    { id: 'r-3', name: 'El Preferido de Palermo', type: 'restaurants', city: 'buenos_aires', rating: 4.7, lat: -34.5885, lng: -58.4245, description: 'Bodegón porteño de charcutería y platillos criollos tradicionales.', imageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80' },
     { id: 'poi-6', name: 'Bar Los Galgos', type: 'clubbing', city: 'buenos_aires', rating: 4.6, lat: -34.6055, lng: -58.3912, description: 'Clásico bar notable porteño con cócteles de autor y café de especialidad.', imageUrl: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=600&q=80' }
   ]
 
-  // Combine custom POIs with defaults for complete display
-  const allPois = [...customPois, ...DEFAULT_MOCK_POIS]
+  // Combine custom POIs with defaults and MOCK_PLACES for complete 100% sync
+  const allPois = [...customPois, ...DEFAULT_MOCK_POIS, ...MOCK_PLACES]
   const uniquePoisDict: Record<string, any> = {}
-  allPois.forEach(p => { if (p && p.id && !uniquePoisDict[p.id]) uniquePoisDict[p.id] = p })
+  allPois.forEach(p => {
+    if (p && p.id && !deletedPoiIds.includes(p.id) && !uniquePoisDict[p.id]) {
+      uniquePoisDict[p.id] = p
+    }
+  })
   const poisList = Object.values(uniquePoisDict)
 
   const filteredPois = poisList.filter(p => {
@@ -4316,6 +4342,13 @@ function PoisTab() {
 
     setCustomPois(updatedCustom)
     localStorage.setItem('bu_custom_pois', JSON.stringify(updatedCustom))
+
+    // Restore from deleted list if present
+    if (editingPoi) {
+      const restoredDeleted = deletedPoiIds.filter(id => id !== editingPoi.id)
+      setDeletedPoiIds(restoredDeleted)
+      localStorage.setItem('bu_deleted_poi_ids', JSON.stringify(restoredDeleted))
+    }
     try { window.dispatchEvent(new Event('storage')) } catch (e) {}
 
     toast.success(editingPoi ? '¡Punto de Interés actualizado!' : '¡Nuevo Punto de Interés creado y visible en la App!')
@@ -4325,11 +4358,16 @@ function PoisTab() {
   const handleConfirmDeletePoi = () => {
     if (!deletePoiTarget) return
     const id = deletePoiTarget.id
-    const updated = customPois.filter(p => p.id !== id)
-    setCustomPois(updated)
-    localStorage.setItem('bu_custom_pois', JSON.stringify(updated))
+    const updatedCustom = customPois.filter(p => p.id !== id)
+    setCustomPois(updatedCustom)
+    localStorage.setItem('bu_custom_pois', JSON.stringify(updatedCustom))
+
+    const newDeletedIds = Array.from(new Set([...deletedPoiIds, id]))
+    setDeletedPoiIds(newDeletedIds)
+    localStorage.setItem('bu_deleted_poi_ids', JSON.stringify(newDeletedIds))
+
     try { window.dispatchEvent(new Event('storage')) } catch (e) {}
-    toast.success(`🗑️ Punto "${deletePoiTarget.name}" eliminado permanentemente.`)
+    toast.success(`🗑️ Punto "${deletePoiTarget.name}" eliminado permanentemente del sistema.`)
     setDeletePoiTarget(null)
   }
 
