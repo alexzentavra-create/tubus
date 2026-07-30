@@ -7,7 +7,8 @@ import {
   ChevronRight, Star, Wifi, Search, Bell, Mail, Calendar,
   Share2, Printer, Plus, Trash2, ChevronDown, CheckCircle2,
   Circle, Flag, Info, Megaphone, MessageSquare, Eye, EyeOff,
-  BookOpen, Globe, Award, ListChecks, Key, Filter, History as HistoryIcon, ShieldCheck, Lock
+  BookOpen, Globe, Award, ListChecks, Key, Filter, History as HistoryIcon, ShieldCheck, Lock,
+  Settings, UserPlus, KeyRound, Shield, Save, Edit3
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { getStoredGeneralTerms, getStoredAdsTerms, saveStoredGeneralTerms, saveStoredAdsTerms } from '@/lib/termsData'
@@ -274,7 +275,7 @@ const MOCK_DRIVERS_STATUS = [
 // Messenger chats data
 const DEFAULT_CHATS: any[] = []
 
-type Tab = 'overview' | 'linemaps' | 'drivers' | 'company_admins' | 'ads' | 'pois' | 'chat' | 'reports' | 'provincemap' | 'todos' | 'news' | 'terms' | 'security_2fa'
+type Tab = 'overview' | 'linemaps' | 'drivers' | 'company_admins' | 'ads' | 'pois' | 'chat' | 'reports' | 'provincemap' | 'todos' | 'news' | 'terms' | 'security_2fa' | 'settings'
 
 interface Todo {
   id: string
@@ -477,6 +478,133 @@ export default function SuperAdminDashboard() {
   const handleSave2FaConfig = () => {
     localStorage.setItem('bu_super_admin_2fa_config', JSON.stringify(twoFaConfig))
     toast.success('¡Configuración de Seguridad 2FA y Mensajería guardada correctamente!')
+  }
+
+  // Super Admin Accounts Management State
+  const [superAdminAccounts, setSuperAdminAccounts] = useState<any[]>(() => {
+    try {
+      const stored = localStorage.getItem('bu_super_admins')
+      if (stored) return JSON.parse(stored)
+    } catch (e) {}
+    return [
+      { id: 'sa-1', name: 'Alejandro Finochietti', email: 'alejandro.finochietti@yahoo.com.ar', password: 'Afodes18', role: 'Super Admin Principal', avatar: 'AF', status: 'Activo', lastLogin: 'Hoy 10:14 hs' },
+      { id: 'sa-2', name: 'Usuario Prueba', email: 'usuario@usuario.com', password: 'Usuario', role: 'Super Admin Secundario', avatar: 'UP', status: 'Activo', lastLogin: 'Hoy 09:30 hs' }
+    ]
+  })
+
+  // Global Platform Settings State
+  const [superAdminSettings, setSuperAdminSettings] = useState(() => {
+    try {
+      const stored = localStorage.getItem('bu_super_admin_settings')
+      if (stored) return JSON.parse(stored)
+    } catch (e) {}
+    return {
+      enableDualIdentity: true,
+      maintenanceMode: false,
+      defaultCity: 'Buenos Aires',
+      emailNotifications: true,
+      auditLogsEnabled: true,
+      autoBackup: true
+    }
+  })
+
+  // Add Super Admin Form State
+  const [newSaName, setNewSaName] = useState('')
+  const [newSaEmail, setNewSaEmail] = useState('')
+  const [newSaPassword, setNewSaPassword] = useState('')
+  const [newSaRole, setNewSaRole] = useState('Super Admin Completo')
+
+  // Password Edit Modal State
+  const [editingPasswordAdmin, setEditingPasswordAdmin] = useState<any | null>(null)
+  const [newPasswordInput, setNewPasswordInput] = useState('')
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('')
+
+  const handleAddSuperAdmin = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newSaName.trim() || !newSaEmail.trim() || !newSaPassword.trim()) {
+      toast.error('Completá todos los campos requeridos.')
+      return
+    }
+
+    const emailClean = newSaEmail.trim().toLowerCase()
+    if (superAdminAccounts.some((a: any) => a.email.toLowerCase() === emailClean)) {
+      toast.error('Ya existe un Super Admin registrado con ese correo.')
+      return
+    }
+
+    const initials = newSaName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+    const newAdmin = {
+      id: `sa-${Date.now()}`,
+      name: newSaName.trim(),
+      email: emailClean,
+      password: newSaPassword.trim(),
+      role: newSaRole,
+      avatar: initials || 'SA',
+      status: 'Activo',
+      lastLogin: 'Recién creado'
+    }
+
+    const updatedList = [...superAdminAccounts, newAdmin]
+    setSuperAdminAccounts(updatedList)
+    localStorage.setItem('bu_super_admins', JSON.stringify(updatedList))
+
+    // Also add to registered users/mock users if not present so they can login
+    const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
+    mockUsers.push({ id: newAdmin.id, name: newAdmin.name, email: newAdmin.email, password: newAdmin.password, role: 'superadmin' })
+    localStorage.setItem('mock_users', JSON.stringify(mockUsers))
+
+    setNewSaName('')
+    setNewSaEmail('')
+    setNewSaPassword('')
+    toast.success(`¡Super Administrador ${newAdmin.name} registrado con éxito!`)
+  }
+
+  const handleChangePassword = () => {
+    if (!editingPasswordAdmin) return
+    if (!newPasswordInput.trim()) {
+      toast.error('Ingresá una nueva contraseña válida.')
+      return
+    }
+    if (newPasswordInput !== confirmPasswordInput) {
+      toast.error('Las contraseñas no coinciden.')
+      return
+    }
+
+    const updatedList = superAdminAccounts.map((admin: any) => {
+      if (admin.id === editingPasswordAdmin.id || admin.email.toLowerCase() === editingPasswordAdmin.email.toLowerCase()) {
+        return { ...admin, password: newPasswordInput.trim() }
+      }
+      return admin
+    })
+
+    setSuperAdminAccounts(updatedList)
+    localStorage.setItem('bu_super_admins', JSON.stringify(updatedList))
+
+    // Sync active_user if current user is changing their own password
+    const activeUser = JSON.parse(localStorage.getItem('active_user') || '{}')
+    if (activeUser.email && activeUser.email.toLowerCase() === editingPasswordAdmin.email.toLowerCase()) {
+      localStorage.setItem('active_user', JSON.stringify({ ...activeUser, password: newPasswordInput.trim() }))
+    }
+
+    // Sync REAL_USERS baseline & mock_super_users in localStorage
+    const storedSuperUsers = JSON.parse(localStorage.getItem('mock_super_users') || '[]')
+    const updatedSuperUsers = storedSuperUsers.map((u: any) => {
+      if (u.email && u.email.toLowerCase() === editingPasswordAdmin.email.toLowerCase()) {
+        return { ...u, password: newPasswordInput.trim() }
+      }
+      return u
+    })
+    localStorage.setItem('mock_super_users', JSON.stringify(updatedSuperUsers))
+
+    toast.success(`¡Contraseña de ${editingPasswordAdmin.name} actualizada correctamente!`)
+    setEditingPasswordAdmin(null)
+    setNewPasswordInput('')
+    setConfirmPasswordInput('')
+  }
+
+  const handleSaveSuperAdminSettings = () => {
+    localStorage.setItem('bu_super_admin_settings', JSON.stringify(superAdminSettings))
+    toast.success('¡Ajustes generales del Super Administrador guardados!')
   }
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
@@ -2355,7 +2483,322 @@ export default function SuperAdminDashboard() {
     { id: 'news', label: 'Noticias', icon: BookOpen },
     { id: 'terms', label: 'Términos y Condiciones', icon: ShieldCheck },
     { id: 'security_2fa', label: 'Seguridad 2FA', icon: Lock },
+    { id: 'settings', label: 'Configuración Super Admin', icon: Settings },
   ]
+
+  const renderSettingsDetail = () => {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '28px', maxWidth: '1100px', margin: '0 auto', paddingBottom: '40px' }}>
+        {/* Header */}
+        <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(59, 130, 246, 0.4)' }}>
+              <Settings size={24} style={{ color: '#FFFFFF' }} />
+            </div>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#FFFFFF' }}>⚙️ Configuración y Permisos de Super Administrador</h2>
+              <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#8F94A5' }}>Administrá cuentas de Super Admin, modificá contraseñas y gestioná los ajustes generales de la plataforma BienParada.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Grid Section: Super Admin Accounts List + Add Super Admin Form */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+          {/* Card 1: Existing Super Admins & Password Management */}
+          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <Shield size={20} style={{ color: '#10B981' }} />
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#FFFFFF' }}>Super Administradores Registrados</h3>
+              </div>
+              <span style={{ fontSize: '11px', color: '#10B981', fontFamily: 'DM Mono', fontWeight: 700, background: 'rgba(16,185,129,0.1)', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(16,185,129,0.2)' }}>
+                {superAdminAccounts.length} Activos
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {superAdminAccounts.map((admin: any) => (
+                <div key={admin.id} style={{ background: '#1B1D2E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: admin.email.includes('alejandro') ? 'linear-gradient(135deg, #3B82F6, #1D4ED8)' : 'linear-gradient(135deg, #10B981, #059669)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '14px' }}>
+                      {admin.avatar || 'SA'}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {admin.name}
+                        <span style={{ fontSize: '10px', background: 'rgba(59,130,246,0.15)', color: '#3B82F6', border: '1px solid rgba(59,130,246,0.3)', padding: '1px 6px', borderRadius: '999px', fontWeight: 700 }}>
+                          {admin.role}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#8F94A5', marginTop: '2px', fontFamily: 'DM Mono' }}>
+                        {admin.email}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setEditingPasswordAdmin(admin)
+                      setNewPasswordInput('')
+                      setConfirmPasswordInput('')
+                    }}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(245, 158, 11, 0.4)',
+                      background: 'rgba(245, 158, 11, 0.1)',
+                      color: '#F59E0B',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      transition: 'all 200ms'
+                    }}
+                  >
+                    <KeyRound size={14} /> Cambiar Contraseña
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Card 2: Add New Super Admin */}
+          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px' }}>
+              <UserPlus size={20} style={{ color: '#3B82F6' }} />
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#FFFFFF' }}>Agregar Nuevo Super Administrador</h3>
+            </div>
+
+            <form onSubmit={handleAddSuperAdmin} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8F94A5', textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'DM Mono' }}>
+                  Nombre y Apellido *
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ej: Gabriel Martínez"
+                  value={newSaName}
+                  onChange={e => setNewSaName(e.target.value)}
+                  style={{ width: '100%', padding: '11px', borderRadius: '10px', background: '#1B1D2E', border: '1px solid rgba(255,255,255,0.1)', color: '#FFFFFF', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8F94A5', textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'DM Mono' }}>
+                  Correo Electrónico (Email) *
+                </label>
+                <input
+                  type="email"
+                  placeholder="ejemplo@bienparada.ar"
+                  value={newSaEmail}
+                  onChange={e => setNewSaEmail(e.target.value)}
+                  style={{ width: '100%', padding: '11px', borderRadius: '10px', background: '#1B1D2E', border: '1px solid rgba(255,255,255,0.1)', color: '#FFFFFF', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8F94A5', textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'DM Mono' }}>
+                  Contraseña Inicial *
+                </label>
+                <input
+                  type="password"
+                  placeholder="••••••••"
+                  value={newSaPassword}
+                  onChange={e => setNewSaPassword(e.target.value)}
+                  style={{ width: '100%', padding: '11px', borderRadius: '10px', background: '#1B1D2E', border: '1px solid rgba(255,255,255,0.1)', color: '#FFFFFF', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8F94A5', textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'DM Mono' }}>
+                  Nivel de Permisos / Rol
+                </label>
+                <select
+                  value={newSaRole}
+                  onChange={e => setNewSaRole(e.target.value)}
+                  style={{ width: '100%', padding: '11px', borderRadius: '10px', background: '#1B1D2E', border: '1px solid rgba(255,255,255,0.1)', color: '#FFFFFF', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                >
+                  <option value="Super Admin Completo">Super Admin Completo (Acceso total)</option>
+                  <option value="Auditor General">Auditor General (Lectura y reportes)</option>
+                  <option value="Soporte Técnico">Soporte Técnico (Gestión de usuarios y chat)</option>
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                style={{
+                  marginTop: '6px',
+                  padding: '12px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)',
+                  color: 'white',
+                  fontWeight: 700,
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+                }}
+              >
+                <Plus size={16} /> Crear Cuenta de Super Admin
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {/* Global Platform Settings */}
+        <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px' }}>
+            <KeyRound size={20} style={{ color: '#F59E0B' }} />
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#FFFFFF' }}>Ajustes Globales del Sistema y Plataforma</h3>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+            <div style={{ background: '#1B1D2E', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF' }}>Identidad Dual (Alejandro / Néstor)</div>
+                <div style={{ fontSize: '12px', color: '#8F94A5', marginTop: '2px' }}>Permitir alternar perfil en la cabecera del panel.</div>
+              </div>
+              <input
+                type="checkbox"
+                checked={superAdminSettings.enableDualIdentity}
+                onChange={e => setSuperAdminSettings({ ...superAdminSettings, enableDualIdentity: e.target.checked })}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+            </div>
+
+            <div style={{ background: '#1B1D2E', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF' }}>Modo Mantenimiento</div>
+                <div style={{ fontSize: '12px', color: '#8F94A5', marginTop: '2px' }}>Muestra aviso de mantenimiento a los usuarios.</div>
+              </div>
+              <input
+                type="checkbox"
+                checked={superAdminSettings.maintenanceMode}
+                onChange={e => setSuperAdminSettings({ ...superAdminSettings, maintenanceMode: e.target.checked })}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+            </div>
+
+            <div style={{ background: '#1B1D2E', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF' }}>Alertas de Registro por Email</div>
+                <div style={{ fontSize: '12px', color: '#8F94A5', marginTop: '2px' }}>Notificar cuando un nuevo usuario real se registre.</div>
+              </div>
+              <input
+                type="checkbox"
+                checked={superAdminSettings.emailNotifications}
+                onChange={e => setSuperAdminSettings({ ...superAdminSettings, emailNotifications: e.target.checked })}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+            </div>
+
+            <div style={{ background: '#1B1D2E', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF' }}>Ciudad Base Predeterminada</div>
+                <div style={{ fontSize: '12px', color: '#8F94A5', marginTop: '2px' }}>Ciudad principal para reportes y estadísticas.</div>
+              </div>
+              <select
+                value={superAdminSettings.defaultCity}
+                onChange={e => setSuperAdminSettings({ ...superAdminSettings, defaultCity: e.target.value })}
+                style={{ padding: '6px 12px', borderRadius: '8px', background: '#121527', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
+              >
+                <option value="Buenos Aires">Buenos Aires (CABA / GBA)</option>
+                <option value="Córdoba">Córdoba</option>
+                <option value="Rosario">Rosario</option>
+                <option value="Mendoza">Mendoza</option>
+              </select>
+            </div>
+          </div>
+
+          <button
+            onClick={handleSaveSuperAdminSettings}
+            style={{
+              marginTop: '20px',
+              padding: '12px 24px',
+              borderRadius: '10px',
+              border: 'none',
+              background: 'linear-gradient(135deg, #10B981, #059669)',
+              color: 'white',
+              fontSize: '13px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <Save size={16} /> Guardar Ajustes del Sistema
+          </button>
+        </div>
+
+        {/* Change Password Modal */}
+        {editingPasswordAdmin && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', width: '100%', maxWidth: '440px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <KeyRound size={20} style={{ color: '#F59E0B' }} />
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#FFFFFF' }}>Cambiar Contraseña</h3>
+                </div>
+                <button onClick={() => setEditingPasswordAdmin(null)} style={{ background: 'none', border: 'none', color: '#8F94A5', cursor: 'pointer', fontSize: '16px' }}>✕</button>
+              </div>
+
+              <div style={{ fontSize: '13px', color: '#8F94A5' }}>
+                Estás cambiando la contraseña para el Super Administrador <strong style={{ color: '#FFFFFF' }}>{editingPasswordAdmin.name}</strong> ({editingPasswordAdmin.email}).
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8F94A5', textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'DM Mono' }}>
+                  Nueva Contraseña
+                </label>
+                <input
+                  type="password"
+                  placeholder="Ingresá la nueva contraseña"
+                  value={newPasswordInput}
+                  onChange={e => setNewPasswordInput(e.target.value)}
+                  style={{ width: '100%', padding: '11px', borderRadius: '10px', background: '#1B1D2E', border: '1px solid rgba(255,255,255,0.1)', color: '#FFFFFF', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#8F94A5', textTransform: 'uppercase', marginBottom: '6px', fontFamily: 'DM Mono' }}>
+                  Confirmar Nueva Contraseña
+                </label>
+                <input
+                  type="password"
+                  placeholder="Repetí la nueva contraseña"
+                  value={confirmPasswordInput}
+                  onChange={e => setConfirmPasswordInput(e.target.value)}
+                  style={{ width: '100%', padding: '11px', borderRadius: '10px', background: '#1B1D2E', border: '1px solid rgba(255,255,255,0.1)', color: '#FFFFFF', fontSize: '13px', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '6px' }}>
+                <button
+                  onClick={() => setEditingPasswordAdmin(null)}
+                  style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#FFFFFF', fontSize: '13px', cursor: 'pointer' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleChangePassword}
+                  style={{ padding: '10px 18px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #F59E0B, #D97706)', color: '#FFFFFF', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Guardar Contraseña
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   if (loading) {
     return (
@@ -3571,6 +4014,7 @@ export default function SuperAdminDashboard() {
             </div>
           </div>
         )}
+        {tab === 'settings' && renderSettingsDetail()}
       </main>
     </div>
   )
