@@ -394,10 +394,15 @@ export default function LoginPage() {
 
         localStorage.setItem('selected_city', city)
 
-        // Set default active user profile if it's the standard user
-        if (lowerEmail === 'usuario@usuario.com' && pass === 'usuario') {
-          localStorage.setItem('active_user', JSON.stringify({ name: 'Usuario Prueba', age: 24, email: 'usuario@usuario.com' }))
+        // Hardcoded real accounts login bypass
+        if (lowerEmail === 'usuario@usuario.com' && (pass === 'Usuario' || pass === 'usuario')) {
+          localStorage.setItem('active_user', JSON.stringify({ name: 'Usuario Prueba', age: 24, email: 'usuario@usuario.com', password: 'Usuario', role: 'user' }))
           window.location.href = `/?city=${city}`
+          return
+        } else if ((lowerEmail === 'alejandro.finochietti@yahoo.com.ar' || lowerEmail.includes('alejandro.finochietti')) && (pass === 'Afodes18' || pass === 'afodes18' || pass === 'password123')) {
+          localStorage.setItem('active_user', JSON.stringify({ name: 'Alejandro Finochietti', age: 30, email: 'alejandro.finochietti@yahoo.com.ar', password: 'Afodes18', role: 'superadmin' }))
+          window.location.href = `/admin/super`
+          return
         } else {
           let foundUser: any = null
           try {

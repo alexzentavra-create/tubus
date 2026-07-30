@@ -78,38 +78,32 @@ const CARTODB_LIGHT = {
 // Visual graphs mock data
 const METRICS_BY_PERIOD = {
   day: [
-    { label: '06:00', joined: 5, active: 45 },
-    { label: '09:00', joined: 12, active: 180 },
-    { label: '12:00', joined: 8, active: 110 },
-    { label: '15:00', joined: 6, active: 95 },
-    { label: '18:00', joined: 14, active: 210 },
-    { label: '21:00', joined: 4, active: 80 }
+    { label: '06:00', joined: 0, active: 0 },
+    { label: '09:00', joined: 0, active: 1 },
+    { label: '12:00', joined: 0, active: 1 },
+    { label: '15:00', joined: 0, active: 2 },
+    { label: '18:00', joined: 0, active: 2 },
+    { label: '21:00', joined: 0, active: 1 }
   ],
   week: [
-    { label: 'Lunes', joined: 80, active: 1250 },
-    { label: 'Martes', joined: 95, active: 1310 },
-    { label: 'Miércoles', joined: 90, active: 1290 },
-    { label: 'Jueves', joined: 110, active: 1340 },
-    { label: 'Viernes', joined: 125, active: 1420 },
-    { label: 'Sábado', joined: 55, active: 620 },
-    { label: 'Domingo', joined: 35, active: 410 }
+    { label: 'Lunes', joined: 0, active: 2 },
+    { label: 'Martes', joined: 0, active: 2 },
+    { label: 'Miércoles', joined: 0, active: 2 },
+    { label: 'Jueves', joined: 0, active: 2 },
+    { label: 'Viernes', joined: 0, active: 2 },
+    { label: 'Sábado', joined: 0, active: 1 },
+    { label: 'Domingo', joined: 0, active: 1 }
   ],
   month: [
-    { label: 'Semana 1', joined: 380, active: 3950 },
-    { label: 'Semana 2', joined: 420, active: 4210 },
-    { label: 'Semana 3', joined: 405, active: 4150 },
-    { label: 'Semana 4', joined: 490, active: 4820 }
+    { label: 'Semana 1', joined: 1, active: 1 },
+    { label: 'Semana 2', joined: 1, active: 2 },
+    { label: 'Semana 3', joined: 0, active: 2 },
+    { label: 'Semana 4', joined: 0, active: 2 }
   ]
 }
 
 const LINES_DATA = [
-  { id: 'line-1',   name: 'Línea 12',  users: 1240, trips: 89,  complaints: 3 },
-  { id: 'line-28',  name: 'Línea 28',  users: 1650, trips: 112, complaints: 1 },
-  { id: 'line-3',   name: 'Línea 37',  users: 920,  trips: 67,  complaints: 1 },
-  { id: 'line-39',  name: 'Línea 39',  users: 840,  trips: 58,  complaints: 0 },
-  { id: 'line-59',  name: 'Línea 59',  users: 1310, trips: 92,  complaints: 2 },
-  { id: 'line-60',  name: 'Línea 60',  users: 2100, trips: 134, complaints: 7 },
-  { id: 'line-152', name: 'Línea 152', users: 1450, trips: 98,  complaints: 2 },
+  { id: 'line-1', name: 'Línea 12', users: 2, trips: 12, complaints: 0 }
 ]
 
 const LINE_DETAILS: Record<string, {
@@ -121,160 +115,22 @@ const LINE_DETAILS: Record<string, {
   complaintsList: { type: string; driver: string; bus: string; status: 'pending'|'resolved'; time: string; desc: string }[]
 }> = {
   'line-1': {
-    companyName: 'Transportes Callao S.A.',
-    activeDrivers: 5,
-    totalPassengers: 1240,
-    avgRating: 4.8,
-    driversList: [
-      { name: 'Néstor García', email: 'nestor@nestor.ar', pass: 'Nestor123!', unit: '1201', rating: 4.8, online: true },
-      { name: 'Roberto Sánchez', email: 'roberto@demo.ar', pass: 'RobSanch99', unit: '1203', rating: 4.9, online: true },
-      { name: 'Carlos Martínez', email: 'carlos@demo.ar', pass: 'CarMar8877', unit: '1202', rating: 4.6, online: false },
-      { name: 'Juan Gómez', email: 'juan@demo.ar', pass: 'JuanitoGo!', unit: '1205', rating: 4.5, online: true }
-    ],
-    complaintsList: [
-      { type: 'No paró', driver: 'Carlos Martínez', bus: '1202', status: 'pending', time: 'Hace 15 min', desc: 'El chofer no se detuvo a pesar de haber pasajeros esperando y hacer señas.' },
-      { type: 'Mal trato', driver: 'Juan Gómez', bus: '1205', status: 'resolved', time: 'Ayer', desc: 'Se negó a abrir la puerta trasera al solicitar la parada.' }
-    ]
-  },
-  'line-28': {
-    companyName: 'DOTA S.A.',
-    activeDrivers: 4,
-    totalPassengers: 1650,
-    avgRating: 4.7,
-    driversList: [
-      { name: 'Carlos M.', email: 'carlos28@demo.ar', pass: 'PassDota28', unit: '2802', rating: 4.6, online: true },
-      { name: 'Pablo García', email: 'pablo28@demo.ar', pass: 'PabloGarc7', unit: '2806', rating: 4.9, online: false },
-      { name: 'Jorge Rodríguez', email: 'jorge28@demo.ar', pass: 'Jorgito12', unit: '2804', rating: 4.7, online: true }
-    ],
-    complaintsList: [
-      { type: 'Peligrosa', driver: 'Carlos M.', bus: '2802', status: 'pending', time: 'Hace 1h', desc: 'Conducía a exceso de velocidad en zona residencial.' }
-    ]
-  },
-  'line-3': {
-    companyName: '4 de Septiembre S.A.',
+    companyName: 'Transportes Automotores Callao S.A.',
     activeDrivers: 3,
-    totalPassengers: 920,
-    avgRating: 4.5,
+    totalPassengers: 2,
+    avgRating: 5.0,
     driversList: [
-      { name: 'Roberto S.', email: 'roberto37@demo.ar', pass: 'Sanch37Rob', unit: '3703', rating: 4.9, online: true },
-      { name: 'Ana Martínez', email: 'ana37@demo.ar', pass: 'AnaMart37', unit: '3708', rating: 4.5, online: false }
-    ],
-    complaintsList: [
-      { type: 'Defecto', driver: 'Ana Martínez', bus: '3708', status: 'resolved', time: 'Hace 3h', desc: 'El timbre de solicitud de parada no funcionaba.' }
-    ]
-  },
-  'line-39': {
-    companyName: 'Transportes Santa Fe S.A.C.I.',
-    activeDrivers: 3,
-    totalPassengers: 840,
-    avgRating: 4.6,
-    driversList: [
-      { name: 'Esteban Ortiz', email: 'esteban39@demo.ar', pass: 'EstebanOrtiz39', unit: '3901', rating: 4.6, online: true },
-      { name: 'Lucas Domínguez', email: 'lucas39@demo.ar', pass: 'LucasDom39', unit: '3902', rating: 4.7, online: true }
+      { name: 'Néstor García', email: 'nestor@linea12.ar', pass: 'Nestor123!', unit: '1201', rating: 5.0, online: true },
+      { name: 'Roberto Sánchez', email: 'roberto@linea12.ar', pass: 'RobSanch99', unit: '1202', rating: 5.0, online: true },
+      { name: 'Juan Carlos Pérez', email: 'juan@linea12.ar', pass: 'JuanPerez12', unit: '1203', rating: 5.0, online: true }
     ],
     complaintsList: []
-  },
-  'line-59': {
-    companyName: 'M. C. B. A. S.A.T.C.I.',
-    activeDrivers: 3,
-    totalPassengers: 1310,
-    avgRating: 4.7,
-    driversList: [
-      { name: 'Hugo Bianchi', email: 'hugo59@demo.ar', pass: 'HugoBianchi59', unit: '5903', rating: 4.7, online: true },
-      { name: 'Nicolás Silva', email: 'nico59@demo.ar', pass: 'NicoSilva59', unit: '5905', rating: 4.8, online: false }
-    ],
-    complaintsList: []
-  },
-  'line-60': {
-    companyName: 'MONSA S.A.',
-    activeDrivers: 8,
-    totalPassengers: 2100,
-    avgRating: 4.6,
-    driversList: [
-      { name: 'Carlos Martínez', email: 'carlos60@demo.ar', pass: 'Carlos6060', unit: '6020', rating: 4.6, online: true },
-      { name: 'Diego Rodríguez', email: 'diego60@demo.ar', pass: 'DiegoRod60', unit: '6022', rating: 4.2, online: false },
-      { name: 'Pablo García', email: 'pablo60@demo.ar', pass: 'PabloGarc60', unit: '6024', rating: 5.0, online: true },
-      { name: 'Luis Fernández', email: 'luis60@demo.ar', pass: 'LuisFer60', unit: '6026', rating: 4.7, online: true }
-    ],
-    complaintsList: [
-      { type: 'No paró', driver: 'Diego Rodríguez', bus: '6022', status: 'pending', time: 'Hace 30 min', desc: 'No se detuvo en Plaza Italia.' },
-      { type: 'Mal trato', driver: 'Luis Fernández', bus: '6026', status: 'pending', time: 'Hace 2h', desc: 'Cerró la puerta antes de terminar de subir.' }
-    ]
-  },
-  'line-152': {
-    companyName: 'Empresa Tandilense S.A.',
-    activeDrivers: 6,
-    totalPassengers: 1450,
-    avgRating: 4.7,
-    driversList: [
-      { name: 'Roberto S.', email: 'roberto152@demo.ar', pass: 'RobSanch152', unit: '15210', rating: 4.9, online: true },
-      { name: 'Jorge R.', email: 'jorge152@demo.ar', pass: 'JorgeR152', unit: '15212', rating: 4.7, online: false },
-      { name: 'Ana C.', email: 'ana152@demo.ar', pass: 'AnaC152!!', unit: '15214', rating: 4.8, online: true }
-    ],
-    complaintsList: [
-      { type: 'Peligrosa', driver: 'Jorge R.', bus: '15212', status: 'resolved', time: 'Ayer', desc: 'Realizó maniobras bruscas al cambiar de carril.' }
-    ]
   }
 }
 
-const INITIAL_NEWS = [
-  {
-    id: 'n1',
-    title: 'Aumento del boleto de colectivo en el AMBA',
-    desc: 'El Ministerio de Transporte anunció un nuevo esquema tarifario para ajustar el costo del boleto mínimo en línea con la inflación y la quita de subsidios.',
-    source: 'Clarín',
-    date: 'Hace 2 días (11 de Julio, 2026)',
-    starred: false,
-    url: 'https://www.clarin.com/sociedad/aumento-boleto-colectivo-amba-cuanto-cuesta-minimo_0_W1bNz0K8eP.html',
-    image: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=400&q=80',
-    isNew: true,
-    isBusRelated: true,
-    comments: [
-      { author: 'Admin Alejandro', text: 'Esto va a impactar la demanda de saldo SUBE.', timestamp: '12/07/2026 14:30' }
-    ]
-  },
-  {
-    id: 'n2',
-    title: 'Subte porteño: la tarifa del boleto sube a $757',
-    desc: 'Comienza a regir el último tramo de la actualización tarifaria acordada para el subterráneo de Buenos Aires. Descuentos vigentes con SUBE registrada.',
-    source: 'Infobae',
-    date: 'Hace 4 días (9 de Julio, 2026)',
-    starred: true,
-    url: 'https://www.infobae.com/sociedad/2026/07/09/subte-porteno-la-tarifa-del-boleto-sube-a-757/',
-    image: 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=400&q=80',
-    isNew: false,
-    isBusRelated: false,
-    comments: []
-  },
-  {
-    id: 'n3',
-    title: 'Nuevos carriles exclusivos en el Metrobús del Bajo',
-    desc: 'El Gobierno de la Ciudad inauguró la extensión del Metrobús sobre Av. Paseo Colón para agilizar la circulación de más de 30 líneas de colectivos.',
-    source: 'La Nación',
-    date: 'Hace 6 días (7 de Julio, 2026)',
-    starred: false,
-    url: 'https://www.lanacion.com.ar/buenos-aires/nuevos-carriles-exclusivos-metrobus-del-bajo-inauguran-la-extension-nid07072026/',
-    image: 'https://images.unsplash.com/photo-1494515843206-f3117d3f51b7?w=400&q=80',
-    isNew: false,
-    isBusRelated: true,
-    comments: []
-  },
-  {
-    id: 'n4',
-    title: 'Uber, Cabify y Didi enfrentan nuevas normativas de registro',
-    desc: 'La legislatura debate un proyecto de ley para endurecer los requisitos técnicos, de seguro y de habilitación para vehículos de aplicaciones de movilidad.',
-    source: 'Ámbito Financiero',
-    date: 'Hace 8 días (5 de Julio, 2026)',
-    starred: false,
-    url: 'https://www.ambito.com/novedades-movilidad-uber-cabify-didi-regulacion-debate/',
-    image: 'https://images.unsplash.com/photo-1494976388531-d1058094e2fd?w=400&q=80',
-    isNew: false,
-    isBusRelated: false,
-    comments: []
-  }
-]
+const INITIAL_NEWS: any[] = []
 
-// Province and demography mock data
+// Province and demography data
 const PROVINCES_DATA: Record<string, {
   name: string
   users: number
@@ -283,61 +139,32 @@ const PROVINCES_DATA: Record<string, {
 }> = {
   'buenos-aires': {
     name: 'Provincia de Buenos Aires & CABA',
-    users: 3420,
+    users: 2,
     neighborhoods: [
-      { name: 'Palermo', count: 890 },
-      { name: 'Caballito', count: 750 },
-      { name: 'Belgrano', count: 640 },
-      { name: 'Recoleta', count: 580 },
-      { name: 'Flores', count: 560 }
+      { name: 'Palermo', count: 1 },
+      { name: 'Recoleta', count: 1 }
     ],
     habits: [
-      '📍 84% de los usuarios regresan a su misma ubicación nocturna, detectando con precisión su vecindario residencial.',
-      '🚌 Parada Clave: Av. Santa Fe y Coronel Díaz es la estación con mayor índice de inicio de viaje laboral temprano.',
-      '🏢 El 72% de los viajes matutinos se dirigen hacia el microcentro, denotando patrones de trabajo diario.'
+      '🚌 Recorrido Línea 12 activo en el corredor Av. Santa Fe / Callao.'
     ]
   },
   'cordoba': {
     name: 'Córdoba',
-    users: 680,
-    neighborhoods: [
-      { name: 'Nueva Córdoba', count: 280 },
-      { name: 'Centro', count: 190 },
-      { name: 'Alberdi', count: 120 },
-      { name: 'General Paz', count: 90 }
-    ],
-    habits: [
-      '🎓 El 62% del volumen de pasajeros son estudiantes universitarios en la zona de Ciudad Universitaria.',
-      '📍 Movilidad recurrente identificada en Barrio Alberdi los fines de semana hacia el centro.'
-    ]
+    users: 0,
+    neighborhoods: [],
+    habits: []
   },
   'santa-fe': {
     name: 'Santa Fe',
-    users: 490,
-    neighborhoods: [
-      { name: 'Rosario Centro', count: 210 },
-      { name: 'Pichincha', count: 130 },
-      { name: 'Echesortu', count: 80 },
-      { name: 'Martin', count: 70 }
-    ],
-    habits: [
-      '📍 Algoritmo detectó patrones de retorno diario hacia Pichincha de 18:00 a 20:00.',
-      '🚢 Alto tráfico en las paradas del corredor de la Costanera en Rosario.'
-    ]
+    users: 0,
+    neighborhoods: [],
+    habits: []
   },
   'mendoza': {
     name: 'Mendoza',
-    users: 310,
-    neighborhoods: [
-      { name: 'Capital Centro', count: 140 },
-      { name: 'Godoy Cruz', count: 90 },
-      { name: 'Guaymallén', count: 50 },
-      { name: 'Chacras de Coria', count: 30 }
-    ],
-    habits: [
-      '🍇 55% de usuarios utilizan abonos multiviaje recurrentes para transporte interurbano.',
-      '📍 Godoy Cruz registrado como el principal barrio de origen de viajes comerciales.'
-    ]
+    users: 0,
+    neighborhoods: [],
+    habits: []
   }
 }
 
@@ -347,58 +174,58 @@ const REAL_USERS = [
     id: 'usr-real-1',
     name: 'Usuario Prueba',
     email: 'usuario@usuario.com',
-    password: 'usuario',
+    password: 'Usuario',
     avatar: 'UP',
     joinedDate: '01 de Enero, 2026',
     status: 'Activo',
-    searches: 28,
-    trips: 18,
+    searches: 0,
+    trips: 0,
     rating: 5.0,
-    favLines: ['Línea 12', 'Línea 39'],
-    behavior: 'Usuario registrado principal de la plataforma.',
+    favLines: ['Línea 12'],
+    behavior: 'Usuario registrado.',
     frequentStop: 'Av. Santa Fe y Callao',
-    dailyBuses: 2.0,
+    dailyBuses: 1.0,
     hasAds: false,
     gender: 'Masculino',
     city: 'Buenos Aires',
     province: 'Buenos Aires',
     weeklyUsage: [
-      { day: 'Lun', count: 4 },
-      { day: 'Mar', count: 5 },
-      { day: 'Mie', count: 4 },
-      { day: 'Jue', count: 6 },
-      { day: 'Vie', count: 5 },
-      { day: 'Sab', count: 2 },
+      { day: 'Lun', count: 0 },
+      { day: 'Mar', count: 0 },
+      { day: 'Mie', count: 0 },
+      { day: 'Jue', count: 0 },
+      { day: 'Vie', count: 0 },
+      { day: 'Sab', count: 0 },
       { day: 'Dom', count: 0 }
     ]
   },
   {
     id: 'usr-real-2',
     name: 'Alejandro Finochietti',
-    email: 'alejandro.finochietti@bienparada.ar',
-    password: 'password123',
+    email: 'alejandro.finochietti@yahoo.com.ar',
+    password: 'Afodes18',
     avatar: 'AF',
     joinedDate: '15 de Mayo, 2026',
     status: 'Activo',
-    searches: 45,
-    trips: 30,
+    searches: 0,
+    trips: 0,
     rating: 5.0,
-    favLines: ['Línea 60', 'Línea 152'],
-    behavior: 'Administrador y usuario real del sistema.',
+    favLines: ['Línea 12'],
+    behavior: 'Administrador / Usuario real del sistema.',
     frequentStop: 'Plaza Italia (Palermo)',
-    dailyBuses: 3.5,
+    dailyBuses: 1.0,
     hasAds: false,
     gender: 'Masculino',
     city: 'Buenos Aires',
     province: 'Buenos Aires',
     weeklyUsage: [
-      { day: 'Lun', count: 6 },
-      { day: 'Mar', count: 7 },
-      { day: 'Mie', count: 5 },
-      { day: 'Jue', count: 8 },
-      { day: 'Vie', count: 7 },
-      { day: 'Sab', count: 3 },
-      { day: 'Dom', count: 1 }
+      { day: 'Lun', count: 0 },
+      { day: 'Mar', count: 0 },
+      { day: 'Mie', count: 0 },
+      { day: 'Jue', count: 0 },
+      { day: 'Vie', count: 0 },
+      { day: 'Sab', count: 0 },
+      { day: 'Dom', count: 0 }
     ]
   }
 ]
@@ -407,11 +234,11 @@ const MOCK_USERS = REAL_USERS
 
 const GROWTH_STATS = {
   day: {
-    newUsers: '+2',
+    newUsers: '+0',
     activeUsers: '2',
     churn: '0',
     newLines: '0',
-    supportQueries: '1',
+    supportQueries: '0',
     joinedList: ['usr-real-1', 'usr-real-2']
   },
   week: {
@@ -419,73 +246,33 @@ const GROWTH_STATS = {
     activeUsers: '2',
     churn: '0',
     newLines: '1',
-    supportQueries: '3',
+    supportQueries: '0',
     joinedList: ['usr-real-1', 'usr-real-2']
   },
   month: {
     newUsers: '+2',
     activeUsers: '2',
     churn: '0',
-    newLines: '3',
-    supportQueries: '5',
+    newLines: '1',
+    supportQueries: '0',
     joinedList: ['usr-real-1', 'usr-real-2']
   }
 }
 
 const MOCK_ACTIVE_FLEET = [
   { unit: '1201', line: 'Línea 12', driver: 'Néstor García', speed: 34, status: 'En Hora', deviation: 'Normal', lastSync: 'Hace 30s' },
-  { unit: '1203', line: 'Línea 12', driver: 'Roberto Sánchez', speed: 28, status: 'Demorado (3m)', deviation: 'Desvío Activo', lastSync: 'Hace 10s' },
-  { unit: '2802', line: 'Línea 28', driver: 'Carlos M.', speed: 62, status: 'En Hora', deviation: 'Velocidad Alta', lastSync: 'Hace 45s' },
-  { unit: '2804', line: 'Línea 28', driver: 'Jorge Rodríguez', speed: 0, status: 'Detenido', deviation: 'Normal', lastSync: 'Hace 2m' },
-  { unit: '3703', line: 'Línea 37', driver: 'Roberto S.', speed: 41, status: 'En Hora', deviation: 'Normal', lastSync: 'Hace 12s' },
-  { unit: '3901', line: 'Línea 39', driver: 'Esteban Ortiz', speed: 15, status: 'En Hora', deviation: 'Normal', lastSync: 'Hace 5s' },
-  { unit: '5903', line: 'Línea 59', driver: 'Hugo Bianchi', speed: 38, status: 'Demorado (1m)', deviation: 'Normal', lastSync: 'Hace 18s' },
-  { unit: '6020', line: 'Línea 60', driver: 'Carlos Martínez', speed: 45, status: 'En Hora', deviation: 'Normal', lastSync: 'Hace 25s' },
-  { unit: '6024', line: 'Línea 60', driver: 'Pablo García', speed: 22, status: 'En Hora', deviation: 'Normal', lastSync: 'Hace 8s' },
-  { unit: '15210', line: 'Línea 152', driver: 'Roberto S.', speed: 48, status: 'En Hora', deviation: 'Normal', lastSync: 'Hace 14s' }
+  { unit: '1202', line: 'Línea 12', driver: 'Roberto Sánchez', speed: 28, status: 'En Hora', deviation: 'Normal', lastSync: 'Hace 10s' },
+  { unit: '1203', line: 'Línea 12', driver: 'Juan Carlos Pérez', speed: 30, status: 'En Hora', deviation: 'Normal', lastSync: 'Hace 15s' }
 ]
 
 const MOCK_DRIVERS_STATUS = [
-  { id: 'drv-1', name: 'Néstor García', line: 'Línea 12', unit: '1201', online: true, rating: 4.8, trips: 4, activity: 'Conduciendo, ruta normal.' },
-  { id: 'drv-2', name: 'Roberto Sánchez', line: 'Línea 12', unit: '1203', online: true, rating: 4.9, trips: 5, activity: 'Finalizó recorrido de ida.' },
-  { id: 'drv-3', name: 'Carlos Martínez', line: 'Línea 12', unit: '1202', online: false, rating: 4.6, trips: 0, activity: 'Guardia finalizada.' },
-  { id: 'drv-4', name: 'Juan Gómez', line: 'Línea 12', unit: '1205', online: true, rating: 4.5, trips: 3, activity: 'En parador de descanso.' },
-  { id: 'drv-5', name: 'Carlos M.', line: 'Línea 28', unit: '2802', online: true, rating: 4.6, trips: 6, activity: 'Conduciendo, exceso de velocidad reportado.' },
-  { id: 'drv-6', name: 'Pablo García', line: 'Línea 28', unit: '2806', online: false, rating: 4.9, trips: 2, activity: 'Turno de tarde terminado.' },
-  { id: 'drv-7', name: 'Jorge Rodríguez', line: 'Línea 28', unit: '2804', online: true, rating: 4.7, trips: 4, activity: 'Unidad detenida en semáforo.' },
-  { id: 'drv-8', name: 'Roberto S.', line: 'Línea 37', unit: '3703', online: true, rating: 4.9, trips: 5, activity: 'Iniciando vuelta de retorno.' },
-  { id: 'drv-9', name: 'Ana Martínez', line: 'Línea 37', unit: '3708', online: false, rating: 4.5, trips: 3, activity: 'Fuera de servicio.' },
-  { id: 'drv-10', name: 'Esteban Ortiz', line: 'Línea 39', unit: '3901', online: true, rating: 4.6, trips: 4, activity: 'Tráfico lento reportado.' },
-  { id: 'drv-11', name: 'Hugo Bianchi', line: 'Línea 59', unit: '5903', online: true, rating: 4.7, trips: 3, activity: 'Retraso de 1 minuto.' },
-  { id: 'drv-12', name: 'Carlos Martínez', line: 'Línea 60', unit: '6020', online: true, rating: 4.6, trips: 5, activity: 'Conduciendo por carril rápido.' },
-  { id: 'drv-13', name: 'Diego Rodríguez', line: 'Línea 60', unit: '6022', online: false, rating: 4.2, trips: 6, activity: 'Descanso de almuerzo.' },
-  { id: 'drv-14', name: 'Pablo García', line: 'Línea 60', unit: '6024', online: true, rating: 5.0, trips: 4, activity: 'Excelente puntualidad reportada.' },
-  { id: 'drv-15', name: 'Roberto S.', line: 'Línea 152', unit: '15210', online: true, rating: 4.9, trips: 5, activity: 'Ingresando a terminal.' }
+  { id: 'drv-1', name: 'Néstor García', line: 'Línea 12', unit: '1201', online: true, rating: 5.0, trips: 4, activity: 'Conduciendo, ruta normal.' },
+  { id: 'drv-2', name: 'Roberto Sánchez', line: 'Línea 12', unit: '1202', online: true, rating: 5.0, trips: 5, activity: 'Conduciendo, ruta normal.' },
+  { id: 'drv-3', name: 'Juan Carlos Pérez', line: 'Línea 12', unit: '1203', online: true, rating: 5.0, trips: 3, activity: 'Conduciendo, ruta normal.' }
 ]
 
-// Messenger chats mock data
-const DEFAULT_CHATS = [
-  { id: 'c-admin-12', name: 'Admin Línea 12 (Néstor)', role: 'lineadmin', avatar: 'L12', starred: true, lastMsg: 'Hola superadmin, modificamos el desvío en Callao.', history: [
-    { id: 'm1', sender: 'user', text: 'Hola Néstor, ¿todo listo para la modificación del recorrido?', timestamp: '10:15' },
-    { id: 'm2', sender: 'admin', text: 'Hola superadmin, modificamos el desvío en Callao.', timestamp: '10:20' }
-  ]},
-  { id: 'c-user-ale', name: 'Alejandro Zentavra', role: 'user', avatar: 'AZ', starred: false, lastMsg: '¿El desvío de la línea 60 ya está cargado?', history: [
-    { id: 'm3', sender: 'user', text: 'Hola, ¿dónde puedo ver las paradas de la Línea 37?', timestamp: 'Ayer' },
-    { id: 'm4', sender: 'admin', text: 'Hola Alejandro, podés ver las paradas de la Línea 37 en la pestaña de Colectivos.', timestamp: 'Ayer' },
-    { id: 'm4b', sender: 'user', text: '¿El desvío de la línea 60 ya está cargado?', timestamp: 'Hace 2 horas' }
-  ]},
-  { id: 'c-admin-60', name: 'Admin Línea 60 (Carlos)', role: 'lineadmin', avatar: 'L60', starred: true, lastMsg: 'Coche 304 ya está en línea.', history: [
-    { id: 'm5', sender: 'user', text: 'Carlos, ¿las unidades 302 y 304 tienen el nuevo QR?', timestamp: 'Ayer' },
-    { id: 'm6', sender: 'admin', text: 'Coche 304 ya está en línea.', timestamp: 'Ayer' }
-  ]},
-  { id: 'c-adv-cola', name: 'Coca Cola Ads', role: 'advertiser', avatar: 'CC', starred: false, lastMsg: '¿Cuándo se activa la campaña de Coca Cola?', history: [
-    { id: 'm7', sender: 'user', text: 'Hola superadmin, queríamos consultar cuándo se activa la campaña de Coca Cola en Plaza Italia.', timestamp: '11:05' }
-  ]},
-  { id: 'm-adv-mostaza', name: 'Mostaza Premium', role: 'advertiser', avatar: 'MP', starred: false, lastMsg: 'Hola, enviamos el presupuesto ajustado.', history: [
-    { id: 'm8', sender: 'admin', text: 'Hola, recibimos su solicitud de campaña para Línea 37.', timestamp: '11:00' },
-    { id: 'm9', sender: 'user', text: 'Hola, enviamos el presupuesto ajustado.', timestamp: '11:02' }
-  ]}
-]
+// Messenger chats data
+const DEFAULT_CHATS: any[] = []
 
 type Tab = 'overview' | 'linemaps' | 'drivers' | 'company_admins' | 'ads' | 'pois' | 'chat' | 'reports' | 'provincemap' | 'todos' | 'news' | 'terms' | 'security_2fa'
 
@@ -693,13 +480,13 @@ export default function SuperAdminDashboard() {
   }
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
-    totalUsers: 4820, totalDrivers: 24, totalCompanies: 7,
-    activeBuses: 8, pendingReports: 3, todayLogins: 142,
+    totalUsers: 2, totalDrivers: 3, totalCompanies: 1,
+    activeBuses: 3, pendingReports: 0, todayLogins: 2,
   })
 
   // Modal active states
   const [activeDetail, setActiveDetail] = useState<'users' | 'buses' | 'drivers' | 'ads' | null>(null)
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [selectedUserId, setSelectedUserId] = useState<string | null>('usr-real-1')
   const [selectedDriverLine, setSelectedDriverLine] = useState<string>('all')
   const [userSearchTerm, setUserSearchTerm] = useState('')
   const [growthPeriod, setGrowthPeriod] = useState<'day' | 'week' | 'month'>('week')
@@ -718,50 +505,9 @@ export default function SuperAdminDashboard() {
   const [showAdminPassword, setShowAdminPassword] = useState<Record<string, boolean>>({})
   const [liveLineAdmins, setLiveLineAdmins] = useState<any[]>([
     {
-      id: 'la-12', name: 'Carlos Martínez', email: 'linea12@bienparada.ar', password: 'bienparada', lineNumber: '12', companyName: 'Transportes Callao S.A.', status: 'Activo', lastLogin: 'Hoy 09:14 hs', sessionDuration: '3 hs 42 min', lastActive: 'Hace 5 min',
+      id: 'la-12', name: 'Néstor García', email: 'linea12@bienparada.ar', password: 'linea12pass', lineNumber: '12', companyName: 'Transportes Automotores Callao S.A.', status: 'Activo', lastLogin: 'Hoy 09:14 hs', sessionDuration: '1 hr 30 min', lastActive: 'Hace 5 min',
       activityLogs: [
-        { id: 'log-1', action: 'Modificó Frecuencia', detail: 'Ajustó intervalo de salida a 6 minutos en hora pico.', timestamp: 'Hoy 10:30 hs' },
-        { id: 'log-2', action: 'Generó Código QR', detail: 'Registró nuevo QR de acceso para la Unidad 304.', timestamp: 'Ayer 16:45 hs' },
-        { id: 'log-3', action: 'Actualizó Recorrido', detail: 'Añadió parada temporal en Av. Santa Fe y Callao.', timestamp: 'Hace 2 días' },
-        { id: 'log-4', action: 'Aprobó Chofer', detail: 'Dio de alta al chofer Roberto Sánchez.', timestamp: 'Hace 3 días' }
-      ]
-    },
-    {
-      id: 'la-39', name: 'Esteban Ortiz', email: 'linea39@bienparada.ar', password: 'linea39pass', lineNumber: '39', companyName: 'Transportes Santa Fe S.A.C.I.', status: 'Activo', lastLogin: 'Hoy 08:30 hs', sessionDuration: '4 hs 15 min', lastActive: 'Hace 12 min',
-      activityLogs: [
-        { id: 'log-39-1', action: 'Publicó Aviso', detail: 'Emitió alerta por desvío en estación Chacarita por obras.', timestamp: 'Hoy 09:15 hs' },
-        { id: 'log-39-2', action: 'Ajuste de Tarifa', detail: 'Verificó cuadro tarifario de boleto mínimo.', timestamp: 'Ayer 11:20 hs' }
-      ]
-    },
-    {
-      id: 'la-60', name: 'Jorge Rodríguez', email: 'linea60@bienparada.ar', password: 'linea60pass', lineNumber: '60', companyName: 'MONSA S.A.', status: 'Activo', lastLogin: 'Ayer 17:45 hs', sessionDuration: '1 hr 50 min', lastActive: 'Ayer',
-      activityLogs: [
-        { id: 'log-60-1', action: 'Corte de Calle', detail: 'Notificó corte parcial en Panamericana y Tigre.', timestamp: 'Ayer 18:00 hs' },
-        { id: 'log-60-2', action: 'Revisión de Flota', detail: 'Inspeccionó 8 unidades activas en ramal Tigre.', timestamp: 'Ayer 15:30 hs' }
-      ]
-    },
-    {
-      id: 'la-152', name: 'Mariano Silva', email: 'linea152@bienparada.ar', password: 'linea152pass', lineNumber: '152', companyName: 'Empresa Tandilense S.A.', status: 'Activo', lastLogin: 'Hoy 10:05 hs', sessionDuration: '2 hs 10 min', lastActive: 'Hace 25 min',
-      activityLogs: [
-        { id: 'log-152-1', action: 'Modificación de Parada', detail: 'Reubicó parada Plaza Italia por reparación de calzada.', timestamp: 'Hoy 10:20 hs' }
-      ]
-    },
-    {
-      id: 'la-59', name: 'Hugo Bianchi', email: 'linea59@bienparada.ar', password: 'linea59pass', lineNumber: '59', companyName: 'Microomnibus Ciudad de Buenos Aires S.A.', status: 'Inactivo', lastLogin: 'Hace 3 días', sessionDuration: '45 min', lastActive: 'Hace 3 días',
-      activityLogs: [
-        { id: 'log-59-1', action: 'Actualizó Horarios', detail: 'Cargó grilla de horarios de fin de semana.', timestamp: 'Hace 3 días' }
-      ]
-    },
-    {
-      id: 'la-37', name: 'Roberto Sánchez', email: 'linea37@bienparada.ar', password: 'linea37pass', lineNumber: '37', companyName: '4 de Septiembre S.A.', status: 'Activo', lastLogin: 'Hoy 07:50 hs', sessionDuration: '5 hs 02 min', lastActive: 'Hace 4 min',
-      activityLogs: [
-        { id: 'log-37-1', action: 'Alerta de Tránsito', detail: 'Registró embotellamiento en zona Aeroparque.', timestamp: 'Hoy 08:10 hs' }
-      ]
-    },
-    {
-      id: 'la-28', name: 'Pablo García', email: 'linea28@bienparada.ar', password: 'linea28pass', lineNumber: '28', companyName: 'DOTA S.A.', status: 'Activo', lastLogin: 'Hoy 09:40 hs', sessionDuration: '1 hr 30 min', lastActive: 'Hace 18 min',
-      activityLogs: [
-        { id: 'log-28-1', action: 'Verificación de Flota', detail: 'Revisó estatus de 12 coches en ramal Retiro.', timestamp: 'Hoy 10:00 hs' }
+        { id: 'log-1', action: 'Verificación de Flota', detail: 'Monitoreó estatus de 3 coches en ramal Plaza Italia.', timestamp: 'Hoy 10:30 hs' }
       ]
     }
   ])
@@ -792,9 +538,9 @@ export default function SuperAdminDashboard() {
           const lower = (email || '').toLowerCase().trim()
           return lower.includes('demo.com.ar') ||
                  lower.includes('ale.zentavra') ||
-                 lower.includes('sofia.g') ||
-                 lower.includes('mateo.l') ||
-                 lower.includes('mariana.p') ||
+                 lower.includes('sofia') ||
+                 lower.includes('mateo') ||
+                 lower.includes('mariana') ||
                  id === 'usr-1' || id === 'usr-2' || id === 'usr-3' || id === 'usr-4'
         }
 
@@ -818,22 +564,22 @@ export default function SuperAdminDashboard() {
             searches: Math.max(u.searches || 0, searchHistory.length),
             trips: u.trips || Math.floor((u.searches || 1) * 0.6),
             rating: u.rating || 5.0,
-            favLines: u.favLines || ['Línea 12', 'Línea 39'],
+            favLines: u.favLines || ['Línea 12'],
             behavior: u.behavior || 'Usuario registrado en la plataforma.',
             frequentStop: u.frequentStop || 'Av. Santa Fe y Callao',
-            dailyBuses: u.dailyBuses || 1.5,
+            dailyBuses: u.dailyBuses || 1.0,
             hasAds: u.hasAds || false,
             gender: u.gender || (email.includes('alejandro') ? 'Masculino' : 'Todos'),
             city: u.city || 'Buenos Aires',
             province: u.province || 'Buenos Aires',
             searchHistory: searchHistory,
             weeklyUsage: u.weeklyUsage || [
-              { day: 'Lun', count: 3 },
-              { day: 'Mar', count: 4 },
-              { day: 'Mie', count: 3 },
-              { day: 'Jue', count: 5 },
-              { day: 'Vie', count: 4 },
-              { day: 'Sab', count: 1 },
+              { day: 'Lun', count: 0 },
+              { day: 'Mar', count: 0 },
+              { day: 'Mie', count: 0 },
+              { day: 'Jue', count: 0 },
+              { day: 'Vie', count: 0 },
+              { day: 'Sab', count: 0 },
               { day: 'Dom', count: 0 }
             ]
           }
@@ -913,66 +659,11 @@ export default function SuperAdminDashboard() {
   const [commentText, setCommentText] = useState('')
 
   // Submitted ads
-  const [ads, setAds] = useState<any[]>([
-    {
-      id: 'ad-1',
-      title: 'Coca Cola Sin Azúcar',
-      desc: 'Promoción de lata 350ml en quioscos.',
-      stop: 'Plaza Italia',
-      route: 'Línea 12',
-      budget: 120000,
-      duration: '30 días',
-      status: 'approved',
-      isActive: true,
-      timestamp: 'Hace 1 día',
-      userName: 'Alejandro Finochietti',
-      userEmail: 'alejandro.finochietti@bienparada.ar',
-      userAvatar: 'AF',
-      bannerBg: 'linear-gradient(135deg, #111, #ef4444)',
-      bannerText: 'Coca Cola Sin Azúcar 🥤',
-      bannerTagline: 'Sentí el sabor único. Disponible en todos los quioscos oficiales.'
-    },
-    {
-      id: 'ad-2',
-      title: 'Hamburguesería Mostaza',
-      desc: 'Descuento 20% en Combo Mega Deluxe.',
-      stop: 'Av. Corrientes y Callao',
-      route: 'Línea 37',
-      budget: 85000,
-      duration: '15 días',
-      status: 'pending',
-      isActive: false,
-      timestamp: 'Hace 3 horas',
-      userName: 'Usuario Prueba',
-      userEmail: 'usuario@usuario.com',
-      userAvatar: 'UP',
-      bannerBg: 'linear-gradient(135deg, #f59e0b, #b45309)',
-      bannerText: 'Mostaza Mega Deluxe 🍔',
-      bannerTagline: '20% OFF presentando tu boleto de BienParada en caja.'
-    },
-    {
-      id: 'ad-3',
-      title: 'Gimnasio Megatlon',
-      desc: 'Matrícula gratis en pase anual.',
-      stop: 'Obelisco',
-      route: 'Línea 152',
-      budget: 195000,
-      duration: '45 días',
-      status: 'approved',
-      isActive: true,
-      timestamp: 'Hace 5 días',
-      userName: 'Néstor García',
-      userEmail: 'nestor.g@callao.com.ar',
-      userAvatar: 'NG',
-      bannerBg: 'linear-gradient(135deg, #0f172a, #1d4ed8)',
-      bannerText: 'Megatlon Fitness 💪',
-      bannerTagline: 'Entrená en cualquiera de nuestras sedes. Matrícula bonificada.'
-    }
-  ])
+  const [ads, setAds] = useState<any[]>([])
 
   // Support messenger chats
   const [chats, setChats] = useState<any[]>(DEFAULT_CHATS)
-  const [selectedChatId, setSelectedChatId] = useState<string>('c-admin-12')
+  const [selectedChatId, setSelectedChatId] = useState<string>('')
   const [chatSearch, setChatSearch] = useState('')
   const [chatInput, setChatInput] = useState('')
   const [showAddChatModal, setShowAddChatModal] = useState(false)
@@ -980,12 +671,7 @@ export default function SuperAdminDashboard() {
   const [newChatRole, setNewChatRole] = useState<'lineadmin' | 'user'>('user')
 
   // Todo list state
-  const [todos, setTodos] = useState<Todo[]>([
-    { id: 't1', text: 'Revisar desvíos temporales en Línea 12', desc: 'Desvío por obras viales sobre Av. Callao.', done: false, date: 'Hoy', badge: 'Operaciones', flagged: true, stage: 'todo', priority: 'high' },
-    { id: 't2', text: 'Aprobar chofer Néstor García', desc: 'Verificar licencia nacional habilitante y documentación del coche 1201.', done: false, date: 'Ayer', badge: 'Aprobaciones', flagged: false, stage: 'in_progress', priority: 'medium' },
-    { id: 't3', text: 'Verificar cobros publicitarios en pesos (ARS)', desc: 'Validar transferencias bancarias de Mostaza Premium.', done: false, date: 'Mañana', badge: 'Finanzas', flagged: false, stage: 'in_review', priority: 'low' },
-    { id: 't4', text: 'Auditar quejas de velocidad en Línea 60', desc: 'Reportes de exceso de velocidad en autopista Panamericana coche 304.', done: false, date: 'Esta semana', badge: 'Seguridad', flagged: true, stage: 'done', priority: 'high' },
-  ])
+  const [todos, setTodos] = useState<Todo[]>([])
   const [newTodoText, setNewTodoText] = useState('')
 
   // Permanent Deletion Confirmation Target (Admins, Users, Noticias)
@@ -3123,7 +2809,7 @@ export default function SuperAdminDashboard() {
               >
                 <span style={{ fontSize: '11px', color: '#8f94a5', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Choferes Activos</span>
                 <div style={{ fontSize: '28px', fontWeight: 800, marginTop: '8px', color: '#fff' }}>{stats.totalDrivers}</div>
-                <div style={{ fontSize: '11px', color: '#8f94a5', marginTop: '4px' }}>7 líneas registradas</div>
+                <div style={{ fontSize: '11px', color: '#8f94a5', marginTop: '4px' }}>1 línea registrada (Línea 12)</div>
               </div>
               <div
                 onClick={() => setActiveDetail('ads')}
