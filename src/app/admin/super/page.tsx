@@ -356,6 +356,12 @@ export default function SuperAdminDashboard() {
         const saved = localStorage.getItem('mock_super_chats')
         if (saved) setChats(JSON.parse(saved))
       }
+      if ((e.key === 'bu_submitted_ads' || e.key === 'bu_user_ads' || e.key === 'mock_super_ads') && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue)
+          setAds(Array.isArray(parsed) ? parsed : [])
+        } catch (err) {}
+      }
     }
     window.addEventListener('storage', handleStorageChange)
     return () => window.removeEventListener('storage', handleStorageChange)
@@ -953,8 +959,17 @@ export default function SuperAdminDashboard() {
     const savedTodos = localStorage.getItem('mock_super_todos')
     if (savedTodos) setTodos(JSON.parse(savedTodos))
 
-    const savedAds = localStorage.getItem('mock_super_ads')
-    if (savedAds) setAds(JSON.parse(savedAds))
+    const savedAds = localStorage.getItem('bu_submitted_ads') || localStorage.getItem('bu_user_ads') || localStorage.getItem('mock_super_ads')
+    if (savedAds) {
+      try {
+        const parsed = JSON.parse(savedAds)
+        setAds(Array.isArray(parsed) ? parsed : [])
+      } catch (e) {
+        setAds([])
+      }
+    } else {
+      setAds([])
+    }
 
     const savedChats = localStorage.getItem('mock_super_chats')
     if (savedChats) setChats(JSON.parse(savedChats))
@@ -972,6 +987,7 @@ export default function SuperAdminDashboard() {
 
   const saveAds = (newAds: any[]) => {
     setAds(newAds)
+    localStorage.setItem('bu_submitted_ads', JSON.stringify(newAds))
     localStorage.setItem('mock_super_ads', JSON.stringify(newAds))
   }
 
@@ -1914,37 +1930,42 @@ export default function SuperAdminDashboard() {
   }
 
   const renderAdsDetail = () => {
+    const hasAds = ads.length > 0
+    const totalApprovedEarnings = ads
+      .filter(a => a.status === 'approved')
+      .reduce((sum, a) => sum + (Number(a.budget) || 0), 0)
+
     const AD_EARNINGS_DATA = {
       day: [
-        { label: '06:00', amount: 15000 },
-        { label: '09:00', amount: 25000 },
-        { label: '12:00', amount: 48000 },
-        { label: '15:00', amount: 32000 },
-        { label: '18:00', amount: 55000 },
-        { label: '21:00', amount: 40000 },
-        { label: '24:00', amount: 20000 }
+        { label: '06:00', amount: hasAds ? Math.round(totalApprovedEarnings * 0.1) : 0 },
+        { label: '09:00', amount: hasAds ? Math.round(totalApprovedEarnings * 0.2) : 0 },
+        { label: '12:00', amount: hasAds ? Math.round(totalApprovedEarnings * 0.3) : 0 },
+        { label: '15:00', amount: hasAds ? Math.round(totalApprovedEarnings * 0.25) : 0 },
+        { label: '18:00', amount: hasAds ? Math.round(totalApprovedEarnings * 0.4) : 0 },
+        { label: '21:00', amount: hasAds ? Math.round(totalApprovedEarnings * 0.2) : 0 },
+        { label: '24:00', amount: hasAds ? Math.round(totalApprovedEarnings * 0.1) : 0 }
       ],
       week: [
-        { label: 'Lunes', amount: 85000 },
-        { label: 'Martes', amount: 120000 },
-        { label: 'Miércoles', amount: 95000 },
-        { label: 'Jueves', amount: 140000 },
-        { label: 'Viernes', amount: 180000 },
-        { label: 'Sábado', amount: 110000 },
-        { label: 'Domingo', amount: 90000 }
+        { label: 'Lunes', amount: hasAds ? Math.round(totalApprovedEarnings * 0.15) : 0 },
+        { label: 'Martes', amount: hasAds ? Math.round(totalApprovedEarnings * 0.2) : 0 },
+        { label: 'Miércoles', amount: hasAds ? Math.round(totalApprovedEarnings * 0.18) : 0 },
+        { label: 'Jueves', amount: hasAds ? Math.round(totalApprovedEarnings * 0.25) : 0 },
+        { label: 'Viernes', amount: hasAds ? Math.round(totalApprovedEarnings * 0.35) : 0 },
+        { label: 'Sábado', amount: hasAds ? Math.round(totalApprovedEarnings * 0.12) : 0 },
+        { label: 'Domingo', amount: hasAds ? Math.round(totalApprovedEarnings * 0.1) : 0 }
       ],
       month: [
-        { label: 'Semana 1', amount: 450000 },
-        { label: 'Semana 2', amount: 620000 },
-        { label: 'Semana 3', amount: 580000 },
-        { label: 'Semana 4', amount: 750000 }
+        { label: 'Semana 1', amount: hasAds ? Math.round(totalApprovedEarnings * 0.2) : 0 },
+        { label: 'Semana 2', amount: hasAds ? Math.round(totalApprovedEarnings * 0.25) : 0 },
+        { label: 'Semana 3', amount: hasAds ? Math.round(totalApprovedEarnings * 0.3) : 0 },
+        { label: 'Semana 4', amount: hasAds ? Math.round(totalApprovedEarnings * 0.25) : 0 }
       ]
     }
 
     const growthTrend = {
-      day: { pct: '+8.5%', growing: true, text: 'Incremento en horas pico de la tarde.' },
-      week: { pct: '+14.2%', growing: true, text: 'Crecimiento impulsado por la campaña de Mostaza S.A.' },
-      month: { pct: '+22.8%', growing: true, text: 'Mayor pauta publicitaria en paradas premium.' }
+      day: { pct: hasAds ? '+5.2%' : '0.0%', growing: true, text: hasAds ? 'Monitoreo de horas pico.' : 'Sin pauta publicitaria registrada hoy.' },
+      week: { pct: hasAds ? '+12.0%' : '0.0%', growing: true, text: hasAds ? 'Ingresos semanales por campañas activas.' : 'Sin pauta publicitaria registrada esta semana.' },
+      month: { pct: hasAds ? '+18.5%' : '0.0%', growing: true, text: hasAds ? 'Rendimiento mensual de anuncios.' : 'Sin pauta publicitaria registrada este mes.' }
     }
 
     const currentTrend = growthTrend[adGraphPeriod]
@@ -2002,61 +2023,100 @@ export default function SuperAdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {ads.map((ad, idx) => {
-                const advertiserName = ad.title.includes('Coca Cola') ? 'Coca Cola Arg' : ad.title.includes('Mostaza') ? 'Mostaza S.A.' : 'Megatlon Club'
-                return (
-                  <tr key={ad.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: idx % 2 === 0 ? 'rgba(0,0,0,0.1)' : 'transparent' }}>
-                    <td style={{ padding: '12px 16px' }}>
-                      <div style={{ fontWeight: 600, color: '#fff' }}>{ad.title}</div>
-                      <div style={{ fontSize: '10px', color: '#8f94a5', marginTop: '2px' }}>{ad.desc}</div>
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <div style={{ color: '#fff' }}>{advertiserName}</div>
-                      <div style={{ fontSize: '10px', color: '#8f94a5', marginTop: '2px' }}>{ad.timestamp}</div>
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <div>{ad.stop}</div>
-                      <div style={{ fontSize: '10px', color: '#10B981', marginTop: '2px' }}>{ad.route}</div>
-                    </td>
-                    <td style={{ padding: '12px 16px', fontWeight: 600, color: '#10B981' }}>${ad.budget.toLocaleString()} ARS</td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span style={{
-                        fontSize: '8px',
-                        fontWeight: 700,
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        background: ad.status === 'approved' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
-                        color: ad.status === 'approved' ? '#10B981' : '#F59E0B'
-                      }}>
-                        {ad.status === 'approved' ? 'APROBADO' : 'PENDIENTE'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                      <button
-                        onClick={() => handleSendAdReferral(advertiserName)}
-                        style={{
-                          background: 'rgba(59,130,246,0.12)',
-                          border: '1px solid rgba(59,130,246,0.25)',
-                          borderRadius: '6px',
-                          padding: '6px 12px',
-                          color: '#3b82f6',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          transition: 'all 150ms'
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.2)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(59,130,246,0.12)'}
-                      >
-                        <MessageSquare size={11} /> Mensajear Enlace
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
+              {ads.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ padding: '40px 20px', textAlign: 'center', color: '#8F94A5' }}>
+                    <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                      <Megaphone size={24} style={{ color: '#3B82F6' }} />
+                    </div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF' }}>No hay campañas de publicidad pautadas ni activas</div>
+                    <div style={{ fontSize: '12px', color: '#8F94A5', marginTop: '4px', maxWidth: '440px', margin: '4px auto 0' }}>
+                      Las nuevas pautas publicitarias registradas por los usuarios desde el portal de anuncios se sincronizarán en tiempo real en este panel para su moderación.
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                ads.map((ad, idx) => {
+                  const advertiserName = ad.advertiserName || ad.userName || ad.userEmail || 'Anunciante Registrado'
+                  const status = ad.status || 'pending'
+                  const isApproved = status === 'approved'
+                  const isRejected = status === 'rejected'
+
+                  return (
+                    <tr key={ad.id || idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: idx % 2 === 0 ? 'rgba(0,0,0,0.1)' : 'transparent' }}>
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ fontWeight: 600, color: '#fff' }}>{ad.title || 'Anuncio Registrado'}</div>
+                        <div style={{ fontSize: '10px', color: '#8f94a5', marginTop: '2px' }}>{ad.desc || ad.tagline || 'Campaña publicitaria de usuario.'}</div>
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ color: '#fff' }}>{advertiserName}</div>
+                        <div style={{ fontSize: '10px', color: '#8f94a5', marginTop: '2px' }}>{ad.timestamp || 'Reciente'}</div>
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <div>{ad.stop || 'Todas las paradas'}</div>
+                        <div style={{ fontSize: '10px', color: '#10B981', marginTop: '2px' }}>{ad.route || 'Línea 12'}</div>
+                      </td>
+                      <td style={{ padding: '12px 16px', fontWeight: 600, color: '#10B981' }}>${(Number(ad.budget) || 0).toLocaleString()} ARS</td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <span style={{
+                          fontSize: '8px',
+                          fontWeight: 700,
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: isApproved ? 'rgba(16,185,129,0.15)' : isRejected ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)',
+                          color: isApproved ? '#10B981' : isRejected ? '#EF4444' : '#F59E0B'
+                        }}>
+                          {isApproved ? 'APROBADO' : isRejected ? 'RECHAZADO' : 'PENDIENTE'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                          {!isApproved && (
+                            <button
+                              onClick={() => {
+                                const updated = ads.map(item => item.id === ad.id ? { ...item, status: 'approved' } : item)
+                                setAds(updated)
+                                localStorage.setItem('bu_submitted_ads', JSON.stringify(updated))
+                                localStorage.setItem('mock_super_ads', JSON.stringify(updated))
+                                toast.success('Anuncio aprobado correctamente')
+                              }}
+                              style={{ padding: '4px 8px', borderRadius: '4px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#10B981', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                              Aprobar
+                            </button>
+                          )}
+                          {!isRejected && (
+                            <button
+                              onClick={() => {
+                                const updated = ads.map(item => item.id === ad.id ? { ...item, status: 'rejected' } : item)
+                                setAds(updated)
+                                localStorage.setItem('bu_submitted_ads', JSON.stringify(updated))
+                                localStorage.setItem('mock_super_ads', JSON.stringify(updated))
+                                toast.error('Anuncio rechazado')
+                              }}
+                              style={{ padding: '4px 8px', borderRadius: '4px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#EF4444', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}
+                            >
+                              Rechazar
+                            </button>
+                          )}
+                          <button
+                            onClick={() => {
+                              const updated = ads.filter(item => item.id !== ad.id)
+                              setAds(updated)
+                              localStorage.setItem('bu_submitted_ads', JSON.stringify(updated))
+                              localStorage.setItem('mock_super_ads', JSON.stringify(updated))
+                              toast.success('Anuncio eliminado')
+                            }}
+                            style={{ padding: '4px 8px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#8F94A5', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -6505,34 +6565,12 @@ const DRILLDOWN_DATA: Record<string, {
               {
                 name: 'Av. Santa Fe y Plaza Italia',
                 busLines: ['Línea 12', 'Línea 60', 'Línea 37', 'Línea 152'],
-                usage: 95,
-                ad: {
-                  title: 'Coca Cola Sin Azúcar',
-                  tagline: 'Sentí el sabor único. Disponible en todos los quioscos oficiales.',
-                  image: '🥤',
-                  budget: 150000,
-                  duration: '30 días',
-                  userName: 'Alejandro Finochietti',
-                  userEmail: 'alejandro.finochietti@bienparada.ar',
-                  userAvatar: 'AF',
-                  bannerBg: 'linear-gradient(135deg, #111, #ef4444)'
-                }
+                usage: 95
               },
               {
                 name: 'Av. Las Heras y Coronel Díaz',
                 busLines: ['Línea 37', 'Línea 110', 'Línea 59'],
-                usage: 82,
-                ad: {
-                  title: 'Hamburguesería Mostaza',
-                  tagline: '20% OFF presentando tu boleto de BienParada en caja.',
-                  image: '🍔',
-                  budget: 85000,
-                  duration: '15 días',
-                  userName: 'Usuario Prueba',
-                  userEmail: 'usuario@usuario.com',
-                  userAvatar: 'UP',
-                  bannerBg: 'linear-gradient(135deg, #f59e0b, #b45309)'
-                }
+                usage: 82
               },
               {
                 name: 'Av. Juan B. Justo y Santa Fe',
@@ -6552,18 +6590,7 @@ const DRILLDOWN_DATA: Record<string, {
               {
                 name: 'Av. Las Heras y Pueyrredón',
                 busLines: ['Línea 37', 'Línea 110', 'Línea 59', 'Línea 41'],
-                usage: 88,
-                ad: {
-                  title: 'Gimnasio Megatlon',
-                  tagline: 'Entrená en cualquiera de nuestras sedes. Matrícula bonificada.',
-                  image: '💪',
-                  budget: 195000,
-                  duration: '45 días',
-                  userName: 'Néstor García',
-                  userEmail: 'nestor.g@callao.com.ar',
-                  userAvatar: 'NG',
-                  bannerBg: 'linear-gradient(135deg, #0f172a, #1d4ed8)'
-                }
+                usage: 88
               },
               {
                 name: 'Av. Callao y Quintana',
