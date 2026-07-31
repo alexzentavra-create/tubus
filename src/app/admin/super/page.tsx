@@ -297,10 +297,12 @@ export default function SuperAdminDashboard() {
   const [adminIdentity, setAdminIdentity] = useState<string | null>(null)
   const [showIdentityModal, setShowIdentityModal] = useState<boolean>(false)
 
-  // Avatar Circle Colors
-  const [colorAlejandro, setColorAlejandro] = useState<string>('#3B82F6')
-  const [colorNestor, setColorNestor] = useState<string>('#10B981')
+  // Avatar Circle Colors for Online Super Admins
+  const [adminColors, setAdminColors] = useState<Record<string, string>>({})
   const [showColorPickerFor, setShowColorPickerFor] = useState<string | null>(null)
+  const [hoveredAdminId, setHoveredAdminId] = useState<string | null>(null)
+
+  const ADMIN_COLOR_PALETTE = ['#EF4444', '#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EC4899', '#06B6D4', '#6366F1']
 
   // Real-time Chat Drawer State
   const [showSuperAdminChat, setShowSuperAdminChat] = useState<boolean>(false)
@@ -317,6 +319,18 @@ export default function SuperAdminDashboard() {
   const [auditLogs, setAuditLogs] = useState<any[]>([])
 
   useEffect(() => {
+    const handleGlobalClick = () => {
+      setShowColorPickerFor(null)
+    }
+    if (showColorPickerFor) {
+      window.addEventListener('click', handleGlobalClick)
+    }
+    return () => {
+      window.removeEventListener('click', handleGlobalClick)
+    }
+  }, [showColorPickerFor])
+
+  useEffect(() => {
     if (typeof window === 'undefined') return
     const storedIdentity = sessionStorage.getItem('super_admin_identity') || localStorage.getItem('super_admin_identity')
     if (!storedIdentity) {
@@ -324,11 +338,6 @@ export default function SuperAdminDashboard() {
     } else {
       setAdminIdentity(storedIdentity)
     }
-
-    const colorA = localStorage.getItem('admin_color_Alejandro') || '#3B82F6'
-    const colorN = localStorage.getItem('admin_color_Nestor') || '#10B981'
-    setColorAlejandro(colorA)
-    setColorNestor(colorN)
 
     const savedLogs = JSON.parse(localStorage.getItem('bu_super_admin_audit_logs') || '[]')
     setAuditLogs(savedLogs)
@@ -3187,59 +3196,121 @@ export default function SuperAdminDashboard() {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            {/* Online Admin Presence Avatar Circles */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', position: 'relative' }}>
-              {/* Alejandro Avatar Circle */}
-              <div
-                onClick={() => setShowColorPickerFor(showColorPickerFor === 'Alejandro' ? null : 'Alejandro')}
-                style={{
-                  width: '32px', height: '32px', borderRadius: '50%', background: colorAlejandro, color: '#FFFFFF',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '13px',
-                  cursor: 'pointer', border: '2px solid #0F172A', boxShadow: '0 0 8px rgba(0,0,0,0.5)'
-                }}
-                title="Alejandro (Clic para cambiar color)"
-              >
-                A
-              </div>
+            {/* Online Registered Super Admins Avatar Circles */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
+              {superAdminAccounts.filter((a: any) => a.status === 'Activo').map((admin: any, idx: number) => {
+                const initial = admin.name.trim().charAt(0).toUpperCase() || 'A'
+                const storedColor = adminColors[admin.id] || (typeof window !== 'undefined' ? localStorage.getItem(`admin_color_${admin.id}`) : null)
+                const currentColor = storedColor || ADMIN_COLOR_PALETTE[idx % ADMIN_COLOR_PALETTE.length]
+                const isPickerOpen = showColorPickerFor === admin.id
+                const isHovered = hoveredAdminId === admin.id
 
-              {/* Nestor Avatar Circle */}
-              <div
-                onClick={() => setShowColorPickerFor(showColorPickerFor === 'Nestor' ? null : 'Nestor')}
-                style={{
-                  width: '32px', height: '32px', borderRadius: '50%', background: colorNestor, color: '#FFFFFF',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '13px',
-                  cursor: 'pointer', border: '2px solid #0F172A', boxShadow: '0 0 8px rgba(0,0,0,0.5)'
-                }}
-                title="Nestor (Clic para cambiar color)"
-              >
-                N
-              </div>
-
-              {/* Color Picker Popover */}
-              {showColorPickerFor && (
-                <div style={{
-                  position: 'absolute', top: '42px', right: 0, background: '#1E293B', border: '1px solid rgba(255,255,255,0.15)',
-                  borderRadius: '12px', padding: '10px', display: 'flex', gap: '6px', zIndex: 9999
-                }}>
-                  {['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'].map(c => (
+                return (
+                  <div key={admin.id} style={{ position: 'relative' }}>
+                    {/* Avatar Circle Badge */}
                     <div
-                      key={c}
-                      onClick={() => {
-                        if (showColorPickerFor === 'Alejandro') {
-                          setColorAlejandro(c)
-                          localStorage.setItem('admin_color_Alejandro', c)
-                        } else {
-                          setColorNestor(c)
-                          localStorage.setItem('admin_color_Nestor', c)
-                        }
-                        setShowColorPickerFor(null)
-                        toast.success('Color de insignia guardado')
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setShowColorPickerFor(isPickerOpen ? null : admin.id)
                       }}
-                      style={{ width: '22px', height: '22px', borderRadius: '50%', background: c, cursor: 'pointer', border: '1px solid #FFF' }}
-                    />
-                  ))}
-                </div>
-              )}
+                      onMouseEnter={() => setHoveredAdminId(admin.id)}
+                      onMouseLeave={() => setHoveredAdminId(null)}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        background: currentColor,
+                        color: '#FFFFFF',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 900,
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        border: '2px solid #0F172A',
+                        boxShadow: `0 0 10px ${currentColor}80`,
+                        transition: 'all 200ms ease',
+                        transform: isHovered || isPickerOpen ? 'scale(1.1)' : 'scale(1)'
+                      }}
+                      title={`${admin.name} (${admin.role}) - En línea (Clic para personalizar color)`}
+                    >
+                      {initial}
+                    </div>
+
+                    {/* Tooltip on Hover showing full name */}
+                    {isHovered && !isPickerOpen && (
+                      <div style={{
+                        position: 'absolute',
+                        top: '42px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        background: '#1E293B',
+                        border: '1px solid rgba(255,255,255,0.15)',
+                        borderRadius: '8px',
+                        padding: '6px 12px',
+                        whiteSpace: 'nowrap',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        color: '#FFFFFF',
+                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)',
+                        zIndex: 99999,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        pointerEvents: 'none'
+                      }}>
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981' }} />
+                        {admin.name} ({admin.role})
+                      </div>
+                    )}
+
+                    {/* Color Picker Popover on Click */}
+                    {isPickerOpen && (
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          position: 'absolute',
+                          top: '44px',
+                          right: 0,
+                          background: '#121527',
+                          border: '1px solid rgba(255,255,255,0.15)',
+                          borderRadius: '12px',
+                          padding: '10px',
+                          display: 'flex',
+                          gap: '6px',
+                          zIndex: 99999,
+                          boxShadow: '0 10px 30px rgba(0,0,0,0.6)'
+                        }}
+                      >
+                        {ADMIN_COLOR_PALETTE.map(c => (
+                          <div
+                            key={c}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setAdminColors(prev => ({ ...prev, [admin.id]: c }))
+                              if (typeof window !== 'undefined') {
+                                localStorage.setItem(`admin_color_${admin.id}`, c)
+                              }
+                              setShowColorPickerFor(null)
+                              toast.success(`Color actualizado para ${admin.name}`)
+                            }}
+                            style={{
+                              width: '22px',
+                              height: '22px',
+                              borderRadius: '50%',
+                              background: c,
+                              cursor: 'pointer',
+                              border: c === currentColor ? '2px solid #FFFFFF' : '1px solid rgba(255,255,255,0.2)',
+                              transform: c === currentColor ? 'scale(1.15)' : 'scale(1)',
+                              transition: 'all 150ms'
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
 
             {/* Chat Super Admin Button */}
