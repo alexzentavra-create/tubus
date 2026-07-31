@@ -8,7 +8,7 @@ import {
   Share2, Printer, Plus, Trash2, ChevronDown, CheckCircle2,
   Circle, Flag, Info, Megaphone, MessageSquare, Eye, EyeOff,
   BookOpen, Globe, Award, ListChecks, Key, Filter, History as HistoryIcon, ShieldCheck, Lock,
-  Settings, UserPlus, KeyRound, Shield, Save, Edit3
+  Settings, UserPlus, KeyRound, Shield, Save, Edit3, ShieldAlert, Ban, UserX
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { getStoredGeneralTerms, getStoredAdsTerms, saveStoredGeneralTerms, saveStoredAdsTerms } from '@/lib/termsData'
@@ -487,8 +487,7 @@ export default function SuperAdminDashboard() {
       if (stored) return JSON.parse(stored)
     } catch (e) {}
     return [
-      { id: 'sa-1', name: 'Alejandro Finochietti', email: 'alejandro.finochietti@yahoo.com.ar', password: 'Afodes18', role: 'Super Admin Principal', avatar: 'AF', status: 'Activo', lastLogin: 'Hoy 10:14 hs' },
-      { id: 'sa-2', name: 'Usuario Prueba', email: 'usuario@usuario.com', password: 'Usuario', role: 'Super Admin Secundario', avatar: 'UP', status: 'Activo', lastLogin: 'Hoy 09:30 hs' }
+      { id: 'sa-1', name: 'Usuario Administrador', email: 'usuario@usuario.com', password: 'Usuario', role: 'Super Admin Principal', avatar: 'UA', status: 'Activo', lastLogin: 'Hoy 09:30 hs' }
     ]
   })
 
@@ -514,10 +513,79 @@ export default function SuperAdminDashboard() {
   const [newSaPassword, setNewSaPassword] = useState('')
   const [newSaRole, setNewSaRole] = useState('Super Admin Completo')
 
-  // Password Edit Modal State
+  // Password Edit & Delete Modal States
   const [editingPasswordAdmin, setEditingPasswordAdmin] = useState<any | null>(null)
   const [newPasswordInput, setNewPasswordInput] = useState('')
   const [confirmPasswordInput, setConfirmPasswordInput] = useState('')
+  const [deletingSuperAdmin, setDeletingSuperAdmin] = useState<any | null>(null)
+
+  const handleToggleBlockSuperAdmin = (adminId: string, email: string) => {
+    const emailLower = email.toLowerCase()
+    const bannedList = JSON.parse(localStorage.getItem('banned_users') || '[]')
+
+    let newStatus = 'Activo'
+    let newBannedList = []
+
+    if (bannedList.includes(emailLower)) {
+      newBannedList = bannedList.filter((e: string) => e !== emailLower)
+      newStatus = 'Activo'
+      toast.success(`Super Administrador ${email} ha sido desbloqueado.`)
+    } else {
+      newBannedList = [...bannedList, emailLower]
+      newStatus = 'Bloqueado'
+      toast.error(`Super Administrador ${email} ha sido bloqueado y su acceso suspendido.`)
+    }
+
+    localStorage.setItem('banned_users', JSON.stringify(newBannedList))
+
+    const updated = superAdminAccounts.map((a: any) => {
+      if (a.id === adminId || a.email.toLowerCase() === emailLower) {
+        return { ...a, status: newStatus }
+      }
+      return a
+    })
+
+    setSuperAdminAccounts(updated)
+    localStorage.setItem('bu_super_admins', JSON.stringify(updated))
+  }
+
+  const handleConfirmDeleteSuperAdmin = () => {
+    if (!deletingSuperAdmin) return
+
+    const emailLower = deletingSuperAdmin.email.toLowerCase()
+
+    // 1. Remove from superAdminAccounts
+    const updated = superAdminAccounts.filter((a: any) => a.id !== deletingSuperAdmin.id && a.email.toLowerCase() !== emailLower)
+    setSuperAdminAccounts(updated)
+    localStorage.setItem('bu_super_admins', JSON.stringify(updated))
+
+    // 2. Add to deleted_super_admins
+    const deletedList = JSON.parse(localStorage.getItem('deleted_super_admins') || '[]')
+    if (!deletedList.includes(emailLower)) {
+      deletedList.push(emailLower)
+      localStorage.setItem('deleted_super_admins', JSON.stringify(deletedList))
+    }
+
+    // 3. Remove from mock_users and mock_super_users
+    const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
+    const filteredMockUsers = mockUsers.filter((u: any) => u.email.toLowerCase() !== emailLower)
+    localStorage.setItem('mock_users', JSON.stringify(filteredMockUsers))
+
+    const mockSuper = JSON.parse(localStorage.getItem('mock_super_users') || '[]')
+    const filteredMockSuper = mockSuper.filter((u: any) => u.email.toLowerCase() !== emailLower)
+    localStorage.setItem('mock_super_users', JSON.stringify(filteredMockSuper))
+
+    toast.success(`Super Administrador ${deletingSuperAdmin.name} eliminado permanentemente del sistema.`)
+
+    // 4. If current logged in user is the deleted user, log them out immediately
+    const activeUser = JSON.parse(localStorage.getItem('active_user') || '{}')
+    if (activeUser.email && activeUser.email.toLowerCase() === emailLower) {
+      localStorage.removeItem('active_user')
+      window.location.href = '/login'
+    }
+
+    setDeletingSuperAdmin(null)
+  }
 
   const handleAddSuperAdmin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -2517,50 +2585,103 @@ export default function SuperAdminDashboard() {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {superAdminAccounts.map((admin: any) => (
-                <div key={admin.id} style={{ background: '#1B1D2E', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: admin.email.includes('alejandro') ? 'linear-gradient(135deg, #3B82F6, #1D4ED8)' : 'linear-gradient(135deg, #10B981, #059669)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '14px' }}>
-                      {admin.avatar || 'SA'}
+              {superAdminAccounts.map((admin: any) => {
+                const isBlocked = admin.status === 'Bloqueado'
+                return (
+                  <div key={admin.id} style={{ background: '#1B1D2E', border: '1px solid ' + (isBlocked ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255,255,255,0.08)'), borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: isBlocked ? 'linear-gradient(135deg, #EF4444, #991B1B)' : 'linear-gradient(135deg, #3B82F6, #1D4ED8)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '14px' }}>
+                          {admin.avatar || 'SA'}
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {admin.name}
+                            <span style={{ fontSize: '10px', background: 'rgba(59,130,246,0.15)', color: '#3B82F6', border: '1px solid rgba(59,130,246,0.3)', padding: '1px 6px', borderRadius: '999px', fontWeight: 700 }}>
+                              {admin.role}
+                            </span>
+                            <span style={{ fontSize: '10px', background: isBlocked ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)', color: isBlocked ? '#EF4444' : '#10B981', border: '1px solid ' + (isBlocked ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)'), padding: '1px 6px', borderRadius: '999px', fontWeight: 700 }}>
+                              {isBlocked ? '🔒 Bloqueado' : '✓ Activo'}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#8F94A5', marginTop: '2px', fontFamily: 'DM Mono' }}>
+                            {admin.email}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {admin.name}
-                        <span style={{ fontSize: '10px', background: 'rgba(59,130,246,0.15)', color: '#3B82F6', border: '1px solid rgba(59,130,246,0.3)', padding: '1px 6px', borderRadius: '999px', fontWeight: 700 }}>
-                          {admin.role}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#8F94A5', marginTop: '2px', fontFamily: 'DM Mono' }}>
-                        {admin.email}
-                      </div>
+
+                    {/* Action buttons bar */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '10px', justifyContent: 'flex-end' }}>
+                      <button
+                        onClick={() => {
+                          setEditingPasswordAdmin(admin)
+                          setNewPasswordInput('')
+                          setConfirmPasswordInput('')
+                        }}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(245, 158, 11, 0.4)',
+                          background: 'rgba(245, 158, 11, 0.1)',
+                          color: '#F59E0B',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          transition: 'all 200ms'
+                        }}
+                      >
+                        <KeyRound size={13} /> Contraseña
+                      </button>
+
+                      <button
+                        onClick={() => handleToggleBlockSuperAdmin(admin.id, admin.email)}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid ' + (isBlocked ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'),
+                          background: isBlocked ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                          color: isBlocked ? '#10B981' : '#EF4444',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          transition: 'all 200ms'
+                        }}
+                      >
+                        {isBlocked ? <ShieldCheck size={13} /> : <Ban size={13} />}
+                        {isBlocked ? 'Desbloquear' : 'Bloquear Access'}
+                      </button>
+
+                      <button
+                        onClick={() => setDeletingSuperAdmin(admin)}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(239, 68, 68, 0.5)',
+                          background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(185, 28, 28, 0.2))',
+                          color: '#EF4444',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          transition: 'all 200ms'
+                        }}
+                        title="Eliminar permanentemente del backend y frontend"
+                      >
+                        <Trash2 size={13} /> Eliminar
+                      </button>
                     </div>
                   </div>
-
-                  <button
-                    onClick={() => {
-                      setEditingPasswordAdmin(admin)
-                      setNewPasswordInput('')
-                      setConfirmPasswordInput('')
-                    }}
-                    style={{
-                      padding: '8px 14px',
-                      borderRadius: '8px',
-                      border: '1px solid rgba(245, 158, 11, 0.4)',
-                      background: 'rgba(245, 158, 11, 0.1)',
-                      color: '#F59E0B',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      transition: 'all 200ms'
-                    }}
-                  >
-                    <KeyRound size={14} /> Cambiar Contraseña
-                  </button>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
 
@@ -2791,6 +2912,41 @@ export default function SuperAdminDashboard() {
                   style={{ padding: '10px 18px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #F59E0B, #D97706)', color: '#FFFFFF', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}
                 >
                   Guardar Contraseña
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Delete Super Admin Confirmation Modal */}
+        {deletingSuperAdmin && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+            <div style={{ background: '#121527', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '16px', width: '100%', maxWidth: '440px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 20px 40px rgba(239,68,68,0.2)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <Trash2 size={22} style={{ color: '#EF4444' }} />
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#FFFFFF' }}>Eliminar Super Administrador</h3>
+                </div>
+                <button onClick={() => setDeletingSuperAdmin(null)} style={{ background: 'none', border: 'none', color: '#8F94A5', cursor: 'pointer', fontSize: '16px' }}>✕</button>
+              </div>
+
+              <div style={{ fontSize: '13px', color: '#A3A6B8', lineHeight: '1.6' }}>
+                ¿Estás seguro de que querés eliminar permanentemente al Super Administrador <strong style={{ color: '#FFFFFF' }}>{deletingSuperAdmin.name}</strong> (<span style={{ fontFamily: 'DM Mono', color: '#EF4444' }}>{deletingSuperAdmin.email}</span>)?
+                <br /><br />
+                ⚠️ <strong style={{ color: '#EF4444' }}>Esta acción es irreversible:</strong> Se eliminará la cuenta del backend, frontend, base de datos y registros del sistema, impidiendo cualquier acceso futuro.
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <button
+                  onClick={() => setDeletingSuperAdmin(null)}
+                  style={{ padding: '10px 16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)', background: 'transparent', color: '#FFFFFF', fontSize: '13px', cursor: 'pointer' }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleConfirmDeleteSuperAdmin}
+                  style={{ padding: '10px 18px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #EF4444, #B91C1C)', color: '#FFFFFF', fontSize: '13px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.4)' }}
+                >
+                  Eliminar Permanentemente
                 </button>
               </div>
             </div>
