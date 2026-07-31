@@ -745,14 +745,42 @@ export default function SuperAdminDashboard() {
 
         const baseList: any[] = [...REAL_USERS]
 
-        const isFake = (email?: string, id?: string) => {
-          const lower = (email || '').toLowerCase().trim()
-          return lower.includes('demo.com.ar') ||
-                 lower.includes('ale.zentavra') ||
-                 lower.includes('sofia') ||
-                 lower.includes('mateo') ||
-                 lower.includes('mariana') ||
-                 id === 'usr-1' || id === 'usr-2' || id === 'usr-3' || id === 'usr-4'
+        const isFake = (email?: string, id?: string, name?: string) => {
+          const lowerEmail = (email || '').toLowerCase().trim()
+          const lowerName = (name || '').toLowerCase().trim()
+
+          if (!lowerEmail && !lowerName) return true
+
+          // Real allowed baseline users
+          if (lowerEmail === 'usuario@usuario.com' ||
+              lowerEmail === 'usuario@usuario' ||
+              lowerEmail === 'alejandro.finochietti@yahoo.com.ar' ||
+              lowerEmail === 'alejandro.finochietti@bienparada.ar') {
+            return false
+          }
+
+          // Strict filter out any mock user, mock email, line admin alias, or fake name
+          if (lowerEmail.endsWith('@tubus.ar') ||
+              lowerEmail.includes('linea0') ||
+              lowerEmail.includes('linea12') ||
+              lowerEmail.includes('linea37') ||
+              lowerEmail.includes('demo.com.ar') ||
+              lowerEmail.includes('ale.zentavra') ||
+              lowerEmail.includes('sofia') ||
+              lowerEmail.includes('mateo') ||
+              lowerEmail.includes('mariana') ||
+              lowerEmail.includes('marcos') ||
+              lowerEmail.includes('roberto') ||
+              lowerEmail.includes('n.stor') ||
+              lowerName.includes('marcos') ||
+              lowerName.includes('néstor') ||
+              lowerName.includes('nestor') ||
+              lowerName.includes('roberto') ||
+              id === 'usr-1' || id === 'usr-2' || id === 'usr-3' || id === 'usr-4' || id === 'usr-5' || id === 'usr-6') {
+            return true
+          }
+
+          return false
         }
 
         const formatUserObj = (u: any, fallbackId?: string) => {
@@ -799,13 +827,13 @@ export default function SuperAdminDashboard() {
         const finalMap: Record<string, any> = {}
 
         baseList.forEach(u => {
-          if (!isFake(u.email, u.id)) {
+          if (!isFake(u.email, u.id, u.name)) {
             finalMap[u.email.toLowerCase()] = u
           }
         })
 
         storedSuperUsers.forEach(u => {
-          if (u.email && !isFake(u.email, u.id)) {
+          if (u.email && !isFake(u.email, u.id, u.name)) {
             const emailKey = u.email.toLowerCase()
             const existing = finalMap[emailKey]
             finalMap[emailKey] = { ...existing, ...u }
@@ -813,7 +841,7 @@ export default function SuperAdminDashboard() {
         })
 
         storedMockUsers.forEach(u => {
-          if (u.email && !isFake(u.email, u.id)) {
+          if (u.email && !isFake(u.email, u.id, u.name)) {
             const emailKey = u.email.toLowerCase()
             const existing = finalMap[emailKey]
             const formatted = formatUserObj(u, u.id)
@@ -821,7 +849,7 @@ export default function SuperAdminDashboard() {
           }
         })
 
-        if (activeUser && activeUser.email && !isFake(activeUser.email, activeUser.id)) {
+        if (activeUser && activeUser.email && !isFake(activeUser.email, activeUser.id, activeUser.name)) {
           const emailKey = activeUser.email.toLowerCase()
           const existing = finalMap[emailKey]
           const formatted = formatUserObj(activeUser, activeUser.id)
@@ -830,8 +858,13 @@ export default function SuperAdminDashboard() {
 
         const mergedList = Object.values(finalMap)
         setLiveUserList(mergedList)
+        setStats(prev => ({ ...prev, totalUsers: mergedList.length }))
         localStorage.setItem('mock_super_users', JSON.stringify(mergedList))
         localStorage.setItem('bu_registered_users', JSON.stringify(mergedList))
+        
+        // Scrub localStorage mock_users to remove fake items permanently
+        const cleanedMockUsers = storedMockUsers.filter((u: any) => !isFake(u.email, u.id, u.name))
+        localStorage.setItem('mock_users', JSON.stringify(cleanedMockUsers))
       } catch (err) {
         console.error('Error syncing real-time user data:', err)
       }
