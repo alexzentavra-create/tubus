@@ -359,7 +359,7 @@ export default function LoginPage() {
     return () => window.removeEventListener('storage', syncTerms)
   }, [])
   const [city, setCity] = useState('buenos_aires')
-  const [form, setForm] = useState({ email:'', password:'', name:'', phone:'', age:'', weeklyTrips:'' })
+  const [form, setForm] = useState({ email:'', password:'', name:'', phone:'', gender:'Masculino', age:'', weeklyTrips:'' })
   const [bannedEmail, setBannedEmail] = useState<string | null>(null)
   const [showAppealForm, setShowAppealForm] = useState(false)
   const [appealReason, setAppealReason] = useState('')
@@ -393,6 +393,14 @@ export default function LoginPage() {
         }
 
         localStorage.setItem('selected_city', city)
+
+        // Check if email is in deleted users list
+        const deletedUsers = JSON.parse(localStorage.getItem('deleted_users') || '[]')
+        if (deletedUsers.includes(lowerEmail)) {
+          toast.error('Esta cuenta de usuario ha sido eliminada por el Administrador.')
+          setLoading(false)
+          return
+        }
 
         // Check if email is in deleted super admins list
         const deletedSuperAdmins = JSON.parse(localStorage.getItem('deleted_super_admins') || '[]')
@@ -628,6 +636,7 @@ export default function LoginPage() {
             email: form.email.trim().toLowerCase(),
             password: form.password.trim(),
             phone: form.phone.trim() || '+54 11 5555-5555',
+            gender: form.gender || 'Masculino',
             age: parseInt(form.age) || 25,
             role: 'user',
             joinedDate: new Date().toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' }),
@@ -661,6 +670,8 @@ export default function LoginPage() {
           localStorage.setItem('tu_bus_profile_email', newUserData.email)
           localStorage.setItem('profile_phone', newUserData.phone)
           localStorage.setItem('tu_bus_profile_phone', newUserData.phone)
+          localStorage.setItem('profile_gender', newUserData.gender)
+          localStorage.setItem('tu_bus_profile_gender', newUserData.gender)
 
           // 4. Initialize clean 0 state for new user
           localStorage.setItem('bu_search_history_' + userId, JSON.stringify([]))
@@ -762,6 +773,29 @@ export default function LoginPage() {
                 {mode==='register' && (<>
                   <Input type="tel" placeholder="Teléfono de contacto (ej: +54 11 5555-5555)" value={form.phone} onChange={set('phone')} right={<Phone size={15}/>}/>
                   <Input type="number" placeholder="Edad" value={form.age} onChange={set('age')} right={<Calendar size={15}/>}/>
+                  <div style={{display:'flex',flexDirection:'column',gap:'4px'}}>
+                    <label style={{fontSize:'11px',color:'var(--text-secondary)',fontFamily:'DM Sans,sans-serif',fontWeight:500}}>Género</label>
+                    <select
+                      value={form.gender || 'Masculino'}
+                      onChange={(e) => setForm(f => ({ ...f, gender: e.target.value }))}
+                      style={{
+                        width:'100%',
+                        padding:'11px 14px',
+                        background:'rgba(6,8,16,0.7)',
+                        border:'1px solid rgba(184,200,224,0.12)',
+                        borderRadius:'var(--r-sm)',
+                        color:'var(--text-primary)',
+                        fontSize:'14px',
+                        fontFamily:'DM Sans,sans-serif',
+                        outline:'none',
+                        boxShadow:'0 2px 8px rgba(0,0,0,0.3) inset',
+                        boxSizing:'border-box' as const
+                      }}
+                    >
+                      <option value="Masculino" style={{background:'#0a0e14',color:'#fff'}}>Masculino</option>
+                      <option value="Femenino" style={{background:'#0a0e14',color:'#fff'}}>Femenino</option>
+                    </select>
+                  </div>
                 </>)}
 
                 <div style={{display:'flex',flexDirection:'column',gap:'4px',margin:'2px 0 4px'}}>

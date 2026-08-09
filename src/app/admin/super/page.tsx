@@ -737,11 +737,19 @@ export default function SuperAdminDashboard() {
 
         const baseList: any[] = [...REAL_USERS]
 
+        const activeUserEmail = (activeUser?.email || '').toLowerCase().trim()
+        const deletedUsersList: string[] = JSON.parse(localStorage.getItem('deleted_users') || '[]').map((e: string) => e.toLowerCase().trim())
+
         const isRealPassengerUser = (u: any) => {
           if (!u || !u.email) return false
           const email = u.email.toLowerCase().trim()
           const name = (u.name || '').toLowerCase().trim()
           const role = u.role || 'user'
+
+          // Exclude deleted users
+          if (deletedUsersList.includes(email)) {
+            return false
+          }
 
           // Exclude Super Admin & Company Line Admins & Drivers
           if (role === 'superadmin' || role === 'driver' || role === 'company_admin' || role === 'admin') {
@@ -771,7 +779,12 @@ export default function SuperAdminDashboard() {
         // 1. Add baseline real passenger users
         REAL_USERS.forEach(u => {
           if (isRealPassengerUser(u)) {
-            finalMap[u.email.toLowerCase()] = u
+            const emailKey = u.email.toLowerCase().trim()
+            finalMap[emailKey] = {
+              ...u,
+              status: emailKey === activeUserEmail ? 'Activo' : 'Inactivo',
+              gender: u.gender || 'Masculino'
+            }
           }
         })
 
@@ -783,26 +796,28 @@ export default function SuperAdminDashboard() {
 
         allCandidateUsers.forEach(u => {
           if (u.email && isRealPassengerUser(u)) {
-            const emailKey = u.email.toLowerCase()
+            const emailKey = u.email.toLowerCase().trim()
             const existing = finalMap[emailKey] || {}
             
             const name = u.name || existing.name || u.email.split('@')[0]
             const avatarParts = name.split(' ').map((p: string) => p[0]).join('').toUpperCase().slice(0, 2)
+            const isOnline = emailKey === activeUserEmail
 
             finalMap[emailKey] = {
               id: u.id || existing.id || `usr-${Date.now()}`,
               name: name,
-              email: u.email.toLowerCase(),
+              email: emailKey,
               password: u.password || existing.password || '••••••••',
               avatar: avatarParts || 'US',
               joinedDate: u.joinedDate || existing.joinedDate || 'Hoy, 2026',
-              status: u.status || existing.status || 'Activo',
+              status: isOnline ? 'Activo' : 'Inactivo',
               searches: u.searches || existing.searches || 0,
               trips: u.trips || existing.trips || 0,
               rating: 5.0,
               favLines: u.favLines || [],
               behavior: u.behavior || 'Usuario registrado en la plataforma.',
               phone: u.phone || existing.phone || '+54 11 5555-5555',
+              gender: u.gender || existing.gender || 'Masculino',
               city: u.city || 'Buenos Aires',
               province: u.province || 'Buenos Aires',
               weeklyUsage: u.weeklyUsage || [
@@ -820,7 +835,7 @@ export default function SuperAdminDashboard() {
 
         // 3. Include active_user if passenger
         if (activeUser && activeUser.email && isRealPassengerUser(activeUser)) {
-          const emailKey = activeUser.email.toLowerCase()
+          const emailKey = activeUser.email.toLowerCase().trim()
           const existing = finalMap[emailKey] || {}
           const name = activeUser.name || existing.name || activeUser.email.split('@')[0]
           const avatarParts = name.split(' ').map((p: string) => p[0]).join('').toUpperCase().slice(0, 2)
@@ -828,12 +843,13 @@ export default function SuperAdminDashboard() {
           finalMap[emailKey] = {
             id: activeUser.id || existing.id || `usr-${Date.now()}`,
             name: name,
-            email: activeUser.email.toLowerCase(),
+            email: emailKey,
             password: activeUser.password || existing.password || '••••••••',
             avatar: avatarParts || 'US',
             joinedDate: activeUser.joinedDate || existing.joinedDate || 'Hoy, 2026',
             status: 'Activo',
             phone: activeUser.phone || existing.phone || '+54 11 5555-5555',
+            gender: activeUser.gender || existing.gender || 'Masculino',
             searches: activeUser.searches || existing.searches || 0,
             trips: activeUser.trips || existing.trips || 0,
             rating: 5.0,
@@ -928,10 +944,35 @@ export default function SuperAdminDashboard() {
       localStorage.setItem('bu_line_admins', JSON.stringify(updated))
       if (selectedLineAdminId === id) setSelectedLineAdminId('')
     } else if (type === 'user') {
-      const updated = liveUserList.filter((u: any) => u.id !== id && u.name !== name)
+      const targetUser = liveUserList.find((u: any) => u.id === id || u.name === name)
+      const userEmail = (targetUser?.email || '').toLowerCase().trim()
+
+      const updated = liveUserList.filter((u: any) => u.id !== id && (userEmail ? u.email?.toLowerCase().trim() !== userEmail : u.name !== name))
       setLiveUserList(updated)
+      setStats(prev => ({ ...prev, totalUsers: Math.max(0, updated.length) }))
       localStorage.setItem('bu_registered_users', JSON.stringify(updated))
       localStorage.setItem('mock_super_users', JSON.stringify(updated))
+
+      // Clean mock_users
+      const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
+      const filteredMock = mockUsers.filter((u: any) => u.id !== id && (userEmail ? u.email?.toLowerCase().trim() !== userEmail : u.name !== name))
+      localStorage.setItem('mock_users', JSON.stringify(filteredMock))
+
+      // Append user email to deleted_users list to block future logins
+      if (userEmail) {
+        const deletedUsers = JSON.parse(localStorage.getItem('deleted_users') || '[]')
+        if (!deletedUsers.includes(userEmail)) {
+          deletedUsers.push(userEmail)
+          localStorage.setItem('deleted_users', JSON.stringify(deletedUsers))
+        }
+      }
+
+      // If active_user session matches deleted user, clear active session
+      const activeUser = JSON.parse(localStorage.getItem('active_user') || '{}')
+      if (activeUser.email && activeUser.email.toLowerCase().trim() === userEmail) {
+        localStorage.removeItem('active_user')
+      }
+
       if (selectedUserId === id) setSelectedUserId('')
     } else if (type === 'news') {
       const updated = news.filter((n: any) => n.id !== id && n.title !== name)
@@ -1592,11 +1633,13 @@ export default function SuperAdminDashboard() {
                   </div>
                   <div style={{ background: 'rgba(255,255,255,0.03)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
                     <span style={{ color: '#8f94a5', fontSize: '9px', display: 'block' }}>GÉNERO</span>
-                    <span style={{ color: '#fff', fontWeight: 600 }}>👤 {selectedUser.gender || 'No especificado'}</span>
+                    <span style={{ color: '#fff', fontWeight: 600 }}>👤 {selectedUser.gender || 'Masculino'}</span>
                   </div>
                   <div style={{ background: 'rgba(255,255,255,0.03)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
                     <span style={{ color: '#8f94a5', fontSize: '9px', display: 'block' }}>PARADA MÁS FRECUENTE</span>
-                    <span style={{ color: '#10B981', fontWeight: 600 }}>📍 {selectedUser.frequentStop || 'Av. Santa Fe y Callao'}</span>
+                    <span style={{ color: (selectedUser.trips > 0 || (selectedUser.searchHistory && selectedUser.searchHistory.length > 0)) ? '#10B981' : '#8f94a5', fontWeight: 600 }}>
+                      📍 {(selectedUser.trips > 0 || (selectedUser.searchHistory && selectedUser.searchHistory.length > 0)) ? (selectedUser.frequentStop || 'Av. Santa Fe y Callao') : 'Sin viajes registrados'}
+                    </span>
                   </div>
                   <div style={{ background: 'rgba(255,255,255,0.03)', padding: '8px 10px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
                     <span style={{ color: '#8f94a5', fontSize: '9px', display: 'block' }}>PLAN & PUBLICIDAD</span>
