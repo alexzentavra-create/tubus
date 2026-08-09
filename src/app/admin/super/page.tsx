@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Bus, Users, Building2, Activity, TrendingUp, AlertTriangle,
@@ -4742,13 +4742,37 @@ function SingleLineMap({ line, onMessageAdmin, theme }: { line: any, onMessageAd
     }))
   }, [basePath, activeRamal])
 
-  const [time, setTime] = useState(Date.now())
+  const [activeBuses, setActiveBuses] = useState<any[]>([])
   const [showDetailModal, setShowDetailModal] = useState(false)
 
+  const syncLineActiveBuses = useCallback(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const activeSessions: any[] = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+      const lineBuses = activeSessions.filter((s: any) => {
+        const sLine = String(s.lineId || s.lineNumber || s.lineName || '').toLowerCase().trim()
+        const lName = String(line.name || line.id || '').toLowerCase().trim()
+        const lNum = String(line.number || line.id || '').toLowerCase().trim()
+        return sLine.includes(lNum) || lName.includes(sLine) || sLine === lNum || (lNum === '0' && (sLine === '0' || sLine.includes('linea 0'))) || (lNum === '12' && (sLine === '12' || sLine.includes('linea 12')))
+      })
+      setActiveBuses(lineBuses)
+    } catch (e) {
+      setActiveBuses([])
+    }
+  }, [line])
+
   useEffect(() => {
-    const timer = setInterval(() => setTime(Date.now()), 1000)
-    return () => clearInterval(timer)
-  }, [])
+    syncLineActiveBuses()
+    const timer = setInterval(syncLineActiveBuses, 1000)
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'mock_active_sessions') syncLineActiveBuses()
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => {
+      clearInterval(timer)
+      window.removeEventListener('storage', handleStorage)
+    }
+  }, [syncLineActiveBuses])
 
   const [viewport, setViewport] = useState({
     latitude: path[0]?.lat || -34.6037,
@@ -4767,15 +4791,6 @@ function SingleLineMap({ line, onMessageAdmin, theme }: { line: any, onMessageAd
     }
   }, [path[0]?.lat, path[0]?.lng])
 
-  const pathLen = path.length
-  if (pathLen < 2) return null
-
-  // Calculate simulated bus coordinates along the path line
-  const busIndex1 = Math.floor((time / 1400) % pathLen)
-  const busIndex2 = Math.floor((time / 1400 + pathLen / 2.5) % pathLen)
-  const bus1 = path[busIndex1]
-  const bus2 = path[busIndex2]
-
   const geojson: any = {
     type: 'Feature',
     properties: {},
@@ -4787,6 +4802,12 @@ function SingleLineMap({ line, onMessageAdmin, theme }: { line: any, onMessageAd
 
   const adminInCharge = LINE_ADMINS[line.id] || { name: 'Operaciones Gral', email: 'ops@bienparada.com.ar' }
   const lineStopsList = getMockStopsForLine(line, 'ida')
+
+  const activeBusesCount = activeBuses.length
+  const avgSpeed = activeBusesCount > 0
+    ? Math.round(activeBuses.reduce((acc: number, b: any) => acc + (b.speed_kmh || b.speed || 0), 0) / activeBusesCount)
+    : 0
+  const totalPassengers = activeBuses.reduce((acc: number, b: any) => acc + (b.total_passengers || b.passengers || 0), 0)
 
   return (
     <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -4818,17 +4839,34 @@ function SingleLineMap({ line, onMessageAdmin, theme }: { line: any, onMessageAd
             />
           </Source>
 
-          {/* Simulated buses markers */}
-          {bus1 && (
-            <Marker latitude={bus1.lat} longitude={bus1.lng}>
-              <div style={{ background: '#10B981', border: '2px solid #fff', width: '12px', height: '12px', borderRadius: '50%', boxShadow: '0 0 10px rgba(16,185,129,0.8)' }} />
-            </Marker>
-          )}
-          {bus2 && (
-            <Marker latitude={bus2.lat} longitude={bus2.lng}>
-              <div style={{ background: '#3b82f6', border: '2px solid #fff', width: '12px', height: '12px', borderRadius: '50%', boxShadow: '0 0 10px rgba(59,130,246,0.8)' }} />
-            </Marker>
-          )}
+          {/* Real active buses markers (only rendered when chofer is active!) */}
+          {activeBuses.map((b: any, bIdx: number) => {
+            const lat = b.latitude || b.lat || path[0]?.lat || -34.6037
+            const lng = b.longitude || b.lng || path[0]?.lng || -58.3816
+            return (
+              <Marker key={b.sessionId || b.busUnit || bIdx} latitude={lat} longitude={lng}>
+                <div
+                  title={`Interno #${b.busUnit || '001'} - ${b.driverName || 'Chofer'}`}
+                  style={{
+                    background: '#10B981',
+                    border: '2px solid #fff',
+                    width: '14px',
+                    height: '14px',
+                    borderRadius: '50%',
+                    boxShadow: '0 0 12px rgba(16,185,129,0.9)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#fff',
+                    fontSize: '8px',
+                    fontWeight: 800
+                  }}
+                >
+                  🚌
+                </div>
+              </Marker>
+            )
+          })}
         </Map>
       </div>
 
@@ -4864,8 +4902,10 @@ function SingleLineMap({ line, onMessageAdmin, theme }: { line: any, onMessageAd
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#8f94a5', fontFamily: 'DM Mono', marginTop: '4px' }}>
-        <span>2 Colectivos Activos</span>
-        <span>Velocidad: 22 km/h</span>
+        <span style={{ color: activeBusesCount > 0 ? '#10B981' : '#8f94a5', fontWeight: activeBusesCount > 0 ? 700 : 400 }}>
+          {activeBusesCount} {activeBusesCount === 1 ? 'Colectivo Activo' : 'Colectivos Activos'}
+        </span>
+        <span>Velocidad: {activeBusesCount > 0 ? `${avgSpeed} km/h` : '0 km/h'}</span>
       </div>
 
       <button
@@ -4970,15 +5010,15 @@ function SingleLineMap({ line, onMessageAdmin, theme }: { line: any, onMessageAd
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
                 <div style={{ background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
                   <div style={{ fontSize: '9px', color: '#8f94a5' }}>Colectivos</div>
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#10B981', marginTop: '4px' }}>2 activos</div>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: activeBusesCount > 0 ? '#10B981' : '#8f94a5', marginTop: '4px' }}>{activeBusesCount} activos</div>
                 </div>
                 <div style={{ background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
                   <div style={{ fontSize: '9px', color: '#8f94a5' }}>Pasajeros</div>
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#8B5CF6', marginTop: '4px' }}>240 en viaje</div>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#8B5CF6', marginTop: '4px' }}>{totalPassengers} en viaje</div>
                 </div>
                 <div style={{ background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
                   <div style={{ fontSize: '9px', color: '#8f94a5' }}>Velocidad</div>
-                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#3b82f6', marginTop: '4px' }}>22 km/h</div>
+                  <div style={{ fontSize: '16px', fontWeight: 700, color: '#3b82f6', marginTop: '4px' }}>{activeBusesCount > 0 ? `${avgSpeed} km/h` : '0 km/h'}</div>
                 </div>
                 <div style={{ background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
                   <div style={{ fontSize: '9px', color: '#8f94a5' }}>Paradas</div>
