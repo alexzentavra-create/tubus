@@ -2181,32 +2181,50 @@ export default function SuperAdminDashboard() {
   }
 
   const renderDriversDetail = () => {
-    // Base registered driver roster
     const baseDrivers = [
-      { id: 'drv-1', name: 'Néstor García', line: 'Línea 12', unit: '1201', email: 'nestor@linea12.ar' },
-      { id: 'drv-2', name: 'Roberto Sánchez', line: 'Línea 12', unit: '1202', email: 'roberto@linea12.ar' },
-      { id: 'drv-3', name: 'Juan Carlos Pérez', line: 'Línea 12', unit: '1203', email: 'juancarlos@linea12.ar' },
-      { id: 'drv-4', name: 'Marcos Díaz', line: 'Línea 0', unit: '001', email: 'marcos@linea0.ar' },
-      { id: 'drv-5', name: 'Carlos Martínez', line: 'Línea 0', unit: '002', email: 'carlos@linea0.ar' }
+      { id: 'drv-1', name: 'Néstor García', line: 'Línea 12', email: 'nestor@linea12.ar' },
+      { id: 'drv-2', name: 'Roberto Sánchez', line: 'Línea 12', email: 'roberto@linea12.ar' },
+      { id: 'drv-3', name: 'Juan Carlos Pérez', line: 'Línea 12', email: 'juan@linea12.ar' },
+      { id: 'drv-4', name: 'Marcos Díaz', line: 'Línea 0', email: 'marcos@linea0.ar' },
+      { id: 'drv-5', name: 'Carlos Martínez', line: 'Línea 0', email: 'carlos@linea0.ar' }
     ]
 
-    const activeSessions: any[] = JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('mock_active_sessions') || '[]' : '[]')
+    const regDrivers = JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('registered_drivers') || '[]' : '[]')
+    const deletedDriversList = JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('deleted_drivers') || '[]' : '[]').map((d: string) => d.toLowerCase())
+    const activeSessions = JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('mock_active_sessions') || '[]' : '[]')
 
-    const liveDriversList = baseDrivers.map(d => {
+    const combinedList = [...baseDrivers]
+    regDrivers.forEach((rd: any, i: number) => {
+      if (!combinedList.some(b => b.email?.toLowerCase() === rd.email?.toLowerCase())) {
+        combinedList.push({
+          id: `reg-${i}`,
+          name: rd.name || 'Chofer Registrado',
+          line: rd.line_name || `Línea ${rd.lineNumber || '0'}`,
+          email: rd.email || 'chofer@empresa.com'
+        })
+      }
+    })
+
+    const filteredActiveList = combinedList.filter(d => 
+      !deletedDriversList.includes(d.email?.toLowerCase()) && 
+      !deletedDriversList.includes(d.name?.toLowerCase())
+    )
+
+    const liveDriversList = filteredActiveList.map(d => {
       const activeSession = activeSessions.find((s: any) =>
-        (s.driverId && s.driverId === d.id) ||
-        (s.driverName && s.driverName.toLowerCase().includes(d.name.split(' ')[0].toLowerCase())) ||
-        (s.busUnit && s.busUnit === d.unit)
+        (s.profiles?.name && s.profiles.name.toLowerCase() === d.name.toLowerCase()) ||
+        (s.driverEmail && s.driverEmail.toLowerCase() === d.email.toLowerCase())
       )
 
       const isOnline = !!activeSession
 
       return {
         ...d,
+        unit: activeSession ? activeSession.bus_unit : '--',
         online: isOnline,
         trips: isOnline ? (activeSession.trips || 1) : 0,
         rating: 5.0,
-        activity: isOnline ? `Conduciendo en ruta, velocidad ${activeSession.speed_kmh || activeSession.speed || 0} km/h.` : 'Fuera de servicio / Sin turno activo.'
+        activity: isOnline ? `Conduciendo en ruta por ${d.line}, Unidad ${activeSession.bus_unit}.` : 'Fuera de servicio / Sin turno activo.'
       }
     })
 
@@ -2247,7 +2265,9 @@ export default function SuperAdminDashboard() {
                 <tr key={d.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: idx % 2 === 0 ? 'rgba(0,0,0,0.1)' : 'transparent' }}>
                   <td style={{ padding: '12px 16px', fontWeight: 600, color: d.online ? '#fff' : '#8f94a5' }}>{d.name}</td>
                   <td style={{ padding: '12px 16px', color: d.online ? '#fff' : '#8f94a5' }}>{d.line}</td>
-                  <td style={{ padding: '12px 16px', fontFamily: 'DM Mono', color: d.online ? '#10B981' : '#8f94a5' }}>#{d.unit}</td>
+                  <td style={{ padding: '12px 16px', fontFamily: 'DM Mono', color: d.online ? '#10B981' : '#8f94a5', fontWeight: d.online ? 700 : 400 }}>
+                    {d.unit !== '--' ? `#${d.unit}` : '--'}
+                  </td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{
                       fontSize: '8px',
@@ -2260,9 +2280,9 @@ export default function SuperAdminDashboard() {
                       {d.online ? 'ONLINE' : 'OFFLINE'}
                     </span>
                   </td>
-                  <td style={{ padding: '12px 16px', textAlign: 'center', color: d.online ? '#fff' : '#8f94a5' }}>{d.trips}</td>
-                  <td style={{ padding: '12px 16px', color: '#F59E0B', fontWeight: 600 }}>★ {d.rating}</td>
-                  <td style={{ padding: '12px 16px', color: d.online ? '#10B981' : '#8f94a5' }}>{d.activity}</td>
+                  <td style={{ padding: '12px 16px', textAlign: 'center', color: '#fff', fontWeight: 600 }}>{d.trips}</td>
+                  <td style={{ padding: '12px 16px', color: '#F59E0B', fontWeight: 700 }}>★ {d.rating}</td>
+                  <td style={{ padding: '12px 16px', color: d.online ? '#fff' : '#8f94a5' }}>{d.activity}</td>
                 </tr>
               ))}
             </tbody>
@@ -5510,14 +5530,63 @@ function PoisTab() {
 function DriversTab() {
   const [showPasswordMap, setShowPasswordMap] = useState<Record<string, boolean>>({})
   const [selectedQr, setSelectedQr] = useState<any | null>(null)
-  const [deleteDriverTarget, setDeleteDriverTarget] = useState<{ type: 'driver' | 'qr'; id: string; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'driver' | 'qr'; id: string; name: string; email?: string; bus_unit?: string; qr_token?: string } | null>(null)
 
-  const handleConfirmDriverDelete = () => {
-    if (!deleteDriverTarget) return
-    const { type, id, name } = deleteDriverTarget
-    toast.success(`🗑️ "${name}" eliminado permanentemente.`)
-    setDeleteDriverTarget(null)
-  }
+  const [activeSessions, setActiveSessions] = useState<any[]>([])
+  const [registeredDrivers, setRegisteredDrivers] = useState<any[]>([])
+  const [deletedDrivers, setDeletedDrivers] = useState<string[]>([])
+  const [qrCodes, setQrCodes] = useState<any[]>([])
+  const [deletedQRs, setDeletedQRs] = useState<string[]>([])
+
+  // Reload state from localStorage
+  const loadData = useCallback(() => {
+    try {
+      const active = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+      setActiveSessions(active)
+
+      const reg = JSON.parse(localStorage.getItem('registered_drivers') || '[]')
+      setRegisteredDrivers(reg)
+
+      const delD = JSON.parse(localStorage.getItem('deleted_drivers') || '[]')
+      setDeletedDrivers(delD.map((d: string) => d.toLowerCase()))
+
+      const storedQRs = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
+      const delQ = JSON.parse(localStorage.getItem('deleted_qr_codes') || '[]')
+      setDeletedQRs(delQ)
+
+      if (storedQRs.length === 0) {
+        // Initialize default real QR codes for Line 0 & Line 12 if none exist
+        const initialQRs = [
+          { id: 'qr-001', line_number: '0', line_id: 'line-0', line_name: 'Línea 0', bus_unit: '001', qr_token: 'DEMO-QR-L0-000', is_active: true },
+          { id: 'qr-002', line_number: '0', line_id: 'line-0', line_name: 'Línea 0', bus_unit: '002', qr_token: 'DEMO-QR-L0-002', is_active: true },
+          { id: 'qr-1201', line_number: '12', line_id: 'line-12', line_name: 'Línea 12', bus_unit: '1201', qr_token: 'DEMO-QR-L12-001', is_active: true },
+          { id: 'qr-1202', line_number: '12', line_id: 'line-12', line_name: 'Línea 12', bus_unit: '1202', qr_token: 'DEMO-QR-L12-002', is_active: true },
+          { id: 'qr-1203', line_number: '12', line_id: 'line-12', line_name: 'Línea 12', bus_unit: '1203', qr_token: 'DEMO-QR-L12-003', is_active: true }
+        ]
+        localStorage.setItem('mock_bus_qr_codes', JSON.stringify(initialQRs))
+        setQrCodes(initialQRs)
+      } else {
+        setQrCodes(storedQRs)
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadData()
+    const interval = setInterval(loadData, 2000)
+    const handleStorage = () => loadData()
+    window.addEventListener('storage', handleStorage)
+    window.addEventListener('drivers_updated', handleStorage)
+    window.addEventListener('qr_codes_updated', handleStorage)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('storage', handleStorage)
+      window.removeEventListener('drivers_updated', handleStorage)
+      window.removeEventListener('qr_codes_updated', handleStorage)
+    }
+  }, [loadData])
 
   const togglePasswordVisibility = (driverName: string) => {
     setShowPasswordMap(prev => ({
@@ -5526,18 +5595,102 @@ function DriversTab() {
     }))
   }
 
-  const allDrivers = Object.entries(LINE_DETAILS).flatMap(([lineId, details]) => {
-    const lineInfo = LINES_DATA.find(l => l.id === lineId) || { name: `Línea` }
-    return details.driversList.map(d => ({
-      name: d.name,
-      email: d.email,
-      pass: d.pass,
-      unit: d.unit,
-      line: lineInfo.name,
-      online: d.online,
-      rating: d.rating,
-    }))
+  // Base list of baseline real choferes across lines
+  const BASE_DRIVERS = [
+    { name: 'Marcos Díaz', email: 'marcos@linea0.ar', pass: 'Bienparada', line: 'Línea 0', line_number: '0' },
+    { name: 'Carlos Martínez', email: 'carlos@linea0.ar', pass: 'Bienparada', line: 'Línea 0', line_number: '0' },
+    { name: 'Néstor García', email: 'nestor@linea12.ar', pass: 'Bienparada', line: 'Línea 12', line_number: '12' },
+    { name: 'Roberto Sánchez', email: 'roberto@linea12.ar', pass: 'Bienparada', line: 'Línea 12', line_number: '12' },
+    { name: 'Juan Carlos Pérez', email: 'juan@linea12.ar', pass: 'Bienparada', line: 'Línea 12', line_number: '12' },
+  ]
+
+  // Combine baseline drivers + dynamic registered drivers
+  const combinedDrivers = [...BASE_DRIVERS]
+  registeredDrivers.forEach(rd => {
+    if (!combinedDrivers.some(d => d.email.toLowerCase() === rd.email?.toLowerCase())) {
+      combinedDrivers.push({
+        name: rd.name || 'Chofer Registrado',
+        email: rd.email || 'chofer@empresa.com',
+        pass: rd.password || rd.pass || 'Bienparada',
+        line: rd.line_name || `Línea ${rd.lineNumber || '0'}`,
+        line_number: rd.lineNumber || '0'
+      })
+    }
   })
+
+  // Filter out any driver that has been deleted permanently
+  const allDrivers = combinedDrivers.filter(d => !deletedDrivers.includes(d.email.toLowerCase()) && !deletedDrivers.includes(d.name.toLowerCase()))
+
+  // Active drivers map for dynamic Unidad matching
+  const mappedDrivers = allDrivers.map(d => {
+    const activeSess = activeSessions.find(s => 
+      s.profiles?.name?.toLowerCase() === d.name.toLowerCase() ||
+      s.driverEmail?.toLowerCase() === d.email.toLowerCase()
+    )
+    return {
+      ...d,
+      unit: activeSess ? activeSess.bus_unit : '--',
+      online: Boolean(activeSess),
+      estado: activeSess ? 'En servicio' : 'Fuera de servicio'
+    }
+  })
+
+  // Filtered active QR codes
+  const activeQRCodes = qrCodes.filter(q => 
+    !deletedQRs.includes(q.id) &&
+    !deletedQRs.includes(q.qr_token) &&
+    !deletedQRs.includes(q.bus_unit)
+  )
+
+  // Handle Confirm Permanent Deletion (Driver or QR Code)
+  const handleConfirmDelete = () => {
+    if (!deleteTarget) return
+    const { type, name, email, bus_unit, qr_token } = deleteTarget
+
+    if (type === 'driver') {
+      // 1. Add email and name to deleted_drivers in localStorage
+      const delList = JSON.parse(localStorage.getItem('deleted_drivers') || '[]')
+      if (email && !delList.includes(email.toLowerCase())) delList.push(email.toLowerCase())
+      if (name && !delList.includes(name.toLowerCase())) delList.push(name.toLowerCase())
+      localStorage.setItem('deleted_drivers', JSON.stringify(delList))
+
+      // 2. Remove from registered_drivers
+      const prevReg = JSON.parse(localStorage.getItem('registered_drivers') || '[]')
+      const updatedReg = prevReg.filter((rd: any) => rd.email?.toLowerCase() !== email?.toLowerCase() && rd.name?.toLowerCase() !== name?.toLowerCase())
+      localStorage.setItem('registered_drivers', JSON.stringify(updatedReg))
+
+      // 3. Remove active session if any
+      const prevActive = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+      const updatedActive = prevActive.filter((s: any) => s.profiles?.name?.toLowerCase() !== name?.toLowerCase() && s.driverEmail?.toLowerCase() !== email?.toLowerCase())
+      localStorage.setItem('mock_active_sessions', JSON.stringify(updatedActive))
+
+      window.dispatchEvent(new Event('drivers_updated'))
+      toast.success(`🗑️ Chofer "${name}" eliminado permanentemente de la plataforma.`)
+    } else if (type === 'qr') {
+      // 1. Add qr_token, bus_unit, id to deleted_qr_codes in localStorage
+      const delQRs = JSON.parse(localStorage.getItem('deleted_qr_codes') || '[]')
+      if (qr_token && !delQRs.includes(qr_token)) delQRs.push(qr_token)
+      if (bus_unit && !delQRs.includes(bus_unit)) delQRs.push(bus_unit)
+      if (deleteTarget.id && !delQRs.includes(deleteTarget.id)) delQRs.push(deleteTarget.id)
+      localStorage.setItem('deleted_qr_codes', JSON.stringify(delQRs))
+
+      // 2. Remove from mock_bus_qr_codes
+      const prevQRs = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
+      const updatedQRs = prevQRs.filter((q: any) => q.id !== deleteTarget.id && q.bus_unit !== bus_unit && q.qr_token !== qr_token)
+      localStorage.setItem('mock_bus_qr_codes', JSON.stringify(updatedQRs))
+
+      // 3. Remove active session on this bus unit
+      const prevActive = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+      const updatedActive = prevActive.filter((s: any) => s.bus_unit !== bus_unit)
+      localStorage.setItem('mock_active_sessions', JSON.stringify(updatedActive))
+
+      window.dispatchEvent(new Event('qr_codes_updated'))
+      toast.success(`🗑️ Código QR y Unidad ${bus_unit} eliminados permanentemente.`)
+    }
+
+    setDeleteTarget(null)
+    loadData()
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -5562,13 +5715,13 @@ function DriversTab() {
             </tr>
           </thead>
           <tbody>
-            {allDrivers.map((d, idx) => {
+            {mappedDrivers.map((d, idx) => {
               const isVisible = showPasswordMap[d.name] || false
               return (
                 <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                   <td style={{ padding: '12px 20px', fontWeight: 600, color: '#fff' }}>{d.name}</td>
                   <td style={{ padding: '12px 20px', color: '#a3a6b8' }}>{d.line}</td>
-                  <td style={{ padding: '12px 20px', color: '#fff', fontFamily: 'DM Mono' }}>{d.unit}</td>
+                  <td style={{ padding: '12px 20px', color: d.online ? '#10B981' : '#8f94a5', fontFamily: 'DM Mono', fontWeight: d.online ? 700 : 400 }}>{d.unit}</td>
                   <td style={{ padding: '12px 20px', color: '#a3a6b8', fontFamily: 'DM Mono' }}>{d.email}</td>
                   <td style={{ padding: '12px 20px', color: '#fff', fontFamily: 'DM Mono' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -5594,14 +5747,14 @@ function DriversTab() {
                       fontWeight: 600
                     }}>
                       <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: d.online ? '#10B981' : '#8f94a5' }} />
-                      {d.online ? 'En servicio' : 'Inactivo'}
+                      {d.online ? 'En servicio' : 'Fuera de servicio'}
                     </span>
                   </td>
                   <td style={{ padding: '12px 20px', textAlign: 'center' }}>
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        setDeleteDriverTarget({ type: 'driver', id: idx.toString(), name: d.name })
+                        setDeleteTarget({ type: 'driver', id: idx.toString(), name: d.name, email: d.email })
                       }}
                       style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#EF4444', borderRadius: '8px', padding: '5px 10px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 700 }}
                       title="Eliminar chofer permanentemente"
@@ -5616,17 +5769,21 @@ function DriversTab() {
         </table>
       </div>
 
-      {/* QR Code Directory section */}
+      {/* Directory of Active QR Codes */}
       <div style={{ marginTop: '12px' }}>
         <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '12px' }}>Directorio de Códigos QR Activos</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-          {allDrivers.map((d, idx) => {
-            const lineObj = MOCK_LINES.find(l => l.name.toLowerCase().includes(d.line.toLowerCase()))
+          {activeQRCodes.map((qr, idx) => {
+            const lineObj = MOCK_LINES.find(l => l.line_number === qr.line_number || l.id === qr.line_id) || MOCK_LINES[0]
             const lineColor = lineObj ? lineObj.color : '#3B82F6'
+
+            const activeSess = activeSessions.find(s => s.bus_unit === qr.bus_unit)
+            const driverText = activeSess ? activeSess.profiles?.name || 'Chofer Activo' : 'Sin chofer asignado'
+
             return (
               <div
-                key={idx}
-                onClick={() => setSelectedQr(d)}
+                key={qr.id || idx}
+                onClick={() => setSelectedQr({ ...qr, activeSess, lineColor, driverText })}
                 style={{
                   background: '#121527',
                   border: '1px solid rgba(255,255,255,0.06)',
@@ -5643,7 +5800,7 @@ function DriversTab() {
                 onMouseLeave={e => { e.currentTarget.style.transform = 'none' }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>Unidad {d.unit}</span>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>Unidad {qr.bus_unit}</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{
                       fontSize: '9px',
@@ -5654,12 +5811,12 @@ function DriversTab() {
                       borderRadius: '4px',
                       fontWeight: 600
                     }}>
-                      {d.line}
+                      Línea {qr.line_number || '0'}
                     </span>
                     <button
                       onClick={(e) => {
                         e.stopPropagation()
-                        setDeleteDriverTarget({ type: 'qr', id: d.unit, name: `QR Unidad ${d.unit} (${d.line})` })
+                        setDeleteTarget({ type: 'qr', id: qr.id, name: `QR Unidad ${qr.bus_unit} (Línea ${qr.line_number})`, bus_unit: qr.bus_unit, qr_token: qr.qr_token })
                       }}
                       style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#EF4444', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                       title="Eliminar QR permanentemente"
@@ -5668,7 +5825,9 @@ function DriversTab() {
                     </button>
                   </div>
                 </div>
-                <div style={{ fontSize: '11px', color: '#8f94a5' }}>Chofer: <strong style={{ color: '#fff' }}>{d.name}</strong></div>
+                <div style={{ fontSize: '11px', color: '#8f94a5' }}>
+                  Chofer: <strong style={{ color: activeSess ? '#10B981' : '#a3a6b8' }}>{driverText}</strong>
+                </div>
                 <div style={{
                   fontSize: '10px',
                   background: 'rgba(255,255,255,0.03)',
@@ -5682,7 +5841,7 @@ function DriversTab() {
                   marginTop: '4px',
                   fontWeight: 600
                 }}>
-                  DEMO-QR-L{d.unit.slice(0, 2)}-{d.unit.slice(2)}
+                  {qr.qr_token || `DEMO-QR-L${qr.line_number}-${qr.bus_unit}`}
                 </div>
               </div>
             )
@@ -5691,125 +5850,138 @@ function DriversTab() {
       </div>
 
       {/* Interactive QR Code Modal Preview */}
-      {selectedQr && (() => {
-        const lineObj = MOCK_LINES.find(l => l.name.toLowerCase().includes(selectedQr.line.toLowerCase()))
-        const lineColor = lineObj ? lineObj.color : '#3B82F6'
-        return (
+      {selectedQr && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(5, 8, 16, 0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}>
           <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(5, 8, 16, 0.85)',
-            backdropFilter: 'blur(8px)',
+            width: '100%',
+            maxWidth: '360px',
+            background: '#121527',
+            border: `1px solid ${selectedQr.lineColor || '#3B82F6'}40`,
+            borderTop: `4px solid ${selectedQr.lineColor || '#3B82F6'}`,
+            borderRadius: '16px',
+            padding: '24px',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: '20px'
+            gap: '16px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)'
           }}>
-            <div style={{
-              width: '100%',
-              maxWidth: '360px',
-              background: '#121527',
-              border: `1px solid ${lineColor}40`,
-              borderTop: `4px solid ${lineColor}`,
-              borderRadius: '16px',
-              padding: '24px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '16px',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)'
-            }}>
-              {/* Title */}
-              <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h4 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#fff' }}>Código QR de Unidad</h4>
-                <button
-                  onClick={() => setSelectedQr(null)}
-                  style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px' }}
-                >
-                  ✕
-                </button>
-              </div>
+            <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h4 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#fff' }}>Código QR de Unidad</h4>
+              <button
+                onClick={() => setSelectedQr(null)}
+                style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px' }}
+              >
+                ✕
+              </button>
+            </div>
 
-              {/* High-density authentic QR Code */}
-              <QRCodeDisplay token={selectedQr.qr_token || selectedQr.token || selectedQr.bus_unit} busUnit={selectedQr.bus_unit} size={180} showLabel={false} />
+            <QRCodeDisplay token={selectedQr.qr_token || selectedQr.token || selectedQr.bus_unit} busUnit={selectedQr.bus_unit} size={180} showLabel={false} />
 
-              {/* Info & Code */}
-              <div style={{ textAlign: 'center', width: '100%' }}>
-                <div style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>Interno #{selectedQr.unit}</div>
-                <div style={{ fontSize: '12px', color: lineColor, fontWeight: 600, marginTop: '4px' }}>{selectedQr.line}</div>
-                <div style={{ fontSize: '11px', color: '#8f94a5', marginTop: '2px' }}>Chofer: {selectedQr.name}</div>
-                <div style={{
-                  fontSize: '11px',
-                  background: 'rgba(255,255,255,0.03)',
-                  border: `1px solid ${lineColor}33`,
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  fontFamily: 'DM Mono',
-                  color: lineColor,
-                  marginTop: '12px',
-                  wordBreak: 'break-all',
-                  fontWeight: 600
-                }}>
-                  DEMO-QR-L{selectedQr.unit.slice(0, 2)}-{selectedQr.unit.slice(2)}
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                <button
-                  onClick={() => {
-                    toast.success('Descargando archivo QR en formato PNG...');
-                  }}
-                  style={{
-                    flex: 1,
-                    padding: '10px',
-                    background: lineColor,
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px'
-                  }}
-                >
-                  <Download size={14} /> Descargar
-                </button>
-                <button
-                  onClick={() => {
-                    window.print();
-                  }}
-                  style={{
-                    padding: '10px 14px',
-                    background: 'rgba(255,255,255,0.05)',
-                    color: '#fff',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  <Printer size={14} />
-                </button>
+            <div style={{ textAlign: 'center', width: '100%' }}>
+              <div style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>Interno #{selectedQr.bus_unit}</div>
+              <div style={{ fontSize: '12px', color: selectedQr.lineColor || '#3B82F6', fontWeight: 600, marginTop: '4px' }}>Línea {selectedQr.line_number}</div>
+              <div style={{ fontSize: '11px', color: '#8f94a5', marginTop: '2px' }}>Chofer: {selectedQr.driverText}</div>
+              <div style={{
+                fontSize: '11px',
+                background: 'rgba(255,255,255,0.03)',
+                border: `1px solid ${selectedQr.lineColor || '#3B82F6'}33`,
+                padding: '8px 12px',
+                borderRadius: '8px',
+                fontFamily: 'DM Mono',
+                color: selectedQr.lineColor || '#3B82F6',
+                marginTop: '12px',
+                wordBreak: 'break-all',
+                fontWeight: 600
+              }}>
+                {selectedQr.qr_token || `DEMO-QR-L${selectedQr.line_number}-${selectedQr.bus_unit}`}
               </div>
             </div>
           </div>
-        )
-      })()}
+        </div>
+      )}
+
+      {/* Confirmation Modal for Permanent Deletion */}
+      {deleteTarget && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(5, 8, 16, 0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          padding: '20px'
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: '400px',
+            background: '#121527',
+            border: '1px solid rgba(239, 68, 68, 0.4)',
+            borderTop: '4px solid #EF4444',
+            borderRadius: '16px',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ background: 'rgba(239, 68, 68, 0.15)', padding: '10px', borderRadius: '12px', color: '#EF4444', display: 'flex' }}>
+                <Trash2 size={24} />
+              </div>
+              <div>
+                <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', margin: 0 }}>
+                  {deleteTarget.type === 'driver' ? 'Eliminar Chofer Permanentemente' : 'Eliminar Código QR Permanentemente'}
+                </h4>
+                <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Esta acción es irreversible y borrará el elemento en toda la app.</p>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '13px', color: '#d1d5db', margin: 0, lineHeight: 1.5 }}>
+              ¿Estás seguro de eliminar <strong style={{ color: '#fff' }}>"{deleteTarget.name}"</strong>? 
+              {deleteTarget.type === 'driver' ? ' El chofer ya no podrá iniciar sesión ni escanear turnos.' : ' La unidad y su código QR quedarán inhabilitados inmediatamente.'}
+            </p>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
+              <button
+                onClick={() => setDeleteTarget(null)}
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                style={{ background: '#EF4444', border: 'none', color: '#fff', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}
+              >
+                Eliminar Permanentemente
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
-// ─── Ads Management Component with ARS currency ──────────────────────────────
-// ─── Ads Management Component with ARS currency ──────────────────────────────
+
 function AdsTab({
   ads,
   onApprove,

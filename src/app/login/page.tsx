@@ -455,6 +455,14 @@ export default function LoginPage() {
           }
         }
 
+                // Check if driver is deleted
+        const deletedDriversList = JSON.parse(localStorage.getItem('deleted_drivers') || '[]')
+        if (deletedDriversList.includes(lowerEmail)) {
+          toast.error('⚠️ Acceso denegado: Esta cuenta de chofer ha sido eliminada por la administración.')
+          setLoading(false)
+          return
+        }
+
         // 3. Check Driver Accounts (Marcos, Carlos, Néstor, Roberto & registered choferes)
         let driverAccount: any = null
         if (lowerEmail === 'marcos@linea0.ar' || lowerEmail.includes('marcos.diaz') || lowerEmail === 'marcos@linea0.com') {

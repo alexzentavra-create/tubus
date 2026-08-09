@@ -908,7 +908,28 @@ export default function DriverPage() {
   }
 
   // ── Real QR scan (DB) ──────────────────────────────────────────────────────
-  const handleQRScan = async () => {
+    const handleQRScan = async () => {
+    if (!qrToken.trim() || !driverId) return
+
+    // 1. Check if driver has been deleted by Super Admin
+    const activeUserEmail = typeof window !== 'undefined' ? (JSON.parse(localStorage.getItem('active_user') || '{}')?.email || localStorage.getItem('profile_email') || '') : ''
+    const deletedDriversList = JSON.parse(localStorage.getItem('deleted_drivers') || '[]')
+    if ((activeUserEmail && deletedDriversList.includes(activeUserEmail.toLowerCase())) || (driverName && deletedDriversList.includes(driverName.toLowerCase()))) {
+      toast.error('⚠️ Acceso denegado: Tu cuenta de chofer ha sido eliminada por la administración.')
+      localStorage.removeItem('active_user')
+      localStorage.removeItem('mock_driver_identity')
+      setTimeout(() => { window.location.href = '/login' }, 1500)
+      return
+    }
+
+    // 2. Check if QR code / Bus unit has been deleted by Super Admin or Line Admin
+    const deletedQRsList = JSON.parse(localStorage.getItem('deleted_qr_codes') || '[]')
+    if (deletedQRsList.includes(qrToken.trim())) {
+      toast.error('⚠️ Error: Este código QR / Unidad fue eliminado permanentemente por la administración.')
+      setScanning(false)
+      return
+    }
+
     if (!qrToken.trim() || !driverId) return
     setScanning(true)
 
