@@ -420,6 +420,14 @@ export default function LoginPage() {
           }
         }
 
+        // Check if Line Admin was deleted
+        const deletedLineAdmins = JSON.parse(localStorage.getItem('deleted_line_admins') || '[]')
+        if (deletedLineAdmins.includes(lowerEmail)) {
+          toast.error('⚠️ Acceso denegado: Esta cuenta de Administrador de Línea ha sido eliminada por la administración.')
+          setLoading(false)
+          return
+        }
+
         // 2. Check Line Admin Accounts (`linea{N}@bienparada.ar`, `amarillo@bienparada.ar`, `roja@bienparada.ar`)
         let lineAdminMatchNum: string | null = null
         if (lowerEmail === 'linea12@bienparada.ar' || lowerEmail === 'linea12@bienparada.com') lineAdminMatchNum = '12'
