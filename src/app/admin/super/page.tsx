@@ -927,12 +927,57 @@ export default function SuperAdminDashboard() {
   const [todos, setTodos] = useState<Todo[]>([])
   const [newTodoText, setNewTodoText] = useState('')
 
-  // Permanent Deletion Confirmation Target (Admins, Users, Noticias)
   const [deleteTarget, setDeleteTarget] = useState<{
     type: 'admin' | 'user' | 'news';
     id: string;
     name: string;
   } | null>(null);
+
+  const executeDirectUserDelete = (id: string, email: string, name: string) => {
+    const userEmail = (email || '').toLowerCase().trim()
+
+    // 1. Remove from liveUserList state instantly
+    setLiveUserList(prev => {
+      const updated = prev.filter(u => u.id !== id && (userEmail ? u.email?.toLowerCase().trim() !== userEmail : u.name !== name))
+      setStats(s => ({ ...s, totalUsers: Math.max(0, updated.length) }))
+      return updated
+    })
+
+    // 2. Remove from localStorage registries
+    const storedReg = JSON.parse(localStorage.getItem('bu_registered_users') || '[]')
+    const filteredReg = storedReg.filter((u: any) => u.id !== id && (userEmail ? u.email?.toLowerCase().trim() !== userEmail : u.name !== name))
+    localStorage.setItem('bu_registered_users', JSON.stringify(filteredReg))
+
+    const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
+    const filteredMock = mockUsers.filter((u: any) => u.id !== id && (userEmail ? u.email?.toLowerCase().trim() !== userEmail : u.name !== name))
+    localStorage.setItem('mock_users', JSON.stringify(filteredMock))
+
+    const mockSuper = JSON.parse(localStorage.getItem('mock_super_users') || '[]')
+    const filteredSuper = mockSuper.filter((u: any) => u.id !== id && (userEmail ? u.email?.toLowerCase().trim() !== userEmail : u.name !== name))
+    localStorage.setItem('mock_super_users', JSON.stringify(filteredSuper))
+
+    // 3. Append to deleted_users list to block future logins
+    if (userEmail) {
+      const deletedUsers = JSON.parse(localStorage.getItem('deleted_users') || '[]')
+      if (!deletedUsers.includes(userEmail)) {
+        deletedUsers.push(userEmail)
+        localStorage.setItem('deleted_users', JSON.stringify(deletedUsers))
+      }
+    }
+
+    // 4. Clear active_user if matches
+    const activeUser = JSON.parse(localStorage.getItem('active_user') || '{}')
+    if (activeUser.email && activeUser.email.toLowerCase().trim() === userEmail) {
+      localStorage.removeItem('active_user')
+    }
+
+    if (selectedUserId === id) {
+      setSelectedUserId('')
+    }
+
+    try { window.dispatchEvent(new Event('storage')) } catch (e) {}
+    toast.success(`🗑️ Usuario "${name}" eliminado permanentemente.`)
+  }
 
   const handleConfirmMainDelete = () => {
     if (!deleteTarget) return
@@ -1526,7 +1571,7 @@ export default function SuperAdminDashboard() {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  setDeleteTarget({ type: 'user', id: u.id, name: u.name })
+                                  executeDirectUserDelete(u.id, u.email, u.name)
                                 }}
                                 style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#EF4444', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                                 title="Eliminar Usuario"
@@ -5162,8 +5207,6 @@ function PoisTab() {
           </div>
         </div>
       )}
-
-      {/* Permanent Deletion Confirmation Modal */}
       {deletePoiTarget && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,8,16,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '16px' }}>
           <div style={{ background: '#121527', border: '1.5px solid rgba(239, 68, 68, 0.4)', borderRadius: '16px', padding: '24px', maxWidth: '420px', width: '100%', color: '#FFFFFF', boxShadow: '0 20px 50px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -5177,7 +5220,7 @@ function PoisTab() {
               </div>
             </div>
             <p style={{ margin: 0, fontSize: '13px', color: '#CBD5E1', lineHeight: '1.5' }}>
-              ¿Estás seguro de que querés eliminar permanentemente el Punto de Interés <strong style={{ color: '#EF4444' }}>"${deletePoiTarget.name}"</strong>? Se eliminará de la base de datos y ya no aparecerá en la app de los usuarios.
+              ¿Estás seguro de que querés eliminar permanentemente el Punto de Interés <strong style={{ color: '#EF4444' }}>"{deletePoiTarget.name}"</strong>? Se eliminará de la base de datos y ya no aparecerá en la app de los usuarios.
             </p>
             <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
               <button onClick={() => setDeletePoiTarget(null)} style={{ flex: 1, padding: '10px 16px', borderRadius: '10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: '#94A3B8', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
