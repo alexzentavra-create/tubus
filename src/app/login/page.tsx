@@ -394,18 +394,10 @@ export default function LoginPage() {
 
         localStorage.setItem('selected_city', city)
 
-        // Check if email is in deleted users list
-        const deletedUsers = JSON.parse(localStorage.getItem('deleted_users') || '[]')
-        if (deletedUsers.includes(lowerEmail)) {
-          toast.error('Esta cuenta de usuario ha sido eliminada por el Administrador.')
-          setLoading(false)
-          return
-        }
-
-        // Check if email is in deleted super admins list
-        const deletedSuperAdmins = JSON.parse(localStorage.getItem('deleted_super_admins') || '[]')
-        if (deletedSuperAdmins.includes(lowerEmail)) {
-          toast.error('Esta cuenta de Super Administrador ha sido eliminada permanentemente.')
+        // Check if email is in blocked users list
+        const blockedUsers = JSON.parse(localStorage.getItem('blocked_users') || '[]').map((e: string) => e.toLowerCase().trim())
+        if (blockedUsers.includes(lowerEmail)) {
+          toast.error('Su cuenta ha sido bloqueada debido a una violación de los términos y condiciones o comportamiento inapropiado del usuario.')
           setLoading(false)
           return
         }
@@ -578,9 +570,7 @@ export default function LoginPage() {
         }
 
         // Unrecognized account — HALT with error message
-        toast.error('Usuario o contraseña incorrectos. Si no tenés cuenta, podés Registrarte.')
-        setLoading(false)
-        return
+        toast.error('Este correo electrónico no está registrado aún.')
         setLoading(false)
         return
       }
@@ -661,6 +651,13 @@ export default function LoginPage() {
           const filteredReg = registeredUsers.filter((u: any) => u.email?.toLowerCase() !== newUserData.email)
           filteredReg.push(newUserData)
           localStorage.setItem('bu_registered_users', JSON.stringify(filteredReg))
+
+          // Clean from deleted_users & blocked_users on new registration
+          const deletedList = JSON.parse(localStorage.getItem('deleted_users') || '[]').filter((e: string) => e.toLowerCase() !== newUserData.email)
+          localStorage.setItem('deleted_users', JSON.stringify(deletedList))
+
+          const blockedList = JSON.parse(localStorage.getItem('blocked_users') || '[]').filter((e: string) => e.toLowerCase() !== newUserData.email)
+          localStorage.setItem('blocked_users', JSON.stringify(blockedList))
 
           // 3. Set active_user & explicit profile localStorage keys for this exact user
           localStorage.setItem('active_user', JSON.stringify(newUserData))

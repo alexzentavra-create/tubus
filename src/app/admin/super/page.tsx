@@ -943,7 +943,7 @@ export default function SuperAdminDashboard() {
       return updated
     })
 
-    // 2. Remove from localStorage registries
+    // 2. Remove from localStorage registries completely (No trace left)
     const storedReg = JSON.parse(localStorage.getItem('bu_registered_users') || '[]')
     const filteredReg = storedReg.filter((u: any) => u.id !== id && (userEmail ? u.email?.toLowerCase().trim() !== userEmail : u.name !== name))
     localStorage.setItem('bu_registered_users', JSON.stringify(filteredReg))
@@ -956,16 +956,18 @@ export default function SuperAdminDashboard() {
     const filteredSuper = mockSuper.filter((u: any) => u.id !== id && (userEmail ? u.email?.toLowerCase().trim() !== userEmail : u.name !== name))
     localStorage.setItem('mock_super_users', JSON.stringify(filteredSuper))
 
-    // 3. Append to deleted_users list to block future logins
+    // 3. Clear from deleted_users & blocked_users so account is totally wiped out
     if (userEmail) {
       const deletedUsers = JSON.parse(localStorage.getItem('deleted_users') || '[]')
-      if (!deletedUsers.includes(userEmail)) {
-        deletedUsers.push(userEmail)
-        localStorage.setItem('deleted_users', JSON.stringify(deletedUsers))
-      }
+      const filteredDeleted = deletedUsers.filter((e: string) => e.toLowerCase().trim() !== userEmail)
+      localStorage.setItem('deleted_users', JSON.stringify(filteredDeleted))
+
+      const blockedUsers = JSON.parse(localStorage.getItem('blocked_users') || '[]')
+      const filteredBlocked = blockedUsers.filter((e: string) => e.toLowerCase().trim() !== userEmail)
+      localStorage.setItem('blocked_users', JSON.stringify(filteredBlocked))
     }
 
-    // 4. Clear active_user if matches
+    // 4. Clear active_user session if it matches deleted user
     const activeUser = JSON.parse(localStorage.getItem('active_user') || '{}')
     if (activeUser.email && activeUser.email.toLowerCase().trim() === userEmail) {
       localStorage.removeItem('active_user')
@@ -976,7 +978,46 @@ export default function SuperAdminDashboard() {
     }
 
     try { window.dispatchEvent(new Event('storage')) } catch (e) {}
-    toast.success(`🗑️ Usuario "${name}" eliminado permanentemente.`)
+    toast.success(`🗑️ Usuario "${name}" eliminado permanentemente del sistema.`)
+  }
+
+  const toggleBlockUser = (id: string, email: string, name: string) => {
+    const userEmail = (email || '').toLowerCase().trim()
+    const blockedList: string[] = JSON.parse(localStorage.getItem('blocked_users') || '[]').map((e: string) => e.toLowerCase().trim())
+    const isCurrentlyBlocked = blockedList.includes(userEmail)
+
+    let updatedBlocked: string[]
+    if (isCurrentlyBlocked) {
+      updatedBlocked = blockedList.filter((e: string) => e !== userEmail)
+      toast.success(`✅ Usuario "${name}" desbloqueado.`)
+    } else {
+      updatedBlocked = [...blockedList, userEmail]
+      toast.error(`🚫 Usuario "${name}" bloqueado por el Administrador.`)
+
+      // Clear active_user if matches blocked user
+      const activeUser = JSON.parse(localStorage.getItem('active_user') || '{}')
+      if (activeUser.email && activeUser.email.toLowerCase().trim() === userEmail) {
+        localStorage.removeItem('active_user')
+      }
+    }
+
+    localStorage.setItem('blocked_users', JSON.stringify(updatedBlocked))
+
+    // Update liveUserList state status
+    const activeUserObj = JSON.parse(localStorage.getItem('active_user') || '{}')
+    const activeEmail = (activeUserObj?.email || '').toLowerCase().trim()
+
+    setLiveUserList(prev => prev.map(u => {
+      if (u.id === id || (userEmail && u.email?.toLowerCase().trim() === userEmail)) {
+        return {
+          ...u,
+          status: !isCurrentlyBlocked ? 'Bloqueado' : (userEmail === activeEmail ? 'Activo' : 'Inactivo')
+        }
+      }
+      return u
+    }))
+
+    try { window.dispatchEvent(new Event('storage')) } catch (e) {}
   }
 
   const handleConfirmMainDelete = () => {
@@ -1565,16 +1606,42 @@ export default function SuperAdminDashboard() {
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <span style={{ fontSize: '12px', fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{u.name}</span>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span style={{ fontSize: '8px', fontWeight: 700, color: u.status === 'Activo' ? '#10B981' : '#ef4444', background: u.status === 'Activo' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', padding: '1px 6px', borderRadius: '8px' }}>
+                              <span style={{
+                                fontSize: '8px',
+                                fontWeight: 700,
+                                color: u.status === 'Bloqueado' ? '#F59E0B' : (u.status === 'Activo' ? '#10B981' : '#ef4444'),
+                                background: u.status === 'Bloqueado' ? 'rgba(245,158,11,0.15)' : (u.status === 'Activo' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)'),
+                                padding: '1px 6px',
+                                borderRadius: '8px'
+                              }}>
                                 {u.status}
                               </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  toggleBlockUser(u.id, u.email, u.name)
+                                }}
+                                style={{
+                                  background: u.status === 'Bloqueado' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                                  border: '1px solid ' + (u.status === 'Bloqueado' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(245, 158, 11, 0.3)'),
+                                  color: u.status === 'Bloqueado' ? '#10B981' : '#F59E0B',
+                                  borderRadius: '6px',
+                                  padding: '3px 6px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center'
+                                }}
+                                title={u.status === 'Bloqueado' ? "Desbloquear Usuario" : "Bloquear Usuario"}
+                              >
+                                <Ban size={11} />
+                              </button>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
                                   executeDirectUserDelete(u.id, u.email, u.name)
                                 }}
                                 style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#EF4444', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                                title="Eliminar Usuario"
+                                title="Eliminar Usuario Definitivamente"
                               >
                                 <Trash2 size={11} />
                               </button>
