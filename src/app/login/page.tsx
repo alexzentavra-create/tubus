@@ -454,6 +454,32 @@ export default function LoginPage() {
               email: lowerEmail,
               password: 'Bienparada'
             }))
+
+            // Track active session for super admin monitoring
+            const loginTimeStr = `Hoy ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} hs`
+            const activeSessions = JSON.parse(localStorage.getItem('active_line_admin_sessions') || '{}')
+            activeSessions[lineAdminMatchNum] = {
+              email: lowerEmail,
+              lineNumber: lineAdminMatchNum,
+              loginTime: loginTimeStr,
+              loginTimestamp: Date.now(),
+              lastActiveTimestamp: Date.now()
+            }
+            localStorage.setItem('active_line_admin_sessions', JSON.stringify(activeSessions))
+
+            // Track audit log for login
+            const auditLogs = JSON.parse(localStorage.getItem('line_admin_audit_logs') || '[]')
+            auditLogs.unshift({
+              id: `log-${Date.now()}`,
+              lineNumber: lineAdminMatchNum,
+              email: lowerEmail,
+              action: 'Inicio de Sesión',
+              detail: `El Administrador inició sesión en la consola de la Línea ${lineAdminMatchNum}.`,
+              timestamp: loginTimeStr
+            })
+            localStorage.setItem('line_admin_audit_logs', JSON.stringify(auditLogs))
+            window.dispatchEvent(new Event('line_admins_updated'))
+
             window.location.href = '/admin/company'
             return
           } else {

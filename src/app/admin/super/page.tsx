@@ -715,32 +715,35 @@ export default function SuperAdminDashboard() {
   const [selectedLineAdminId, setSelectedLineAdminId] = useState<string>('la-12')
   const [showAdminPassword, setShowAdminPassword] = useState<Record<string, boolean>>({})
   const BASE_LINE_ADMINS = [
-    { id: 'la-0', name: 'Admin Línea 0', email: 'linea0@bienparada.ar', password: 'Bienparada', lineNumber: '0', companyName: 'Empresa Línea 0 S.A.', status: 'Activo', lastLogin: 'Hoy 08:30 hs', sessionDuration: '2 hr 10 min', lastActive: 'Hace 2 min', activityLogs: [{ id: 'log-0-1', action: 'Generación de QR', detail: 'Creó código QR para Unidad 001.', timestamp: 'Hoy 08:35 hs' }] },
-    { id: 'la-12', name: 'Admin Línea 12 (Callao)', email: 'linea12@bienparada.ar', password: 'Bienparada', lineNumber: '12', companyName: 'Transportes Automotores Callao S.A.', status: 'Activo', lastLogin: 'Hoy 09:14 hs', sessionDuration: '1 hr 30 min', lastActive: 'Hace 5 min', activityLogs: [{ id: 'log-12-1', action: 'Verificación de Flota', detail: 'Monitoreó estatus de 3 coches en ramal Plaza Italia.', timestamp: 'Hoy 10:30 hs' }] },
-    { id: 'la-28', name: 'Admin Línea 28 (DOTA)', email: 'linea28@bienparada.ar', password: 'Bienparada', lineNumber: '28', companyName: 'DOTA S.A.', status: 'Activo', lastLogin: 'Hoy 07:45 hs', sessionDuration: '3 hr 05 min', lastActive: 'Hace 12 min', activityLogs: [{ id: 'log-28-1', action: 'Ajuste de Frecuencias', detail: 'Actualizó cuadro horario ramal Puente Alsina.', timestamp: 'Hoy 08:00 hs' }] },
-    { id: 'la-37', name: 'Admin Línea 37 (4 de Junio)', email: 'linea37@bienparada.ar', password: 'Bienparada', lineNumber: '37', companyName: '4 de Junio S.A.T.C.I.', status: 'Activo', lastLogin: 'Ayer 18:20 hs', sessionDuration: '45 min', lastActive: 'Ayer 19:05 hs', activityLogs: [{ id: 'log-37-1', action: 'Reporte de Operación', detail: 'Descargó informe mensual de pasajeros.', timestamp: 'Ayer 18:40 hs' }] },
-    { id: 'la-39', name: 'Admin Línea 39 (Santa Fe)', email: 'linea39@bienparada.ar', password: 'Bienparada', lineNumber: '39', companyName: 'Transportes Santa Fe S.A.C.I.I.', status: 'Activo', lastLogin: 'Hoy 10:05 hs', sessionDuration: '50 min', lastActive: 'Hace 1 min', activityLogs: [{ id: 'log-39-1', action: 'Asignación de Chofer', detail: 'Asignó unidad 3901 a chofer Lucas Rodríguez.', timestamp: 'Hoy 10:10 hs' }] },
-    { id: 'la-55', name: 'Admin Línea 55 (Almafuerte)', email: 'linea55@bienparada.ar', password: 'Bienparada', lineNumber: '55', companyName: 'Almafuerte S.A.C.I.E.I.', status: 'Activo', lastLogin: 'Hoy 06:50 hs', sessionDuration: '4 hr 00 min', lastActive: 'Hace 20 min', activityLogs: [{ id: 'log-55-1', action: 'Revisión Técnica', detail: 'Habilitó unidad 5504 para servicio.', timestamp: 'Hoy 07:15 hs' }] },
-    { id: 'la-59', name: 'Admin Línea 59 (MOCBA)', email: 'linea59@bienparada.ar', password: 'Bienparada', lineNumber: '59', companyName: 'MOCBA S.A.', status: 'Activo', lastLogin: 'Hoy 08:12 hs', sessionDuration: '2 hr 25 min', lastActive: 'Hace 8 min', activityLogs: [{ id: 'log-59-1', action: 'Validación Tarifaria', detail: 'Sincronizó tarifas vigentes SUBE.', timestamp: 'Hoy 08:30 hs' }] },
-    { id: 'la-60', name: 'Admin Línea 60 (MONSA)', email: 'linea60@bienparada.ar', password: 'Bienparada', lineNumber: '60', companyName: 'Microomnibus Norte S.A.', status: 'Activo', lastLogin: 'Hoy 09:30 hs', sessionDuration: '1 hr 15 min', lastActive: 'Hace 3 min', activityLogs: [{ id: 'log-60-1', action: 'Control de Terminal', detail: 'Monitoreó salidas desde Constitución.', timestamp: 'Hoy 09:45 hs' }] },
-    { id: 'la-71', name: 'Admin Línea 71', email: 'linea71@bienparada.ar', password: 'Bienparada', lineNumber: '71', companyName: 'Empresa Línea 71 S.A.', status: 'Activo', lastLogin: 'Hoy 07:10 hs', sessionDuration: '3 hr 30 min', lastActive: 'Hace 15 min', activityLogs: [{ id: 'log-71-1', action: 'Inspección de Coche', detail: 'Aprobó estado de unidad 7102.', timestamp: 'Hoy 07:30 hs' }] },
-    { id: 'la-88', name: 'Admin Línea 88 (Liniers)', email: 'linea88@bienparada.ar', password: 'Bienparada', lineNumber: '88', companyName: 'Expreso Liniers S.A.I.C.', status: 'Activo', lastLogin: 'Hoy 08:50 hs', sessionDuration: '1 hr 50 min', lastActive: 'Hace 10 min', activityLogs: [{ id: 'log-88-1', action: 'Despacho de Turnos', detail: 'Confirmó turnos de choferes para turno tarde.', timestamp: 'Hoy 09:10 hs' }] },
-    { id: 'la-102', name: 'Admin Línea 102 (El Puente)', email: 'linea102@bienparada.ar', password: 'Bienparada', lineNumber: '102', companyName: 'Transportes El Puente S.A.T.', status: 'Activo', lastLogin: 'Hoy 09:00 hs', sessionDuration: '1 hr 40 min', lastActive: 'Hace 6 min', activityLogs: [{ id: 'log-102-1', action: 'Monitoreo de Velocidad', detail: 'Verificó cumplimiento de límite de velocidad en Palermo.', timestamp: 'Hoy 09:20 hs' }] },
-    { id: 'la-115', name: 'Admin Línea 115 (Loria)', email: 'linea115@bienparada.ar', password: 'Bienparada', lineNumber: '115', companyName: 'Transportes Automotores Loria S.A.', status: 'Activo', lastLogin: 'Hoy 08:40 hs', sessionDuration: '2 hr 00 min', lastActive: 'Hace 14 min', activityLogs: [{ id: 'log-115-1', action: 'Actualización de Recorrido', detail: 'Confirmó desvío temporal por obra en Av. Jujuy.', timestamp: 'Hoy 08:55 hs' }] },
-    { id: 'la-152', name: 'Admin Línea 152 (Tandilense)', email: 'linea152@bienparada.ar', password: 'Bienparada', lineNumber: '152', companyName: 'Empresa Tandilense S.A.C.I.F.I.', status: 'Activo', lastLogin: 'Hoy 09:25 hs', sessionDuration: '1 hr 20 min', lastActive: 'Hace 4 min', activityLogs: [{ id: 'log-152-1', action: 'Auditoría de Pasajes', detail: 'Consolidó recaudación en ramal Olivos.', timestamp: 'Hoy 09:40 hs' }] },
-    { id: 'la-T-Amarillo', name: 'Admin Bus Turístico Amarillo', email: 'amarillo@bienparada.ar', password: 'Bienparada', lineNumber: 'T-Amarillo', companyName: 'Buenos Aires Bus (Circuito Amarillo)', status: 'Activo', lastLogin: 'Hoy 08:15 hs', sessionDuration: '2 hr 30 min', lastActive: 'Hace 7 min', activityLogs: [{ id: 'log-TA-1', action: 'Supervisión de Audio-Guías', detail: 'Verificó sincronización de puntos de interés turístico.', timestamp: 'Hoy 08:40 hs' }] },
-    { id: 'la-T-Rojo', name: 'Admin Bus Turístico Rojo', email: 'rojo@bienparada.ar', password: 'Bienparada', lineNumber: 'T-Rojo', companyName: 'Gray Line Argentina (Circuito Rojo)', status: 'Activo', lastLogin: 'Hoy 08:45 hs', sessionDuration: '2 hr 00 min', lastActive: 'Hace 9 min', activityLogs: [{ id: 'log-TR-1', action: 'Control de Paradas', detail: 'Monitoreó tiempos de espera en Recoleta.', timestamp: 'Hoy 09:05 hs' }] }
+    { id: 'la-0', name: 'Admin Línea 0', email: 'linea0@bienparada.ar', password: 'Bienparada', lineNumber: '0', companyName: 'Empresa Línea 0 S.A.' },
+    { id: 'la-12', name: 'Admin Línea 12 (Callao)', email: 'linea12@bienparada.ar', password: 'Bienparada', lineNumber: '12', companyName: 'Transportes Automotores Callao S.A.' },
+    { id: 'la-28', name: 'Admin Línea 28 (DOTA)', email: 'linea28@bienparada.ar', password: 'Bienparada', lineNumber: '28', companyName: 'DOTA S.A.' },
+    { id: 'la-37', name: 'Admin Línea 37 (4 de Junio)', email: 'linea37@bienparada.ar', password: 'Bienparada', lineNumber: '37', companyName: '4 de Junio S.A.T.C.I.' },
+    { id: 'la-39', name: 'Admin Línea 39 (Santa Fe)', email: 'linea39@bienparada.ar', password: 'Bienparada', lineNumber: '39', companyName: 'Transportes Santa Fe S.A.C.I.I.' },
+    { id: 'la-55', name: 'Admin Línea 55 (Almafuerte)', email: 'linea55@bienparada.ar', password: 'Bienparada', lineNumber: '55', companyName: 'Almafuerte S.A.C.I.E.I.' },
+    { id: 'la-59', name: 'Admin Línea 59 (MOCBA)', email: 'linea59@bienparada.ar', password: 'Bienparada', lineNumber: '59', companyName: 'MOCBA S.A.' },
+    { id: 'la-60', name: 'Admin Línea 60 (MONSA)', email: 'linea60@bienparada.ar', password: 'Bienparada', lineNumber: '60', companyName: 'Microomnibus Norte S.A.' },
+    { id: 'la-71', name: 'Admin Línea 71', email: 'linea71@bienparada.ar', password: 'Bienparada', lineNumber: '71', companyName: 'Empresa Línea 71 S.A.' },
+    { id: 'la-88', name: 'Admin Línea 88 (Liniers)', email: 'linea88@bienparada.ar', password: 'Bienparada', lineNumber: '88', companyName: 'Expreso Liniers S.A.I.C.' },
+    { id: 'la-102', name: 'Admin Línea 102 (El Puente)', email: 'linea102@bienparada.ar', password: 'Bienparada', lineNumber: '102', companyName: 'Transportes El Puente S.A.T.' },
+    { id: 'la-115', name: 'Admin Línea 115 (Loria)', email: 'linea115@bienparada.ar', password: 'Bienparada', lineNumber: '115', companyName: 'Transportes Automotores Loria S.A.' },
+    { id: 'la-152', name: 'Admin Línea 152 (Tandilense)', email: 'linea152@bienparada.ar', password: 'Bienparada', lineNumber: '152', companyName: 'Empresa Tandilense S.A.C.I.F.I.' },
+    { id: 'la-T-Amarillo', name: 'Admin Bus Turístico Amarillo', email: 'amarillo@bienparada.ar', password: 'Bienparada', lineNumber: 'T-Amarillo', companyName: 'Buenos Aires Bus (Circuito Amarillo)' },
+    { id: 'la-T-Rojo', name: 'Admin Bus Turístico Rojo', email: 'rojo@bienparada.ar', password: 'Bienparada', lineNumber: 'T-Rojo', companyName: 'Gray Line Argentina (Circuito Rojo)' }
   ]
 
-  const [liveLineAdmins, setLiveLineAdmins] = useState<any[]>(BASE_LINE_ADMINS)
+  const [liveLineAdmins, setLiveLineAdmins] = useState<any[]>([])
 
-  // Real-time synchronization for Line Admins list with localStorage
+  // Real-time synchronization for Line Admins list & sessions from scratch
   useEffect(() => {
     const syncLineAdmins = () => {
       try {
         const deletedList: string[] = JSON.parse(localStorage.getItem('deleted_line_admins') || '[]').map((e: string) => e.toLowerCase())
         const regList: any[] = JSON.parse(localStorage.getItem('registered_line_admins') || '[]')
-        
+        const activeSessions = JSON.parse(localStorage.getItem('active_line_admin_sessions') || '{}')
+        const auditLogs: any[] = JSON.parse(localStorage.getItem('line_admin_audit_logs') || '[]')
+        const lastLogins = JSON.parse(localStorage.getItem('line_admin_last_logins') || '{}')
+
         const combined = [...BASE_LINE_ADMINS]
         regList.forEach(ra => {
           if (!combined.some(b => b.email.toLowerCase() === ra.email?.toLowerCase())) {
@@ -750,17 +753,58 @@ export default function SuperAdminDashboard() {
               email: ra.email,
               password: ra.password || 'Bienparada',
               lineNumber: ra.lineNumber || '0',
-              companyName: ra.companyName || 'Empresa de Transporte',
-              status: 'Activo',
-              lastLogin: 'Recientemente',
-              sessionDuration: '30 min',
-              lastActive: 'Hace 1 min',
-              activityLogs: []
+              companyName: ra.companyName || 'Empresa de Transporte'
             })
           }
         })
 
-        const activeAdmins = combined.filter(a => !deletedList.includes(a.email.toLowerCase()) && !deletedList.includes(a.id.toLowerCase()))
+        const activeAdmins = combined
+          .filter(a => !deletedList.includes(a.email.toLowerCase()) && !deletedList.includes(a.id.toLowerCase()))
+          .map(a => {
+            const activeSess = activeSessions[a.lineNumber] || activeSessions[a.email.toLowerCase()]
+            const isOnline = !!activeSess
+
+            let lastLogin = 'Sin ingresos'
+            let sessionDuration = '--'
+            let lastActive = '--'
+
+            if (isOnline) {
+              lastLogin = activeSess.loginTime || 'Recientemente'
+              const elapsedMs = Math.max(0, Date.now() - (activeSess.loginTimestamp || Date.now()))
+              const mins = Math.floor(elapsedMs / 60000)
+              if (mins < 60) {
+                sessionDuration = `${mins} min`
+              } else {
+                const hrs = Math.floor(mins / 60)
+                const rMins = mins % 60
+                sessionDuration = `${hrs} hr ${rMins} min`
+              }
+
+              const activeAgoMs = Math.max(0, Date.now() - (activeSess.lastActiveTimestamp || activeSess.loginTimestamp || Date.now()))
+              const activeMins = Math.floor(activeAgoMs / 60000)
+              lastActive = activeMins <= 0 ? 'Hace un instante' : `Hace ${activeMins} min`
+            } else if (lastLogins[a.lineNumber]) {
+              const rec = lastLogins[a.lineNumber]
+              lastLogin = rec.loginTime || 'Recientemente'
+              sessionDuration = '--'
+              lastActive = rec.timeAgo || 'Inactivo'
+            }
+
+            const adminAuditLogs = auditLogs.filter(l => 
+              l.lineNumber === a.lineNumber || 
+              (l.email && l.email.toLowerCase() === a.email.toLowerCase())
+            )
+
+            return {
+              ...a,
+              status: isOnline ? 'Activo' : 'Inactivo',
+              lastLogin,
+              sessionDuration,
+              lastActive,
+              activityLogs: adminAuditLogs
+            }
+          })
+
         setLiveLineAdmins(activeAdmins)
       } catch (e) {
         console.error(e)

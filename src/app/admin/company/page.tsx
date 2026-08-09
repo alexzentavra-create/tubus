@@ -1,5 +1,33 @@
+
 'use client'
 import { useState, useEffect, useMemo } from 'react'
+
+// Helper to log line admin actions for Super Admin audit log
+function recordLineAdminAuditLog(lineParam: any, action: string, detail: string) {
+  try {
+    const lineNumber = typeof lineParam === 'string' ? lineParam : (lineParam?.line_number || lineParam?.id || '12')
+    const timestamp = `Hoy ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} hs`
+    const auditLogs = JSON.parse(localStorage.getItem('line_admin_audit_logs') || '[]')
+    auditLogs.unshift({
+      id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      lineNumber,
+      action,
+      detail,
+      timestamp
+    })
+    localStorage.setItem('line_admin_audit_logs', JSON.stringify(auditLogs))
+
+    // Update lastActiveTimestamp in active session
+    const activeSessions = JSON.parse(localStorage.getItem('active_line_admin_sessions') || '{}')
+    if (activeSessions[lineNumber]) {
+      activeSessions[lineNumber].lastActiveTimestamp = Date.now()
+      localStorage.setItem('active_line_admin_sessions', JSON.stringify(activeSessions))
+    }
+    window.dispatchEvent(new Event('line_admins_updated'))
+  } catch (e) {
+    console.error(e)
+  }
+}
 import {
   Bus, Users, QrCode, MapPin, AlertTriangle, Activity,
   Download, LogOut, RefreshCw, Plus, Calendar, Clock,
@@ -286,6 +314,7 @@ export default function CompanyDashboard() {
         console.error(e)
       }
       toast.success(`Código QR de Unidad ${warning.busUnit} activado con éxito.`)
+    recordLineAdminAuditLog(activeLine, 'Resolución de Alerta', `Activó código QR de Unidad ${warning.busUnit}.`)
     }
     
     try {
@@ -1359,6 +1388,7 @@ export default function CompanyDashboard() {
     setSelectedQR(qrData)
     setShowQRModal(true)
     toast.success(`QR generado para unidad ${newBusUnit}`)
+    recordLineAdminAuditLog(activeLine, 'Generación de QR', `Creó código QR para Unidad ${newBusUnit}.`)
   }
 
   const deleteQR = async (id: string) => {
