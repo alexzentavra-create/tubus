@@ -499,7 +499,7 @@ export default function LoginPage() {
           const registeredUsers = JSON.parse(localStorage.getItem('bu_registered_users') || '[]')
           const allUsers = [...mockUsers, ...registeredUsers]
 
-          const emailMatch = allUsers.find((u: any) => u.email && u.email.toLowerCase() === lowerEmail)
+          const emailMatch = allUsers.find((u: any) => u.email && u.email.toLowerCase().trim() === lowerEmail)
           if (emailMatch) {
             const passwordOk = emailMatch.password === pass || emailMatch.password?.toLowerCase() === pass.toLowerCase()
             if (!passwordOk) {
@@ -512,6 +512,19 @@ export default function LoginPage() {
 
           if (foundUser) {
             localStorage.setItem('active_user', JSON.stringify(foundUser))
+            localStorage.setItem('profile_email', foundUser.email)
+            localStorage.setItem('tu_bus_profile_email', foundUser.email)
+            localStorage.setItem('profile_name', foundUser.name)
+            localStorage.setItem('tu_bus_profile_name', foundUser.name)
+            if (foundUser.phone) {
+              localStorage.setItem('profile_phone', foundUser.phone)
+              localStorage.setItem('tu_bus_profile_phone', foundUser.phone)
+            }
+            if (foundUser.gender) {
+              localStorage.setItem('profile_gender', foundUser.gender)
+              localStorage.setItem('tu_bus_profile_gender', foundUser.gender)
+            }
+
             if (foundUser.role === 'driver') {
               localStorage.setItem('mock_driver_identity', JSON.stringify({
                 name: foundUser.name,

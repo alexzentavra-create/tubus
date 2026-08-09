@@ -935,28 +935,40 @@ export default function SuperAdminDashboard() {
 
   const executeDirectUserDelete = (id: string, email: string, name: string) => {
     const userEmail = (email || '').toLowerCase().trim()
+    const userName = (name || '').toLowerCase().trim()
+
+    const isMatch = (u: any) => {
+      if (!u) return false
+      const uEmail = (u.email || '').toLowerCase().trim()
+      const uName = (u.name || '').toLowerCase().trim()
+      const uId = u.id ? String(u.id) : ''
+      if (id && uId === String(id)) return true
+      if (userEmail && uEmail === userEmail) return true
+      if (userName && uName === userName) return true
+      return false
+    }
 
     // 1. Remove from liveUserList state instantly
     setLiveUserList(prev => {
-      const updated = prev.filter(u => u.id !== id && (userEmail ? u.email?.toLowerCase().trim() !== userEmail : u.name !== name))
+      const updated = prev.filter(u => !isMatch(u))
       setStats(s => ({ ...s, totalUsers: Math.max(0, updated.length) }))
       return updated
     })
 
     // 2. Remove from localStorage registries completely (No trace left)
     const storedReg = JSON.parse(localStorage.getItem('bu_registered_users') || '[]')
-    const filteredReg = storedReg.filter((u: any) => u.id !== id && (userEmail ? u.email?.toLowerCase().trim() !== userEmail : u.name !== name))
+    const filteredReg = storedReg.filter((u: any) => !isMatch(u))
     localStorage.setItem('bu_registered_users', JSON.stringify(filteredReg))
 
     const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
-    const filteredMock = mockUsers.filter((u: any) => u.id !== id && (userEmail ? u.email?.toLowerCase().trim() !== userEmail : u.name !== name))
+    const filteredMock = mockUsers.filter((u: any) => !isMatch(u))
     localStorage.setItem('mock_users', JSON.stringify(filteredMock))
 
     const mockSuper = JSON.parse(localStorage.getItem('mock_super_users') || '[]')
-    const filteredSuper = mockSuper.filter((u: any) => u.id !== id && (userEmail ? u.email?.toLowerCase().trim() !== userEmail : u.name !== name))
+    const filteredSuper = mockSuper.filter((u: any) => !isMatch(u))
     localStorage.setItem('mock_super_users', JSON.stringify(filteredSuper))
 
-    // 3. Clear from deleted_users & blocked_users so account is totally wiped out
+    // 3. Clear from deleted_users & blocked_users & banned_users
     if (userEmail) {
       const deletedUsers = JSON.parse(localStorage.getItem('deleted_users') || '[]')
       const filteredDeleted = deletedUsers.filter((e: string) => e.toLowerCase().trim() !== userEmail)
@@ -965,12 +977,29 @@ export default function SuperAdminDashboard() {
       const blockedUsers = JSON.parse(localStorage.getItem('blocked_users') || '[]')
       const filteredBlocked = blockedUsers.filter((e: string) => e.toLowerCase().trim() !== userEmail)
       localStorage.setItem('blocked_users', JSON.stringify(filteredBlocked))
+
+      const bannedUsers = JSON.parse(localStorage.getItem('banned_users') || '[]')
+      const filteredBanned = bannedUsers.filter((e: string) => e.toLowerCase().trim() !== userEmail)
+      localStorage.setItem('banned_users', JSON.stringify(filteredBanned))
     }
 
-    // 4. Clear active_user session if it matches deleted user
+    // 4. Wipe active_user & profile keys if they match deleted user
     const activeUser = JSON.parse(localStorage.getItem('active_user') || '{}')
-    if (activeUser.email && activeUser.email.toLowerCase().trim() === userEmail) {
+    const activeEmail = (activeUser?.email || '').toLowerCase().trim()
+    if (userEmail && (activeEmail === userEmail || activeUser.id === id)) {
       localStorage.removeItem('active_user')
+    }
+
+    const profEmail = (localStorage.getItem('profile_email') || '').toLowerCase().trim()
+    const tuProfEmail = (localStorage.getItem('tu_bus_profile_email') || '').toLowerCase().trim()
+    if (userEmail && (profEmail === userEmail || tuProfEmail === userEmail)) {
+      localStorage.removeItem('profile_email')
+      localStorage.removeItem('tu_bus_profile_email')
+      localStorage.removeItem('profile_name')
+      localStorage.removeItem('tu_bus_profile_name')
+      localStorage.removeItem('profile_phone')
+      localStorage.removeItem('tu_bus_profile_phone')
+      localStorage.removeItem('tu_bus_profile_password')
     }
 
     if (selectedUserId === id) {
