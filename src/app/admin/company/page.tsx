@@ -1161,30 +1161,42 @@ export default function CompanyDashboard() {
   const currentChartData = getChartData()
 
   const LINE_DRIVERS: Record<string, string[]> = {
-    '0': [],
-    '12': ['Néstor García', 'Roberto Sánchez', 'Carlos Martínez', 'Juan Gómez'],
-    '28': ['Carlos M.', 'Jorge Rodríguez', 'Pablo García'],
-    '37': ['Roberto S.', 'Ana Martínez'],
-    '39': ['Esteban Ortiz', 'Lucas Domínguez', 'Martín Pereyra'],
-    '59': ['Hugo Bianchi', 'Nicolás Silva', 'Claudio Rossi'],
-    '60': ['Carlos Martínez', 'Diego Rodríguez', 'Pablo García', 'Luis Fernández'],
-    '102': ['Diego Torres', 'Fernando Gómez', 'Javier Ortega'],
-    '152': ['Roberto S.', 'Jorge R.', 'Ana C.'],
-    'T-Amarillo': ['Marta Giménez', 'Sergio Rossi', 'Elena Paz'],
-    'T-Rojo': ['Juan Pérez', 'Facundo Castro', 'Sofía Medina']
+    '0': ['Marcos Díaz', 'Carlos Martínez'],
+    '12': ['Néstor García', 'Roberto Sánchez'],
+    '28': [],
+    '37': [],
+    '39': [],
+    '59': [],
+    '60': [],
+    '102': [],
+    '152': [],
+    'T-Amarillo': [],
+    'T-Rojo': []
   }
 
   const getLineDrivers = (lineNum: string) => {
-    const names = LINE_DRIVERS[lineNum] || ['Chofer Auxiliar', 'Chofer de Guardia']
-    return names.map((name, i) => ({
-      name,
-      legajo: `LEG-${String(100 + i * 17).padStart(4, '0')}`,
-      sessions: 40 + (i * 23) % 150,
-      onTime: 85 + (i * 7) % 15,
-      rating: (4.4 + (i * 0.15) % 0.6).toFixed(1),
-      reports: i % 3 === 0 ? 1 : 0,
-      lastActive: i % 2 === 0 ? 'Hoy 08:30' : 'Ayer 18:30'
-    }))
+    const names = LINE_DRIVERS[lineNum] || []
+    return names.map((name, i) => {
+      let email = `${name.toLowerCase().split(' ')[0]}@linea${lineNum}.ar`
+      if (lineNum === '0' && name.includes('Marcos')) email = 'marcos@linea0.ar'
+      if (lineNum === '0' && name.includes('Carlos')) email = 'carlos@linea0.ar'
+      if (lineNum === '12' && name.includes('Néstor')) email = 'nestor@linea12.ar'
+      if (lineNum === '12' && name.includes('Roberto')) email = 'roberto@linea12.ar'
+
+      return {
+        id: `driver-${lineNum}-${i}`,
+        name,
+        email,
+        password: 'Bienparada',
+        legajo: `LEG-010${i+1}`,
+        unit: `${lineNum}-${300 + i}`,
+        sessions: 0,
+        onTime: 100,
+        rating: 5.0,
+        reports: 0,
+        lastActive: 'Activo'
+      }
+    })
   }
 
   const currentDrivers = getLineDrivers(activeLine.line_number)
@@ -1598,35 +1610,18 @@ export default function CompanyDashboard() {
               Bien<span style={{ color: '#8f94a5', fontWeight: 400 }}>Parada</span>
             </span>
             
-            {/* Interactive Badge Selector */}
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <select
-                value={selectedLineNumber}
-                onChange={(e) => handleLineChange(e.target.value)}
-                style={{
-                  fontSize: '9px',
-                  color: '#fff',
-                  background: themeColor,
-                  border: 'none',
-                  padding: '3px 20px 3px 8px',
-                  borderRadius: '4px',
-                  fontWeight: 700,
-                  letterSpacing: '0.05em',
-                  cursor: 'pointer',
-                  outline: 'none',
-                  appearance: 'none',
-                  WebkitAppearance: 'none',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
-                  transition: 'background-color 200ms',
-                }}
-              >
-                {MOCK_LINES.map(l => (
-                  <option key={l.id} value={l.line_number} style={{ background: '#121527', color: '#fff' }}>
-                    {l.line_number === 'T-Amarillo' || l.line_number === 'T-Rojo' ? '' : 'Línea '}{l.line_number}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={10} style={{ position: 'absolute', right: '5px', color: '#fff', pointerEvents: 'none' }} />
+            {/* Static Isolated Line Badge */}
+            <div style={{
+              fontSize: '9px',
+              color: '#fff',
+              background: themeColor,
+              padding: '3px 8px',
+              borderRadius: '4px',
+              fontWeight: 700,
+              letterSpacing: '0.05em',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+            }}>
+              {activeLine.line_number === 'T-Amarillo' || activeLine.line_number === 'T-Rojo' ? '' : 'Línea '}{activeLine.line_number}
             </div>
           </div>
         </div>

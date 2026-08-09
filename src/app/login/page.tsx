@@ -402,108 +402,177 @@ export default function LoginPage() {
           return
         }
 
-        // Hardcoded real accounts login bypass
-        if (lowerEmail === 'usuario@usuario.com' && (pass === 'Usuario' || pass === 'usuario')) {
-          localStorage.setItem('active_user', JSON.stringify({ name: 'Usuario Administrador', age: 30, email: 'usuario@usuario.com', password: 'Usuario', role: 'superadmin' }))
-          window.location.href = `/admin/super`
-          return
-        } else if ((lowerEmail === 'alejandro.finochietti@yahoo.com.ar' || lowerEmail.includes('alejandro.finochietti')) && (pass === 'Afodes18' || pass === 'afodes18' || pass === 'password123')) {
-          localStorage.setItem('active_user', JSON.stringify({ name: 'Alejandro Finochietti', age: 30, email: 'alejandro.finochietti@yahoo.com.ar', password: 'Afodes18', role: 'user' }))
-          window.location.href = `/?city=${city}`
-          return
-        } else {
-          let foundUser: any = null
-          try {
-            const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
-            // First check: does this email exist at all?
-            const emailMatch = mockUsers.find((u: any) => u.email.toLowerCase() === lowerEmail)
-            if (emailMatch) {
-              // Email found — check password (exact first, then case-insensitive fallback)
-              const passwordOk = emailMatch.password === pass || emailMatch.password?.toLowerCase() === pass.toLowerCase()
-              if (!passwordOk) {
-                // Wrong password — show error, do NOT fall through to keyword guessing
-                toast.error('Contraseña incorrecta. Revisá las mayúsculas.')
-                setLoading(false)
-                return
-              }
-              foundUser = emailMatch
+        // 1. Check Super Admin (`admin@admin.com` with password `Admin`)
+        if (lowerEmail === 'admin@admin.com') {
+          if (pass === 'Admin' || pass === 'admin') {
+            localStorage.setItem('active_user', JSON.stringify({
+              name: 'Super Admin',
+              email: 'admin@admin.com',
+              password: 'Admin',
+              role: 'superadmin'
+            }))
+            window.location.href = '/admin/super'
+            return
+          } else {
+            toast.error('Contraseña incorrecta para Super Administrador.')
+            setLoading(false)
+            return
+          }
+        }
+
+        // 2. Check Line Admin Accounts (`linea{N}@bienparada.ar`, `amarillo@bienparada.ar`, `roja@bienparada.ar`)
+        let lineAdminMatchNum: string | null = null
+        if (lowerEmail === 'linea12@bienparada.ar' || lowerEmail === 'linea12@bienparada.com') lineAdminMatchNum = '12'
+        else if (lowerEmail === 'linea0@bienparada.ar' || lowerEmail === 'linea0@bienparada.com') lineAdminMatchNum = '0'
+        else if (lowerEmail === 'linea28@bienparada.ar') lineAdminMatchNum = '28'
+        else if (lowerEmail === 'linea37@bienparada.ar') lineAdminMatchNum = '37'
+        else if (lowerEmail === 'linea39@bienparada.ar') lineAdminMatchNum = '39'
+        else if (lowerEmail === 'linea59@bienparada.ar') lineAdminMatchNum = '59'
+        else if (lowerEmail === 'linea60@bienparada.ar') lineAdminMatchNum = '60'
+        else if (lowerEmail === 'linea102@bienparada.ar') lineAdminMatchNum = '102'
+        else if (lowerEmail === 'linea152@bienparada.ar') lineAdminMatchNum = '152'
+        else if (lowerEmail === 'amarillo@bienparada.ar' || lowerEmail.includes('t-amarillo')) lineAdminMatchNum = 'T-Amarillo'
+        else if (lowerEmail === 'roja@bienparada.ar' || lowerEmail.includes('t-rojo')) lineAdminMatchNum = 'T-Rojo'
+        else if (lowerEmail.startsWith('linea') && lowerEmail.endsWith('@bienparada.ar')) {
+          lineAdminMatchNum = lowerEmail.replace('linea', '').replace('@bienparada.ar', '')
+        }
+
+        if (lineAdminMatchNum !== null) {
+          if (pass === 'Bienparada' || pass.toLowerCase() === 'bienparada' || pass === 'linea12pass') {
+            localStorage.setItem('active_company_line', lineAdminMatchNum)
+            localStorage.setItem('active_user', JSON.stringify({
+              role: 'company_admin',
+              lineNumber: lineAdminMatchNum,
+              email: lowerEmail,
+              password: 'Bienparada'
+            }))
+            window.location.href = '/admin/company'
+            return
+          } else {
+            toast.error('Contraseña incorrecta para el Administrador de Línea.')
+            setLoading(false)
+            return
+          }
+        }
+
+        // 3. Check Driver Accounts (Marcos, Carlos, Néstor, Roberto & registered choferes)
+        let driverAccount: any = null
+        if (lowerEmail === 'marcos@linea0.ar' || lowerEmail.includes('marcos.diaz') || lowerEmail === 'marcos@linea0.com') {
+          driverAccount = { name: 'Marcos Díaz', email: lowerEmail, lineNumber: '0', defaultPass: 'Bienparada' }
+        } else if (lowerEmail === 'carlos@linea0.ar' || lowerEmail.includes('carlos.martinez') || lowerEmail === 'carlos@linea0.com') {
+          driverAccount = { name: 'Carlos Martínez', email: lowerEmail, lineNumber: '0', defaultPass: 'Bienparada' }
+        } else if (lowerEmail === 'nestor@linea12.ar' || lowerEmail.includes('nestor.garcia') || lowerEmail === 'nestor@nestor.ar') {
+          driverAccount = { name: 'Néstor García', email: lowerEmail, lineNumber: '12', defaultPass: 'Bienparada' }
+        } else if (lowerEmail === 'roberto@linea12.ar' || lowerEmail.includes('roberto.sanchez')) {
+          driverAccount = { name: 'Roberto Sánchez', email: lowerEmail, lineNumber: '12', defaultPass: 'Bienparada' }
+        }
+
+        if (driverAccount) {
+          if (pass === 'Bienparada' || pass === driverAccount.defaultPass || pass.toLowerCase() === 'bienparada' || pass === 'Nestor123!') {
+            const userObj = {
+              name: driverAccount.name,
+              email: lowerEmail,
+              password: pass,
+              role: 'driver',
+              lineNumber: driverAccount.lineNumber
             }
+            localStorage.setItem('active_user', JSON.stringify(userObj))
+            localStorage.setItem('mock_driver_identity', JSON.stringify({
+              name: driverAccount.name,
+              email: lowerEmail,
+              lineNumber: driverAccount.lineNumber,
+              driverId: `driver-${lowerEmail}`
+            }))
+            window.location.href = '/driver'
+            return
+          } else {
+            toast.error('Contraseña incorrecta para Chofer.')
+            setLoading(false)
+            return
+          }
+        }
 
-            if (foundUser) {
-              // Auto-detect role if missing: scan all mock_drivers_* keys in localStorage
-              if (!foundUser.role) {
-                const driverKeys = Object.keys(localStorage).filter(k => k.startsWith('mock_drivers_'))
-                for (const key of driverKeys) {
-                  const drivers = JSON.parse(localStorage.getItem(key) || '[]')
-                  const lineNumber = key.replace('mock_drivers_', '')
-                  const match = drivers.find((d: any) => d.email?.toLowerCase() === lowerEmail)
-                  if (match) {
-                    foundUser = { ...foundUser, role: 'driver', lineNumber, name: match.name || foundUser.name }
-                    // Patch mock_users with correct role for future logins
-                    const idx = mockUsers.findIndex((u: any) => u.email.toLowerCase() === lowerEmail)
-                    if (idx >= 0) { mockUsers[idx] = foundUser; localStorage.setItem('mock_users', JSON.stringify(mockUsers)) }
-                    break
-                  }
-                }
-              }
+        // 4. Check Registered Accounts in `mock_users` or `bu_registered_users` or baseline users
+        let foundUser: any = null
+        try {
+          const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
+          const registeredUsers = JSON.parse(localStorage.getItem('bu_registered_users') || '[]')
+          const allUsers = [...mockUsers, ...registeredUsers]
 
-              localStorage.setItem('active_user', JSON.stringify(foundUser))
-              // If this is a registered driver, store their identity so /driver can load it
-              if (foundUser.role === 'driver') {
-                localStorage.setItem('mock_driver_identity', JSON.stringify({
-                  name: foundUser.name,
-                  email: foundUser.email,
-                  lineNumber: foundUser.lineNumber || '0',
-                  driverId: `driver-${foundUser.email}`
-                }))
-                window.location.href = '/driver'
-                setLoading(false)
-                return
-              }
-              // Company admin registered via super-admin
-              if (foundUser.role === 'company_admin' || foundUser.role === 'admin') {
-                window.location.href = '/admin/company'
-                setLoading(false)
-                return
-              }
-              // Found but no specific role — redirect to user panel
-              window.location.href = `/?city=${city}`
+          const emailMatch = allUsers.find((u: any) => u.email && u.email.toLowerCase() === lowerEmail)
+          if (emailMatch) {
+            const passwordOk = emailMatch.password === pass || emailMatch.password?.toLowerCase() === pass.toLowerCase()
+            if (!passwordOk) {
+              toast.error('Contraseña incorrecta. Verifique sus credenciales.')
               setLoading(false)
               return
             }
-          } catch (e) {
-            console.error(e)
+            foundUser = emailMatch
           }
 
-          if (lowerEmail === 'admin@admin.com' && passLower === 'admin') {
-            window.location.href = '/admin/super'
-          } else if (lowerEmail === 'nestor@nestor.ar' && passLower === 'nestor') {
-            // Legacy demo driver — store identity so /driver page can greet them
-            localStorage.setItem('mock_driver_identity', JSON.stringify({
-              name: 'Néstor García', email: lowerEmail, lineNumber: '12', driverId: 'mock-driver-nestor'
-            }))
-            window.location.href = '/driver'
-          } else if (lowerEmail.startsWith('linea') && lowerEmail.endsWith('@bienparada.ar') && passLower === 'bienparada') {
-            const lineNum = lowerEmail.replace('linea', '').replace('@bienparada.ar', '')
-            localStorage.setItem('active_company_line', lineNum)
-            localStorage.setItem('active_user', JSON.stringify({ role: 'company_admin', lineNumber: lineNum, email: lowerEmail }))
-            window.location.href = '/admin/company'
-          } else {
-            // Generic fallback — completely unrecognized account
-            // NOTE: keyword matching removed to avoid catching driver emails like "marcos.diaz.linea0@..."
-            toast('Modo de prueba: ingresando como usuario genérico', { icon: 'ℹ️' })
-            localStorage.setItem('active_user', JSON.stringify({ name: lowerEmail.split('@')[0], age: 28, email: lowerEmail }))
-            if (lowerEmail.startsWith('superadmin') || lowerEmail.startsWith('admin@')) {
-              window.location.href = '/admin/super'
-            } else if (lowerEmail.startsWith('driver') || lowerEmail.startsWith('chofer')) {
+          if (foundUser) {
+            localStorage.setItem('active_user', JSON.stringify(foundUser))
+            if (foundUser.role === 'driver') {
+              localStorage.setItem('mock_driver_identity', JSON.stringify({
+                name: foundUser.name,
+                email: foundUser.email,
+                lineNumber: foundUser.lineNumber || '0',
+                driverId: `driver-${foundUser.email}`
+              }))
               window.location.href = '/driver'
-            } else if (lowerEmail.startsWith('company') || lowerEmail.startsWith('empresa')) {
+            } else if (foundUser.role === 'company_admin' || foundUser.role === 'admin') {
               window.location.href = '/admin/company'
+            } else if (foundUser.role === 'superadmin') {
+              window.location.href = '/admin/super'
             } else {
               window.location.href = `/?city=${city}`
             }
+            setLoading(false)
+            return
+          }
+        } catch (e) {
+          console.error(e)
+        }
+
+        // Baseline passenger accounts: usuario@usuario.com & alejandro.finochietti@yahoo.com.ar
+        if (lowerEmail === 'usuario@usuario.com' || lowerEmail === 'usuario@usuario') {
+          if (pass === 'Usuario' || pass.toLowerCase() === 'usuario') {
+            localStorage.setItem('active_user', JSON.stringify({
+              name: 'Usuario Prueba',
+              email: 'usuario@usuario.com',
+              password: 'Usuario',
+              role: 'user'
+            }))
+            window.location.href = `/?city=${city}`
+            return
+          } else {
+            toast.error('Contraseña incorrecta.')
+            setLoading(false)
+            return
           }
         }
+
+        if (lowerEmail === 'alejandro.finochietti@yahoo.com.ar' || lowerEmail.includes('alejandro.finochietti')) {
+          if (pass === 'Afodes18' || pass.toLowerCase() === 'afodes18' || pass === 'password123') {
+            localStorage.setItem('active_user', JSON.stringify({
+              name: 'Alejandro Finochietti',
+              email: 'alejandro.finochietti@yahoo.com.ar',
+              password: 'Afodes18',
+              role: 'user'
+            }))
+            window.location.href = `/?city=${city}`
+            return
+          } else {
+            toast.error('Contraseña incorrecta.')
+            setLoading(false)
+            return
+          }
+        }
+
+        // Unrecognized account — HALT with error message
+        toast.error('Usuario o contraseña incorrectos. Si no tenés cuenta, podés Registrarte.')
+        setLoading(false)
+        return
         setLoading(false)
         return
       }

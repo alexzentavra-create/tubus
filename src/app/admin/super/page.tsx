@@ -502,7 +502,7 @@ export default function SuperAdminDashboard() {
       if (stored) return JSON.parse(stored)
     } catch (e) {}
     return [
-      { id: 'sa-1', name: 'Usuario Administrador', email: 'usuario@usuario.com', password: 'Usuario', role: 'Super Admin Principal', avatar: 'UA', status: 'Activo', lastLogin: 'Hoy 09:30 hs' }
+      { id: 'sa-1', name: 'Super Admin', email: 'admin@admin.com', password: 'Admin', role: 'Super Admin Principal', avatar: 'SA', status: 'Activo', lastLogin: 'Hoy 09:30 hs' }
     ]
   })
 
