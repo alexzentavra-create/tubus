@@ -872,10 +872,13 @@ export default function SuperAdminDashboard() {
         const mergedList = Object.values(finalMap)
         setLiveUserList(mergedList)
         const activeCount = mergedList.filter((u: any) => u.status === 'Activo').length
+        const activeSessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+        const activeBusesCount = activeSessions.filter((s: any) => s.status === 'moving' || s.status === 'stopped' || s.is_active).length
         setStats(prev => ({
           ...prev,
           totalUsers: mergedList.length,
           activeUsers: activeCount,
+          activeBuses: activeBusesCount,
           todayLogins: activeCount
         }))
         localStorage.setItem('bu_registered_users', JSON.stringify(mergedList))
@@ -2063,25 +2066,72 @@ export default function SuperAdminDashboard() {
   }
 
   const renderBusesDetail = () => {
+    const activeSessions: any[] = JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('mock_active_sessions') || '[]' : '[]')
+    const activeBusesList = activeSessions.filter((s: any) => s.status === 'moving' || s.status === 'stopped' || s.is_active)
+    const activeBusesCount = activeBusesList.length
+
+    const speedAlertsCount = activeBusesList.filter((s: any) => (s.speed_kmh || s.speed || 0) > 55).length
+
+    const savedDetours: any[] = JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('mock_saved_custom_detours') || '[]' : '[]')
+    const activeDetoursCount = savedDetours.length
+
+    // Base units registered for Línea 12
+    const baseUnits = [
+      { unit: '1201', line: 'Línea 12' },
+      { unit: '1202', line: 'Línea 12' },
+      { unit: '1203', line: 'Línea 12' }
+    ]
+
+    const fleetRows = baseUnits.map(b => {
+      const session = activeBusesList.find((s: any) => s.busUnit === b.unit || s.bus_unit === b.unit)
+      if (session) {
+        const speed = session.speed_kmh || session.speed || 0
+        const speedAlert = speed > 55
+        return {
+          line: b.line,
+          unit: b.unit,
+          driver: session.driverName || session.driver_name || 'Chofer Activo',
+          speed: `${speed} km/h`,
+          speedAlert: speedAlert,
+          status: speedAlert ? 'Velocidad Alta' : 'EN SERVICIO',
+          statusColor: speedAlert ? '#ef4444' : '#10B981',
+          bg: speedAlert ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)',
+          lastSync: 'En tiempo real'
+        }
+      } else {
+        return {
+          line: b.line,
+          unit: b.unit,
+          driver: 'Sin chofer en ruta',
+          speed: '0 km/h',
+          speedAlert: false,
+          status: 'FUERA DE SERVICIO',
+          statusColor: '#8f94a5',
+          bg: 'rgba(255,255,255,0.06)',
+          lastSync: 'Inactivo'
+        }
+      }
+    })
+
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {/* Metric Cards Summary */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
           <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: '14px', borderRadius: '10px' }}>
             <span style={{ fontSize: '10px', color: '#8f94a5', textTransform: 'uppercase' }}>Flota en Servicio</span>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: '#fff', marginTop: '6px' }}>18 Colectivos</div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: '#fff', marginTop: '6px' }}>{activeBusesCount} {activeBusesCount === 1 ? 'Colectivo' : 'Colectivos'}</div>
           </div>
           <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: '14px', borderRadius: '10px' }}>
             <span style={{ fontSize: '10px', color: '#8f94a5', textTransform: 'uppercase' }}>Unidades Nuevas</span>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: '#10B981', marginTop: '6px' }}>+3 este mes</div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: '#10B981', marginTop: '6px' }}>0 este mes</div>
           </div>
           <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: '14px', borderRadius: '10px' }}>
             <span style={{ fontSize: '10px', color: '#8f94a5', textTransform: 'uppercase' }}>Alertas de Velocidad</span>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: '#ef4444', marginTop: '6px' }}>1 Unidad</div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: speedAlertsCount > 0 ? '#ef4444' : '#8f94a5', marginTop: '6px' }}>{speedAlertsCount} {speedAlertsCount === 1 ? 'Unidad' : 'Unidades'}</div>
           </div>
           <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', padding: '14px', borderRadius: '10px' }}>
             <span style={{ fontSize: '10px', color: '#8f94a5', textTransform: 'uppercase' }}>Desvíos Activos</span>
-            <div style={{ fontSize: '20px', fontWeight: 700, color: '#F59E0B', marginTop: '6px' }}>1 Reportado</div>
+            <div style={{ fontSize: '20px', fontWeight: 700, color: activeDetoursCount > 0 ? '#F59E0B' : '#8f94a5', marginTop: '6px' }}>{activeDetoursCount} {activeDetoursCount === 1 ? 'Reportado' : 'Reportados'}</div>
           </div>
         </div>
 
@@ -2099,32 +2149,28 @@ export default function SuperAdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {MOCK_ACTIVE_FLEET.map((f, idx) => {
-                const speedAlert = f.speed > 55
-                const isDelayed = f.status.includes('Demorado')
-                return (
-                  <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: idx % 2 === 0 ? 'rgba(0,0,0,0.1)' : 'transparent' }}>
-                    <td style={{ padding: '12px 16px', fontWeight: 600, color: '#fff' }}>{f.line}</td>
-                    <td style={{ padding: '12px 16px', fontFamily: 'DM Mono', color: '#10B981' }}>#{f.unit}</td>
-                    <td style={{ padding: '12px 16px' }}>{f.driver}</td>
-                    <td style={{ padding: '12px 16px', color: speedAlert ? '#ef4444' : '#fff', fontWeight: speedAlert ? 700 : 500 }}>{f.speed} km/h</td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span style={{
-                        fontSize: '9px',
-                        fontWeight: 700,
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        textTransform: 'uppercase',
-                        background: speedAlert ? 'rgba(239,68,68,0.15)' : isDelayed ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)',
-                        color: speedAlert ? '#ef4444' : isDelayed ? '#F59E0B' : '#10B981'
-                      }}>
-                        {speedAlert ? 'Velocidad Alta' : f.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 16px', color: '#8f94a5' }}>{f.lastSync}</td>
-                  </tr>
-                )
-              })}
+              {fleetRows.map((f, idx) => (
+                <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: idx % 2 === 0 ? 'rgba(0,0,0,0.1)' : 'transparent' }}>
+                  <td style={{ padding: '12px 16px', fontWeight: 600, color: '#fff' }}>{f.line}</td>
+                  <td style={{ padding: '12px 16px', fontFamily: 'DM Mono', color: '#10B981' }}>#{f.unit}</td>
+                  <td style={{ padding: '12px 16px', color: f.driver === 'Sin chofer en ruta' ? '#8f94a5' : '#fff' }}>{f.driver}</td>
+                  <td style={{ padding: '12px 16px', color: f.speedAlert ? '#ef4444' : (f.speed === '0 km/h' ? '#8f94a5' : '#fff'), fontWeight: f.speedAlert ? 700 : 500 }}>{f.speed}</td>
+                  <td style={{ padding: '12px 16px' }}>
+                    <span style={{
+                      fontSize: '9px',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      textTransform: 'uppercase',
+                      background: f.bg,
+                      color: f.statusColor
+                    }}>
+                      {f.status}
+                    </span>
+                  </td>
+                  <td style={{ padding: '12px 16px', color: '#8f94a5' }}>{f.lastSync}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
