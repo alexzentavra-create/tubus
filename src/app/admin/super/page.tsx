@@ -729,142 +729,115 @@ export default function SuperAdminDashboard() {
     const syncUsersFromStorage = () => {
       if (typeof window === 'undefined') return
       try {
-        const storedMockUsersStr = localStorage.getItem('mock_users')
-        const storedMockUsers: any[] = storedMockUsersStr ? JSON.parse(storedMockUsersStr) : []
-        
-        const storedSuperUsersStr = localStorage.getItem('mock_super_users')
-        const storedSuperUsers: any[] = storedSuperUsersStr ? JSON.parse(storedSuperUsersStr) : []
-
         const activeUserStr = localStorage.getItem('active_user')
-        const activeUser = activeUserStr ? JSON.parse(activeUserStr) : null
-
-        const profileName = localStorage.getItem('profile_name') || localStorage.getItem('tu_bus_profile_name')
-        const profileEmail = localStorage.getItem('profile_email') || localStorage.getItem('tu_bus_profile_email')
-        const rawHistory = localStorage.getItem('bu_search_history')
-        const searchHistory = rawHistory ? JSON.parse(rawHistory) : []
+        let activeUser: any = null
+        try {
+          activeUser = activeUserStr ? JSON.parse(activeUserStr) : null
+        } catch (e) {}
 
         const baseList: any[] = [...REAL_USERS]
 
-        const isFake = (email?: string, id?: string, name?: string) => {
-          const lowerEmail = (email || '').toLowerCase().trim()
-          const lowerName = (name || '').toLowerCase().trim()
+        const isRealPassengerUser = (u: any) => {
+          if (!u || !u.email) return false
+          const email = u.email.toLowerCase().trim()
+          const name = (u.name || '').toLowerCase().trim()
+          const role = u.role || 'user'
 
-          if (!lowerEmail && !lowerName) return true
-
-          // Real allowed baseline users
-          if (lowerEmail === 'usuario@usuario.com' ||
-              lowerEmail === 'usuario@usuario' ||
-              lowerEmail === 'alejandro.finochietti@yahoo.com.ar' ||
-              lowerEmail === 'alejandro.finochietti@bienparada.ar') {
+          // Exclude Super Admin & Company Line Admins & Drivers
+          if (role === 'superadmin' || role === 'driver' || role === 'company_admin' || role === 'admin') {
             return false
           }
 
-          // Strict filter out any mock user, mock email, line admin alias, or fake name
-          if (lowerEmail.endsWith('@tubus.ar') ||
-              lowerEmail.includes('linea0') ||
-              lowerEmail.includes('linea12') ||
-              lowerEmail.includes('linea37') ||
-              lowerEmail.includes('demo.com.ar') ||
-              lowerEmail.includes('ale.zentavra') ||
-              lowerEmail.includes('sofia') ||
-              lowerEmail.includes('mateo') ||
-              lowerEmail.includes('mariana') ||
-              lowerEmail.includes('marcos') ||
-              lowerEmail.includes('roberto') ||
-              lowerEmail.includes('n.stor') ||
-              lowerName.includes('marcos') ||
-              lowerName.includes('néstor') ||
-              lowerName.includes('nestor') ||
-              lowerName.includes('roberto') ||
-              id === 'usr-1' || id === 'usr-2' || id === 'usr-3' || id === 'usr-4' || id === 'usr-5' || id === 'usr-6') {
-            return true
+          // Exclude known line admin & driver emails or mock emails
+          if (email === 'admin@admin.com' ||
+              email.startsWith('linea') ||
+              email.startsWith('chofer') ||
+              email.endsWith('@tubus.ar') ||
+              email.includes('@bienparada.ar') ||
+              email.includes('marta.gim') ||
+              email.includes('carlos@bienparada') ||
+              email.includes('nestor@linea') ||
+              email.includes('marcos@linea') ||
+              name.includes('chofer') ||
+              name.includes('linea')) {
+            return false
           }
 
-          return false
-        }
-
-        const formatUserObj = (u: any, fallbackId?: string) => {
-          const email = (u.email || profileEmail || 'usuario@usuario.com').toLowerCase().trim()
-          let name = u.name || profileName
-          if (!name || name === 'Usuario') {
-            if (email.includes('alejandro.finochietti')) name = 'Alejandro Finochietti'
-            else if (email === 'usuario@usuario.com' || email === 'usuario@usuario') name = 'Usuario Prueba'
-            else name = email.split('@')[0]
-          }
-          const avatarParts = name.split(' ').map((p: string) => p[0]).join('').toUpperCase().slice(0, 2)
-          return {
-            id: u.id || fallbackId || `usr-real-${Date.now()}`,
-            name,
-            email,
-            password: u.password || '••••••••',
-            avatar: avatarParts || 'US',
-            joinedDate: u.joinedDate || 'Hoy, 2026',
-            status: u.status || 'Activo',
-            searches: Math.max(u.searches || 0, searchHistory.length),
-            trips: u.trips || Math.floor((u.searches || 1) * 0.6),
-            rating: u.rating || 5.0,
-            favLines: u.favLines || ['Línea 12'],
-            behavior: u.behavior || 'Usuario registrado en la plataforma.',
-            frequentStop: u.frequentStop || 'Av. Santa Fe y Callao',
-            dailyBuses: u.dailyBuses || 1.0,
-            hasAds: u.hasAds || false,
-            gender: u.gender || (email.includes('alejandro') ? 'Masculino' : 'Todos'),
-            city: u.city || 'Buenos Aires',
-            province: u.province || 'Buenos Aires',
-            searchHistory: searchHistory,
-            weeklyUsage: u.weeklyUsage || [
-              { day: 'Lun', count: 0 },
-              { day: 'Mar', count: 0 },
-              { day: 'Mie', count: 0 },
-              { day: 'Jue', count: 0 },
-              { day: 'Vie', count: 0 },
-              { day: 'Sab', count: 0 },
-              { day: 'Dom', count: 0 }
-            ]
-          }
+          return true
         }
 
         const finalMap: Record<string, any> = {}
 
-        baseList.forEach(u => {
-          if (!isFake(u.email, u.id, u.name)) {
+        // 1. Add baseline real passenger users
+        REAL_USERS.forEach(u => {
+          if (isRealPassengerUser(u)) {
             finalMap[u.email.toLowerCase()] = u
           }
         })
 
-        storedSuperUsers.forEach(u => {
-          if (u.email && !isFake(u.email, u.id, u.name)) {
+        // 2. Add registered users from bu_registered_users and mock_users
+        const storedRegistered = JSON.parse(localStorage.getItem('bu_registered_users') || '[]')
+        const storedMockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
+
+        const allCandidateUsers = [...storedRegistered, ...storedMockUsers]
+
+        allCandidateUsers.forEach(u => {
+          if (u.email && isRealPassengerUser(u)) {
             const emailKey = u.email.toLowerCase()
-            const existing = finalMap[emailKey]
-            finalMap[emailKey] = { ...existing, ...u }
+            const existing = finalMap[emailKey] || {}
+            
+            const name = u.name || existing.name || u.email.split('@')[0]
+            const avatarParts = name.split(' ').map((p: string) => p[0]).join('').toUpperCase().slice(0, 2)
+
+            finalMap[emailKey] = {
+              id: u.id || existing.id || `usr-${Date.now()}`,
+              name: name,
+              email: u.email.toLowerCase(),
+              password: u.password || existing.password || '••••••••',
+              avatar: avatarParts || 'US',
+              joinedDate: u.joinedDate || existing.joinedDate || 'Hoy, 2026',
+              status: u.status || existing.status || 'Activo',
+              searches: u.searches || existing.searches || 0,
+              trips: u.trips || existing.trips || 0,
+              rating: 5.0,
+              favLines: u.favLines || [],
+              behavior: u.behavior || 'Usuario registrado en la plataforma.',
+              city: u.city || 'Buenos Aires',
+              province: u.province || 'Buenos Aires'
+            }
           }
         })
 
-        storedMockUsers.forEach(u => {
-          if (u.email && !isFake(u.email, u.id, u.name)) {
-            const emailKey = u.email.toLowerCase()
-            const existing = finalMap[emailKey]
-            const formatted = formatUserObj(u, u.id)
-            finalMap[emailKey] = { ...formatted, ...existing, email: u.email, name: u.name || existing?.name || formatted.name }
-          }
-        })
-
-        if (activeUser && activeUser.email && !isFake(activeUser.email, activeUser.id, activeUser.name)) {
+        // 3. Include active_user if passenger
+        if (activeUser && activeUser.email && isRealPassengerUser(activeUser)) {
           const emailKey = activeUser.email.toLowerCase()
-          const existing = finalMap[emailKey]
-          const formatted = formatUserObj(activeUser, activeUser.id)
-          finalMap[emailKey] = { ...formatted, ...existing, email: activeUser.email, name: activeUser.name || existing?.name || formatted.name }
+          const existing = finalMap[emailKey] || {}
+          const name = activeUser.name || existing.name || activeUser.email.split('@')[0]
+          const avatarParts = name.split(' ').map((p: string) => p[0]).join('').toUpperCase().slice(0, 2)
+
+          finalMap[emailKey] = {
+            id: activeUser.id || existing.id || `usr-${Date.now()}`,
+            name: name,
+            email: activeUser.email.toLowerCase(),
+            password: activeUser.password || existing.password || '••••••••',
+            avatar: avatarParts || 'US',
+            joinedDate: activeUser.joinedDate || existing.joinedDate || 'Hoy, 2026',
+            status: 'Activo',
+            searches: activeUser.searches || existing.searches || 0,
+            trips: activeUser.trips || existing.trips || 0,
+            rating: 5.0,
+            favLines: [],
+            behavior: 'Usuario registrado en la plataforma.',
+            city: activeUser.city || 'Buenos Aires',
+            province: 'Buenos Aires'
+          }
         }
 
         const mergedList = Object.values(finalMap)
         setLiveUserList(mergedList)
         setStats(prev => ({ ...prev, totalUsers: mergedList.length }))
-        localStorage.setItem('mock_super_users', JSON.stringify(mergedList))
         localStorage.setItem('bu_registered_users', JSON.stringify(mergedList))
-        
-        // Scrub localStorage mock_users to remove fake items permanently
-        const cleanedMockUsers = storedMockUsers.filter((u: any) => !isFake(u.email, u.id, u.name))
-        localStorage.setItem('mock_users', JSON.stringify(cleanedMockUsers))
+        localStorage.setItem('mock_super_users', JSON.stringify(mergedList))
       } catch (err) {
         console.error('Error syncing real-time user data:', err)
       }

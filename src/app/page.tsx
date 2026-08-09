@@ -22153,7 +22153,7 @@ function MapAdBanner({
   }, [trackedBusId])
 
   // User Profile, Search History, Ads, and Support Chat states
-  const [profileName, setProfileName] = useState('Alejandro')
+  const [profileName, setProfileName] = useState('Usuario')
   const [profilePhone, setProfilePhone] = useState('+54 11 5555-5555')
   const [profileEmail, setProfileEmail] = useState('usuario@bienparada.com.ar')
   const [profileAvatar, setProfileAvatar] = useState('avatar1')
@@ -23065,11 +23065,17 @@ function MapAdBanner({
     
     setSelectedLines([])
 
-    // Load User Profile
-    const savedName = localStorage.getItem('profile_name') || localStorage.getItem('tu_bus_profile_name') || 'Alejandro'
-    const savedPhone = localStorage.getItem('profile_phone') || localStorage.getItem('tu_bus_profile_phone') || '+54 11 5555-5555'
-    const savedEmail = localStorage.getItem('profile_email') || localStorage.getItem('tu_bus_profile_email') || 'usuario@bienparada.com.ar'
-    const savedAvatar = localStorage.getItem('profile_avatar') || localStorage.getItem('tu_bus_profile_avatar') || 'avatar1'
+    // Load User Profile dynamically for the active logged-in user
+    const activeUserStr = localStorage.getItem('active_user')
+    let activeUser: any = null
+    try {
+      activeUser = activeUserStr ? JSON.parse(activeUserStr) : null
+    } catch (e) {}
+
+    const savedName = activeUser?.name || localStorage.getItem('profile_name') || localStorage.getItem('tu_bus_profile_name') || 'Usuario'
+    const savedPhone = activeUser?.phone || localStorage.getItem('profile_phone') || localStorage.getItem('tu_bus_profile_phone') || '+54 11 5555-5555'
+    const savedEmail = activeUser?.email || localStorage.getItem('profile_email') || localStorage.getItem('tu_bus_profile_email') || 'usuario@bienparada.com.ar'
+    const savedAvatar = activeUser?.avatar || localStorage.getItem('profile_avatar') || localStorage.getItem('tu_bus_profile_avatar') || 'avatar1'
 
     setProfileName(savedName)
     setProfilePhone(savedPhone)

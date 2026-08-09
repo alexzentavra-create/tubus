@@ -621,27 +621,52 @@ export default function LoginPage() {
       const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
       if (url.includes('placeholder.supabase.co')) {
         try {
-          const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
           const userId = 'usr_' + Date.now()
           const newUserData = {
             id: userId,
-            name: form.name,
-            email: form.email,
-            password: form.password,
+            name: form.name.trim(),
+            email: form.email.trim().toLowerCase(),
+            password: form.password.trim(),
             age: parseInt(form.age) || 25,
-            role: 'user'
+            role: 'user',
+            joinedDate: new Date().toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' }),
+            status: 'Activo',
+            searches: 0,
+            trips: 0,
+            rating: 5.0,
+            favLines: [],
+            behavior: 'Usuario registrado en la plataforma.',
+            city: city || 'Buenos Aires',
+            province: 'Buenos Aires'
           }
-          mockUsers.push(newUserData)
-          // Set fresh 0 state for new user
+
+          // 1. Save to mock_users
+          const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
+          const filteredMock = mockUsers.filter((u: any) => u.email?.toLowerCase() !== newUserData.email)
+          filteredMock.push(newUserData)
+          localStorage.setItem('mock_users', JSON.stringify(filteredMock))
+
+          // 2. Save to bu_registered_users
+          const registeredUsers = JSON.parse(localStorage.getItem('bu_registered_users') || '[]')
+          const filteredReg = registeredUsers.filter((u: any) => u.email?.toLowerCase() !== newUserData.email)
+          filteredReg.push(newUserData)
+          localStorage.setItem('bu_registered_users', JSON.stringify(filteredReg))
+
+          // 3. Set active_user & explicit profile localStorage keys for this exact user
           localStorage.setItem('active_user', JSON.stringify(newUserData))
+          localStorage.setItem('profile_name', newUserData.name)
+          localStorage.setItem('tu_bus_profile_name', newUserData.name)
+          localStorage.setItem('profile_email', newUserData.email)
+          localStorage.setItem('tu_bus_profile_email', newUserData.email)
+
+          // 4. Initialize clean 0 state for new user
           localStorage.setItem('bu_search_history_' + userId, JSON.stringify([]))
           localStorage.setItem('bu_user_ads_' + userId, JSON.stringify([]))
           localStorage.setItem('bu_user_points_' + userId, '0')
-          localStorage.setItem('mock_users', JSON.stringify(mockUsers))
         } catch (e) {
           console.error(e)
         }
-        toast.success('¡Cuenta de prueba creada! Ya podés ingresar.')
+        toast.success('¡Cuenta registrada con éxito! Ya podés ingresar.')
         setMode('login')
       } else {
         const { data, error } = await supabase.auth.signUp({
