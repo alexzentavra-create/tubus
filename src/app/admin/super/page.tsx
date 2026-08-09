@@ -874,11 +874,13 @@ export default function SuperAdminDashboard() {
         const activeCount = mergedList.filter((u: any) => u.status === 'Activo').length
         const activeSessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
         const activeBusesCount = activeSessions.filter((s: any) => s.status === 'moving' || s.status === 'stopped' || s.is_active).length
+        const activeDriversCount = activeSessions.filter((s: any) => s.driverId || s.driverName || s.is_active).length
         setStats(prev => ({
           ...prev,
           totalUsers: mergedList.length,
           activeUsers: activeCount,
           activeBuses: activeBusesCount,
+          totalDrivers: activeDriversCount,
           todayLogins: activeCount
         }))
         localStorage.setItem('bu_registered_users', JSON.stringify(mergedList))
@@ -2179,7 +2181,36 @@ export default function SuperAdminDashboard() {
   }
 
   const renderDriversDetail = () => {
-    const filteredDrivers = MOCK_DRIVERS_STATUS.filter(d => selectedDriverLine === 'all' || d.line === selectedDriverLine)
+    // Base registered driver roster
+    const baseDrivers = [
+      { id: 'drv-1', name: 'Néstor García', line: 'Línea 12', unit: '1201', email: 'nestor@linea12.ar' },
+      { id: 'drv-2', name: 'Roberto Sánchez', line: 'Línea 12', unit: '1202', email: 'roberto@linea12.ar' },
+      { id: 'drv-3', name: 'Juan Carlos Pérez', line: 'Línea 12', unit: '1203', email: 'juancarlos@linea12.ar' },
+      { id: 'drv-4', name: 'Marcos Díaz', line: 'Línea 0', unit: '001', email: 'marcos@linea0.ar' },
+      { id: 'drv-5', name: 'Carlos Martínez', line: 'Línea 0', unit: '002', email: 'carlos@linea0.ar' }
+    ]
+
+    const activeSessions: any[] = JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('mock_active_sessions') || '[]' : '[]')
+
+    const liveDriversList = baseDrivers.map(d => {
+      const activeSession = activeSessions.find((s: any) =>
+        (s.driverId && s.driverId === d.id) ||
+        (s.driverName && s.driverName.toLowerCase().includes(d.name.split(' ')[0].toLowerCase())) ||
+        (s.busUnit && s.busUnit === d.unit)
+      )
+
+      const isOnline = !!activeSession
+
+      return {
+        ...d,
+        online: isOnline,
+        trips: isOnline ? (activeSession.trips || 1) : 0,
+        rating: 5.0,
+        activity: isOnline ? `Conduciendo en ruta, velocidad ${activeSession.speed_kmh || activeSession.speed || 0} km/h.` : 'Fuera de servicio / Sin turno activo.'
+      }
+    })
+
+    const filteredDrivers = liveDriversList.filter(d => selectedDriverLine === 'all' || d.line === selectedDriverLine)
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -2193,12 +2224,7 @@ export default function SuperAdminDashboard() {
           >
             <option value="all">Ver Todos los Choferes</option>
             <option value="Línea 12">Línea 12</option>
-            <option value="Línea 28">Línea 28</option>
-            <option value="Línea 37">Línea 37</option>
-            <option value="Línea 39">Línea 39</option>
-            <option value="Línea 59">Línea 59</option>
-            <option value="Línea 60">Línea 60</option>
-            <option value="Línea 152">Línea 152</option>
+            <option value="Línea 0">Línea 0</option>
           </select>
         </div>
 
@@ -2211,7 +2237,7 @@ export default function SuperAdminDashboard() {
                 <th style={{ padding: '12px 16px' }}>Línea</th>
                 <th style={{ padding: '12px 16px' }}>Interno</th>
                 <th style={{ padding: '12px 16px' }}>Estado</th>
-                <th style={{ padding: '12px 16px' }}>Viajes Turno</th>
+                <th style={{ padding: '12px 16px', textAlign: 'center' }}>Viajes Turno</th>
                 <th style={{ padding: '12px 16px' }}>Calificación</th>
                 <th style={{ padding: '12px 16px' }}>Actividad Reciente</th>
               </tr>
@@ -2219,9 +2245,9 @@ export default function SuperAdminDashboard() {
             <tbody>
               {filteredDrivers.map((d, idx) => (
                 <tr key={d.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)', background: idx % 2 === 0 ? 'rgba(0,0,0,0.1)' : 'transparent' }}>
-                  <td style={{ padding: '12px 16px', fontWeight: 600, color: '#fff' }}>{d.name}</td>
-                  <td style={{ padding: '12px 16px' }}>{d.line}</td>
-                  <td style={{ padding: '12px 16px', fontFamily: 'DM Mono' }}>#{d.unit}</td>
+                  <td style={{ padding: '12px 16px', fontWeight: 600, color: d.online ? '#fff' : '#8f94a5' }}>{d.name}</td>
+                  <td style={{ padding: '12px 16px', color: d.online ? '#fff' : '#8f94a5' }}>{d.line}</td>
+                  <td style={{ padding: '12px 16px', fontFamily: 'DM Mono', color: d.online ? '#10B981' : '#8f94a5' }}>#{d.unit}</td>
                   <td style={{ padding: '12px 16px' }}>
                     <span style={{
                       fontSize: '8px',
@@ -2234,9 +2260,9 @@ export default function SuperAdminDashboard() {
                       {d.online ? 'ONLINE' : 'OFFLINE'}
                     </span>
                   </td>
-                  <td style={{ padding: '12px 16px', textAlign: 'center' }}>{d.trips}</td>
+                  <td style={{ padding: '12px 16px', textAlign: 'center', color: d.online ? '#fff' : '#8f94a5' }}>{d.trips}</td>
                   <td style={{ padding: '12px 16px', color: '#F59E0B', fontWeight: 600 }}>★ {d.rating}</td>
-                  <td style={{ padding: '12px 16px', color: '#a3a6b8' }}>{d.activity}</td>
+                  <td style={{ padding: '12px 16px', color: d.online ? '#10B981' : '#8f94a5' }}>{d.activity}</td>
                 </tr>
               ))}
             </tbody>
@@ -3856,7 +3882,7 @@ export default function SuperAdminDashboard() {
               >
                 <span style={{ fontSize: '11px', color: '#8f94a5', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Choferes Activos</span>
                 <div style={{ fontSize: '28px', fontWeight: 800, marginTop: '8px', color: '#fff' }}>{stats.totalDrivers}</div>
-                <div style={{ fontSize: '11px', color: '#8f94a5', marginTop: '4px' }}>1 línea registrada (Línea 12)</div>
+                <div style={{ fontSize: '11px', color: stats.totalDrivers > 0 ? '#10B981' : '#8f94a5', marginTop: '4px' }}>{stats.totalDrivers > 0 ? `${stats.totalDrivers} en servicio actualmente` : 'Sin choferes en servicio'}</div>
               </div>
               <div
                 onClick={() => setActiveDetail('ads')}
