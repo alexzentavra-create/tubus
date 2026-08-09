@@ -1160,7 +1160,20 @@ export default function SuperAdminDashboard() {
     }
 
     const savedChats = localStorage.getItem('mock_super_chats')
-    if (savedChats) setChats(JSON.parse(savedChats))
+    if (savedChats) {
+      try {
+        const parsed = JSON.parse(savedChats)
+        const realChats = Array.isArray(parsed) ? parsed.filter((c: any) => c.isRealQuery || c.userEmail) : []
+        setChats(realChats)
+        localStorage.setItem('mock_super_chats', JSON.stringify(realChats))
+      } catch (e) {
+        setChats([])
+        localStorage.setItem('mock_super_chats', JSON.stringify([]))
+      }
+    } else {
+      setChats([])
+      localStorage.setItem('mock_super_chats', JSON.stringify([]))
+    }
 
     const savedNews = localStorage.getItem('mock_super_news')
     if (savedNews) setNews(JSON.parse(savedNews))
@@ -1427,7 +1440,8 @@ export default function SuperAdminDashboard() {
       const blockedUsersList: string[] = JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('blocked_users') || '[]' : '[]')
       const churnCount = blockedUsersList.length
 
-      const supportQueriesCount = chats.length
+      const realSupportQueries = chats.filter((c: any) => c.isRealQuery || c.userEmail)
+      const supportQueriesCount = realSupportQueries.length
 
       return {
         newUsers: newUsersCount > 0 ? `+${newUsersCount}` : '+0',
