@@ -871,7 +871,13 @@ export default function SuperAdminDashboard() {
 
         const mergedList = Object.values(finalMap)
         setLiveUserList(mergedList)
-        setStats(prev => ({ ...prev, totalUsers: mergedList.length }))
+        const activeCount = mergedList.filter((u: any) => u.status === 'Activo').length
+        setStats(prev => ({
+          ...prev,
+          totalUsers: mergedList.length,
+          activeUsers: activeCount,
+          todayLogins: activeCount
+        }))
         localStorage.setItem('bu_registered_users', JSON.stringify(mergedList))
         localStorage.setItem('mock_super_users', JSON.stringify(mergedList))
       } catch (err) {
@@ -1401,7 +1407,36 @@ export default function SuperAdminDashboard() {
   }
 
   const renderUsersDetail = () => {
-    const activeStats = GROWTH_STATS[growthPeriod]
+    const activeStats = (() => {
+      const activeCount = liveUserList.filter(u => u.status === 'Activo').length
+
+      const newUsersCount = liveUserList.filter(u => {
+        if (!u.joinedDate) return false
+        const j = u.joinedDate.toLowerCase()
+        if (growthPeriod === 'day') {
+          return j.includes('hoy')
+        } else if (growthPeriod === 'week') {
+          return j.includes('hoy') || j.includes('2026')
+        }
+        return true
+      }).length
+
+      const createdLines: any[] = JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('bu_created_lines') || '[]' : '[]')
+      const newLinesCount = createdLines.length
+
+      const blockedUsersList: string[] = JSON.parse(typeof window !== 'undefined' ? localStorage.getItem('blocked_users') || '[]' : '[]')
+      const churnCount = blockedUsersList.length
+
+      const supportQueriesCount = chats.length
+
+      return {
+        newUsers: newUsersCount > 0 ? `+${newUsersCount}` : '+0',
+        activeUsers: String(activeCount),
+        churn: String(churnCount),
+        newLines: String(newLinesCount),
+        supportQueries: String(supportQueriesCount)
+      }
+    })()
 
     // Active filters matching logic
     const filteredUsers = liveUserList.filter(u => {
@@ -1467,7 +1502,7 @@ export default function SuperAdminDashboard() {
             </div>
             <div style={{ background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
               <div style={{ fontSize: '9px', color: '#8f94a5', textTransform: 'uppercase' }}>Bajas</div>
-              <div style={{ fontSize: '16px', fontWeight: 700, color: '#ef4444', marginTop: '4px' }}>-{activeStats.churn}</div>
+              <div style={{ fontSize: '16px', fontWeight: 700, color: '#ef4444', marginTop: '4px' }}>{activeStats.churn === '0' ? '0' : `-${activeStats.churn}`}</div>
             </div>
             <div style={{ background: 'rgba(0,0,0,0.15)', padding: '10px', borderRadius: '8px', textAlign: 'center' }}>
               <div style={{ fontSize: '9px', color: '#8f94a5', textTransform: 'uppercase' }}>Líneas Nuevas</div>
