@@ -4653,6 +4653,10 @@ export default function SuperAdminDashboard() {
 // ─── Map grid component for 7 maps ──────────────────────────────────────────
 // ─── Map constants and data definitions ──────────────────────────────────────
 const LINE_RAMALES: Record<string, { id: string, name: string, description: string, pathShift: number }[]> = {
+  'line-0': [
+    { id: 'l0-a', name: 'Ramal A (Plaza Italia)', description: 'Por Av. Las Heras y Plaza Italia', pathShift: 0 },
+    { id: 'l0-b', name: 'Ramal B (Av. Belgrano)', description: 'Por Av. Belgrano y Paseo Colón', pathShift: 1 },
+  ],
   'line-1': [
     { id: 'l1-a', name: 'Ramal A (Villa Urquiza)', description: 'Por Av. Santa Fe y Las Heras', pathShift: 0 },
     { id: 'l1-b', name: 'Ramal B (Pueyrredón)', description: 'Por Av. Córdoba y Las Heras (Alternativo)', pathShift: 1 },
@@ -4827,9 +4831,9 @@ function SingleLineMap({ line, onMessageAdmin, theme }: { line: any, onMessageAd
           mapStyle={(theme === 'light' ? CARTODB_LIGHT : CARTODB_DARK) as any}
           attributionControl={false}
         >
-          <Source id={`route-${line.id}-${activeRamal?.id || 'def'}`} type="geojson" data={geojson}>
+          <Source id={`route-src-${line.id}`} type="geojson" data={geojson}>
             <Layer
-              id={`route-line-${line.id}-${activeRamal?.id || 'def'}`}
+              id={`route-lyr-${line.id}`}
               type="line"
               paint={{
                 'line-color': line.color,
