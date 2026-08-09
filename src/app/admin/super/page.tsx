@@ -802,6 +802,7 @@ export default function SuperAdminDashboard() {
               rating: 5.0,
               favLines: u.favLines || [],
               behavior: u.behavior || 'Usuario registrado en la plataforma.',
+              phone: u.phone || existing.phone || '+54 11 5555-5555',
               city: u.city || 'Buenos Aires',
               province: u.province || 'Buenos Aires',
               weeklyUsage: u.weeklyUsage || [
@@ -832,6 +833,7 @@ export default function SuperAdminDashboard() {
             avatar: avatarParts || 'US',
             joinedDate: activeUser.joinedDate || existing.joinedDate || 'Hoy, 2026',
             status: 'Activo',
+            phone: activeUser.phone || existing.phone || '+54 11 5555-5555',
             searches: activeUser.searches || existing.searches || 0,
             trips: activeUser.trips || existing.trips || 0,
             rating: 5.0,

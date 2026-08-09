@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bus, Mail, Lock, Eye, EyeOff, ArrowRight, User, BarChart2, Calendar } from 'lucide-react'
+import { Bus, Mail, Lock, Eye, EyeOff, ArrowRight, User, BarChart2, Calendar, Phone } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { getStoredGeneralTerms } from '@/lib/termsData'
 import toast from 'react-hot-toast'
@@ -359,7 +359,7 @@ export default function LoginPage() {
     return () => window.removeEventListener('storage', syncTerms)
   }, [])
   const [city, setCity] = useState('buenos_aires')
-  const [form, setForm] = useState({ email:'', password:'', name:'', age:'', weeklyTrips:'' })
+  const [form, setForm] = useState({ email:'', password:'', name:'', phone:'', age:'', weeklyTrips:'' })
   const [bannedEmail, setBannedEmail] = useState<string | null>(null)
   const [showAppealForm, setShowAppealForm] = useState(false)
   const [appealReason, setAppealReason] = useState('')
@@ -627,6 +627,7 @@ export default function LoginPage() {
             name: form.name.trim(),
             email: form.email.trim().toLowerCase(),
             password: form.password.trim(),
+            phone: form.phone.trim() || '+54 11 5555-5555',
             age: parseInt(form.age) || 25,
             role: 'user',
             joinedDate: new Date().toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' }),
@@ -658,6 +659,8 @@ export default function LoginPage() {
           localStorage.setItem('tu_bus_profile_name', newUserData.name)
           localStorage.setItem('profile_email', newUserData.email)
           localStorage.setItem('tu_bus_profile_email', newUserData.email)
+          localStorage.setItem('profile_phone', newUserData.phone)
+          localStorage.setItem('tu_bus_profile_phone', newUserData.phone)
 
           // 4. Initialize clean 0 state for new user
           localStorage.setItem('bu_search_history_' + userId, JSON.stringify([]))
@@ -757,8 +760,8 @@ export default function LoginPage() {
                 />
 
                 {mode==='register' && (<>
+                  <Input type="tel" placeholder="Teléfono de contacto (ej: +54 11 5555-5555)" value={form.phone} onChange={set('phone')} right={<Phone size={15}/>}/>
                   <Input type="number" placeholder="Edad" value={form.age} onChange={set('age')} right={<Calendar size={15}/>}/>
-                  
                 </>)}
 
                 <div style={{display:'flex',flexDirection:'column',gap:'4px',margin:'2px 0 4px'}}>
