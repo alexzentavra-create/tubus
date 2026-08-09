@@ -1159,15 +1159,25 @@ export default function SuperAdminDashboard() {
     try { window.dispatchEvent(new Event('storage')) } catch (e) {}
   }
 
-  const handleConfirmMainDelete = () => {
+    const handleConfirmMainDelete = () => {
     if (!deleteTarget) return
     const { type, id, name } = deleteTarget
 
     if (type === 'admin') {
-      const updated = liveLineAdmins.filter((a: any) => a.id !== id && a.name !== name)
+      const targetAdmin = liveLineAdmins.find(a => a.id === id)
+      const deletedList = JSON.parse(localStorage.getItem('deleted_line_admins') || '[]')
+      if (id && !deletedList.includes(id)) deletedList.push(id)
+      if (targetAdmin?.email && !deletedList.includes(targetAdmin.email.toLowerCase())) deletedList.push(targetAdmin.email.toLowerCase())
+      localStorage.setItem('deleted_line_admins', JSON.stringify(deletedList))
+
+      const updated = liveLineAdmins.filter(a => a.id !== id && a.email.toLowerCase() !== targetAdmin?.email?.toLowerCase())
       setLiveLineAdmins(updated)
-      localStorage.setItem('bu_line_admins', JSON.stringify(updated))
-      if (selectedLineAdminId === id) setSelectedLineAdminId('')
+      if (selectedLineAdminId === id && updated.length > 0) {
+        setSelectedLineAdminId(updated[0].id)
+      }
+
+      window.dispatchEvent(new Event('line_admins_updated'))
+      toast.success(`🗑️ Administrador de Línea "${name}" eliminado permanentemente.`)
     } else if (type === 'user') {
       const targetUser = liveUserList.find((u: any) => u.id === id || u.name === name)
       const userEmail = (targetUser?.email || '').toLowerCase().trim()
@@ -1203,6 +1213,7 @@ export default function SuperAdminDashboard() {
       const updated = news.filter((n: any) => n.id !== id && n.title !== name)
       setNews(updated)
       localStorage.setItem('mock_super_news', JSON.stringify(updated))
+      localStorage.setItem('tu_bus_news', JSON.stringify(updated))
     }
 
     try { window.dispatchEvent(new Event('storage')) } catch (e) {}
@@ -6103,15 +6114,17 @@ function AdsTab({
   const handleConfirmAdDelete = () => {
     if (!deleteAdTarget) return
     const { id, name } = deleteAdTarget
-    const rawAdsStr = localStorage.getItem('bu_submitted_ads') || '[]'
     try {
+      const rawAdsStr = localStorage.getItem('bu_submitted_ads') || '[]'
       const parsed = JSON.parse(rawAdsStr)
       const updated = parsed.filter((a: any) => a.id !== id && a.title !== name)
       localStorage.setItem('bu_submitted_ads', JSON.stringify(updated))
       localStorage.setItem('mock_super_ads', JSON.stringify(updated))
+      localStorage.setItem('tu_bus_ads', JSON.stringify(updated))
+      localStorage.setItem('mock_ads', JSON.stringify(updated))
     } catch (e) {}
     try { window.dispatchEvent(new Event('storage')) } catch (e) {}
-    toast.success(`🗑️ Anuncio "${name}" eliminado permanentemente.`)
+    toast.success(`🗑️ Anuncio "${name}" eliminado permanentemente de la plataforma.`)
     setDeleteAdTarget(null)
     if (selectedAd?.id === id) setSelectedAd(null)
   }
