@@ -20394,5 +20394,172 @@ export const OFFICIAL_ROUTES: Record<string, OfficialRoute> = {
         }
       ]
     }
+  },
+  "T-Amarillo": {
+    "line": "T-Amarillo",
+    "routeShortName": "T-Amarillo",
+    "routeName": "Bus Turístico Amarillo - Circuito Histórico & Costanera",
+    "ida": {
+      "headsign": "Circuito Histórico & Costanera",
+      "path": [
+        { "lat": -34.5885, "lng": -58.3892 },
+        { "lat": -34.5898, "lng": -58.3871 },
+        { "lat": -34.5925, "lng": -58.3842 },
+        { "lat": -34.5950, "lng": -58.3838 },
+        { "lat": -34.5975, "lng": -58.3850 },
+        { "lat": -34.6037, "lng": -58.3816 },
+        { "lat": -34.6080, "lng": -58.3780 },
+        { "lat": -34.6095, "lng": -58.3715 },
+        { "lat": -34.6120, "lng": -58.3700 },
+        { "lat": -34.6185, "lng": -58.3685 },
+        { "lat": -34.6260, "lng": -58.3650 },
+        { "lat": -34.6340, "lng": -58.3625 },
+        { "lat": -34.6392, "lng": -58.3610 },
+        { "lat": -34.6375, "lng": -58.3560 },
+        { "lat": -34.6310, "lng": -58.3580 },
+        { "lat": -34.6220, "lng": -58.3605 },
+        { "lat": -34.6150, "lng": -58.3620 },
+        { "lat": -34.6065, "lng": -58.3645 },
+        { "lat": -34.5995, "lng": -58.3685 },
+        { "lat": -34.5940, "lng": -58.3735 },
+        { "lat": -34.5865, "lng": -58.3840 },
+        { "lat": -34.5815, "lng": -58.3965 },
+        { "lat": -34.5710, "lng": -58.4115 },
+        { "lat": -34.5685, "lng": -58.4210 },
+        { "lat": -34.5760, "lng": -58.4050 },
+        { "lat": -34.5840, "lng": -58.3940 },
+        { "lat": -34.5885, "lng": -58.3892 }
+      ],
+      "stops": [
+        { "id": "ty-1", "name": "Recoleta / Cementerio", "lat": -34.5885, "lng": -58.3892, "pathIndex": 0 },
+        { "id": "ty-2", "name": "Teatro Colón / Av. 9 de Julio", "lat": -34.5975, "lng": -58.3850, "pathIndex": 4 },
+        { "id": "ty-3", "name": "Obelisco", "lat": -34.6037, "lng": -58.3816, "pathIndex": 5 },
+        { "id": "ty-4", "name": "Plaza de Mayo / Casa Rosada", "lat": -34.6095, "lng": -58.3715, "pathIndex": 7 },
+        { "id": "ty-5", "name": "San Telmo - Plaza Dorrego", "lat": -34.6185, "lng": -58.3685, "pathIndex": 9 },
+        { "id": "ty-6", "name": "La Boca - Caminito", "lat": -34.6392, "lng": -58.3610, "pathIndex": 12 },
+        { "id": "ty-7", "name": "Puerto Madero / Puente de la Mujer", "lat": -34.6065, "lng": -58.3645, "pathIndex": 17 },
+        { "id": "ty-8", "name": "Retiro / Plaza San Martín", "lat": -34.5940, "lng": -58.3735, "pathIndex": 19 },
+        { "id": "ty-9", "name": "Planetario Galileo Galilei", "lat": -34.5710, "lng": -58.4115, "pathIndex": 22 }
+      ]
+    },
+    "vuelta": {
+      "headsign": "Circuito Costanera",
+      "path": [
+        { "lat": -34.5885, "lng": -58.3892 },
+        { "lat": -34.5840, "lng": -58.3940 },
+        { "lat": -34.5760, "lng": -58.4050 },
+        { "lat": -34.5685, "lng": -58.4210 },
+        { "lat": -34.5710, "lng": -58.4115 },
+        { "lat": -34.5815, "lng": -58.3965 },
+        { "lat": -34.5865, "lng": -58.3840 },
+        { "lat": -34.5940, "lng": -58.3735 },
+        { "lat": -34.5995, "lng": -58.3685 },
+        { "lat": -34.6065, "lng": -58.3645 },
+        { "lat": -34.6150, "lng": -58.3620 },
+        { "lat": -34.6220, "lng": -58.3605 },
+        { "lat": -34.6310, "lng": -58.3580 },
+        { "lat": -34.6375, "lng": -58.3560 },
+        { "lat": -34.6392, "lng": -58.3610 },
+        { "lat": -34.6340, "lng": -58.3625 },
+        { "lat": -34.6260, "lng": -58.3650 },
+        { "lat": -34.6185, "lng": -58.3685 },
+        { "lat": -34.6120, "lng": -58.3700 },
+        { "lat": -34.6095, "lng": -58.3715 },
+        { "lat": -34.6080, "lng": -58.3780 },
+        { "lat": -34.6037, "lng": -58.3816 },
+        { "lat": -34.5975, "lng": -58.3850 },
+        { "lat": -34.5950, "lng": -58.3838 },
+        { "lat": -34.5925, "lng": -58.3842 },
+        { "lat": -34.5898, "lng": -58.3871 },
+        { "lat": -34.5885, "lng": -58.3892 }
+      ],
+      "stops": [
+        { "id": "ty-v1", "name": "Recoleta / Cementerio", "lat": -34.5885, "lng": -58.3892, "pathIndex": 0 },
+        { "id": "ty-v2", "name": "Planetario Galileo Galilei", "lat": -34.5710, "lng": -58.4115, "pathIndex": 4 },
+        { "id": "ty-v3", "name": "Retiro / Plaza San Martín", "lat": -34.5940, "lng": -58.3735, "pathIndex": 7 },
+        { "id": "ty-v4", "name": "Puerto Madero / Puente de la Mujer", "lat": -34.6065, "lng": -58.3645, "pathIndex": 9 },
+        { "id": "ty-v5", "name": "La Boca - Caminito", "lat": -34.6392, "lng": -58.3610, "pathIndex": 14 },
+        { "id": "ty-v6", "name": "San Telmo - Plaza Dorrego", "lat": -34.6185, "lng": -58.3685, "pathIndex": 17 },
+        { "id": "ty-v7", "name": "Plaza de Mayo / Casa Rosada", "lat": -34.6095, "lng": -58.3715, "pathIndex": 19 },
+        { "id": "ty-v8", "name": "Obelisco", "lat": -34.6037, "lng": -58.3816, "pathIndex": 21 },
+        { "id": "ty-v9", "name": "Teatro Colón / Av. 9 de Julio", "lat": -34.5975, "lng": -58.3850, "pathIndex": 22 }
+      ]
+    }
+  },
+  "T-Rojo": {
+    "line": "T-Rojo",
+    "routeShortName": "T-Rojo",
+    "routeName": "Bus Turístico Rojo - Circuito Sur & Norte (Gray Line)",
+    "ida": {
+      "headsign": "Circuito Sur & Norte",
+      "path": [
+        { "lat": -34.5935, "lng": -58.3740 },
+        { "lat": -34.5850, "lng": -58.3810 },
+        { "lat": -34.5790, "lng": -58.3950 },
+        { "lat": -34.5700, "lng": -58.4060 },
+        { "lat": -34.5600, "lng": -58.4120 },
+        { "lat": -34.5490, "lng": -58.4220 },
+        { "lat": -34.5450, "lng": -58.4480 },
+        { "lat": -34.5550, "lng": -58.4520 },
+        { "lat": -34.5660, "lng": -58.4350 },
+        { "lat": -34.5770, "lng": -58.4180 },
+        { "lat": -34.5880, "lng": -58.4100 },
+        { "lat": -34.5980, "lng": -58.3950 },
+        { "lat": -34.6037, "lng": -58.3816 },
+        { "lat": -34.6110, "lng": -58.3730 },
+        { "lat": -34.6210, "lng": -58.3710 },
+        { "lat": -34.6360, "lng": -58.3630 },
+        { "lat": -34.6150, "lng": -58.3630 },
+        { "lat": -34.5935, "lng": -58.3740 }
+      ],
+      "stops": [
+        { "id": "tr-1", "name": "Retiro / Av. Ramos Mejía", "lat": -34.5935, "lng": -58.3740, "pathIndex": 0 },
+        { "id": "tr-2", "name": "Museo Nacional de Bellas Artes", "lat": -34.5790, "lng": -58.3950, "pathIndex": 2 },
+        { "id": "tr-3", "name": "Aeroparque Jorge Newbery", "lat": -34.5600, "lng": -58.4120, "pathIndex": 4 },
+        { "id": "tr-4", "name": "Belgrano - Barrio Chino", "lat": -34.5550, "lng": -58.4520, "pathIndex": 7 },
+        { "id": "tr-5", "name": "Palermo Soho - Plaza Serrano", "lat": -34.5770, "lng": -58.4180, "pathIndex": 9 },
+        { "id": "tr-6", "name": "Obelisco / Av. Corrientes", "lat": -34.6037, "lng": -58.3816, "pathIndex": 12 },
+        { "id": "tr-7", "name": "San Telmo - Plaza Dorrego", "lat": -34.6210, "lng": -58.3710, "pathIndex": 14 },
+        { "id": "tr-8", "name": "La Boca - Caminito", "lat": -34.6360, "lng": -58.3630, "pathIndex": 15 },
+        { "id": "tr-9", "name": "Puerto Madero / Colección Fortabat", "lat": -34.6150, "lng": -58.3630, "pathIndex": 16 }
+      ]
+    },
+    "vuelta": {
+      "headsign": "Circuito Norte & Sur",
+      "path": [
+        { "lat": -34.5935, "lng": -58.3740 },
+        { "lat": -34.6150, "lng": -58.3630 },
+        { "lat": -34.6360, "lng": -58.3630 },
+        { "lat": -34.6210, "lng": -58.3710 },
+        { "lat": -34.6110, "lng": -58.3730 },
+        { "lat": -34.6037, "lng": -58.3816 },
+        { "lat": -34.5980, "lng": -58.3950 },
+        { "lat": -34.5880, "lng": -58.4100 },
+        { "lat": -34.5770, "lng": -58.4180 },
+        { "lat": -34.5660, "lng": -58.4350 },
+        { "lat": -34.5550, "lng": -58.4520 },
+        { "lat": -34.5450, "lng": -58.4480 },
+        { "lat": -34.5490, "lng": -58.4220 },
+        { "lat": -34.5600, "lng": -58.4120 },
+        { "lat": -34.5700, "lng": -58.4060 },
+        { "lat": -34.5790, "lng": -58.3950 },
+        { "lat": -34.5850, "lng": -58.3810 },
+        { "lat": -34.5935, "lng": -58.3740 }
+      ],
+      "stops": [
+        { "id": "tr-v1", "name": "Retiro / Av. Ramos Mejía", "lat": -34.5935, "lng": -58.3740, "pathIndex": 0 },
+        { "id": "tr-v2", "name": "Puerto Madero / Colección Fortabat", "lat": -34.6150, "lng": -58.3630, "pathIndex": 1 },
+        { "id": "tr-v3", "name": "La Boca - Caminito", "lat": -34.6360, "lng": -58.3630, "pathIndex": 2 },
+        { "id": "tr-v4", "name": "San Telmo - Plaza Dorrego", "lat": -34.6210, "lng": -58.3710, "pathIndex": 3 },
+        { "id": "tr-v5", "name": "Obelisco / Av. Corrientes", "lat": -34.6037, "lng": -58.3816, "pathIndex": 5 },
+        { "id": "tr-v6", "name": "Palermo Soho - Plaza Serrano", "lat": -34.5770, "lng": -58.4180, "pathIndex": 8 },
+        { "id": "tr-v7", "name": "Belgrano - Barrio Chino", "lat": -34.5550, "lng": -58.4520, "pathIndex": 10 },
+        { "id": "tr-v8", "name": "Aeroparque Jorge Newbery", "lat": -34.5600, "lng": -58.4120, "pathIndex": 13 },
+        { "id": "tr-v9", "name": "Museo Nacional de Bellas Artes", "lat": -34.5790, "lng": -58.3950, "pathIndex": 15 }
+      ]
+    }
   }
 }
+
+OFFICIAL_ROUTES["line-tourist-yellow"] = OFFICIAL_ROUTES["T-Amarillo"];
+OFFICIAL_ROUTES["line-tourist-red"] = OFFICIAL_ROUTES["T-Rojo"];

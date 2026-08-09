@@ -4736,15 +4736,25 @@ function SingleLineMap({ line, onMessageAdmin, theme }: { line: any, onMessageAd
   const [selectedRamalId, setSelectedRamalId] = useState(ramales[0]?.id || '')
   const activeRamal = ramales.find(r => r.id === selectedRamalId) || ramales[0]
 
-  const basePath = getMockRoutePathForLine(line) || []
   const path = useMemo(() => {
-    const shift = activeRamal ? activeRamal.pathShift : 0
-    if (shift === 0) return basePath
-    return basePath.map((p, idx) => ({
-      lat: p.lat + 0.0012 * Math.sin(idx / 1.5 + shift),
-      lng: p.lng + 0.0012 * Math.cos(idx / 1.5 + shift)
-    }))
-  }, [basePath, activeRamal])
+    const isRamalB = activeRamal && (activeRamal.id.endsWith('-b') || activeRamal.id.includes('vuelta') || activeRamal.pathShift > 0)
+    const routeDirection = isRamalB ? 'vuelta' : 'ida'
+    const realPath = getMockRoutePathForLine(line, routeDirection)
+    const idaPath = getMockRoutePathForLine(line, 'ida')
+
+    if (isRamalB) {
+      if (realPath && realPath.length > 0 && JSON.stringify(realPath[0]) !== JSON.stringify(idaPath[0])) {
+        return realPath
+      }
+      const base = realPath && realPath.length > 0 ? realPath : idaPath
+      return base.map(p => ({
+        lat: p.lat + 0.0004,
+        lng: p.lng - 0.0004
+      }))
+    }
+
+    return realPath && realPath.length > 0 ? realPath : idaPath
+  }, [line, activeRamal])
 
   const [activeBuses, setActiveBuses] = useState<any[]>([])
   const [showDetailModal, setShowDetailModal] = useState(false)

@@ -251,7 +251,7 @@ export function getIntersectionForStopName(stopName: string, lat: number, lng: n
 
 function officialRouteForLine(line: BusLine): OfficialRoute | null {
   const numKey = line.line_number === '0' ? '0' : line.line_number.replace(/^0+/, '');
-  return OFFICIAL_ROUTES[numKey] || null
+  return OFFICIAL_ROUTES[numKey] || OFFICIAL_ROUTES[line.id] || OFFICIAL_ROUTES[line.line_number] || null
 }
 
 function routeTemplateForLine(line: BusLine, direction: 'ida' | 'vuelta' = 'ida'): BusStop[] {
@@ -328,10 +328,10 @@ function getRoutePathForLine(line: BusLine, direction: 'ida' | 'vuelta' = 'ida')
   }
 
   const numKey = line.line_number === '0' ? '0' : line.line_number.replace(/^0+/, '');
-  const officialRoute = OFFICIAL_ROUTES[numKey]
+  const officialRoute = OFFICIAL_ROUTES[numKey] || OFFICIAL_ROUTES[line.id] || OFFICIAL_ROUTES[line.line_number]
   if (officialRoute) {
     const dirObj = direction === 'vuelta' ? officialRoute.vuelta : officialRoute.ida
-    if (dirObj?.path) {
+    if (dirObj?.path && dirObj.path.length > 0) {
       return dirObj.path
     }
   }
