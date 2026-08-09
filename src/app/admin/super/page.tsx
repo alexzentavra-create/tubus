@@ -803,7 +803,16 @@ export default function SuperAdminDashboard() {
               favLines: u.favLines || [],
               behavior: u.behavior || 'Usuario registrado en la plataforma.',
               city: u.city || 'Buenos Aires',
-              province: u.province || 'Buenos Aires'
+              province: u.province || 'Buenos Aires',
+              weeklyUsage: u.weeklyUsage || [
+                { day: 'Lun', count: 0 },
+                { day: 'Mar', count: 0 },
+                { day: 'Mie', count: 0 },
+                { day: 'Jue', count: 0 },
+                { day: 'Vie', count: 0 },
+                { day: 'Sab', count: 0 },
+                { day: 'Dom', count: 0 }
+              ]
             }
           }
         })
@@ -829,7 +838,16 @@ export default function SuperAdminDashboard() {
             favLines: [],
             behavior: 'Usuario registrado en la plataforma.',
             city: activeUser.city || 'Buenos Aires',
-            province: 'Buenos Aires'
+            province: 'Buenos Aires',
+            weeklyUsage: activeUser.weeklyUsage || [
+              { day: 'Lun', count: 0 },
+              { day: 'Mar', count: 0 },
+              { day: 'Mie', count: 0 },
+              { day: 'Jue', count: 0 },
+              { day: 'Vie', count: 0 },
+              { day: 'Sab', count: 0 },
+              { day: 'Dom', count: 0 }
+            ]
           }
         }
 
@@ -1639,16 +1657,28 @@ export default function SuperAdminDashboard() {
                 <div>
                   <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 600, display: 'block', marginBottom: '8px' }}>Uso Semanal (Búsquedas y viajes por día)</span>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', height: '80px', background: 'rgba(0,0,0,0.2)', padding: '10px 14px', borderRadius: '8px' }}>
-                    {selectedUser.weeklyUsage.map((day: any, idx: number) => {
-                      const maxVal = Math.max(...selectedUser.weeklyUsage.map((d: any)=>d.count)) || 1
-                      const pctHeight = (day.count / maxVal) * 100
-                      return (
-                        <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flex: 1 }}>
-                          <div style={{ width: '12px', height: (pctHeight * 0.5 + 4) + 'px', background: '#10B981', borderRadius: '3px', position: 'relative' }} title={day.count + ' actividades'} />
-                          <span style={{ fontSize: '8px', color: '#8f94a5' }}>{day.day}</span>
-                        </div>
-                      )
-                    })}
+                    {(() => {
+                      const usageDays = (selectedUser.weeklyUsage && selectedUser.weeklyUsage.length > 0) ? selectedUser.weeklyUsage : [
+                        { day: 'Lun', count: 0 },
+                        { day: 'Mar', count: 0 },
+                        { day: 'Mie', count: 0 },
+                        { day: 'Jue', count: 0 },
+                        { day: 'Vie', count: 0 },
+                        { day: 'Sab', count: 0 },
+                        { day: 'Dom', count: 0 }
+                      ]
+                      const maxVal = Math.max(...usageDays.map((d: any) => d.count || 0)) || 1
+                      return usageDays.map((day: any, idx: number) => {
+                        const count = day.count || 0
+                        const pctHeight = (count / maxVal) * 100
+                        return (
+                          <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', flex: 1 }}>
+                            <div style={{ width: '12px', height: (pctHeight * 0.5 + 4) + 'px', background: '#10B981', borderRadius: '3px', position: 'relative' }} title={count + ' actividades'} />
+                            <span style={{ fontSize: '8px', color: '#8f94a5' }}>{day.day}</span>
+                          </div>
+                        )
+                      })
+                    })()}
                   </div>
                 </div>
               </>
