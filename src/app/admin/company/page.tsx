@@ -1904,7 +1904,7 @@ export default function CompanyDashboard() {
         >
           <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Colectivos Activos</span>
           <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{activeSessions.length}</span>
-          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>{activeLine.line_number === '0' ? '' : '▲ +1 hoy'}</span>
+          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>✓ En vivo</span>
         </div>
         {/* Pasajeros Hoy */}
         <div
@@ -1947,7 +1947,7 @@ export default function CompanyDashboard() {
             </div>
           </div>
           
-          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>{activeLine.line_number === '0' ? '' : '▲ +12%'}</span>
+          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>✓ En tiempo real</span>
         </div>
         {/* Denuncias Pendientes */}
         <div
@@ -1958,7 +1958,7 @@ export default function CompanyDashboard() {
         >
           <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Denuncias Pend.</span>
           <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{reports.filter(r => r.status === 'pending').length}</span>
-          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>{activeLine.line_number === '0' ? '' : '▼ -15.0%'}</span>
+          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>✓ Actualizado</span>
         </div>
         {/* Pasajeros A Bordo */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: '#121527', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
@@ -1975,7 +1975,7 @@ export default function CompanyDashboard() {
         >
           <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Puntualidad</span>
           <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{activeStats.punctuality}</span>
-          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>{activeLine.line_number === '0' ? '' : '▲ +2.4%'}</span>
+          <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>✓ Normal</span>
         </div>
       </div>
 
@@ -2469,7 +2469,11 @@ export default function CompanyDashboard() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <span style={{ fontSize: '11px', color: '#8f94a5', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Novedades en Vivo</span>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {liveEvents.map((evt) => (
+                  {liveEvents.length === 0 ? (
+                    <div style={{ fontSize: '11px', color: '#8f94a5', padding: '14px', textAlign: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px dashed rgba(255,255,255,0.06)' }}>
+                      No hay novedades en vivo registradas hoy para esta línea.
+                    </div>
+                  ) : liveEvents.map((evt) => (
                     <div
                       key={evt.id}
                       style={{
