@@ -5218,446 +5218,6 @@ function SingleLineMap({ line, onMessageAdmin, theme }: { line: any, onMessageAd
 // ─── Drivers credentials and QR view component ──────────────────────────────
 
 // ─── Puntos de Interés Management Component (Real-Time Passenger App Sync) ───
-function PoisTab() {
-  const [customPois, setCustomPois] = useState<any[]>(() => {
-    if (typeof window === 'undefined') return []
-    try {
-      const saved = localStorage.getItem('bu_custom_pois')
-      return saved ? JSON.parse(saved) : []
-    } catch {
-      return []
-    }
-  })
-
-  const [deletedPoiIds, setDeletedPoiIds] = useState<string[]>(() => {
-    if (typeof window === 'undefined') return []
-    try {
-      const saved = localStorage.getItem('bu_deleted_poi_ids')
-      return saved ? JSON.parse(saved) : []
-    } catch {
-      return []
-    }
-  })
-
-  const [categoryFilter, setCategoryFilter] = useState<string>('all')
-  const [searchTerm, setSearchTerm] = useState('')
-  const [showPoiModal, setShowPoiModal] = useState(false)
-  const [editingPoi, setEditingPoi] = useState<any | null>(null)
-  const [deletePoiTarget, setDeletePoiTarget] = useState<any | null>(null)
-
-  // Sync real-time storage updates
-  useEffect(() => {
-    const syncFromStorage = () => {
-      try {
-        const savedCustom = localStorage.getItem('bu_custom_pois')
-        if (savedCustom) setCustomPois(JSON.parse(savedCustom))
-        const savedDeleted = localStorage.getItem('bu_deleted_poi_ids')
-        if (savedDeleted) setDeletedPoiIds(JSON.parse(savedDeleted))
-      } catch (e) {}
-    }
-    window.addEventListener('storage', syncFromStorage)
-    return () => window.removeEventListener('storage', syncFromStorage)
-  }, [])
-
-  // Form State
-  const [formName, setFormName] = useState('')
-  const [formType, setFormType] = useState<'tourist' | 'clubbing' | 'restaurants' | 'shopping'>('tourist')
-  const [formCity, setFormCity] = useState('buenos_aires')
-  const [formLat, setFormLat] = useState<string>('-34.6037')
-  const [formLng, setFormLng] = useState<string>('-58.3816')
-  const [formDesc, setFormDesc] = useState('')
-  const [formImg, setFormImg] = useState('')
-  const [formRating, setFormRating] = useState<number>(4.8)
-
-  const DEFAULT_MOCK_POIS = [
-    { id: 'r-1', name: 'Pizzería Güerrin', type: 'restaurants', city: 'buenos_aires', rating: 4.8, lat: -34.6041, lng: -58.3860, description: 'Mítica pizzería porteña al molde sobre Av. Corrientes desde 1932.', imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&q=80' },
-    { id: 'r-2', name: 'Don Julio Parrilla', type: 'restaurants', city: 'buenos_aires', rating: 4.9, lat: -34.5880, lng: -58.4230, description: 'Premiada parrilla de cortes de carne argentina premium en Palermo.', imageUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&q=80' },
-    { id: 'r-3', name: 'El Preferido de Palermo', type: 'restaurants', city: 'buenos_aires', rating: 4.7, lat: -34.5885, lng: -58.4245, description: 'Bodegón porteño de charcutería y platillos criollos tradicionales.', imageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80' },
-    { id: 'poi-6', name: 'Bar Los Galgos', type: 'clubbing', city: 'buenos_aires', rating: 4.6, lat: -34.6055, lng: -58.3912, description: 'Clásico bar notable porteño con cócteles de autor y café de especialidad.', imageUrl: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=600&q=80' }
-  ]
-
-  // Combine custom POIs with defaults and MOCK_PLACES for complete 100% sync
-  const allPois = [...customPois, ...DEFAULT_MOCK_POIS, ...MOCK_PLACES]
-  const uniquePoisDict: Record<string, any> = {}
-  allPois.forEach(p => {
-    if (p && p.id && !deletedPoiIds.includes(p.id) && !uniquePoisDict[p.id]) {
-      uniquePoisDict[p.id] = p
-    }
-  })
-  const poisList = Object.values(uniquePoisDict)
-
-  const filteredPois = poisList.filter(p => {
-    const matchesCat = categoryFilter === 'all' || p.type === categoryFilter
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.description.toLowerCase().includes(searchTerm.toLowerCase())
-    return matchesCat && matchesSearch
-  })
-
-  const openCreateModal = () => {
-    setEditingPoi(null)
-    setFormName('')
-    setFormType('tourist')
-    setFormCity('buenos_aires')
-    setFormLat('-34.6037')
-    setFormLng('-58.3816')
-    setFormDesc('')
-    setFormImg('')
-    setFormRating(4.8)
-    setShowPoiModal(true)
-  }
-
-  const openEditModal = (poi: any) => {
-    setEditingPoi(poi)
-    setFormName(poi.name)
-    setFormType(poi.type || 'tourist')
-    setFormCity(poi.city || 'buenos_aires')
-    setFormLat(poi.lat?.toString() || '-34.6037')
-    setFormLng(poi.lng?.toString() || '-58.3816')
-    setFormDesc(poi.description || '')
-    setFormImg(poi.imageUrl || '')
-    setFormRating(poi.rating || 4.8)
-    setShowPoiModal(true)
-  }
-
-  const handleSavePoi = () => {
-    if (!formName.trim()) {
-      toast.error('Por favor ingrese el nombre del lugar')
-      return
-    }
-
-    const latNum = parseFloat(formLat)
-    const lngNum = parseFloat(formLng)
-    if (isNaN(latNum) || isNaN(lngNum)) {
-      toast.error('Coordenadas inválidas. Ingrese valores numéricos de latitud y longitud')
-      return
-    }
-
-    const defaultImages: Record<string, string> = {
-      tourist: 'https://images.unsplash.com/photo-1578637387939-43c525550085?w=600&q=80',
-      clubbing: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=600&q=80',
-      restaurants: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80',
-      shopping: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&q=80'
-    }
-
-    const poiItem = {
-      id: editingPoi ? editingPoi.id : `poi-${Date.now()}`,
-      name: formName.trim(),
-      type: formType,
-      city: formCity,
-      lat: latNum,
-      lng: lngNum,
-      rating: formRating,
-      description: formDesc.trim() || 'Atracción y punto de interés turístico destacado.',
-      imageUrl: formImg.trim() || defaultImages[formType]
-    }
-
-    let updatedCustom = [...customPois]
-    if (editingPoi) {
-      updatedCustom = updatedCustom.map(p => p.id === editingPoi.id ? poiItem : p)
-      const idxInDefault = DEFAULT_MOCK_POIS.findIndex(p => p.id === editingPoi.id)
-      if (idxInDefault !== -1 && !updatedCustom.some(p => p.id === editingPoi.id)) {
-        updatedCustom.push(poiItem)
-      }
-    } else {
-      updatedCustom.unshift(poiItem)
-    }
-
-    setCustomPois(updatedCustom)
-    localStorage.setItem('bu_custom_pois', JSON.stringify(updatedCustom))
-
-    // Restore from deleted list if present
-    if (editingPoi) {
-      const restoredDeleted = deletedPoiIds.filter(id => id !== editingPoi.id)
-      setDeletedPoiIds(restoredDeleted)
-      localStorage.setItem('bu_deleted_poi_ids', JSON.stringify(restoredDeleted))
-    }
-    try { window.dispatchEvent(new Event('storage')) } catch (e) {}
-
-    toast.success(editingPoi ? '¡Punto de Interés actualizado!' : '¡Nuevo Punto de Interés creado y visible en la App!')
-    setShowPoiModal(false)
-  }
-
-  const handleConfirmDeletePoi = () => {
-    if (!deletePoiTarget) return
-    const id = deletePoiTarget.id
-    const updatedCustom = customPois.filter(p => p.id !== id)
-    setCustomPois(updatedCustom)
-    localStorage.setItem('bu_custom_pois', JSON.stringify(updatedCustom))
-
-    const newDeletedIds = Array.from(new Set([...deletedPoiIds, id]))
-    setDeletedPoiIds(newDeletedIds)
-    localStorage.setItem('bu_deleted_poi_ids', JSON.stringify(newDeletedIds))
-
-    try { window.dispatchEvent(new Event('storage')) } catch (e) {}
-    toast.success(`🗑️ Punto "${deletePoiTarget.name}" eliminado permanentemente del sistema.`)
-    setDeletePoiTarget(null)
-  }
-
-  const getTypeLabel = (type: string) => {
-    if (type === 'tourist') return { name: 'Turismo', color: '#F59E0B', bg: 'rgba(245,158,11,0.15)', icon: '🏛️' }
-    if (type === 'clubbing') return { name: 'Bares & Nightlife', color: '#8B5CF6', bg: 'rgba(139,92,246,0.15)', icon: '🍺' }
-    if (type === 'restaurants') return { name: 'Restaurantes', color: '#EF4444', bg: 'rgba(239,68,68,0.15)', icon: '🍕' }
-    return { name: 'Compras & Shopping', color: '#10B981', bg: 'rgba(16,185,129,0.15)', icon: '🛍️' }
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      {/* Top Header & Actions */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#FFFFFF' }}>📍 Gestión de Puntos de Interés en el Mapa</h3>
-          <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Administre lugares turísticos, bares, restaurantes y comercios visibles en el mapa de pasajeros</p>
-        </div>
-
-        <button
-          onClick={openCreateModal}
-          style={{
-            padding: '10px 18px',
-            borderRadius: '10px',
-            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-            border: 'none',
-            color: '#FFFFFF',
-            fontSize: '13px',
-            fontWeight: 800,
-            cursor: 'pointer',
-            boxShadow: '0 4px 15px rgba(16,185,129,0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}
-        >
-          <Plus size={16} /> Crear Nuevo Punto de Interés
-        </button>
-      </div>
-
-      {/* Filter & Search Bar */}
-      <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {[
-            { id: 'all', label: 'Todos los Puntos', icon: '📍' },
-            { id: 'tourist', label: 'Turismo', icon: '🏛️' },
-            { id: 'clubbing', label: 'Bares', icon: '🍺' },
-            { id: 'restaurants', label: 'Restaurantes', icon: '🍕' },
-            { id: 'shopping', label: 'Compras', icon: '🛍️' }
-          ].map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => setCategoryFilter(cat.id)}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '8px',
-                background: categoryFilter === cat.id ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.03)',
-                border: `1px solid ${categoryFilter === cat.id ? '#10B981' : 'rgba(255,255,255,0.08)'}`,
-                color: categoryFilter === cat.id ? '#10B981' : '#94A3B8',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <span>{cat.icon}</span> {cat.label}
-            </button>
-          ))}
-        </div>
-
-        <input
-          type="text"
-          placeholder="Buscar por nombre o descripción..."
-          value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          style={{
-            background: 'rgba(0,0,0,0.3)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: '8px',
-            padding: '8px 14px',
-            color: '#FFFFFF',
-            fontSize: '12px',
-            width: '260px',
-            outline: 'none'
-          }}
-        />
-      </div>
-
-      {/* Cards Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
-        {filteredPois.map(poi => {
-          const typeMeta = getTypeLabel(poi.type)
-          return (
-            <div
-              key={poi.id}
-              style={{
-                background: '#121527',
-                border: '1px solid rgba(255,255,255,0.06)',
-                borderTop: `3px solid ${typeMeta.color}`,
-                borderRadius: '12px',
-                overflow: 'hidden',
-                display: 'flex',
-                flexDirection: 'column',
-                boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
-              }}
-            >
-              {/* Image Banner */}
-              <div style={{ height: '140px', width: '100%', position: 'relative', overflow: 'hidden' }}>
-                <img src={poi.imageUrl} alt={poi.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                <div style={{ position: 'absolute', top: '10px', left: '10px', background: typeMeta.bg, color: typeMeta.color, border: `1px solid ${typeMeta.color}40`, borderRadius: '6px', padding: '3px 8px', fontSize: '10px', fontWeight: 800, backdropFilter: 'blur(4px)' }}>
-                  {typeMeta.icon} {typeMeta.name}
-                </div>
-                <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(15,23,42,0.85)', color: '#F59E0B', borderRadius: '6px', padding: '3px 8px', fontSize: '11px', fontWeight: 800, backdropFilter: 'blur(4px)' }}>
-                  ⭐ {poi.rating}
-                </div>
-              </div>
-
-              {/* Card Body */}
-              <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
-                <div>
-                  <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#FFFFFF' }}>{poi.name}</h4>
-                  <div style={{ fontSize: '10px', color: '#3B82F6', fontFamily: 'DM Mono', marginTop: '2px' }}>
-                    📍 Lat: {poi.lat}, Lng: {poi.lng}
-                  </div>
-                </div>
-
-                <p style={{ margin: 0, fontSize: '12px', color: '#94A3B8', lineHeight: '1.4', flex: 1 }}>
-                  {poi.description}
-                </p>
-
-                {/* Card Footer Actions */}
-                <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px', marginTop: '4px' }}>
-                  <button
-                    onClick={() => openEditModal(poi)}
-                    style={{
-                      flex: 1,
-                      padding: '7px 12px',
-                      borderRadius: '8px',
-                      background: 'rgba(59,130,246,0.15)',
-                      border: '1px solid rgba(59,130,246,0.3)',
-                      color: '#3B82F6',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      cursor: 'pointer'
-                    }}
-                  >
-                    ✏️ Editar
-                  </button>
-                  <button
-                    onClick={() => setDeletePoiTarget(poi)}
-                    style={{
-                      padding: '7px 12px',
-                      borderRadius: '8px',
-                      background: 'rgba(239,68,68,0.15)',
-                      border: '1px solid rgba(239,68,68,0.3)',
-                      color: '#EF4444',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
-                    <Trash2 size={12} /> Eliminar
-                  </button>
-                </div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Create / Edit Modal */}
-      {showPoiModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,8,16,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '16px' }}>
-          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '16px', padding: '24px', maxWidth: '500px', width: '100%', color: '#FFFFFF', boxShadow: '0 20px 50px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>{editingPoi ? '✏️ Editar Punto de Interés' : '➕ Crear Nuevo Punto de Interés'}</h3>
-              <button onClick={() => setShowPoiModal(false)} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '16px' }}>✕</button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '70vh', overflowY: 'auto', paddingRight: '4px' }}>
-              <div>
-                <label style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '4px' }}>NOMBRE DEL LUGAR</label>
-                <input type="text" placeholder="Ej: Jardín Japonés, Don Julio Parrilla" value={formName} onChange={e => setFormName(e.target.value)} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: '#fff', fontSize: '13px' }} />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '4px' }}>CATEGORÍA</label>
-                  <select value={formType} onChange={e => setFormType(e.target.value as any)} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: '#fff', fontSize: '12px' }}>
-                    <option value="tourist">🏛️ Turismo</option>
-                    <option value="clubbing">🍺 Bares / Nightlife</option>
-                    <option value="restaurants">🍕 Restaurantes</option>
-                    <option value="shopping">🛍️ Compras</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '4px' }}>VALORACIÓN (STARS)</label>
-                  <select value={formRating} onChange={e => setFormRating(parseFloat(e.target.value))} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: '#fff', fontSize: '12px' }}>
-                    <option value="5.0">⭐ 5.0 (Excelente)</option>
-                    <option value="4.8">⭐ 4.8 (Muy Bueno)</option>
-                    <option value="4.5">⭐ 4.5 (Recomendado)</option>
-                    <option value="4.0">⭐ 4.0 (Bueno)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '4px' }}>LATITUD</label>
-                  <input type="text" placeholder="-34.6037" value={formLat} onChange={e => setFormLat(e.target.value)} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: '#fff', fontSize: '12px', fontFamily: 'DM Mono' }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '4px' }}>LONGITUD</label>
-                  <input type="text" placeholder="-58.3816" value={formLng} onChange={e => setFormLng(e.target.value)} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: '#fff', fontSize: '12px', fontFamily: 'DM Mono' }} />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '4px' }}>URL DE IMAGEN / FOTO</label>
-                <input type="text" placeholder="https://..." value={formImg} onChange={e => setFormImg(e.target.value)} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: '#fff', fontSize: '12px' }} />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '4px' }}>DESCRIPCIÓN COMPLETA</label>
-                <textarea rows={3} placeholder="Describa el lugar, atracciones principales, horarios..." value={formDesc} onChange={e => setFormDesc(e.target.value)} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: '#fff', fontSize: '12px', resize: 'vertical' }} />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-              <button onClick={() => setShowPoiModal(false)} style={{ flex: 1, padding: '10px', borderRadius: '8px', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: '#94A3B8', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={handleSavePoi} style={{ flex: 1.5, padding: '10px', borderRadius: '8px', background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', border: 'none', color: '#fff', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>✓ Guardar y Publicar</button>
-            </div>
-          </div>
-        </div>
-      )}
-      {deletePoiTarget && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,8,16,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '16px' }}>
-          <div style={{ background: '#121527', border: '1.5px solid rgba(239, 68, 68, 0.4)', borderRadius: '16px', padding: '24px', maxWidth: '420px', width: '100%', color: '#FFFFFF', boxShadow: '0 20px 50px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EF4444' }}>
-                <AlertTriangle size={22} />
-              </div>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Confirmar Eliminación Permanente</h3>
-                <span style={{ fontSize: '11px', color: '#94A3B8' }}>Puntos de Interés del Mapa</span>
-              </div>
-            </div>
-            <p style={{ margin: 0, fontSize: '13px', color: '#CBD5E1', lineHeight: '1.5' }}>
-              ¿Estás seguro de que querés eliminar permanentemente el Punto de Interés <strong style={{ color: '#EF4444' }}>"{deletePoiTarget.name}"</strong>? Se eliminará de la base de datos y ya no aparecerá en la app de los usuarios.
-            </p>
-            <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-              <button onClick={() => setDeletePoiTarget(null)} style={{ flex: 1, padding: '10px 16px', borderRadius: '10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: '#94A3B8', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={handleConfirmDeletePoi} style={{ flex: 1.5, padding: '10px 16px', borderRadius: '10px', background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)', border: 'none', color: '#FFFFFF', fontSize: '12px', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 15px rgba(239,68,68,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                <Trash2 size={14} /> Eliminar Definitivamente
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-
 function DriversTab() {
   const [showPasswordMap, setShowPasswordMap] = useState<Record<string, boolean>>({})
   const [selectedQr, setSelectedQr] = useState<any | null>(null)
@@ -6103,6 +5663,616 @@ function DriversTab() {
                 style={{ background: '#EF4444', border: 'none', color: '#fff', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}
               >
                 Eliminar Permanentemente
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+
+
+
+function PoisTab() {
+  const [customPois, setCustomPois] = useState<any[]>(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const saved = localStorage.getItem('bu_custom_pois')
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  const [deletedPoiIds, setDeletedPoiIds] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      const saved = localStorage.getItem('bu_deleted_poi_ids')
+      return saved ? JSON.parse(saved) : []
+    } catch {
+      return []
+    }
+  })
+
+  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [searchTerm, setSearchTerm] = useState('')
+  const [showPoiModal, setShowPoiModal] = useState(false)
+  const [editingPoi, setEditingPoi] = useState<any | null>(null)
+  const [deletePoiTarget, setDeletePoiTarget] = useState<any | null>(null)
+
+  // Map Pin Picker Modal State
+  const [showPoiMapPicker, setShowPoiMapPicker] = useState(false)
+  const [pickerLat, setPickerLat] = useState<number>(-34.6037)
+  const [pickerLng, setPickerLng] = useState<number>(-58.3816)
+
+  // Sync real-time storage updates
+  useEffect(() => {
+    const syncFromStorage = () => {
+      try {
+        const savedCustom = localStorage.getItem('bu_custom_pois')
+        if (savedCustom) setCustomPois(JSON.parse(savedCustom))
+        const savedDeleted = localStorage.getItem('bu_deleted_poi_ids')
+        if (savedDeleted) setDeletedPoiIds(JSON.parse(savedDeleted))
+      } catch (e) {}
+    }
+    window.addEventListener('storage', syncFromStorage)
+    return () => window.removeEventListener('storage', syncFromStorage)
+  }, [])
+
+  // Form State
+  const [formName, setFormName] = useState('')
+  const [formType, setFormType] = useState<'tourist' | 'clubbing' | 'restaurants' | 'shopping'>('tourist')
+  const [formCity, setFormCity] = useState('buenos_aires')
+  const [formLat, setFormLat] = useState<string>('-34.6037')
+  const [formLng, setFormLng] = useState<string>('-58.3816')
+  const [formDesc, setFormDesc] = useState('')
+  const [formImg, setFormImg] = useState('')
+  const [formRating, setFormRating] = useState<number>(4.8)
+
+  const DEFAULT_MOCK_POIS = [
+    { id: 'r-1', name: 'Pizzería Güerrin', type: 'restaurants', city: 'buenos_aires', rating: 4.8, lat: -34.6041, lng: -58.3860, description: 'Mítica pizzería porteña al molde sobre Av. Corrientes desde 1932.', imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&q=80' },
+    { id: 'r-2', name: 'Don Julio Parrilla', type: 'restaurants', city: 'buenos_aires', rating: 4.9, lat: -34.5880, lng: -58.4230, description: 'Premiada parrilla de cortes de carne argentina premium en Palermo.', imageUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=600&q=80' },
+    { id: 'r-3', name: 'El Preferido de Palermo', type: 'restaurants', city: 'buenos_aires', rating: 4.7, lat: -34.5885, lng: -58.4245, description: 'Bodegón porteño de charcutería y platillos criollos tradicionales.', imageUrl: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80' },
+    { id: 'poi-6', name: 'Bar Los Galgos', type: 'clubbing', city: 'buenos_aires', rating: 4.6, lat: -34.6055, lng: -58.3912, description: 'Clásico bar notable porteño con cócteles de autor y café de especialidad.', imageUrl: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=600&q=80' }
+  ]
+
+  // Combine custom POIs with defaults and MOCK_PLACES for complete 100% sync
+  const allPois = [...customPois, ...DEFAULT_MOCK_POIS, ...MOCK_PLACES]
+  const uniquePoisDict: Record<string, any> = {}
+  allPois.forEach(p => {
+    if (p && p.id && !deletedPoiIds.includes(p.id) && !uniquePoisDict[p.id]) {
+      uniquePoisDict[p.id] = p
+    }
+  })
+  const poisList = Object.values(uniquePoisDict)
+
+  const filteredPois = poisList.filter(p => {
+    const matchesCat = categoryFilter === 'all' || p.type === categoryFilter
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.description.toLowerCase().includes(searchTerm.toLowerCase())
+    return matchesCat && matchesSearch
+  })
+
+  const openCreateModal = () => {
+    setEditingPoi(null)
+    setFormName('')
+    setFormType('tourist')
+    setFormCity('buenos_aires')
+    setFormLat('-34.6037')
+    setFormLng('-58.3816')
+    setFormDesc('')
+    setFormImg('')
+    setFormRating(4.8)
+    setShowPoiModal(true)
+  }
+
+  const openEditModal = (poi: any) => {
+    setEditingPoi(poi)
+    setFormName(poi.name)
+    setFormType(poi.type || 'tourist')
+    setFormCity(poi.city || 'buenos_aires')
+    setFormLat(poi.lat?.toString() || '-34.6037')
+    setFormLng(poi.lng?.toString() || '-58.3816')
+    setFormDesc(poi.description || '')
+    setFormImg(poi.imageUrl || '')
+    setFormRating(poi.rating || 4.8)
+    setShowPoiModal(true)
+  }
+
+  // Computer Photo File Upload Handler
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error('La imagen seleccionada supera los 10MB.')
+        return
+      }
+      const reader = new FileReader()
+      reader.onload = (uploadEvent) => {
+        const base64Str = uploadEvent.target?.result as string
+        setFormImg(base64Str)
+        toast.success('📷 Foto cargada correctamente desde la computadora')
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handleSavePoi = () => {
+    if (!formName.trim()) {
+      toast.error('Por favor ingrese el nombre del lugar')
+      return
+    }
+
+    const latNum = parseFloat(formLat)
+    const lngNum = parseFloat(formLng)
+    if (isNaN(latNum) || isNaN(lngNum)) {
+      toast.error('Coordenadas inválidas. Ingrese valores numéricos de latitud y longitud')
+      return
+    }
+
+    const defaultImages: Record<string, string> = {
+      tourist: 'https://images.unsplash.com/photo-1578637387939-43c525550085?w=600&q=80',
+      clubbing: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=600&q=80',
+      restaurants: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&q=80',
+      shopping: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=600&q=80'
+    }
+
+    const poiItem = {
+      id: editingPoi ? editingPoi.id : `poi-${Date.now()}`,
+      name: formName.trim(),
+      type: formType,
+      city: formCity,
+      lat: latNum,
+      lng: lngNum,
+      rating: formRating,
+      description: formDesc.trim() || 'Atracción y punto de interés turístico destacado.',
+      imageUrl: formImg.trim() || defaultImages[formType]
+    }
+
+    let updatedCustom = [...customPois]
+    if (editingPoi) {
+      updatedCustom = updatedCustom.map(p => p.id === editingPoi.id ? poiItem : p)
+      const idxInDefault = DEFAULT_MOCK_POIS.findIndex(p => p.id === editingPoi.id)
+      if (idxInDefault !== -1 && !updatedCustom.some(p => p.id === editingPoi.id)) {
+        updatedCustom.push(poiItem)
+      }
+    } else {
+      updatedCustom.unshift(poiItem)
+    }
+
+    setCustomPois(updatedCustom)
+    localStorage.setItem('bu_custom_pois', JSON.stringify(updatedCustom))
+
+    // Restore from deleted list if present
+    if (editingPoi) {
+      const restoredDeleted = deletedPoiIds.filter(id => id !== editingPoi.id)
+      setDeletedPoiIds(restoredDeleted)
+      localStorage.setItem('bu_deleted_poi_ids', JSON.stringify(restoredDeleted))
+    }
+    try { window.dispatchEvent(new Event('storage')) } catch (e) {}
+
+    toast.success(editingPoi ? '¡Punto de Interés actualizado!' : '¡Nuevo Punto de Interés creado y visible en la App!')
+    setShowPoiModal(false)
+  }
+
+  const handleConfirmDeletePoi = () => {
+    if (!deletePoiTarget) return
+    const id = deletePoiTarget.id
+    const updatedCustom = customPois.filter(p => p.id !== id)
+    setCustomPois(updatedCustom)
+    localStorage.setItem('bu_custom_pois', JSON.stringify(updatedCustom))
+
+    const newDeletedIds = Array.from(new Set([...deletedPoiIds, id]))
+    setDeletedPoiIds(newDeletedIds)
+    localStorage.setItem('bu_deleted_poi_ids', JSON.stringify(newDeletedIds))
+
+    try { window.dispatchEvent(new Event('storage')) } catch (e) {}
+    toast.success(`🗑️ Punto "${deletePoiTarget.name}" eliminado permanentemente del sistema.`)
+    setDeletePoiTarget(null)
+  }
+
+  const getTypeLabel = (type: string) => {
+    if (type === 'tourist') return { name: 'Turismo', color: '#F59E0B', bg: 'rgba(245,158,11,0.15)', icon: '🏛️' }
+    if (type === 'clubbing') return { name: 'Bares & Nightlife', color: '#8B5CF6', bg: 'rgba(139,92,246,0.15)', icon: '🍺' }
+    if (type === 'restaurants') return { name: 'Restaurantes', color: '#EF4444', bg: 'rgba(239,68,68,0.15)', icon: '🍕' }
+    return { name: 'Compras & Shopping', color: '#10B981', bg: 'rgba(16,185,129,0.15)', icon: '🛍️' }
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Top Header & Actions */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#FFFFFF' }}>📍 Gestión de Puntos de Interés en el Mapa</h3>
+          <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Administre lugares turísticos, bares, restaurantes y comercios visibles en tiempo real en el mapa de pasajeros</p>
+        </div>
+
+        <button
+          onClick={openCreateModal}
+          style={{
+            padding: '10px 18px',
+            borderRadius: '10px',
+            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+            border: 'none',
+            color: '#FFFFFF',
+            fontSize: '13px',
+            fontWeight: 800,
+            cursor: 'pointer',
+            boxShadow: '0 4px 15px rgba(16,185,129,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <Plus size={16} /> Crear Nuevo Punto de Interés
+        </button>
+      </div>
+
+      {/* Filter & Search Bar */}
+      <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {[
+            { id: 'all', label: 'Todos los Puntos', icon: '📍' },
+            { id: 'tourist', label: 'Turismo', icon: '🏛️' },
+            { id: 'clubbing', label: 'Bares', icon: '🍺' },
+            { id: 'restaurants', label: 'Restaurantes', icon: '🍕' },
+            { id: 'shopping', label: 'Compras', icon: '🛍️' }
+          ].map(cat => (
+            <button
+              key={cat.id}
+              onClick={() => setCategoryFilter(cat.id)}
+              style={{
+                padding: '6px 14px',
+                borderRadius: '8px',
+                background: categoryFilter === cat.id ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${categoryFilter === cat.id ? '#10B981' : 'rgba(255,255,255,0.08)'}`,
+                color: categoryFilter === cat.id ? '#10B981' : '#94A3B8',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <span>{cat.icon}</span> {cat.label}
+            </button>
+          ))}
+        </div>
+
+        <input
+          type="text"
+          placeholder="Buscar por nombre o descripción..."
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          style={{
+            background: 'rgba(0,0,0,0.3)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '8px',
+            padding: '8px 14px',
+            color: '#FFFFFF',
+            fontSize: '12px',
+            width: '260px',
+            outline: 'none'
+          }}
+        />
+      </div>
+
+      {/* Cards Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+        {filteredPois.map(poi => {
+          const typeMeta = getTypeLabel(poi.type)
+          return (
+            <div
+              key={poi.id}
+              style={{
+                background: '#121527',
+                border: '1px solid rgba(255,255,255,0.06)',
+                borderTop: `3px solid ${typeMeta.color}`,
+                borderRadius: '12px',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.2)'
+              }}
+            >
+              {/* Image Banner */}
+              <div style={{ height: '140px', width: '100%', position: 'relative', overflow: 'hidden' }}>
+                <img src={poi.imageUrl} alt={poi.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <div style={{ position: 'absolute', top: '10px', left: '10px', background: typeMeta.bg, color: typeMeta.color, border: `1px solid ${typeMeta.color}40`, borderRadius: '6px', padding: '3px 8px', fontSize: '10px', fontWeight: 800, backdropFilter: 'blur(4px)' }}>
+                  {typeMeta.icon} {typeMeta.name}
+                </div>
+                <div style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(15,23,42,0.85)', color: '#F59E0B', borderRadius: '6px', padding: '3px 8px', fontSize: '11px', fontWeight: 800, backdropFilter: 'blur(4px)' }}>
+                  ⭐ {poi.rating}
+                </div>
+              </div>
+
+              {/* Card Body */}
+              <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#FFFFFF' }}>{poi.name}</h4>
+                  <div style={{ fontSize: '10px', color: '#3B82F6', fontFamily: 'DM Mono', marginTop: '2px' }}>
+                    📍 Lat: {poi.lat}, Lng: {poi.lng}
+                  </div>
+                </div>
+
+                <p style={{ margin: 0, fontSize: '12px', color: '#94A3B8', lineHeight: '1.4', flex: 1 }}>
+                  {poi.description}
+                </p>
+
+                {/* Card Footer Actions */}
+                <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '12px', marginTop: '4px' }}>
+                  <button
+                    onClick={() => openEditModal(poi)}
+                    style={{
+                      flex: 1,
+                      padding: '7px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(59,130,246,0.15)',
+                      border: '1px solid rgba(59,130,246,0.3)',
+                      color: '#3B82F6',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ✏️ Editar
+                  </button>
+                  <button
+                    onClick={() => setDeletePoiTarget(poi)}
+                    style={{
+                      padding: '7px 12px',
+                      borderRadius: '8px',
+                      background: 'rgba(239,68,68,0.15)',
+                      border: '1px solid rgba(239,68,68,0.3)',
+                      color: '#EF4444',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}
+                  >
+                    <Trash2 size={12} /> Eliminar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Create / Edit POI Modal */}
+      {showPoiModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,8,16,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '16px' }}>
+          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '16px', padding: '24px', maxWidth: '520px', width: '100%', color: '#FFFFFF', boxShadow: '0 20px 50px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>{editingPoi ? '✏️ Editar Punto de Interés' : '➕ Crear Nuevo Punto de Interés'}</h3>
+              <button onClick={() => setShowPoiModal(false)} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '16px' }}>✕</button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '72vh', overflowY: 'auto', paddingRight: '4px' }}>
+              <div>
+                <label style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '4px' }}>NOMBRE DEL LUGAR</label>
+                <input type="text" placeholder="Ej: Jardín Japonés, Don Julio Parrilla" value={formName} onChange={e => setFormName(e.target.value)} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: '#fff', fontSize: '13px' }} />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '4px' }}>CATEGORÍA</label>
+                  <select value={formType} onChange={e => setFormType(e.target.value as any)} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: '#fff', fontSize: '12px' }}>
+                    <option value="tourist">🏛️ Turismo</option>
+                    <option value="clubbing">🍺 Bares / Nightlife</option>
+                    <option value="restaurants">🍕 Restaurantes</option>
+                    <option value="shopping">🛍️ Compras</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '4px' }}>VALORACIÓN (STARS)</label>
+                  <select value={formRating} onChange={e => setFormRating(parseFloat(e.target.value))} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: '#fff', fontSize: '12px' }}>
+                    <option value="5.0">⭐ 5.0 (Excelente)</option>
+                    <option value="4.8">⭐ 4.8 (Muy Bueno)</option>
+                    <option value="4.5">⭐ 4.5 (Recomendado)</option>
+                    <option value="4.0">⭐ 4.0 (Bueno)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Location Coordinates & Map Pin Picker Button */}
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', padding: '12px', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '11px', color: '#3B82F6', fontWeight: 800 }}>📍 UBICACIÓN EN EL MAPA</label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPickerLat(parseFloat(formLat) || -34.6037)
+                      setPickerLng(parseFloat(formLng) || -58.3816)
+                      setShowPoiMapPicker(true)
+                    }}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)',
+                      border: 'none',
+                      color: '#FFFFFF',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 2px 8px rgba(59,130,246,0.3)'
+                    }}
+                  >
+                    📍 Ubicar / Marcar Pin en Mapa
+                  </button>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div>
+                    <label style={{ fontSize: '10px', color: '#8f94a5', fontWeight: 600, display: 'block', marginBottom: '2px' }}>LATITUD</label>
+                    <input type="text" placeholder="-34.6037" value={formLat} onChange={e => setFormLat(e.target.value)} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px', color: '#fff', fontSize: '12px', fontFamily: 'DM Mono' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '10px', color: '#8f94a5', fontWeight: 600, display: 'block', marginBottom: '2px' }}>LONGITUD</label>
+                    <input type="text" placeholder="-58.3816" value={formLng} onChange={e => setFormLng(e.target.value)} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', padding: '8px', color: '#fff', fontSize: '12px', fontFamily: 'DM Mono' }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Computer Photo File Upload Section */}
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', padding: '12px', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <label style={{ fontSize: '11px', color: '#10B981', fontWeight: 800 }}>🖼️ FOTO E IMAGEN DEL LUGAR</label>
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  id="poi-file-input"
+                  onChange={handleFileUpload}
+                  style={{ display: 'none' }}
+                />
+
+                {formImg ? (
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <img src={formImg} alt="Vista previa" style={{ width: '90px', height: '65px', objectFit: 'cover', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)' }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label
+                        htmlFor="poi-file-input"
+                        style={{
+                          padding: '6px 12px', borderRadius: '6px',
+                          background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)',
+                          color: '#3B82F6', fontSize: '11px', fontWeight: 700, cursor: 'pointer', textAlign: 'center'
+                        }}
+                      >
+                        📷 Cambiar Foto desde la PC
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setFormImg('')}
+                        style={{ background: 'none', border: 'none', color: '#EF4444', fontSize: '10px', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}
+                      >
+                        ✕ Quitar foto
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <label
+                    htmlFor="poi-file-input"
+                    style={{
+                      border: '2px dashed rgba(16,185,129,0.3)',
+                      background: 'rgba(16,185,129,0.05)',
+                      borderRadius: '10px',
+                      padding: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      cursor: 'pointer',
+                      transition: 'all 150ms'
+                    }}
+                  >
+                    <span style={{ fontSize: '24px' }}>📁</span>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#10B981' }}>Cargar Foto desde la Computadora</span>
+                    <span style={{ fontSize: '10px', color: '#8f94a5' }}>Haz click para seleccionar una imagen (JPG, PNG, WebP)</span>
+                  </label>
+                )}
+              </div>
+
+              <div>
+                <label style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '4px' }}>DESCRIPCIÓN COMPLETA</label>
+                <textarea rows={3} placeholder="Describa el lugar, atracciones principales, horarios..." value={formDesc} onChange={e => setFormDesc(e.target.value)} style={{ width: '100%', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '10px', color: '#fff', fontSize: '12px', resize: 'vertical' }} />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+              <button onClick={() => setShowPoiModal(false)} style={{ flex: 1, padding: '10px', borderRadius: '8px', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: '#94A3B8', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={handleSavePoi} style={{ flex: 1.5, padding: '10px', borderRadius: '8px', background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', border: 'none', color: '#fff', fontSize: '12px', fontWeight: 800, cursor: 'pointer' }}>✓ Guardar y Publicar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MAP PIN PICKER MODAL */}
+      {showPoiMapPicker && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,8,16,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999, padding: '16px' }}>
+          <div style={{ background: '#121527', border: '1px solid rgba(59,130,246,0.4)', borderRadius: '16px', padding: '24px', maxWidth: '650px', width: '100%', color: '#FFFFFF', boxShadow: '0 20px 50px rgba(0,0,0,0.7)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#3B82F6' }}>📍 Seleccionar Ubicación Exacta en el Mapa</h3>
+                <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#94A3B8' }}>Haz click en cualquier punto del mapa para colocar el marcador de este Punto de Interés.</p>
+              </div>
+              <button onClick={() => setShowPoiMapPicker(false)} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '16px' }}>✕</button>
+            </div>
+
+            <div style={{ height: '360px', width: '100%', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', position: 'relative' }}>
+              <Map
+                initialViewState={{
+                  longitude: pickerLng,
+                  latitude: pickerLat,
+                  zoom: 14
+                }}
+                mapStyle={CARTODB_DARK as any}
+                onClick={(evt) => {
+                  setPickerLat(evt.lngLat.lat)
+                  setPickerLng(evt.lngLat.lng)
+                }}
+                style={{ width: '100%', height: '100%' }}
+              >
+                <Marker longitude={pickerLng} latitude={pickerLat} anchor="center">
+                  <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#EF4444', border: '3px solid #FFFFFF', boxShadow: '0 0 15px rgba(239,68,68,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', color: '#fff' }}>
+                    📍
+                  </div>
+                </Marker>
+              </Map>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.3)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ fontSize: '11px', color: '#94A3B8' }}>
+                Coordenadas Seleccionadas: <strong style={{ color: '#10B981', fontFamily: 'DM Mono' }}>Lat: {pickerLat.toFixed(6)}, Lng: {pickerLng.toFixed(6)}</strong>
+              </div>
+              <button
+                onClick={() => {
+                  setFormLat(pickerLat.toFixed(6))
+                  setFormLng(pickerLng.toFixed(6))
+                  setShowPoiMapPicker(false)
+                  toast.success('📍 Ubicación confirmada y asignada al formulario')
+                }}
+                style={{
+                  padding: '8px 16px', borderRadius: '8px',
+                  background: '#10B981', border: 'none',
+                  color: '#FFFFFF', fontSize: '12px', fontWeight: 800, cursor: 'pointer'
+                }}
+              >
+                ✓ Confirmar Ubicación
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletePoiTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,8,16,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '16px' }}>
+          <div style={{ background: '#121527', border: '1.5px solid rgba(239, 68, 68, 0.4)', borderRadius: '16px', padding: '24px', maxWidth: '420px', width: '100%', color: '#FFFFFF', boxShadow: '0 20px 50px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EF4444' }}>
+                <AlertTriangle size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Confirmar Eliminación Permanente</h3>
+                <span style={{ fontSize: '11px', color: '#94A3B8' }}>Puntos de Interés del Mapa</span>
+              </div>
+            </div>
+            <p style={{ margin: 0, fontSize: '13px', color: '#CBD5E1', lineHeight: '1.5' }}>
+              ¿Estás seguro de que querés eliminar permanentemente el Punto de Interés <strong style={{ color: '#EF4444' }}>"${deletePoiTarget.name}"</strong>? Se eliminará de la base de datos y ya no aparecerá en la app de los usuarios.
+            </p>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+              <button onClick={() => setDeletePoiTarget(null)} style={{ flex: 1, padding: '10px 16px', borderRadius: '10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: '#94A3B8', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={handleConfirmDeletePoi} style={{ flex: 1.5, padding: '10px 16px', borderRadius: '10px', background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)', border: 'none', color: '#FFFFFF', fontSize: '12px', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 15px rgba(239,68,68,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <Trash2 size={14} /> Eliminar Definitivamente
               </button>
             </div>
           </div>

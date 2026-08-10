@@ -21960,7 +21960,7 @@ function MapAdBanner({
   const [routeUpdateTick, setRouteUpdateTick] = useState(0)
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key && (e.key.startsWith('mock_route_path_') || e.key.startsWith('mock_custom_stops_') || e.key.startsWith('mock_blocked_stops_'))) {
+      if (e.key && (e.key.startsWith('mock_route_path_') || e.key.startsWith('mock_custom_stops_') || e.key.startsWith('mock_blocked_stops_') || e.key === 'bu_custom_pois' || e.key === 'bu_deleted_poi_ids')) {
         setRouteUpdateTick(prev => prev + 1)
       }
     }
