@@ -1180,16 +1180,25 @@ export default function CompanyDashboard() {
   const currentDrivers = getLineDrivers(activeLine.line_number)
 
   const stops = getMockStopsForLine(activeLine, 'ida')
-  const topStops = activeLine.line_number === '0' ? [] : [...stops]
-    .sort((a, b) => b.total_daily_users - a.total_daily_users)
+  const topStops = [...stops]
     .slice(0, 4)
-    .map(s => ({
-      name: s.name,
-      subidas: Math.round(s.total_daily_users * 0.8),
-      espera: s.avg_wait_minutes
-    }))
+    .map(s => {
+      let realSubidas = 0
+      if (typeof window !== 'undefined') {
+        try {
+          const todayStr = new Date().toISOString().split('T')[0]
+          const key = `line_stop_boardings_${activeLine.line_number}_${s.id}_${todayStr}`
+          realSubidas = Number(localStorage.getItem(key)) || 0
+        } catch (e) {}
+      }
+      return {
+        name: s.name,
+        subidas: realSubidas,
+        espera: 0
+      }
+    })
 
-  // Real user complaints loaded strictly from localStorage
+    // Real user complaints loaded strictly from localStorage
   const [reports, setReports] = useState<any[]>([])
   useEffect(() => {
     if (!activeLine?.line_number) return
@@ -4763,16 +4772,23 @@ function StopsTab({ activeLine, themeColor }: { activeLine: any; themeColor: str
 
   useEffect(() => {
     const baseStops = getMockStopsForLine(activeLine, 'all')
-    const mapped = baseStops.map((stop, idx) => {
-      const seed = stop.name.charCodeAt(0) + stop.name.charCodeAt(stop.name.length - 1) + idx
-      const subidas = Math.round(((seed % 60) + 40) * 1.8)
-      const bajadas = Math.round(((seed % 50) + 30) * 1.8)
-      const espera = (seed % 6) + 3
+    const todayStr = new Date().toISOString().split('T')[0]
+    const mapped = baseStops.map((stop) => {
+      let subidas = 0
+      let bajadas = 0
+      if (typeof window !== 'undefined') {
+        try {
+          const subKey = `line_stop_boardings_${activeLine.line_number}_${stop.id}_${todayStr}`
+          const bajKey = `line_stop_alightings_${activeLine.line_number}_${stop.id}_${todayStr}`
+          subidas = Number(localStorage.getItem(subKey)) || 0
+          bajadas = Number(localStorage.getItem(bajKey)) || 0
+        } catch (e) {}
+      }
       return {
         ...stop,
         subidas,
         bajadas,
-        espera
+        espera: 0
       }
     })
     setStopsList(mapped)
@@ -4785,21 +4801,28 @@ function StopsTab({ activeLine, themeColor }: { activeLine: any; themeColor: str
 
   const hourlyData = useMemo(() => {
     if (!selectedStop) return []
-    const seed = selectedStop.name.charCodeAt(0) + selectedStop.name.charCodeAt(selectedStop.name.length - 1)
+    const todayStr = new Date().toISOString().split('T')[0]
+    let hourlyMap: Record<string, { subidas: number; bajadas: number }> = {}
+    if (typeof window !== 'undefined') {
+      try {
+        const key = `line_stop_hourly_${activeLine.line_number}_${selectedStop.id}_${todayStr}`
+        const stored = localStorage.getItem(key)
+        if (stored) hourlyMap = JSON.parse(stored)
+      } catch (e) {}
+    }
+
     return Array.from({ length: 24 }, (_, h) => {
-      const isPeak = (h >= 7 && h <= 9) || (h >= 17 && h <= 19)
-      const multiplier = isPeak ? 3.2 : 1
-      const subidas = Math.round(((seed + h) % 12 + 4) * multiplier)
-      const bajadas = Math.round(((seed * h + 7) % 10 + 3) * multiplier)
+      const hourKey = `${String(h).padStart(2, '0')}:00`
+      const hourVal = hourlyMap[hourKey] || { subidas: 0, bajadas: 0 }
       return {
-        h: `${String(h).padStart(2, '0')}:00`,
-        subidas,
-        bajadas
+        h: hourKey,
+        subidas: hourVal.subidas || 0,
+        bajadas: hourVal.bajadas || 0
       }
     })
-  }, [selectedStop])
+  }, [selectedStop, activeLine])
 
-  const barFillSubidas = hexToRgba(themeColor, 0.15)
+    const barFillSubidas = hexToRgba(themeColor, 0.15)
   const barFillBajadas = 'rgba(143, 148, 165, 0.15)'
 
   return (
