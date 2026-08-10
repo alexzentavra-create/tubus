@@ -7973,6 +7973,11 @@ function ProvinceMapTab({
     return () => window.removeEventListener('storage', handleStorage)
   }, [])
 
+  // Reset zoom scale on level change
+  useEffect(() => {
+    setZoomScale(1.0)
+  }, [selectedProvinceKey, selectedCity, selectedNeighborhood])
+
   // 2. Filter users by geography level
   const filteredUsers = useMemo(() => {
     return registeredUsers.filter(u => {
@@ -8073,7 +8078,7 @@ function ProvinceMapTab({
     }
 
     searchHistory.forEach(s => {
-      const text = `${s.originName || ''} ${s.destName || ''}`.toLowerCase()
+      const text = (s.originName || '' + ' ' + (s.destName || '')).toLowerCase()
       Object.keys(flowDict).forEach(nKey => {
         if (text.includes(nKey)) {
           flowDict[nKey] += 1
@@ -8087,27 +8092,40 @@ function ProvinceMapTab({
   // Real-time active users count
   const activeCount = filteredUsers.length > 0 ? filteredUsers.length : 0
 
+  // 7. Custom Province ViewBox Bounding Boxes for 100% Zoom Fit
+  const provinceViewBoxes: Record<string, string> = {
+    'buenos-aires': '430 670 470 200', // Perfectly zooms into Buenos Aires & CABA
+    'cordoba': '330 330 280 280',
+    'santa-fe': '500 260 120 320',
+    'mendoza': '180 500 150 250'
+  }
+
+  // 8. Cities List with precise coordinates matching zoomed ViewBox
   const mockCitiesList = useMemo(() => {
     if (selectedProvinceKey === 'buenos-aires') {
       return [
-        { key: 'caba', name: 'CABA', x: 605, y: 577 },
-        { key: 'la-plata', name: 'La Plata', x: 622, y: 592 }
+        { key: 'caba', name: 'Ciudad Autónoma de Buenos Aires (CABA)', x: 678, y: 700, activeUsers: filteredUsers.filter(u => u.city === 'caba' || !u.city).length },
+        { key: 'la-plata', name: 'La Plata', x: 692, y: 720, activeUsers: 0 },
+        { key: 'mar-del-plata', name: 'Mar del Plata', x: 645, y: 805, activeUsers: 0 },
+        { key: 'bahia-blanca', name: 'Bahía Blanca', x: 505, y: 790, activeUsers: 0 },
+        { key: 'tandil', name: 'Tandil', x: 600, y: 760, activeUsers: 0 }
       ]
     } else if (selectedProvinceKey === 'cordoba') {
       return [
-        { key: 'cordoba-cap', name: 'Córdoba Capital', x: 398, y: 469 }
+        { key: 'cordoba-cap', name: 'Córdoba Capital', x: 460, y: 440, activeUsers: 0 }
       ]
     } else if (selectedProvinceKey === 'santa-fe') {
       return [
-        { key: 'santa-fe-cap', name: 'Santa Fe Capital', x: 510, y: 415 }
+        { key: 'santa-fe-cap', name: 'Santa Fe Capital', x: 560, y: 350, activeUsers: 0 },
+        { key: 'rosario', name: 'Rosario', x: 560, y: 440, activeUsers: 0 }
       ]
     } else if (selectedProvinceKey === 'mendoza') {
       return [
-        { key: 'mendoza-cap', name: 'Mendoza Capital', x: 205, y: 595 }
+        { key: 'mendoza-cap', name: 'Mendoza Capital', x: 250, y: 600, activeUsers: 0 }
       ]
     }
     return []
-  }, [selectedProvinceKey])
+  }, [selectedProvinceKey, filteredUsers])
 
   const mockNeighborhoodsList = useMemo(() => {
     if (selectedCity === 'caba') {
@@ -8123,19 +8141,12 @@ function ProvinceMapTab({
     return []
   }, [selectedCity, neighborhoodFlows])
 
+  const currentProvinceTitle = selectedProvinceKey ? (selectedProvinceKey === 'buenos-aires' ? 'BUENOS AIRES & CABA' : selectedProvinceKey.toUpperCase()) : ''
+  const currentCityTitle = selectedCity ? selectedCity.toUpperCase() : ''
+  const currentNeighborhoodTitle = selectedNeighborhood ? selectedNeighborhood.toUpperCase() : ''
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <style>{`
-        @keyframes flow { to { stroke-dashoffset: -20; } }
-        .flow-path { stroke-dasharray: 6, 6; animation: flow 1.2s linear infinite; }
-        .pulse-circle { animation: pulse 2s infinite; }
-        @keyframes pulse {
-          0% { transform: scale(1); opacity: 0.8; }
-          50% { transform: scale(1.15); opacity: 0.4; }
-          100% { transform: scale(1); opacity: 0.8; }
-        }
-      `}</style>
-
       {/* Header section with interactive breadcrumbs */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
@@ -8185,125 +8196,155 @@ function ProvinceMapTab({
         {/* Left: Map Viewer */}
         <div style={{ gridColumn: 'span 7', background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           
+          {/* Map Controls Toolbar for All Levels */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: '#fff' }}>
+              {!selectedProvinceKey ? 'Nivel 0: Provincias de Argentina' : !selectedCity ? 'Nivel 1: Ciudades Principales (' + currentProvinceTitle + ')' : 'Nivel 2: Red de Barrios (' + currentCityTitle + ')'}
+            </h4>
+
+            {/* Zoom Buttons */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button
+                onClick={() => setZoomScale(prev => Math.min(prev + 0.25, 3.0))}
+                style={{ width: '26px', height: '26px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                title="Acercar (Zoom In)"
+              >
+                ➕
+              </button>
+              <button
+                onClick={() => setZoomScale(prev => Math.max(prev - 0.25, 0.5))}
+                style={{ width: '26px', height: '26px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '13px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                title="Alejar (Zoom Out)"
+              >
+                ➖
+              </button>
+              <button
+                onClick={() => setZoomScale(1.0)}
+                style={{ width: '26px', height: '26px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#8f94a5', fontSize: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                title="Restablecer (Reset Zoom)"
+              >
+                R
+              </button>
+              <span style={{ fontSize: '9px', color: '#8f94a5', fontFamily: 'DM Mono', marginLeft: '4px' }}>
+                {Math.round(zoomScale * 100)}%
+              </span>
+            </div>
+          </div>
+
           {!selectedProvinceKey && (
-            <>
-              <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: '#fff' }}>Nivel 0: Provincias de Argentina</h4>
-              <div style={{ position: 'relative', width: '100%', height: '420px', display: 'flex', justifyContent: 'center', overflow: 'hidden', borderRadius: '8px' }}>
-                {/* Floating Map Zoom Controls */}
-                <div style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <button
-                    onClick={() => setZoomScale(prev => Math.min(prev + 0.25, 3.0))}
-                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }}
-                    title="Acercar (Zoom In)"
-                  >
-                    ➕
-                  </button>
-                  <button
-                    onClick={() => setZoomScale(prev => Math.max(prev - 0.25, 0.5))}
-                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }}
-                    title="Alejar (Zoom Out)"
-                  >
-                    ➖
-                  </button>
-                  <button
-                    onClick={() => setZoomScale(1.0)}
-                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#8f94a5', fontSize: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }}
-                    title="Restablecer (Reset Zoom)"
-                  >
-                    R
-                  </button>
-                  <div style={{ background: 'rgba(15, 23, 42, 0.8)', padding: '2px 6px', borderRadius: '4px', fontSize: '8px', color: '#8f94a5', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    {Math.round(zoomScale * 100)}%
-                  </div>
-                </div>
+            <div style={{ position: 'relative', width: '100%', height: '430px', display: 'flex', justifyContent: 'center', overflow: 'hidden', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.03)' }}>
+              <svg
+                viewBox="0 0 1000 1200"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  transform: 'scale(' + zoomScale + ')',
+                  transformOrigin: 'center center',
+                  transition: 'transform 0.2s ease-out'
+                }}
+              >
+                {ARG_PROVINCES.map((prov) => {
+                  const provUserCount = registeredUsers.filter(u => 
+                    u.province === prov.id || (prov.id === 'buenos-aires' && (u.province?.toLowerCase().includes('buenos') || u.city?.toLowerCase().includes('caba') || !u.province))
+                  ).length
 
-                <svg
-                  viewBox="0 0 1000 1200"
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    transform: `scale(${zoomScale})`,
-                    transformOrigin: 'center center',
-                    transition: 'transform 0.2s ease-out'
-                  }}
-                >
-                  {ARG_PROVINCES.map((prov) => {
-                    // Count real-time registered users in this province
-                    const provUserCount = registeredUsers.filter(u => 
-                      u.province === prov.id || (prov.id === 'buenos-aires' && (u.province?.toLowerCase().includes('buenos') || u.city?.toLowerCase().includes('caba') || !u.province))
-                    ).length
+                  const isBsAs = prov.id === 'buenos-aires'
+                  const fill = provUserCount > 0 ? (isBsAs ? '#3B82F6' : '#2563EB') : '#1B1D2E'
+                  const opacity = provUserCount > 0 ? (isBsAs ? 0.9 : 0.6) : 0.35
 
-                    const isBsAs = prov.id === 'buenos-aires'
-                    const fill = provUserCount > 0 ? (isBsAs ? '#3B82F6' : '#2563EB') : '#1B1D2E'
-                    const opacity = provUserCount > 0 ? (isBsAs ? 0.9 : 0.6) : 0.35
+                  return (
+                    <g key={prov.id} onClick={() => onSelectProvince(prov.id)} style={{ cursor: 'pointer' }}>
+                      <path
+                        d={prov.path}
+                        fill={fill}
+                        fillOpacity={opacity}
+                        stroke={provUserCount > 0 ? '#60A5FA' : 'rgba(255,255,255,0.1)'}
+                        strokeWidth={provUserCount > 0 ? '2' : '1'}
+                        style={{ transition: 'all 200ms' }}
+                      />
+                    </g>
+                  )
+                })}
+              </svg>
 
-                    return (
-                      <g key={prov.id} onClick={() => onSelectProvince(prov.id)} style={{ cursor: 'pointer' }}>
-                        <path
-                          d={prov.path}
-                          fill={fill}
-                          fillOpacity={opacity}
-                          stroke={provUserCount > 0 ? '#60A5FA' : 'rgba(255,255,255,0.1)'}
-                          strokeWidth={provUserCount > 0 ? '2' : '1'}
-                          style={{ transition: 'all 200ms' }}
-                        />
-                      </g>
-                    )
-                  })}
-                </svg>
-
-                {/* Info Card Badge for Active Province */}
-                <div style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(15,23,42,0.9)', border: '1px solid rgba(59,130,246,0.3)', padding: '10px 14px', borderRadius: '10px', backdropFilter: 'blur(8px)' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 800, color: '#FFFFFF' }}>Provincia de Buenos Aires & CABA</div>
-                  <div style={{ fontSize: '11px', color: '#60A5FA', fontFamily: 'DM Mono', marginTop: '2px' }}>
-                    {registeredUsers.filter(u => u.province === 'buenos-aires' || u.city === 'caba' || !u.province).length} pasajeros registrados
-                  </div>
+              <div style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(15,23,42,0.9)', border: '1px solid rgba(59,130,246,0.3)', padding: '10px 14px', borderRadius: '10px', backdropFilter: 'blur(8px)' }}>
+                <div style={{ fontSize: '12px', fontWeight: 800, color: '#FFFFFF' }}>Provincia de Buenos Aires & CABA</div>
+                <div style={{ fontSize: '11px', color: '#60A5FA', fontFamily: 'DM Mono', marginTop: '2px' }}>
+                  {registeredUsers.filter(u => u.province === 'buenos-aires' || u.city === 'caba' || !u.province).length} pasajeros registrados
                 </div>
               </div>
-            </>
+            </div>
           )}
 
           {selectedProvinceKey && !selectedCity && (
-            <>
-              <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: '#fff' }}>Nivel 1: Ciudades Principales ({selectedProvinceKey.toUpperCase()})</h4>
-              <div style={{ position: 'relative', width: '100%', height: '420px', display: 'flex', justifyContent: 'center', overflow: 'hidden', borderRadius: '8px' }}>
-                <svg viewBox="0 0 1000 1200" style={{ width: '100%', height: '100%' }}>
-                  <path
-                    d={ARG_PROVINCES.find(p => p.id === selectedProvinceKey)?.path || ''}
-                    fill="#1e293b"
-                    fillOpacity={0.6}
-                    stroke="#3B82F6"
-                    strokeWidth="2"
-                  />
-                  {mockCitiesList.map(city => (
-                    <g key={city.key} onClick={() => setSelectedCity(city.key)} style={{ cursor: 'pointer' }}>
-                      <circle cx={city.x} cy={city.y} r="14" fill="rgba(59,130,246,0.2)" stroke="#3B82F6" strokeWidth="2" className="pulse-circle" />
-                      <circle cx={city.x} cy={city.y} r="5" fill="#3B82F6" />
-                      <text x={city.x} y={city.y - 18} textAnchor="middle" fill="#fff" fontSize="11" fontWeight="bold">{city.name}</text>
-                    </g>
-                  ))}
-                </svg>
+            <div style={{ position: 'relative', width: '100%', height: '430px', display: 'flex', justifyContent: 'center', overflow: 'hidden', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.03)' }}>
+              <svg
+                viewBox={provinceViewBoxes[selectedProvinceKey] || '0 0 1000 1200'}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  transform: 'scale(' + zoomScale + ')',
+                  transformOrigin: 'center center',
+                  transition: 'transform 0.2s ease-out'
+                }}
+              >
+                <path
+                  d={ARG_PROVINCES.find(p => p.id === selectedProvinceKey)?.path || ''}
+                  fill="#1E293B"
+                  fillOpacity={0.7}
+                  stroke="#3B82F6"
+                  strokeWidth="2.5"
+                />
+
+                {mockCitiesList.map(city => (
+                  <g key={city.key} onClick={() => setSelectedCity(city.key)} style={{ cursor: 'pointer' }}>
+                    <circle cx={city.x} cy={city.y} r="10" fill="rgba(59,130,246,0.3)" stroke="#3B82F6" strokeWidth="2" className="pulse-circle" />
+                    <circle cx={city.x} cy={city.y} r="4" fill="#3B82F6" />
+                    
+                    {/* City Label Badge */}
+                    <rect x={city.x - 45} y={city.y - 26} width="90" height="18" rx="4" fill="rgba(15,23,42,0.9)" stroke="#3B82F6" strokeWidth="1" />
+                    <text x={city.x} y={city.y - 14} textAnchor="middle" fill="#FFFFFF" fontSize="9" fontWeight="bold">
+                      📍 {city.name.replace(' (CABA)', '').replace('Ciudad Autónoma de Buenos Aires', 'CABA')}
+                    </text>
+
+                    {city.activeUsers > 0 && (
+                      <text x={city.x} y={city.y + 18} textAnchor="middle" fill="#10B981" fontSize="8" fontWeight="bold" fontFamily="DM Mono">
+                        {city.activeUsers} activos
+                      </text>
+                    )}
+                  </g>
+                ))}
+              </svg>
+
+              <div style={{ position: 'absolute', bottom: '12px', left: '12px', background: 'rgba(15,23,42,0.85)', padding: '6px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)', fontSize: '11px', color: '#94A3B8' }}>
+                💡 Hacé click en cualquier nodo de ciudad para inspeccionar barrios y flujos de pasajeros.
               </div>
-            </>
+            </div>
           )}
 
           {selectedCity && (
-            <>
-              <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: '#fff' }}>Nivel 2: Red de Barrios y Flujos de Pasajeros ({selectedCity.toUpperCase()})</h4>
-              <div style={{ position: 'relative', width: '100%', height: '420px', display: 'flex', justifyContent: 'center', overflow: 'hidden', borderRadius: '8px' }}>
-                <svg viewBox="0 0 350 250" style={{ width: '100%', height: '100%', background: '#0F172A' }}>
-                  <polygon points="120,30 220,30 300,100 240,210 140,200 80,110" fill="none" stroke="#3B82F6" strokeWidth="2" />
-                  {mockNeighborhoodsList.map(n => (
-                    <g key={n.key} onClick={() => setSelectedNeighborhood(n.key)} style={{ cursor: 'pointer' }}>
-                      <circle cx={n.x} cy={n.y} r="10" fill={n.count > 0 ? "rgba(16,185,129,0.3)" : "rgba(148,163,184,0.2)"} stroke={n.count > 0 ? "#10B981" : "#94A3B8"} strokeWidth="2" />
-                      <circle cx={n.x} cy={n.y} r="4" fill={n.count > 0 ? "#10B981" : "#94A3B8"} />
-                      <text x={n.x} y={n.y - 14} textAnchor="middle" fill="#fff" fontSize="10" fontWeight="bold">{n.name}</text>
-                      <text x={n.x} y={n.y + 18} textAnchor="middle" fill="#94A3B8" fontSize="8" fontFamily="DM Mono">{n.count.toLocaleString()} pax/d</text>
-                    </g>
-                  ))}
-                </svg>
-              </div>
-            </>
+            <div style={{ position: 'relative', width: '100%', height: '430px', display: 'flex', justifyContent: 'center', overflow: 'hidden', borderRadius: '8px', background: '#0F172A', border: '1px solid rgba(255,255,255,0.03)' }}>
+              <svg
+                viewBox="0 0 350 250"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  transform: 'scale(' + zoomScale + ')',
+                  transformOrigin: 'center center',
+                  transition: 'transform 0.2s ease-out'
+                }}
+              >
+                <polygon points="120,30 220,30 300,100 240,210 140,200 80,110" fill="none" stroke="#3B82F6" strokeWidth="2" />
+                {mockNeighborhoodsList.map(n => (
+                  <g key={n.key} onClick={() => setSelectedNeighborhood(n.key)} style={{ cursor: 'pointer' }}>
+                    <circle cx={n.x} cy={n.y} r="10" fill={n.count > 0 ? "rgba(16,185,129,0.3)" : "rgba(148,163,184,0.2)"} stroke={n.count > 0 ? "#10B981" : "#94A3B8"} strokeWidth="2" />
+                    <circle cx={n.x} cy={n.y} r="4" fill={n.count > 0 ? "#10B981" : "#94A3B8"} />
+                    <text x={n.x} y={n.y - 14} textAnchor="middle" fill="#fff" fontSize="10" fontWeight="bold">{n.name}</text>
+                    <text x={n.x} y={n.y + 18} textAnchor="middle" fill="#94A3B8" fontSize="8" fontFamily="DM Mono">{n.count.toLocaleString()} pax/d</text>
+                  </g>
+                ))}
+              </svg>
+            </div>
           )}
 
         </div>
@@ -8316,7 +8357,7 @@ function ProvinceMapTab({
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <h4 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#3B82F6' }}>
-                    {selectedNeighborhood ? selectedNeighborhood.toUpperCase() : selectedCity ? selectedCity.toUpperCase() : selectedProvinceKey ? (selectedProvinceKey === 'buenos-aires' ? 'Buenos Aires & CABA' : selectedProvinceKey.toUpperCase()) : 'Demografía Nacional'}
+                    {currentNeighborhoodTitle ? currentNeighborhoodTitle : currentCityTitle ? currentCityTitle : currentProvinceTitle ? currentProvinceTitle : 'Demografía Nacional'}
                   </h4>
                   <span style={{ fontSize: '11px', color: '#8f94a5' }}>
                     {selectedNeighborhood ? 'Estadísticas del barrio' : selectedCity ? 'Estadísticas de la ciudad' : selectedProvinceKey ? 'Estadísticas provinciales' : 'Resumen nacional de usuarios registrados'}
@@ -8386,7 +8427,7 @@ function ProvinceMapTab({
                       <span style={{ color: '#8f94a5' }}>{item.pct}%</span>
                     </div>
                     <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
-                      <div style={{ width: `${item.pct}%`, height: '100%', background: item.color, borderRadius: '2px' }}></div>
+                      <div style={{ width: item.pct + '%', height: '100%', background: item.color, borderRadius: '2px' }}></div>
                     </div>
                   </div>
                 ))}
