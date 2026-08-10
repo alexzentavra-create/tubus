@@ -8808,7 +8808,9 @@ function RealtimeNewsAndTipsTab({
       const data = await res.json()
       if (data.success && Array.isArray(data.news) && data.news.length > 0) {
         // Merge with existing comments and starred status
-        const mergedNews = data.news.map((item: any) => {
+        const deletedTitles = JSON.parse(localStorage.getItem('deleted_news_titles') || '[]')
+        const filteredLiveNews = data.news.filter((item: any) => !deletedTitles.includes(item.title) && !deletedTitles.includes(item.id))
+        const mergedNews = filteredLiveNews.map((item: any) => {
           const existing = news.find(n => n.title === item.title || n.url === item.url)
           return {
             ...item,
@@ -9021,10 +9023,10 @@ function RealtimeNewsAndTipsTab({
                           e.stopPropagation()
                           setDeleteTarget({ type: 'news', id: item.id, name: item.title })
                         }}
-                        style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#EF4444', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer' }}
+                        style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#EF4444', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                         title="Eliminar Noticia"
                       >
-                        <Trash2 size={11} />
+                        <Trash2 size={12} />
                       </button>
                     </div>
                   </div>
