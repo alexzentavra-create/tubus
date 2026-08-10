@@ -584,16 +584,25 @@ export default function CompanyDashboard() {
   const [todos, setTodos] = useState<Todo[]>([])
 
   useEffect(() => {
-    if (activeLine?.line_number === '0') {
+    if (!activeLine?.line_number || activeLine.line_number === '0') {
       setTodos([])
-    } else {
-      setTodos([
-        { id: 't1', text: 'Revisar reclamo sobre coche 001', done: false, date: '28 de Mayo', badge: 'Urgente', flagged: true },
-        { id: 't2', text: 'Imprimir y colocar código QR en unidad 005', done: false, date: '29 de Mayo', badge: 'Pendiente', flagged: false },
-        { id: 't3', text: 'Verificar habilitación de chofer Juan Gómez', done: false, date: '30 de Mayo', badge: 'Esta semana', flagged: true },
-        { id: 't4', text: 'Limpieza y desinfección unidad 003', done: true, date: '27 de Mayo', badge: 'Resuelto', flagged: false },
-      ])
+      return
     }
+    const loadRealTodos = () => {
+      try {
+        const deletedTodoIds: string[] = JSON.parse(localStorage.getItem('deleted_todo_ids') || '[]')
+        const lineKey = `line_todos_${activeLine.line_number}`
+        const stored = localStorage.getItem(lineKey)
+        const rawTodos = stored ? JSON.parse(stored) : []
+        const validTodos = rawTodos.filter((t: any) => !deletedTodoIds.includes(t.id))
+        setTodos(validTodos)
+      } catch (e) {
+        setTodos([])
+      }
+    }
+    loadRealTodos()
+    window.addEventListener('storage', loadRealTodos)
+    return () => window.removeEventListener('storage', loadRealTodos)
   }, [activeLine?.line_number])
   const [newTodoText, setNewTodoText] = useState('')
   const [showAddTodo, setShowAddTodo] = useState(false)
@@ -767,23 +776,9 @@ export default function CompanyDashboard() {
       const storedQRs: any[] = JSON.parse((localStorage.getItem(`mock_bus_qr_codes_${activeLine.line_number}`) || localStorage.getItem('mock_bus_qr_codes')) || '[]')
         .filter((q: any) => q.line_id === activeLine.id || q.company_id === companyId)
       
-      if (storedQRs.length > 0) {
-        // Real QRs created by admin — use them
-        setQrCodes(storedQRs)
-      } else if (activeLine.line_number !== '0') {
-        // No stored QRs yet and not Line 0 — seed with demo placeholders
-        const demoQRs = [
-          { id: `mock-qr-${activeLine.line_number}-1`, qr_token: `DEMO-QR-L${activeLine.line_number}-001`, bus_unit: `${activeLine.line_number}-301`, is_active: true, company_id: companyId, line_id: activeLine.id },
-          { id: `mock-qr-${activeLine.line_number}-2`, qr_token: `DEMO-QR-L${activeLine.line_number}-002`, bus_unit: `${activeLine.line_number}-302`, is_active: false, company_id: companyId, line_id: activeLine.id }
-        ]
-        setQrCodes(demoQRs)
-        // Persist demo QRs so they survive reload too
-        const allStored = JSON.parse((localStorage.getItem(`mock_bus_qr_codes_${activeLine.line_number}`) || localStorage.getItem('mock_bus_qr_codes')) || '[]')
-        localStorage.setItem(`mock_bus_qr_codes_${activeLine.line_number}`, JSON.stringify([...allStored, ...demoQRs]))
-      } else {
-        // Line 0 with no QRs yet — start empty (admin must create real ones)
-        setQrCodes([])
-      }
+      const deletedQrIds: string[] = JSON.parse(localStorage.getItem('deleted_qr_ids') || '[]')
+      const validStoredQRs = storedQRs.filter((q: any) => !deletedQrIds.includes(q.id) && !deletedQrIds.includes(q.qr_token) && !deletedQrIds.includes(q.bus_unit))
+      setQrCodes(validStoredQRs)
       setLoading(false)
       return
     }
@@ -1218,65 +1213,7 @@ export default function CompanyDashboard() {
     return () => window.removeEventListener('storage', loadRealReports)
   }, [activeLine?.line_number])
 
-    // Auto-detect and sync system issues to Todo List
-  useEffect(() => {
-    if (activeLine?.line_number === '0') return
-    setTodos(prev => {
-      const updated = [...prev]
-      let changed = false
-
-      // 1. Sync pending reports
-      reports.forEach(r => {
-        const todoId = `todo-rep-${r.id}`
-        const exists = updated.some(t => t.id === todoId)
-        if (!exists && r.status === 'pending') {
-          updated.unshift({
-            id: todoId,
-            text: `Atender denuncia [${r.type}]: Unidad ${r.bus} - Chofer ${r.driver}`,
-            done: false,
-            date: 'Hoy',
-            badge: 'Urgente',
-            flagged: true
-          })
-          changed = true
-        } else if (exists && r.status === 'resolved') {
-          const idx = updated.findIndex(t => t.id === todoId)
-          if (idx !== -1 && !updated[idx].done) {
-            updated[idx] = { ...updated[idx], done: true, badge: 'Resuelto' }
-            changed = true
-          }
-        }
-      })
-
-      // 2. Sync stopped or broken down buses
-      buses.forEach(b => {
-        if (b.speed_kmh === 0 && b.status === 'stopped') {
-          const todoId = `todo-bus-stop-${b.id}`
-          const exists = updated.some(t => t.id === todoId)
-          if (!exists) {
-            updated.unshift({
-              id: todoId,
-              text: `Alerta GPS: Unidad ${b.bus_unit} detenida en parada ${b.next_stop_name || 'recorrido'}`,
-              done: false,
-              date: 'Hoy',
-              badge: 'Nuevo',
-              flagged: true
-            })
-            changed = true
-          }
-        } else if (b.speed_kmh > 0) {
-          const todoId = `todo-bus-stop-${b.id}`
-          const idx = updated.findIndex(t => t.id === todoId)
-          if (idx !== -1 && !updated[idx].done) {
-            updated[idx] = { ...updated[idx], done: true, badge: 'Resuelto' }
-            changed = true
-          }
-        }
-      })
-
-      return changed ? updated : prev
-    })
-  }, [reports, buses])
+  
 
   const generateQR = async () => {
     if (!newBusUnit.trim() || !company) return
@@ -1327,15 +1264,31 @@ export default function CompanyDashboard() {
   }
 
   const deleteQR = async (id: string) => {
-    await supabase.from('bus_qr_codes').delete().eq('id', id)
-    
-    // Always clear from localStorage too
-    const prevQRs = JSON.parse((localStorage.getItem(`mock_bus_qr_codes_${activeLine.line_number}`) || localStorage.getItem('mock_bus_qr_codes')) || '[]')
-    localStorage.setItem(`mock_bus_qr_codes_${activeLine.line_number}`, JSON.stringify(prevQRs.filter((q: any) => q.id !== id)))
+    try {
+      const targetQR = qrCodes.find((q: any) => q.id === id)
+      const deletedQrIds: string[] = JSON.parse(localStorage.getItem('deleted_qr_ids') || '[]')
+      if (id && !deletedQrIds.includes(id)) deletedQrIds.push(id)
+      if (targetQR?.qr_token && !deletedQrIds.includes(targetQR.qr_token)) deletedQrIds.push(targetQR.qr_token)
+      if (targetQR?.bus_unit && !deletedQrIds.includes(targetQR.bus_unit)) deletedQrIds.push(targetQR.bus_unit)
+      localStorage.setItem('deleted_qr_ids', JSON.stringify(deletedQrIds))
 
-    setQrCodes(prev => prev.filter(qr => qr.id !== id))
-    if (selectedQR?.id === id) setSelectedQR(null)
-    toast.success('Código QR eliminado correctamente');
+      const lineKey = `mock_bus_qr_codes_${activeLine.line_number}`
+      const prevLineQRs = JSON.parse(localStorage.getItem(lineKey) || '[]')
+      const updatedLineQRs = prevLineQRs.filter((q: any) => q.id !== id && q.qr_token !== targetQR?.qr_token && q.bus_unit !== targetQR?.bus_unit)
+      localStorage.setItem(lineKey, JSON.stringify(updatedLineQRs))
+
+      const globalQRs = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
+      const updatedGlobalQRs = globalQRs.filter((q: any) => q.id !== id && q.qr_token !== targetQR?.qr_token && q.bus_unit !== targetQR?.bus_unit)
+      localStorage.setItem('mock_bus_qr_codes', JSON.stringify(updatedGlobalQRs))
+
+      setQrCodes(prev => prev.filter(qr => qr.id !== id && qr.qr_token !== targetQR?.qr_token && qr.bus_unit !== targetQR?.bus_unit))
+      if (selectedQR?.id === id) setSelectedQR(null)
+      window.dispatchEvent(new Event('storage'))
+      window.dispatchEvent(new Event('qrs_updated'))
+      toast.success("Código QR eliminado permanentemente de la flota")
+    } catch (e) {
+      toast.error("Error al eliminar el código QR")
+    }
   }
 
   const toggleQRActive = async (id: string, currentStatus: boolean) => {
@@ -1436,22 +1389,42 @@ export default function CompanyDashboard() {
     }))
   }
   const deleteTodo = (id: string) => {
-    setTodos(prev => prev.filter(t => t.id !== id))
+    try {
+      const deletedTodoIds: string[] = JSON.parse(localStorage.getItem('deleted_todo_ids') || '[]')
+      if (id && !deletedTodoIds.includes(id)) deletedTodoIds.push(id)
+      localStorage.setItem('deleted_todo_ids', JSON.stringify(deletedTodoIds))
+
+      const lineKey = `line_todos_${activeLine.line_number}`
+      const prevTodos = JSON.parse(localStorage.getItem(lineKey) || '[]')
+      const updated = prevTodos.filter((t: any) => t.id !== id)
+      localStorage.setItem(lineKey, JSON.stringify(updated))
+
+      setTodos(prev => prev.filter(t => t.id !== id))
+      window.dispatchEvent(new Event('storage'))
+      toast.success("Tarea eliminada permanentemente")
+    } catch (e) {
+      toast.error("Error al eliminar la tarea")
+    }
   }
+
   const addTodo = () => {
     if (!newTodoText.trim()) return
     const item: Todo = {
-      id: `t-${Date.now()}`,
-      text: newTodoText,
+      id: `todo-${Date.now()}`,
+      text: newTodoText.trim(),
       done: false,
-      date: format(new Date(), 'dd de MMMM', { locale: es }),
+      date: 'Hoy',
       badge: 'Nuevo',
-      flagged: false,
+      flagged: false
     }
-    setTodos(prev => [...prev, item])
+    const lineKey = `line_todos_${activeLine.line_number}`
+    const prevTodos = JSON.parse(localStorage.getItem(lineKey) || '[]')
+    const updated = [item, ...prevTodos]
+    localStorage.setItem(lineKey, JSON.stringify(updated))
+    setTodos(updated)
     setNewTodoText('')
     setShowAddTodo(false)
-    toast.success('Tarea agregada')
+    toast.success("Tarea agregada con éxito")
   }
 
   const handleCleanExport = () => {
