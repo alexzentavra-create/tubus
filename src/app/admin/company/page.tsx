@@ -523,72 +523,52 @@ export default function CompanyDashboard() {
   const [floatingIndicators, setFloatingIndicators] = useState<Array<{ id: number; text: string }>>([])
 
   useEffect(() => {
-    setLiveDailyPassengers(activeStats.dailyPas)
-  }, [activeStats.dailyPas])
-
-  useEffect(() => {
-    if (activeLine?.line_number === '0') return
-    const interval = setInterval(() => {
-      // Boards a group of 1 to 5 passengers
-      const amt = Math.floor(Math.random() * 5) + 1
-      setLiveDailyPassengers(prev => prev + amt)
-      
-      const newId = Date.now() + Math.random()
-      setFloatingIndicators(prev => [...prev, { id: newId, text: `+${amt}` }])
-      
-      setTimeout(() => {
-        setFloatingIndicators(prev => prev.filter(x => x.id !== newId))
-      }, 1500)
-    }, 4500)
-    return () => clearInterval(interval)
+    if (!activeLine?.line_number) return
+    const loadRealPassengerCount = () => {
+      try {
+        const boardingsKey = `line_boardings_${activeLine.line_number}_${new Date().toISOString().split('T')[0]}`
+        const storedBoardings = localStorage.getItem(boardingsKey)
+        if (storedBoardings) {
+          const parsed = JSON.parse(storedBoardings)
+          setLiveDailyPassengers(Array.isArray(parsed) ? parsed.reduce((acc: number, b: any) => acc + (b.count || 1), 0) : Number(storedBoardings) || 0)
+        } else {
+          setLiveDailyPassengers(0)
+        }
+      } catch (e) {
+        setLiveDailyPassengers(0)
+      }
+    }
+    loadRealPassengerCount()
+    window.addEventListener('storage', loadRealPassengerCount)
+    return () => window.removeEventListener('storage', loadRealPassengerCount)
   }, [activeLine?.line_number])
 
   const [liveEvents, setLiveEvents] = useState<Array<{ id: string; time: string; text: string; icon: string; color: string }>>([])
 
   useEffect(() => {
-    if (activeLine?.line_number === '0') {
+    if (!activeLine?.line_number || activeLine.line_number === '0') {
       setLiveEvents([])
-    } else {
-      setLiveEvents([
-        { id: '1', time: 'Hace 2m', text: 'Pico de pasajeros: Coche 301 reporta ocupación del 82%.', icon: '👥', color: '#22d3ee' },
-        { id: '2', time: 'Hace 5m', text: 'Congestión en Av. Pueyrredón: demora de 4 min en Coche 302.', icon: '🚦', color: '#ff4d6a' },
-        { id: '3', time: 'Hace 12m', text: 'Conducción eficiente: Coche 303 califica con 98% en Eco-Driving.', icon: '🍃', color: '#00c689' },
-      ])
+      return
     }
-  }, [activeLine?.line_number])
-
-  useEffect(() => {
-    if (activeLine?.line_number === '0') return
-    const EVENT_TEMPLATES = [
-      { text: 'Congestión moderada detectada en Av. Cabildo para Coche 305.', icon: '🚦', color: '#ff4d6a' },
-      { text: 'Unidad 302 reporta conducción eficiente exceptional (100% Eco).', icon: '🍃', color: '#00c689' },
-      { text: 'Frecuencia regularizada: tiempo de espera reducido a 5 min.', icon: '⏱️', color: '#22D3A0' },
-      { text: 'Alta afluencia de pasajeros en parada Pueyrredón.', icon: '👥', color: '#22d3ee' },
-      { text: 'Unidad 304 reanudó ruta habitual tras desvío por obras.', icon: '✅', color: '#00c689' },
-      { text: 'Coche 301 finalizó recorrido habitual sin novedades.', icon: '🏁', color: '#8f94a5' },
-    ]
-
-    const interval = setInterval(() => {
-      const template = EVENT_TEMPLATES[Math.floor(Math.random() * EVENT_TEMPLATES.length)]
-      const newEvent = {
-        id: Math.random().toString(),
-        time: 'Ahora',
-        text: template.text,
-        icon: template.icon,
-        color: template.color
+    const loadRealLineEvents = () => {
+      try {
+        const key = `mock_line_events_${activeLine.line_number}`
+        const stored = localStorage.getItem(key)
+        if (stored) {
+          setLiveEvents(JSON.parse(stored))
+        } else {
+          setLiveEvents([])
+        }
+      } catch (e) {
+        setLiveEvents([])
       }
-      setLiveEvents(prev => {
-        const updatedPrev = prev.map((e, idx) => ({
-          ...e,
-          time: idx === 0 ? 'Hace 1m' : `Hace ${(idx + 1) * 3}m`
-        }))
-        return [newEvent, ...updatedPrev].slice(0, 3)
-      })
-    }, 12000)
-    return () => clearInterval(interval)
+    }
+    loadRealLineEvents()
+    window.addEventListener('storage', loadRealLineEvents)
+    return () => window.removeEventListener('storage', loadRealLineEvents)
   }, [activeLine?.line_number])
-  
-  const totalPassengersOnboard = buses.reduce((acc, b) => acc + b.passenger_count, 0)
+
+    const totalPassengersOnboard = buses.reduce((acc, b) => acc + b.passenger_count, 0)
   const avgOnboard = buses.length > 0 ? Math.round(totalPassengersOnboard / buses.length) : 0
 
   const handleLineChange = (lineNum: string) => {
@@ -1209,50 +1189,27 @@ export default function CompanyDashboard() {
       espera: s.avg_wait_minutes
     }))
 
-  // Dynamic reports
+  // Real user complaints loaded strictly from localStorage
   const [reports, setReports] = useState<any[]>([])
   useEffect(() => {
-    const driversList = LINE_DRIVERS[activeLine.line_number] || ['Chofer de Guardia']
-    const stopsList = getMockStopsForLine(activeLine, 'ida')
-    if (activeLine.line_number === '0') {
-      setReports([])
-      return
-    }
-    setReports([
-      {
-        id: 'rep-1',
-        type: 'No paró',
-        driver: driversList[0],
-        bus: `${activeLine.line_number}-301`,
-        stop: stopsList[0]?.name || 'Esquina Principal',
-        status: 'pending',
-        time: 'Hace 20 min',
-        desc: 'El colectivo no paró a pesar de que había espacio y se le hizo la señal correspondiente.',
-        reporter: {
-          name: 'Alejandro Pérez',
-          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80',
-          count: 3
-        }
-      },
-      {
-        id: 'rep-2',
-        type: 'Mal trato',
-        driver: driversList[1] || 'Chofer de Guardia',
-        bus: `${activeLine.line_number}-303`,
-        stop: stopsList[1]?.name || 'Avenida Central',
-        status: 'resolved',
-        time: 'Hace 2h',
-        desc: 'El chofer fue agresivo al responder una consulta sobre el recorrido.',
-        reporter: {
-          name: 'Sofía Rodríguez',
-          avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80',
-          count: 14
-        }
+    if (!activeLine?.line_number) return
+    const loadRealReports = () => {
+      try {
+        const lineKey = `mock_user_complaints_${activeLine.line_number}`
+        const stored = localStorage.getItem(lineKey) || localStorage.getItem('mock_user_complaints') || '[]'
+        const parsed = JSON.parse(stored)
+        const filtered = Array.isArray(parsed) ? parsed.filter((r: any) => r.line_number === activeLine.line_number || r.line === `Línea ${activeLine.line_number}`) : []
+        setReports(filtered)
+      } catch (e) {
+        setReports([])
       }
-    ])
-  }, [activeLine])
+    }
+    loadRealReports()
+    window.addEventListener('storage', loadRealReports)
+    return () => window.removeEventListener('storage', loadRealReports)
+  }, [activeLine?.line_number])
 
-  // Auto-detect and sync system issues to Todo List
+    // Auto-detect and sync system issues to Todo List
   useEffect(() => {
     if (activeLine?.line_number === '0') return
     setTodos(prev => {
