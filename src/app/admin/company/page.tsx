@@ -306,9 +306,9 @@ export default function CompanyDashboard() {
         .eq('id', warning.qrId)
         
       try {
-        const prevQRs = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
+        const prevQRs = JSON.parse((localStorage.getItem(`mock_bus_qr_codes_${activeLine.line_number}`) || localStorage.getItem('mock_bus_qr_codes')) || '[]')
         const updated = prevQRs.map((q: any) => q.id === warning.qrId ? { ...q, is_active: true } : q)
-        localStorage.setItem('mock_bus_qr_codes', JSON.stringify(updated))
+        localStorage.setItem(`mock_bus_qr_codes_${activeLine.line_number}`, JSON.stringify(updated))
         setQrCodes(prev => prev.map((q: any) => q.id === warning.qrId ? { ...q, is_active: true } : q))
       } catch (e) {
         console.error(e)
@@ -700,8 +700,8 @@ export default function CompanyDashboard() {
     }
 
     try {
-      const prevQRs = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
-      localStorage.setItem('mock_bus_qr_codes', JSON.stringify([...prevQRs, qrData]))
+      const prevQRs = JSON.parse((localStorage.getItem(`mock_bus_qr_codes_${activeLine.line_number}`) || localStorage.getItem('mock_bus_qr_codes')) || '[]')
+      localStorage.setItem(`mock_bus_qr_codes_${activeLine.line_number}`, JSON.stringify([...prevQRs, qrData]))
       setQrCodes(prev => [...prev, qrData])
     } catch (e) {
       console.error(e)
@@ -731,9 +731,9 @@ export default function CompanyDashboard() {
     // Also delete corresponding QR code to remain synced
     if (bus) {
       try {
-        const prevQRs = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
+        const prevQRs = JSON.parse((localStorage.getItem(`mock_bus_qr_codes_${activeLine.line_number}`) || localStorage.getItem('mock_bus_qr_codes')) || '[]')
         const filteredQRs = prevQRs.filter((q: any) => q.id !== id && q.bus_unit !== bus.unit)
-        localStorage.setItem('mock_bus_qr_codes', JSON.stringify(filteredQRs))
+        localStorage.setItem(`mock_bus_qr_codes_${activeLine.line_number}`, JSON.stringify(filteredQRs))
         setQrCodes(prev => prev.filter(q => q.id !== id && q.bus_unit !== bus.unit))
       } catch (e) {}
     }
@@ -784,7 +784,7 @@ export default function CompanyDashboard() {
       })
       // Always load QR codes from localStorage first — this is the source of truth for all lines
       const companyId = `mock-company-${activeLine.id}`
-      const storedQRs: any[] = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
+      const storedQRs: any[] = JSON.parse((localStorage.getItem(`mock_bus_qr_codes_${activeLine.line_number}`) || localStorage.getItem('mock_bus_qr_codes')) || '[]')
         .filter((q: any) => q.line_id === activeLine.id || q.company_id === companyId)
       
       if (storedQRs.length > 0) {
@@ -798,8 +798,8 @@ export default function CompanyDashboard() {
         ]
         setQrCodes(demoQRs)
         // Persist demo QRs so they survive reload too
-        const allStored = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
-        localStorage.setItem('mock_bus_qr_codes', JSON.stringify([...allStored, ...demoQRs]))
+        const allStored = JSON.parse((localStorage.getItem(`mock_bus_qr_codes_${activeLine.line_number}`) || localStorage.getItem('mock_bus_qr_codes')) || '[]')
+        localStorage.setItem(`mock_bus_qr_codes_${activeLine.line_number}`, JSON.stringify([...allStored, ...demoQRs]))
       } else {
         // Line 0 with no QRs yet — start empty (admin must create real ones)
         setQrCodes([])
@@ -829,7 +829,7 @@ export default function CompanyDashboard() {
         }
 
         const {data:qrs} = await supabase.from('bus_qr_codes').select('*').eq('company_id',comp.id)
-        const localQRs = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]').filter((q: any) => q.company_id === comp.id) : []
+        const localQRs = typeof window !== 'undefined' ? JSON.parse((localStorage.getItem(`mock_bus_qr_codes_${activeLine.line_number}`) || localStorage.getItem('mock_bus_qr_codes')) || '[]').filter((q: any) => q.company_id === comp.id) : []
         setQrCodes(qrs ? [...qrs, ...localQRs] : localQRs)
 
         const {data:sessions} = await supabase
@@ -859,7 +859,7 @@ export default function CompanyDashboard() {
           // Load QR codes from localStorage for the active line
           const companyId = `mock-company-${activeLine.id}`
           const storedQRs: any[] = typeof window !== 'undefined'
-            ? JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]').filter((q: any) => q.line_id === activeLine.id || q.company_id === companyId)
+            ? JSON.parse((localStorage.getItem(`mock_bus_qr_codes_${activeLine.line_number}`) || localStorage.getItem('mock_bus_qr_codes')) || '[]').filter((q: any) => q.line_id === activeLine.id || q.company_id === companyId)
             : []
 
           // Find all active QR codes for this line
@@ -1374,8 +1374,8 @@ export default function CompanyDashboard() {
         is_new: newBusIsNew,
         has_ramp: newBusHasRamp,
       }
-      const prevQRs = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
-      localStorage.setItem('mock_bus_qr_codes', JSON.stringify([...prevQRs, qrData]))
+      const prevQRs = JSON.parse((localStorage.getItem(`mock_bus_qr_codes_${activeLine.line_number}`) || localStorage.getItem('mock_bus_qr_codes')) || '[]')
+      localStorage.setItem(`mock_bus_qr_codes_${activeLine.line_number}`, JSON.stringify([...prevQRs, qrData]))
     } else {
       qrData = data
     }
@@ -1395,8 +1395,8 @@ export default function CompanyDashboard() {
     await supabase.from('bus_qr_codes').delete().eq('id', id)
     
     // Always clear from localStorage too
-    const prevQRs = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
-    localStorage.setItem('mock_bus_qr_codes', JSON.stringify(prevQRs.filter((q: any) => q.id !== id)))
+    const prevQRs = JSON.parse((localStorage.getItem(`mock_bus_qr_codes_${activeLine.line_number}`) || localStorage.getItem('mock_bus_qr_codes')) || '[]')
+    localStorage.setItem(`mock_bus_qr_codes_${activeLine.line_number}`, JSON.stringify(prevQRs.filter((q: any) => q.id !== id)))
 
     setQrCodes(prev => prev.filter(qr => qr.id !== id))
     if (selectedQR?.id === id) setSelectedQR(null)
@@ -1408,9 +1408,9 @@ export default function CompanyDashboard() {
     await supabase.from('bus_qr_codes').update({ is_active: nextStatus }).eq('id', id)
 
     try {
-      const prevQRs = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
+      const prevQRs = JSON.parse((localStorage.getItem(`mock_bus_qr_codes_${activeLine.line_number}`) || localStorage.getItem('mock_bus_qr_codes')) || '[]')
       const updated = prevQRs.map((q: any) => q.id === id ? { ...q, is_active: nextStatus } : q)
-      localStorage.setItem('mock_bus_qr_codes', JSON.stringify(updated))
+      localStorage.setItem(`mock_bus_qr_codes_${activeLine.line_number}`, JSON.stringify(updated))
     } catch (e) {
       console.error(e)
     }
