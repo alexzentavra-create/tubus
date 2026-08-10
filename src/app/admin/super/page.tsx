@@ -6109,12 +6109,14 @@ function AdsTab({
 }) {
   const [selectedAd, setSelectedAd] = useState<any | null>(null)
   const [selectedUser, setSelectedUser] = useState<any | null>(null)
-  const [deleteAdTarget, setDeleteAdTarget] = useState<{ id: string; name: string } | null>(null);
+  const [deleteAdTarget, setDeleteAdTarget] = useState<{ id: string; name: string } | null>(null)
+  const [placementFilter, setPlacementFilter] = useState<string>('all')
 
   const handleConfirmAdDelete = () => {
     if (!deleteAdTarget) return
     const { id, name } = deleteAdTarget
     try {
+      // 1. Remove from all localStorage ad stores
       const rawAdsStr = localStorage.getItem('bu_submitted_ads') || '[]'
       const parsed = JSON.parse(rawAdsStr)
       const updated = parsed.filter((a: any) => a.id !== id && a.title !== name)
@@ -6122,12 +6124,29 @@ function AdsTab({
       localStorage.setItem('mock_super_ads', JSON.stringify(updated))
       localStorage.setItem('tu_bus_ads', JSON.stringify(updated))
       localStorage.setItem('mock_ads', JSON.stringify(updated))
+
+      // Also invoke parent delete callback / onReject if needed to update state
+      onReject(id)
+    } catch (e) {
+      console.error(e)
+    }
+    try {
+      window.dispatchEvent(new Event('storage'))
+      window.dispatchEvent(new Event('ads_updated'))
     } catch (e) {}
-    try { window.dispatchEvent(new Event('storage')) } catch (e) {}
+
     toast.success(`🗑️ Anuncio "${name}" eliminado permanentemente de la plataforma.`)
     setDeleteAdTarget(null)
     if (selectedAd?.id === id) setSelectedAd(null)
   }
+
+  // Filter ads by placement category sub-tabs if selected
+  const filteredAds = ads.filter(a => {
+    if (placementFilter === 'top') return a.placement === 'top' || a.placement === 'map' || a.route
+    if (placementFilter === 'bottom') return a.placement === 'bottom' || a.placement === 'card'
+    if (placementFilter === 'notification') return a.placement === 'notification'
+    return true
+  })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -6143,10 +6162,17 @@ function AdsTab({
           ].map(tab => (
             <button
               key={tab.id}
-              onClick={() => (window as any).__superAdPlacementFilter = tab.id}
+              onClick={() => setPlacementFilter(tab.id)}
               style={{
-                padding: '6px 12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)',
-                background: 'rgba(255,255,255,0.05)', color: '#fff', fontSize: '11px', fontWeight: 600, cursor: 'pointer'
+                padding: '6px 12px',
+                borderRadius: '8px',
+                border: placementFilter === tab.id ? '1px solid #10B981' : '1px solid rgba(255,255,255,0.1)',
+                background: placementFilter === tab.id ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)',
+                color: placementFilter === tab.id ? '#10B981' : '#fff',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 150ms'
               }}
             >
               {tab.label}
@@ -6157,7 +6183,7 @@ function AdsTab({
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
-        {ads.map(ad => {
+        {filteredAds.map(ad => {
           const isInactive = ad.status === 'approved' && !ad.isActive
           return (
             <div
@@ -6181,7 +6207,6 @@ function AdsTab({
               onMouseLeave={e => { e.currentTarget.style.transform = 'none' }}
             >
               <div>
-                {/* Warning message if ad is inactive */}
                 {isInactive && (
                   <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', padding: '6px 10px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
                     <AlertTriangle size={12} style={{ color: '#ef4444' }} />
@@ -6190,7 +6215,7 @@ function AdsTab({
                 )}
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '11px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{ad.timestamp}</span>
+                  <span style={{ fontSize: '11px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{ad.timestamp || 'Hoy'}</span>
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                     {ad.comments && ad.comments.length > 0 && (
                       <span style={{
@@ -6235,8 +6260,8 @@ function AdsTab({
                 <p style={{ fontSize: '12px', color: '#8f94a5', margin: 0, lineHeight: 1.4 }}>{ad.desc}</p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '12px', background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                  <div style={{ fontSize: '11px', color: '#8f94a5' }}>Parada asignada: <strong style={{ color: '#fff' }}>{ad.stop} ({ad.route})</strong></div>
-                  <div style={{ fontSize: '11px', color: '#8f94a5' }}>Vigencia contratada: <strong style={{ color: '#fff' }}>{ad.duration}</strong></div>
+                  <div style={{ fontSize: '11px', color: '#8f94a5' }}>Parada asignada: <strong style={{ color: '#fff' }}>{ad.stop || 'Sin parada'} ({ad.route || ad.line || 'Línea'})</strong></div>
+                  <div style={{ fontSize: '11px', color: '#8f94a5' }}>Vigencia contratada: <strong style={{ color: '#fff' }}>{ad.duration || '30 Días'}</strong></div>
                   <div style={{ display: 'flex', gap: '12px', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed rgba(255,255,255,0.06)' }}>
                     <div style={{ fontSize: '11px', color: '#60A5FA', fontWeight: 600 }}>
                       👁️ Vistas (Showed): <strong style={{ color: '#fff' }}>{ad.views || ad.viewsCount || 0}</strong>
@@ -6247,7 +6272,6 @@ function AdsTab({
                   </div>
                 </div>
 
-                {/* Advertiser Profile button */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -6279,7 +6303,7 @@ function AdsTab({
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px', marginTop: '8px' }}>
                 <div>
                   <span style={{ fontSize: '10px', color: '#8f94a5' }}>Presupuesto total</span>
-                  <div style={{ fontSize: '16px', fontWeight: 800, color: '#10B981' }}>${ad.budget.toLocaleString()} ARS</div>
+                  <div style={{ fontSize: '16px', fontWeight: 800, color: '#10B981' }}>$${(ad.budget || 0).toLocaleString()} ARS</div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '6px' }}>
@@ -6334,136 +6358,127 @@ function AdsTab({
         })}
       </div>
 
-      {/* Interactive Bus Lines Stop-by-Stop Ads Monitor */}
+      {/* Interactive Bus Lines Stop-by-Stop Ads Monitor across ALL LINES */}
       <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <div>
-          <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: 0 }}>Monitoreo de Campañas por Parada (Líneas de Colectivo)</h4>
+          <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: 0 }}>Monitoreo de Campañas por Parada (Todas las Líneas de Colectivo)</h4>
           <p style={{ fontSize: '11px', color: '#8f94a5', margin: '4px 0 0' }}>Seleccione una parada en el recorrido de cualquier línea para inspeccionar las campañas activas y presupuestos contratados</p>
         </div>
 
-
-        {/* Horizontal Tracks */}
+        {/* Horizontal Tracks for ALL 15 LINES */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {[
-            { name: 'Línea 12', color: '#ef4444', stops: ['Plaza Italia', 'Las Heras y Callao', 'Av. Santa Fe y Pueyrredón', 'Constitución'] },
-            { name: 'Línea 37', color: '#3b82f6', stops: ['Av. Corrientes y Callao', 'Plaza Congreso', 'Av. de Mayo', 'Lanús'] },
-            { name: 'Línea 152', color: '#10b981', stops: ['Obelisco', 'Retiro', 'Cabildo y Juramento', 'Olivos'] },
-            { name: 'Línea 60', color: '#f59e0b', stops: ['Plaza Italia', 'Barrancas de Belgrano', 'San Isidro', 'Tigre'] }
-          ].map((lineObj) => (
-            <div key={lineObj.name} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: lineObj.color }} />
-                <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{lineObj.name}</span>
-              </div>
+          {MOCK_LINES.map((lineObj) => {
+            const lineStops = getMockStopsForLine(lineObj.id as any)
 
-              {/* Horizontal line track containing the stops */}
-              <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0' }}>
-                {/* Horizontal Bar line */}
-                <div style={{ position: 'absolute', top: '50%', left: '10px', right: '10px', height: '2px', background: 'rgba(255,255,255,0.06)', zIndex: 1 }} />
+            return (
+              <div key={lineObj.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: lineObj.color || '#3B82F6' }} />
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{lineObj.name}</span>
+                  <span style={{ fontSize: '10px', color: '#8f94a5', fontFamily: 'DM Mono' }}>({lineStops.length} Paradas)</span>
+                </div>
 
-                {lineObj.stops.map((stopName, idx) => {
-                  // Check if there is an ad on this stop (by partial match)
-                  const matchingAd = ads.find(a => 
-                    a.isActive && 
-                    a.status === 'approved' && 
-                    (a.stop.toLowerCase().includes(stopName.toLowerCase()) || stopName.toLowerCase().includes(a.stop.toLowerCase()))
-                  );
+                {/* Horizontal line track containing the stops */}
+                <div style={{ position: 'relative', display: 'flex', gap: '12px', alignItems: 'center', padding: '10px 0', overflowX: 'auto', scrollbarWidth: 'thin' }}>
+                  {/* Horizontal Bar line */}
+                  <div style={{ position: 'absolute', top: '50%', left: '10px', right: '10px', height: '2px', background: 'rgba(255,255,255,0.06)', zIndex: 1 }} />
 
-                  return (
-                    <div
-                      key={stopName}
-                      onClick={() => {
-                        if (matchingAd) {
-                          setSelectedAd(matchingAd);
-                        } else {
-                          // Display feedback for empty stop ad
-                          setSelectedAd({
-                            id: `empty-${stopName}`,
-                            title: 'Sin Publicidad Activa',
-                            desc: 'Esta parada actualmente no cuenta con ninguna campaña de publicidad o patrocinio contratado.',
-                            stop: stopName,
-                            route: lineObj.name,
-                            duration: 'N/A',
-                            budget: 0,
-                            userName: 'N/A',
-                            userEmail: 'N/A',
-                            userAvatar: '?',
-                            bannerBg: 'linear-gradient(135deg, #1e293b, #0f172a)',
-                            bannerText: 'Espacio Disponible',
-                            bannerTagline: '¡Anunciate aquí con BienParada!',
-                            status: 'approved',
-                            isActive: false,
-                            timestamp: 'Hoy'
-                          });
-                        }
-                      }}
-                      style={{
-                        position: 'relative',
-                        zIndex: 2,
-                        background: '#121527',
-                        border: matchingAd ? `2px solid ${lineObj.color}` : '2px solid rgba(255,255,255,0.1)',
-                        borderRadius: '20px',
-                        padding: '6px 14px',
-                        cursor: 'pointer',
-                        transition: 'all 150ms',
-                        boxShadow: matchingAd ? `0 0 10px ${lineObj.color}40` : 'none'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'scale(1.05)';
-                        e.currentTarget.style.borderColor = lineObj.color;
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'none';
-                        e.currentTarget.style.borderColor = matchingAd ? lineObj.color : 'rgba(255,255,255,0.1)';
-                      }}
-                    >
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                        <span style={{ fontSize: '10px', fontWeight: 600, color: '#fff', textAlign: 'center' }}>{stopName}</span>
-                        {matchingAd ? (
-                          <span style={{ fontSize: '8px', color: '#10B981', fontWeight: 700 }}>📢 ACTIVO</span>
-                        ) : (
-                          <span style={{ fontSize: '8px', color: '#8f94a5' }}>Libre</span>
-                        )}
+                  {lineStops.map((stopObj, idx) => {
+                    const stopName = stopObj.name
+                    const matchingAd = ads.find(a => 
+                      a.isActive && 
+                      a.status === 'approved' && 
+                      (a.route === lineObj.name || a.line === lineObj.name || a.route === lineObj.id) &&
+                      (a.stop?.toLowerCase().includes(stopName.toLowerCase()) || stopName.toLowerCase().includes(a.stop?.toLowerCase() || ''))
+                    )
+
+                    return (
+                      <div
+                        key={`${lineObj.id}-${idx}-${stopName}`}
+                        onClick={() => {
+                          if (matchingAd) {
+                            setSelectedAd(matchingAd)
+                          } else {
+                            setSelectedAd({
+                              id: `empty-${lineObj.id}-${idx}`,
+                              title: 'Sin Publicidad Activa',
+                              desc: `La parada ${stopName} de la ${lineObj.name} actualmente no cuenta con ninguna campaña de publicidad contratada.`,
+                              stop: stopName,
+                              route: lineObj.name,
+                              duration: 'N/A',
+                              budget: 0,
+                              userName: 'N/A',
+                              userEmail: 'N/A',
+                              userAvatar: '?',
+                              bannerBg: 'linear-gradient(135deg, #1e293b, #0f172a)',
+                              bannerText: 'Espacio Disponible',
+                              bannerTagline: '¡Anunciate aquí con BienParada!',
+                              status: 'approved',
+                              isActive: false,
+                              timestamp: 'Hoy'
+                            })
+                          }
+                        }}
+                        style={{
+                          position: 'relative',
+                          zIndex: 2,
+                          background: '#121527',
+                          border: matchingAd ? `2px solid ${lineObj.color}` : '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '16px',
+                          padding: '6px 12px',
+                          cursor: 'pointer',
+                          transition: 'all 150ms',
+                          flexShrink: 0,
+                          boxShadow: matchingAd ? `0 0 10px ${lineObj.color}40` : 'none'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'scale(1.05)';
+                          e.currentTarget.style.borderColor = lineObj.color;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'none';
+                          e.currentTarget.style.borderColor = matchingAd ? lineObj.color : 'rgba(255,255,255,0.1)';
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
+                          <span style={{ fontSize: '10px', fontWeight: 600, color: '#fff', textAlign: 'center', whiteSpace: 'nowrap' }}>{stopName}</span>
+                          {matchingAd ? (
+                            <span style={{ fontSize: '8px', color: '#10B981', fontWeight: 700 }}>📢 ACTIVO: ${matchingAd.title.substring(0, 15)}</span>
+                          ) : (
+                            <span style={{ fontSize: '8px', color: '#8f94a5' }}>Libre</span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    )
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
-      {/* 1. Modal Preview Ad Picture / Banner */}
+      {/* Modal Preview Ad Picture / Banner */}
       {selectedAd && (
         <div style={{
           position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
+          top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(5, 8, 16, 0.85)',
           backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999, padding: '20px'
         }}>
           <div style={{
-            width: '100%',
-            maxWidth: '460px',
-            background: '#121527',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '16px',
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)'
+            width: '100%', maxWidth: '460px',
+            background: '#121527', border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '16px', padding: '24px',
+            display: 'flex', flexDirection: 'column', gap: '16px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h4 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#fff' }}>Vista Previa de Campaña</h4>
+              <span style={{ fontSize: '11px', color: '#8f94a5', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
+                Previsualización de Banner
+              </span>
               <button
                 onClick={() => setSelectedAd(null)}
                 style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px' }}
@@ -6472,175 +6487,105 @@ function AdsTab({
               </button>
             </div>
 
-            {/* CSS Mockup Banner */}
             <div style={{
-              background: selectedAd.bannerBg || 'linear-gradient(135deg, #1e1b4b, #312e81)',
-              borderRadius: '12px',
-              aspectRatio: '16/9',
-              width: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              padding: '24px',
-              boxShadow: '0 10px 20px rgba(0,0,0,0.3)',
-              textAlign: 'center',
-              color: '#fff',
-              border: '1px solid rgba(255,255,255,0.1)',
-              position: 'relative',
-              overflow: 'hidden'
+              background: selectedAd.bannerBg || 'linear-gradient(135deg, #1e293b, #0f172a)',
+              borderRadius: '12px', padding: '20px', color: '#fff',
+              display: 'flex', flexDirection: 'column', gap: '8px',
+              border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 8px 20px rgba(0,0,0,0.3)'
             }}>
-              {/* Scanlines / light mockup effect */}
-              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: 'linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06))', backgroundSize: '100% 4px, 6px 100%', pointerEvents: 'none' }} />
-              
-              <h2 style={{ fontSize: '20px', fontWeight: 800, margin: '0 0 8px', letterSpacing: '-0.02em', textShadow: '0 2px 4px rgba(0,0,0,0.6)' }}>
-                {selectedAd.bannerText || selectedAd.title}
-              </h2>
-              <p style={{ fontSize: '12px', opacity: 0.9, margin: 0, textShadow: '0 1px 2px rgba(0,0,0,0.6)', lineHeight: 1.4, maxWidth: '280px' }}>
-                {selectedAd.bannerTagline || selectedAd.desc}
-              </p>
-              <div style={{ marginTop: '14px', fontSize: '9px', background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(4px)', padding: '4px 10px', borderRadius: '20px', fontWeight: 600 }}>
-                📍 Parada: {selectedAd.stop} ({selectedAd.route})
+              <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', color: '#60A5FA', fontWeight: 700 }}>
+                Patrocinado • {selectedAd.stop || 'Parada'} ({selectedAd.route || selectedAd.line || 'Línea'})
+              </div>
+              <div style={{ fontSize: '18px', fontWeight: 800 }}>{selectedAd.bannerText || selectedAd.title}</div>
+              <div style={{ fontSize: '12px', color: '#cbd5e1' }}>{selectedAd.bannerTagline || selectedAd.desc}</div>
+              <button style={{
+                marginTop: '10px', background: '#3B82F6', color: '#fff', border: 'none',
+                padding: '8px 16px', borderRadius: '8px', fontSize: '11px', fontWeight: 700,
+                alignSelf: 'flex-start', cursor: 'pointer'
+              }}>
+                Ver Promoción
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '6px' }}>
+                <span style={{ color: '#8f94a5' }}>Anunciante:</span>
+                <span style={{ color: '#fff', fontWeight: 600 }}>{selectedAd.userName || 'Corporativo'} ({selectedAd.userEmail || 'N/A'})</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '6px' }}>
+                <span style={{ color: '#8f94a5' }}>Parada Asignada:</span>
+                <span style={{ color: '#fff', fontWeight: 600 }}>{selectedAd.stop || 'Parada'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '6px' }}>
+                <span style={{ color: '#8f94a5' }}>Presupuesto:</span>
+                <span style={{ color: '#10B981', fontWeight: 700 }}>$${(selectedAd.budget || 0).toLocaleString()} ARS</span>
               </div>
             </div>
 
-            {/* Ad Info */}
-            <div style={{ fontSize: '12px', color: '#8f94a5', display: 'flex', flexDirection: 'column', gap: '6px', background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-              <div>Campaña: <strong style={{ color: '#fff' }}>{selectedAd.title}</strong></div>
-              <div>Parada Asignada: <strong style={{ color: '#fff' }}>{selectedAd.stop} ({selectedAd.route})</strong></div>
-              <div>Presupuesto total: <strong style={{ color: '#10B981' }}>${selectedAd.budget.toLocaleString()} ARS</strong></div>
-            </div>
-
-            {/* Button to view Creator Profile */}
-            <button
-              onClick={() => {
-                setSelectedUser({
-                  name: selectedAd.userName || 'Anunciante Corporativo',
-                  email: selectedAd.userEmail || 'ads@bienparada.com.ar',
-                  avatar: selectedAd.userAvatar || 'AC',
-                  adTitle: selectedAd.title
-                });
-                setSelectedAd(null);
-              }}
-              style={{
-                padding: '10px',
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: '8px',
-                color: '#fff',
-                fontSize: '12px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                textAlign: 'center',
-                transition: 'all 150ms'
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-            >
-              👤 Ver Perfil del Anunciante
-            </button>
+            {selectedAd.budget > 0 && (
+              <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                <button
+                  onClick={() => {
+                    setDeleteAdTarget({ id: selectedAd.id, name: selectedAd.title })
+                  }}
+                  style={{ flex: 1, padding: '10px', background: 'rgba(239,68,68,0.15)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                >
+                  <Trash2 size={14} /> Eliminar Anuncio
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* 2. Modal Preview Advertiser Profile */}
-      {selectedUser && (
+      {/* Confirmation Modal for Permanent Ad Deletion */}
+      {deleteAdTarget && (
         <div style={{
           position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
+          top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(5, 8, 16, 0.85)',
           backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 99999, padding: '20px'
         }}>
           <div style={{
-            width: '100%',
-            maxWidth: '360px',
-            background: '#121527',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '16px',
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '16px',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)'
+            width: '100%', maxWidth: '400px',
+            background: '#121527', border: '1px solid rgba(239, 68, 68, 0.4)',
+            borderTop: '4px solid #EF4444', borderRadius: '16px',
+            padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)'
           }}>
-            <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h4 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#fff' }}>Perfil de Anunciante</h4>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ background: 'rgba(239, 68, 68, 0.15)', padding: '10px', borderRadius: '12px', color: '#EF4444', display: 'flex' }}>
+                <Trash2 size={24} />
+              </div>
+              <div>
+                <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', margin: 0 }}>
+                  Eliminar Anuncio Permanentemente
+                </h4>
+                <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Esta acción borrará la campaña publicitaria de toda la app.</p>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '13px', color: '#d1d5db', margin: 0, lineHeight: 1.5 }}>
+              ¿Estás seguro de eliminar el anuncio <strong style={{ color: '#fff' }}>"${deleteAdTarget.name}"</strong>? 
+              El banner se quitará inmediatamente del mapa y la tarjeta del usuario.
+            </p>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
               <button
-                onClick={() => setSelectedUser(null)}
-                style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '14px' }}
+                onClick={() => setDeleteAdTarget(null)}
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
               >
-                ✕
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmAdDelete}
+                style={{ background: '#EF4444', border: 'none', color: '#fff', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}
+              >
+                Eliminar Definitivamente
               </button>
             </div>
-
-            {/* Profile Avatar */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
-              <div style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, #f59e0b, #8b5cf6)',
-                color: '#fff',
-                fontSize: '22px',
-                fontWeight: 700,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 6px 18px rgba(245, 158, 11, 0.25)'
-              }}>
-                {selectedUser.avatar}
-              </div>
-              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', margin: '4px 0 0' }}>{selectedUser.name}</h3>
-              <span style={{ fontSize: '12px', color: '#8f94a5' }}>{selectedUser.email}</span>
-            </div>
-
-            {/* Stats */}
-            <div style={{ background: 'rgba(0, 0, 0, 0.2)', width: '100%', padding: '14px', borderRadius: '10px', display: 'flex', justifyContent: 'space-around', fontSize: '12px', border: '1px solid rgba(255,255,255,0.03)' }}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ color: '#8f94a5' }}>Categoría</div>
-                <div style={{ color: '#fff', fontWeight: 700, marginTop: '2px' }}>Anunciante</div>
-              </div>
-              <div style={{ borderLeft: '1px solid rgba(255, 255, 255, 0.08)' }} />
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ color: '#8f94a5' }}>Campaña Activa</div>
-                <div style={{ color: '#f59e0b', fontWeight: 700, marginTop: '2px' }}>{selectedUser.adTitle.slice(0,18)}...</div>
-              </div>
-            </div>
-
-            {/* Direct message button */}
-            <button
-              onClick={() => {
-                setSelectedUser(null);
-                onMessageUser(selectedUser.name, selectedUser.email);
-              }}
-              style={{
-                width: '100%',
-                padding: '12px 14px',
-                background: '#3b82f6',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '12px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.2)'
-              }}
-            >
-              <MessageSquare size={14} /> Mensajear Anunciante
-            </button>
           </div>
         </div>
       )}
@@ -6648,7 +6593,7 @@ function AdsTab({
   )
 }
 
-// ─── Messenger Chat support component ────────────────────────────────────────
+
 function ChatTab({
   chats, selectedChatId, onSelectChat, chatSearch, setChatSearch,
   chatInput, setChatInput, onSend, onToggleStar, onDeleteChat,
