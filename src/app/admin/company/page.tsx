@@ -61,9 +61,9 @@ import { format, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 
-const HOURLY = Array.from({length:24},(_,h)=>({h:`${String(h).padStart(2,'0')}:00`,pasajeros:Math.round(Math.random()*300+(h>=7&&h<=9||h>=17&&h<=19?550:60)),subidas:Math.round(Math.random()*150+(h>=7&&h<=9||h>=17&&h<=19?280:30))}))
+const HOURLY = Array.from({length:24},(_,h)=>({h:`${String(h).padStart(2,'0')}:00`,pasajeros:0,subidas:0}))
 const WEEKLY = Array.from({length:7},(_,i)=>({d:format(subDays(new Date(),6-i),'EEE',{locale:es}),v:Math.round(Math.random()*1200+1800)}))
-const TOP_STOPS=[{name:'Av. Rivadavia y Pueyrredón',subidas:342,espera:4},{name:'Av. Corrientes y Callao',subidas:287,espera:6},{name:'Av. Santa Fe y Medrano',subidas:198,espera:5},{name:'Av. Cabildo y Juramento',subidas:167,espera:7}]
+const TOP_STOPS=[{name:'Av. Rivadavia y Pueyrredón',subidas:0,espera:0},{name:'Av. Corrientes y Callao',subidas:0,espera:0},{name:'Av. Santa Fe y Medrano',subidas:0,espera:0},{name:'Av. Cabildo y Juramento',subidas:0,espera:0}]
 const TTP={contentStyle:{background:'rgba(10,14,20,0.97)',border:'1px solid rgba(184,200,224,0.12)',borderRadius:'10px',fontSize:'12px',fontFamily:'DM Mono'},labelStyle:{color:'#C2C8D4'},itemStyle:{color:'#8A95A8'}}
 
 type Tab = 'overview'|'buses'|'drivers'|'qrcodes'|'stops'|'reports'|'calendar'|'map'
@@ -505,16 +505,16 @@ export default function CompanyDashboard() {
 
   const LINE_STATS: Record<string, { rating: string; punctuality: string; dailyPas: number }> = {
     '0': { rating: '0.0', punctuality: '0%', dailyPas: 0 },
-    '12': { rating: '4.7', punctuality: '84%', dailyPas: 1240 },
-    '28': { rating: '4.5', punctuality: '88%', dailyPas: 2150 },
-    '37': { rating: '4.6', punctuality: '82%', dailyPas: 1480 },
-    '39': { rating: '4.8', punctuality: '91%', dailyPas: 1890 },
-    '59': { rating: '4.7', punctuality: '89%', dailyPas: 2300 },
-    '60': { rating: '4.4', punctuality: '79%', dailyPas: 3120 },
-    '102': { rating: '4.6', punctuality: '85%', dailyPas: 1150 },
-    '152': { rating: '4.7', punctuality: '87%', dailyPas: 1720 },
-    'T-Amarillo': { rating: '4.9', punctuality: '95%', dailyPas: 480 },
-    'T-Rojo': { rating: '4.8', punctuality: '93%', dailyPas: 510 },
+    '12': { rating: '0.0', punctuality: '0%', dailyPas: 0 },
+    '28': { rating: '0.0', punctuality: '0%', dailyPas: 0 },
+    '37': { rating: '0.0', punctuality: '0%', dailyPas: 0 },
+    '39': { rating: '0.0', punctuality: '0%', dailyPas: 0 },
+    '59': { rating: '0.0', punctuality: '0%', dailyPas: 0 },
+    '60': { rating: '0.0', punctuality: '0%', dailyPas: 0 },
+    '102': { rating: '0.0', punctuality: '0%', dailyPas: 0 },
+    '152': { rating: '0.0', punctuality: '0%', dailyPas: 0 },
+    'T-Amarillo': { rating: '0.0', punctuality: '0%', dailyPas: 0 },
+    'T-Rojo': { rating: '0.0', punctuality: '0%', dailyPas: 0 },
   }
 
   const activeStats = LINE_STATS[activeLine.line_number] || { rating: '0.0', punctuality: '0%', dailyPas: 0 }
@@ -1117,57 +1117,29 @@ export default function CompanyDashboard() {
   }, [activeLine, stopsTimeframes])
 
   const getChartData = () => {
-    if (activeLine.line_number === '0') {
-      if (chartPeriod === 'week') {
-        return Array.from({ length: 7 }, (_, i) => {
-          const d = subDays(new Date(selectedDate), 6 - i)
-          const dayLabel = format(d, 'EEEE', { locale: es })
-          return { label: dayLabel.substring(0, 3), subidos: 0, bajados: 0 }
-        })
-      }
-      if (chartPeriod === 'month') {
-        return Array.from({ length: 30 }, (_, i) => {
-          const d = subDays(new Date(selectedDate), 29 - i)
-          const dayLabel = format(d, 'dd MMM', { locale: es })
-          return { label: dayLabel, subidos: 0, bajados: 0 }
-        })
-      }
-      const todayStr = format(new Date(), 'yyyy-MM-dd')
-      let maxHour = 23
-      if (selectedDate === todayStr) {
-        maxHour = new Date().getHours()
-      } else if (selectedDate > todayStr) {
-        return []
-      }
-      return HOURLY.slice(0, maxHour + 1).map((h) => ({
-        label: h.h,
-        subidos: 0,
-        bajados: 0
-      }))
-    }
+    if (typeof window === 'undefined') return []
+    const boardingsKey = `line_hourly_boardings_${activeLine.line_number}_${selectedDate}`
+    const storedHourly = localStorage.getItem(boardingsKey)
+    const realHourlyMap = storedHourly ? JSON.parse(storedHourly) : {}
 
     if (chartPeriod === 'week') {
       return Array.from({ length: 7 }, (_, i) => {
         const d = subDays(new Date(selectedDate), 6 - i)
-        const dayLabel = format(d, 'EEEE', { locale: es })
-        const base = activeStats.dailyPas
-        const seed = activeLine.line_number.charCodeAt(0) + i * 23
-        const val = Math.sin(seed) * 0.2 + 1.0
-        const subidos = Math.round(base * val * 0.8)
-        const bajados = Math.round(subidos * 0.95)
-        return { label: dayLabel.substring(0, 3), subidos, bajados }
+        const dateKey = format(d, 'yyyy-MM-dd')
+        const dayLabel = format(d, 'EEEE', { locale: es }).substring(0, 3)
+        const dayData = JSON.parse(localStorage.getItem(`line_boardings_${activeLine.line_number}_${dateKey}`) || '[]')
+        const subidos = Array.isArray(dayData) ? dayData.reduce((a: number, b: any) => a + (b.count || 1), 0) : Number(dayData) || 0
+        return { label: dayLabel, subidos, bajados: 0 }
       })
     }
     if (chartPeriod === 'month') {
       return Array.from({ length: 30 }, (_, i) => {
         const d = subDays(new Date(selectedDate), 29 - i)
+        const dateKey = format(d, 'yyyy-MM-dd')
         const dayLabel = format(d, 'dd MMM', { locale: es })
-        const base = activeStats.dailyPas
-        const seed = activeLine.line_number.charCodeAt(0) + i * 17
-        const val = Math.cos(seed) * 0.3 + 1.0
-        const subidos = Math.round(base * val * 0.8)
-        const bajados = Math.round(subidos * 0.93)
-        return { label: dayLabel, subidos, bajados }
+        const dayData = JSON.parse(localStorage.getItem(`line_boardings_${activeLine.line_number}_${dateKey}`) || '[]')
+        const subidos = Array.isArray(dayData) ? dayData.reduce((a: number, b: any) => a + (b.count || 1), 0) : Number(dayData) || 0
+        return { label: dayLabel, subidos, bajados: 0 }
       })
     }
     const todayStr = format(new Date(), 'yyyy-MM-dd')
@@ -1178,12 +1150,9 @@ export default function CompanyDashboard() {
       return []
     }
 
-    return HOURLY.slice(0, maxHour + 1).map((h, i) => {
-      const seed = activeLine.line_number.charCodeAt(0) + i * 7
-      const factor = 0.9 + (seed % 3) * 0.1
-      const sub = Math.round(h.subidas * factor)
-      const baj = Math.round(h.pasajeros * 0.45 * factor)
-      return { label: h.h, subidos: sub, bajados: baj }
+    return HOURLY.slice(0, maxHour + 1).map((h) => {
+      const hourVal = realHourlyMap[h.h] || { subidos: 0, bajados: 0 }
+      return { label: h.h, subidos: hourVal.subidos || 0, bajados: hourVal.bajados || 0 }
     })
   }
 
