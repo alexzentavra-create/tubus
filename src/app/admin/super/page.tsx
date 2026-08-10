@@ -7919,290 +7919,174 @@ function ProvinceMapTab({
   saveChats
 }: {
   selectedProvinceKey: string | null
-  onSelectProvince: (val: string | null) => void
-  setTab: (t: any) => void
-  setSelectedChatId: (id: string) => void
-  chats: any[]
-  saveChats: (chats: any[]) => void
+  onSelectProvince: (key: string | null) => void
+  setTab: (tab: Tab) => void
+  setSelectedChatId?: (id: string) => void
+  chats?: any[]
+  saveChats?: (chats: any[]) => void
 }) {
   const [selectedCity, setSelectedCity] = useState<string | null>(null)
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<string | null>(null)
-  const [hoveredProvince, setHoveredProvince] = useState<any | null>(null)
-  const [realtimeActiveUsers, setRealtimeActiveUsers] = useState(2184)
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
   const [timePeriod, setTimePeriod] = useState<'day' | 'week' | 'month'>('month')
-  const [selectedDate, setSelectedDate] = useState('2026-07-14')
-  const [zoomScale, setZoomScale] = useState(1.0)
+  const [zoomScale, setZoomScale] = useState<number>(1.0)
 
-  // Reset zoom on navigation change
-  useEffect(() => {
-    setZoomScale(1.0);
-  }, [selectedProvinceKey, selectedCity, selectedNeighborhood]);
+  // 1. Fetch real-time registered users & search history from localStorage
+  const [registeredUsers, setRegisteredUsers] = useState<any[]>([])
+  const [searchHistory, setSearchHistory] = useState<any[]>([])
 
-  // Zoom auto transition threshold trigger
-  useEffect(() => {
-    if (zoomScale >= 2.25) {
-      if (!selectedProvinceKey) {
-        // Zooming in on country map: jump to Buenos Aires (default)
-        onSelectProvince('buenos-aires');
-      } else if (selectedProvinceKey && !selectedCity) {
-        // Zooming in on province map: jump to CABA / first city
-        const defaultCity = selectedProvinceKey === 'buenos-aires' ? 'caba' :
-                            selectedProvinceKey === 'cordoba' ? 'cordoba-cap' :
-                            selectedProvinceKey === 'santa-fe' ? 'santa-fe-cap' :
-                            selectedProvinceKey === 'mendoza' ? 'mendoza-cap' : null;
-        if (defaultCity) setSelectedCity(defaultCity);
-      } else if (selectedCity && !selectedNeighborhood) {
-        // Zooming in on city map: jump to first neighborhood
-        const defaultNeigh = selectedCity === 'caba' ? 'palermo' :
-                             selectedCity === 'cordoba-cap' ? 'nueva-cordoba' :
-                             selectedCity === 'santa-fe-cap' ? 'centro-sf' :
-                             selectedCity === 'mendoza-cap' ? 'quinta-seccion' : null;
-        if (defaultNeigh) setSelectedNeighborhood(defaultNeigh);
-      }
-    } else if (zoomScale <= 0.6) {
-      if (selectedNeighborhood) {
-        setSelectedNeighborhood(null);
-      } else if (selectedCity) {
-        setSelectedCity(null);
-      } else if (selectedProvinceKey) {
-        onSelectProvince(null);
-      }
-    }
-  }, [zoomScale, selectedProvinceKey, selectedCity, selectedNeighborhood]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setRealtimeActiveUsers(prev => {
-        const delta = Math.floor(Math.random() * 7) - 3
-        return Math.max(1800, Math.min(2500, prev + delta))
-      })
-    }, 3000)
-    return () => clearInterval(timer)
-  }, [])
-
-  // Helper to get metrics for the selected time period and calendar date
-  const getMetrics = useMemo(() => {
-    // Generate a simple numeric seed from the date string to make it deterministic
-    const seed = selectedDate.split('-').reduce((acc, val) => acc + (parseInt(val) || 0), 0)
-    
-    if (timePeriod === 'day') {
-      return {
-        label: 'Usuarios Únicos (Día)',
-        total: Math.round(2184 + (seed % 7) * 45),
-        trendText: '📈 +6.2% vs prom. diario',
-        trendColor: '#10B981',
-        registriesLabel: 'Registros Hoy',
-        registriesVal: Math.round(142 + (seed % 4) * 8 - 10),
-        registriesTrend: '✨ +18.3% vs ayer',
-        ages: [
-          { range: '18-24 años', pct: 30 + (seed % 3), color: '#3B82F6' },
-          { range: '25-34 años', pct: 45 + (seed % 2), color: '#10B981' },
-          { range: '35-54 años', pct: 19 - (seed % 2), color: '#f59e0b' },
-          { range: '55+ años', pct: 6, color: '#ef4444' }
-        ],
-        purposes: [
-          { label: 'Trabajo / Oficina', pct: 70 },
-          { label: 'Estudio / Facultad', pct: 22 },
-          { label: 'Ocio / Social', pct: 8 }
-        ]
-      }
-    } else if (timePeriod === 'week') {
-      return {
-        label: 'Usuarios Únicos (Semana)',
-        total: Math.round(4120 + (seed % 9) * 90),
-        trendText: '📈 +9.8% vs sem. anterior',
-        trendColor: '#10B981',
-        registriesLabel: 'Registros Semana',
-        registriesVal: Math.round(850 + (seed % 5) * 40),
-        registriesTrend: '✨ +11.5% vs prom.',
-        ages: [
-          { range: '18-24 años', pct: 28 + (seed % 4), color: '#3B82F6' },
-          { range: '25-34 años', pct: 43 + (seed % 3), color: '#10B981' },
-          { range: '35-54 años', pct: 21 - (seed % 3), color: '#f59e0b' },
-          { range: '55+ años', pct: 8, color: '#ef4444' }
-        ],
-        purposes: [
-          { label: 'Trabajo / Oficina', pct: 67 },
-          { label: 'Estudio / Facultad', pct: 21 },
-          { label: 'Ocio / Social', pct: 12 }
-        ]
-      }
-    } else { // month
-      return {
-        label: 'Usuarios SUBE (Mes)',
-        total: Math.round(5440 + (seed % 5) * 110),
-        trendText: '📈 +12.4% este mes',
-        trendColor: '#10B981',
-        registriesLabel: 'Registros Mes',
-        registriesVal: Math.round(3120 + (seed % 6) * 120),
-        registriesTrend: '✨ +24.1% vs mes ant.',
-        ages: [
-          { range: '18-24 años', pct: 32, color: '#3B82F6' },
-          { range: '25-34 años', pct: 44, color: '#10B981' },
-          { range: '35-54 años', pct: 18, color: '#f59e0b' },
-          { range: '55+ años', pct: 6, color: '#ef4444' }
-        ],
-        purposes: [
-          { label: 'Trabajo / Oficina', pct: 68 },
-          { label: 'Estudio / Facultad', pct: 20 },
-          { label: 'Ocio / Social', pct: 12 }
-        ]
-      }
-    }
-  }, [timePeriod, selectedDate])
-
-  const provAges = useMemo(() => {
-    const baseAges = getMetrics.ages
-    if (selectedProvinceKey === 'cordoba') {
-      return [
-        { range: '18-24 años', pct: baseAges[0].pct + 4, color: '#3B82F6' },
-        { range: '25-34 años', pct: baseAges[1].pct - 3, color: '#10B981' },
-        { range: '35-54 años', pct: baseAges[2].pct - 1, color: '#f59e0b' },
-        { range: '55+ años', pct: baseAges[3].pct, color: '#ef4444' }
-      ]
-    }
-    if (selectedProvinceKey === 'santa-fe') {
-      return [
-        { range: '18-24 años', pct: baseAges[0].pct + 2, color: '#3B82F6' },
-        { range: '25-34 años', pct: baseAges[1].pct - 2, color: '#10B981' },
-        { range: '35-54 años', pct: baseAges[2].pct, color: '#f59e0b' },
-        { range: '55+ años', pct: baseAges[3].pct, color: '#ef4444' }
-      ]
-    }
-    if (selectedProvinceKey === 'mendoza') {
-      return [
-        { range: '18-24 años', pct: baseAges[0].pct - 2, color: '#3B82F6' },
-        { range: '25-34 años', pct: baseAges[1].pct - 1, color: '#10B981' },
-        { range: '35-54 años', pct: baseAges[2].pct + 2, color: '#f59e0b' },
-        { range: '55+ años', pct: baseAges[3].pct + 1, color: '#ef4444' }
-      ]
-    }
-    return baseAges
-  }, [getMetrics.ages, selectedProvinceKey])
-
-  const provPurposes = useMemo(() => {
-    const basePurposes = getMetrics.purposes
-    if (selectedProvinceKey === 'cordoba') {
-      return [
-        { label: 'Trabajo / Oficina', pct: basePurposes[0].pct - 6 },
-        { label: 'Estudio / Facultad', pct: basePurposes[1].pct + 6 },
-        { label: 'Ocio / Social', pct: basePurposes[2].pct }
-      ]
-    }
-    if (selectedProvinceKey === 'santa-fe') {
-      return [
-        { label: 'Trabajo / Oficina', pct: basePurposes[0].pct - 4 },
-        { label: 'Estudio / Facultad', pct: basePurposes[1].pct + 3 },
-        { label: 'Ocio / Social', pct: basePurposes[2].pct + 1 }
-      ]
-    }
-    if (selectedProvinceKey === 'mendoza') {
-      return [
-        { label: 'Trabajo / Oficina', pct: basePurposes[0].pct - 1 },
-        { label: 'Estudio / Facultad', pct: basePurposes[1].pct - 2 },
-        { label: 'Ocio / Social', pct: basePurposes[2].pct + 3 }
-      ]
-    }
-    return basePurposes
-  }, [getMetrics.purposes, selectedProvinceKey])
-
-  const neighAges = useMemo(() => {
-    const baseAges = getMetrics.ages
-    if (selectedNeighborhood === 'palermo') {
-      return [
-        { range: '18-24 años', pct: baseAges[0].pct + 6, color: '#3B82F6' },
-        { range: '25-34 años', pct: baseAges[1].pct + 2, color: '#10B981' },
-        { range: '35-54 años', pct: baseAges[2].pct - 6, color: '#f59e0b' },
-        { range: '55+ años', pct: baseAges[3].pct - 2, color: '#ef4444' }
-      ]
-    }
-    if (selectedNeighborhood === 'recoleta') {
-      return [
-        { range: '18-24 años', pct: baseAges[0].pct - 6, color: '#3B82F6' },
-        { range: '25-34 años', pct: baseAges[1].pct - 2, color: '#10B981' },
-        { range: '35-54 años', pct: baseAges[2].pct + 5, color: '#f59e0b' },
-        { range: '55+ años', pct: baseAges[3].pct + 3, color: '#ef4444' }
-      ]
-    }
-    return baseAges
-  }, [getMetrics.ages, selectedNeighborhood])
-
-  const neighPurposes = useMemo(() => {
-    const basePurposes = getMetrics.purposes
-    if (selectedNeighborhood === 'palermo') {
-      return [
-        { label: 'Trabajo / Oficina', pct: 58 },
-        { label: 'Estudio / Facultad', pct: 16 },
-        { label: 'Ocio / Social', pct: 26 }
-      ]
-    }
-    if (selectedNeighborhood === 'recoleta') {
-      return [
-        { label: 'Trabajo / Oficina', pct: 64 },
-        { label: 'Estudio / Facultad', pct: 18 },
-        { label: 'Ocio / Social', pct: 18 }
-      ]
-    }
-    return basePurposes
-  }, [getMetrics.purposes, selectedNeighborhood])
-
-  // Clear selections when parent resets province
-  useEffect(() => {
-    if (!selectedProvinceKey) {
-      setSelectedCity(null)
-      setSelectedNeighborhood(null)
-    }
-  }, [selectedProvinceKey])
-
-  const handleMessageAdvertiser = (ad: any) => {
-    const initMsg = `Hola ${ad.userName}, soy el Super Administrador de BienParada. Me pongo en contacto con vos por tu campaña "${ad.title}" en la parada "${ad.stop || 'Plaza Italia'}".`
-    const existing = chats.find((c: any) => c.name.toLowerCase().includes(ad.userName.toLowerCase()))
-    let targetId = ''
-
-    if (existing) {
-      targetId = existing.id
-      const updated = chats.map((c: any) => {
-        if (c.id === targetId) {
-          return {
-            ...c,
-            lastMsg: initMsg,
-            history: [
-              ...c.history,
-              { id: `m-${Date.now()}`, sender: 'admin', text: initMsg, timestamp: 'Ahora' }
-            ]
+  const loadRealTimeData = () => {
+    try {
+      const storedRegStr = localStorage.getItem('bu_registered_users') || '[]'
+      const storedReg = JSON.parse(storedRegStr)
+      const allUsers = [...(Array.isArray(storedReg) ? storedReg : []), ...REAL_USERS]
+      
+      const uniqueUsersDict: Record<string, any> = {}
+      allUsers.forEach((u: any) => {
+        if (u && (u.email || u.id) && !uniqueUsersDict[u.email || u.id]) {
+          uniqueUsersDict[u.email || u.id] = {
+            ...u,
+            province: u.province || 'buenos-aires',
+            city: u.city || 'caba',
+            neighborhood: u.neighborhood || 'palermo',
+            age: u.age || 28,
+            ageGroup: u.ageGroup || (u.age ? (u.age < 25 ? '18-24' : u.age < 35 ? '25-34' : u.age < 55 ? '35-54' : '55+') : '25-34'),
+            purpose: u.purpose || 'Trabajo / Oficina',
+            created_at: u.created_at || u.createdAt || new Date().toISOString()
           }
         }
-        return c
       })
-      saveChats(updated)
-    } else {
-      const uniqueId = `c-adv-${Date.now()}`
-      targetId = uniqueId
-      const newChat = {
-        id: uniqueId,
-        name: ad.userName,
-        role: 'advertiser',
-        avatar: ad.userAvatar,
-        starred: false,
-        lastMsg: initMsg,
-        history: [
-          { id: `m-${Date.now()}`, sender: 'admin', text: initMsg, timestamp: 'Ahora' }
-        ]
-      }
-      saveChats([...chats, newChat])
-    }
+      setRegisteredUsers(Object.values(uniqueUsersDict))
 
-    setSelectedChatId(targetId)
-    setTab('chat')
-    toast.success(`Chat de soporte con ${ad.userName} abierto`)
+      const historyStr = localStorage.getItem('bu_search_history') || localStorage.getItem('tu_bus_search_history') || '[]'
+      setSearchHistory(JSON.parse(historyStr))
+    } catch (e) {
+      setRegisteredUsers(REAL_USERS)
+      setSearchHistory([])
+    }
   }
 
-  // Get current state context
-  const currentProvinceData = selectedProvinceKey ? DRILLDOWN_DATA[selectedProvinceKey] : null
-  const currentCityData = (currentProvinceData && selectedCity) ? currentProvinceData.cities[selectedCity] : null
-  const currentNeighborhoodData = (currentCityData && selectedNeighborhood) ? currentCityData.neighborhoods[selectedNeighborhood] : null
+  useEffect(() => {
+    loadRealTimeData()
+    const handleStorage = () => loadRealTimeData()
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
 
-  // Custom mock coords for levels 1 & 2 using high-fidelity 800x1752 coordinates
+  // 2. Filter users by geography level
+  const filteredUsers = useMemo(() => {
+    return registeredUsers.filter(u => {
+      if (selectedProvinceKey) {
+        const provMatch = u.province === selectedProvinceKey || (selectedProvinceKey === 'buenos-aires' && (u.province?.toLowerCase().includes('buenos') || u.city?.toLowerCase().includes('caba') || !u.province))
+        if (!provMatch) return false
+      }
+      if (selectedCity) {
+        const cityMatch = u.city?.toLowerCase() === selectedCity.toLowerCase() || (selectedCity === 'caba' && u.city?.toLowerCase().includes('caba'))
+        if (!cityMatch) return false
+      }
+      if (selectedNeighborhood) {
+        const neighMatch = u.neighborhood?.toLowerCase() === selectedNeighborhood.toLowerCase()
+        if (!neighMatch) return false
+      }
+      return true
+    })
+  }, [registeredUsers, selectedProvinceKey, selectedCity, selectedNeighborhood])
+
+  // 3. Compute period registries (Day, Week, Month)
+  const periodRegistries = useMemo(() => {
+    const now = new Date(selectedDate).getTime()
+    let cutoff = now - 30 * 24 * 3600 * 1000 // month
+    if (timePeriod === 'day') cutoff = now - 24 * 3600 * 1000
+    if (timePeriod === 'week') cutoff = now - 7 * 24 * 3600 * 1000
+
+    return filteredUsers.filter(u => {
+      const regTime = new Date(u.created_at || new Date()).getTime()
+      return regTime >= cutoff
+    }).length
+  }, [filteredUsers, timePeriod, selectedDate])
+
+  // 4. Calculate Age Group percentages dynamically
+  const ageStats = useMemo(() => {
+    const total = filteredUsers.length
+    if (total === 0) {
+      return [
+        { range: '18-24 años', pct: 0, color: '#3B82F6' },
+        { range: '25-34 años', pct: 0, color: '#10B981' },
+        { range: '35-54 años', pct: 0, color: '#F59E0B' },
+        { range: '55+ años', pct: 0, color: '#EF4444' }
+      ]
+    }
+
+    const counts = { '18-24': 0, '25-34': 0, '35-54': 0, '55+': 0 }
+    filteredUsers.forEach(u => {
+      const ag = u.ageGroup || (u.age ? (u.age < 25 ? '18-24' : u.age < 35 ? '25-34' : u.age < 55 ? '35-54' : '55+') : '25-34')
+      if (counts[ag as keyof typeof counts] !== undefined) {
+        counts[ag as keyof typeof counts]++
+      } else {
+        counts['25-34']++
+      }
+    })
+
+    return [
+      { range: '18-24 años', pct: Math.round((counts['18-24'] / total) * 100), color: '#3B82F6' },
+      { range: '25-34 años', pct: Math.round((counts['25-34'] / total) * 100), color: '#10B981' },
+      { range: '35-54 años', pct: Math.round((counts['35-54'] / total) * 100), color: '#F59E0B' },
+      { range: '55+ años', pct: Math.round((counts['55+'] / total) * 100), color: '#EF4444' }
+    ]
+  }, [filteredUsers])
+
+  // 5. Calculate Trip Purpose percentages dynamically
+  const purposeStats = useMemo(() => {
+    const total = filteredUsers.length
+    if (total === 0) {
+      return [
+        { label: 'Trabajo / Oficina', pct: 0 },
+        { label: 'Estudio / Facultad', pct: 0 },
+        { label: 'Ocio / Social', pct: 0 }
+      ]
+    }
+
+    const counts = { 'Trabajo': 0, 'Estudio': 0, 'Ocio': 0 }
+    filteredUsers.forEach(u => {
+      const p = (u.purpose || 'Trabajo').toLowerCase()
+      if (p.includes('trabajo') || p.includes('oficina')) counts['Trabajo']++
+      else if (p.includes('estudio') || p.includes('facultad') || p.includes('escuela')) counts['Estudio']++
+      else counts['Ocio']++
+    })
+
+    return [
+      { label: 'Trabajo / Oficina', pct: Math.round((counts['Trabajo'] / total) * 100) },
+      { label: 'Estudio / Facultad', pct: Math.round((counts['Estudio'] / total) * 100) },
+      { label: 'Ocio / Social', pct: Math.round((counts['Ocio'] / total) * 100) }
+    ]
+  }, [filteredUsers])
+
+  // 6. Calculate Neighborhood Passenger Flow from search history
+  const neighborhoodFlows = useMemo(() => {
+    const flowDict: Record<string, number> = {
+      'palermo': 0,
+      'recoleta': 0,
+      'belgrano': 0,
+      'chacarita': 0,
+      'caballito': 0,
+      'monserrat': 0
+    }
+
+    searchHistory.forEach(s => {
+      const text = `${s.originName || ''} ${s.destName || ''}`.toLowerCase()
+      Object.keys(flowDict).forEach(nKey => {
+        if (text.includes(nKey)) {
+          flowDict[nKey] += 1
+        }
+      })
+    })
+
+    return flowDict
+  }, [searchHistory])
+
+  // Real-time active users count
+  const activeCount = filteredUsers.length > 0 ? filteredUsers.length : 0
+
   const mockCitiesList = useMemo(() => {
     if (selectedProvinceKey === 'buenos-aires') {
       return [
@@ -8228,50 +8112,23 @@ function ProvinceMapTab({
   const mockNeighborhoodsList = useMemo(() => {
     if (selectedCity === 'caba') {
       return [
-        { key: 'palermo', name: 'Palermo', x: 167.3, y: 89.8, count: 14500 },
-        { key: 'recoleta', name: 'Recoleta', x: 213.9, y: 104.9, count: 9800 },
-        { key: 'belgrano', name: 'Belgrano', x: 122.6, y: 58.7, count: 11200 },
-        { key: 'chacarita', name: 'Chacarita', x: 121.8, y: 110.8, count: 5400 },
-        { key: 'caballito', name: 'Caballito', x: 135.2, y: 151.7, count: 8900 },
-        { key: 'monserrat', name: 'Monserrat', x: 224.8, y: 145.2, count: 7600 }
-      ]
-    } else if (selectedCity === 'cordoba-cap') {
-      return [
-        { key: 'nueva-cordoba', name: 'Nueva Córdoba', x: 135, y: 170, count: 8500 },
-        { key: 'alta-cordoba', name: 'Alta Córdoba', x: 110, y: 85, count: 6200 },
-        { key: 'centro-cba', name: 'Centro', x: 180, y: 115, count: 4800 }
-      ]
-    } else if (selectedCity === 'santa-fe-cap') {
-      return [
-        { key: 'centro-sf', name: 'Centro', x: 115, y: 115, count: 6200 },
-        { key: 'barrio-sur-sf', name: 'Barrio Sur', x: 135, y: 190, count: 4100 },
-        { key: 'guadalupe', name: 'Guadalupe', x: 175, y: 90, count: 3200 }
-      ]
-    } else if (selectedCity === 'mendoza-cap') {
-      return [
-        { key: 'quinta-seccion', name: 'Quinta Sección', x: 95, y: 115, count: 5300 },
-        { key: 'bombal', name: 'Barrio Bombal', x: 130, y: 195, count: 3800 },
-        { key: 'centro-mdz', name: 'Centro Mendoza', x: 180, y: 125, count: 4500 }
+        { key: 'palermo', name: 'Palermo', x: 167.3, y: 89.8, count: neighborhoodFlows['palermo'] || 0 },
+        { key: 'recoleta', name: 'Recoleta', x: 213.9, y: 104.9, count: neighborhoodFlows['recoleta'] || 0 },
+        { key: 'belgrano', name: 'Belgrano', x: 122.6, y: 58.7, count: neighborhoodFlows['belgrano'] || 0 },
+        { key: 'chacarita', name: 'Chacarita', x: 121.8, y: 110.8, count: neighborhoodFlows['chacarita'] || 0 },
+        { key: 'caballito', name: 'Caballito', x: 135.2, y: 151.7, count: neighborhoodFlows['caballito'] || 0 },
+        { key: 'monserrat', name: 'Monserrat', x: 224.8, y: 145.2, count: neighborhoodFlows['monserrat'] || 0 }
       ]
     }
     return []
-  }, [selectedCity])
+  }, [selectedCity, neighborhoodFlows])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <style>{`
-        @keyframes flow {
-          to {
-            stroke-dashoffset: -20;
-          }
-        }
-        .flow-path {
-          stroke-dasharray: 6, 6;
-          animation: flow 1.2s linear infinite;
-        }
-        .pulse-circle {
-          animation: pulse 2s infinite;
-        }
+        @keyframes flow { to { stroke-dashoffset: -20; } }
+        .flow-path { stroke-dasharray: 6, 6; animation: flow 1.2s linear infinite; }
+        .pulse-circle { animation: pulse 2s infinite; }
         @keyframes pulse {
           0% { transform: scale(1); opacity: 0.8; }
           50% { transform: scale(1.15); opacity: 0.4; }
@@ -8282,7 +8139,7 @@ function ProvinceMapTab({
       {/* Header section with interactive breadcrumbs */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Mapa Demográfico y Flujo de Tránsito</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#fff' }}>Mapa Demográfico y Flujo de Tránsito</h3>
           
           {/* Breadcrumbs */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: '#8f94a5', marginTop: '6px' }}>
@@ -8299,7 +8156,7 @@ function ProvinceMapTab({
                   onClick={() => { setSelectedCity(null); setSelectedNeighborhood(null) }}
                   style={{ cursor: 'pointer', textDecoration: 'underline', color: !selectedCity ? '#10B981' : '#8f94a5' }}
                 >
-                  {selectedProvinceKey === 'buenos-aires' ? 'Buenos Aires' : selectedProvinceKey.toUpperCase()}
+                  {selectedProvinceKey === 'buenos-aires' ? 'Buenos Aires & CABA' : selectedProvinceKey.toUpperCase()}
                 </span>
               </>
             )}
@@ -8330,27 +8187,27 @@ function ProvinceMapTab({
           
           {!selectedProvinceKey && (
             <>
-              <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>Nivel 0: Provincias de Argentina</h4>
+              <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: '#fff' }}>Nivel 0: Provincias de Argentina</h4>
               <div style={{ position: 'relative', width: '100%', height: '420px', display: 'flex', justifyContent: 'center', overflow: 'hidden', borderRadius: '8px' }}>
                 {/* Floating Map Zoom Controls */}
                 <div style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <button
                     onClick={() => setZoomScale(prev => Math.min(prev + 0.25, 3.0))}
-                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', transition: 'all 150ms' }}
+                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }}
                     title="Acercar (Zoom In)"
                   >
                     ➕
                   </button>
                   <button
                     onClick={() => setZoomScale(prev => Math.max(prev - 0.25, 0.5))}
-                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', transition: 'all 150ms' }}
+                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }}
                     title="Alejar (Zoom Out)"
                   >
                     ➖
                   </button>
                   <button
                     onClick={() => setZoomScale(1.0)}
-                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#8f94a5', fontSize: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', transition: 'all 150ms' }}
+                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#8f94a5', fontSize: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)' }}
                     title="Restablecer (Reset Zoom)"
                   >
                     R
@@ -8360,1051 +8217,202 @@ function ProvinceMapTab({
                   </div>
                 </div>
 
-                <svg width="100%" height="370" viewBox="0 0 800 1752" style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)', display: 'block', margin: '0 auto', maxHeight: '370px' }}>
-                  <g style={{ transform: `scale(${zoomScale})`, transformOrigin: 'center', transition: 'transform 300ms ease-out' }}>
-                    {ARG_PROVINCES.map((p) => {
-                      const active = selectedProvinceKey === p.id
-                      const hovered = hoveredProvince?.id === p.id
-                      
-                      return (
+                <svg
+                  viewBox="0 0 1000 1200"
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    transform: `scale(${zoomScale})`,
+                    transformOrigin: 'center center',
+                    transition: 'transform 0.2s ease-out'
+                  }}
+                >
+                  {ARG_PROVINCES.map((prov) => {
+                    // Count real-time registered users in this province
+                    const provUserCount = registeredUsers.filter(u => 
+                      u.province === prov.id || (prov.id === 'buenos-aires' && (u.province?.toLowerCase().includes('buenos') || u.city?.toLowerCase().includes('caba') || !u.province))
+                    ).length
+
+                    const isBsAs = prov.id === 'buenos-aires'
+                    const fill = provUserCount > 0 ? (isBsAs ? '#3B82F6' : '#2563EB') : '#1B1D2E'
+                    const opacity = provUserCount > 0 ? (isBsAs ? 0.9 : 0.6) : 0.35
+
+                    return (
+                      <g key={prov.id} onClick={() => onSelectProvince(prov.id)} style={{ cursor: 'pointer' }}>
                         <path
-                          key={p.id}
-                          d={p.path}
-                          fill={p.disabled ? 'rgba(30, 41, 59, 0.4)' : (hovered ? '#2563eb' : '#1e3a8a')}
-                          stroke={hovered ? '#60a5fa' : 'rgba(96, 165, 250, 0.25)'}
-                          strokeWidth={hovered ? '2' : '1'}
-                          style={{ cursor: p.disabled ? 'default' : 'pointer', transition: 'all 200ms' }}
-                          onMouseEnter={() => !p.disabled && setHoveredProvince(p)}
-                          onMouseLeave={() => setHoveredProvince(null)}
-                          onClick={() => !p.disabled && onSelectProvince(p.id)}
+                          d={prov.path}
+                          fill={fill}
+                          fillOpacity={opacity}
+                          stroke={provUserCount > 0 ? '#60A5FA' : 'rgba(255,255,255,0.1)'}
+                          strokeWidth={provUserCount > 0 ? '2' : '1'}
+                          style={{ transition: 'all 200ms' }}
                         />
-                      )
-                    })}
-                  </g>
+                      </g>
+                    )
+                  })}
                 </svg>
 
-                {/* Map Tooltip overlay */}
-                {hoveredProvince && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '20px',
-                    left: '20px',
-                    background: '#1b1d2e',
-                    border: '1.5px solid #2563eb',
-                    borderRadius: '8px',
-                    padding: '8px 12px',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
-                    pointerEvents: 'none'
-                  }}>
-                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{hoveredProvince.name}</div>
-                    <div style={{ fontSize: '10px', color: '#8f94a5', marginTop: '2px' }}>
-                      {hoveredProvince.activeUsers.toLocaleString()} pasajeros activos/día
-                    </div>
+                {/* Info Card Badge for Active Province */}
+                <div style={{ position: 'absolute', top: '16px', left: '16px', background: 'rgba(15,23,42,0.9)', border: '1px solid rgba(59,130,246,0.3)', padding: '10px 14px', borderRadius: '10px', backdropFilter: 'blur(8px)' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: '#FFFFFF' }}>Provincia de Buenos Aires & CABA</div>
+                  <div style={{ fontSize: '11px', color: '#60A5FA', fontFamily: 'DM Mono', marginTop: '2px' }}>
+                    {registeredUsers.filter(u => u.province === 'buenos-aires' || u.city === 'caba' || !u.province).length} pasajeros registrados
                   </div>
-                )}
+                </div>
               </div>
             </>
           )}
 
           {selectedProvinceKey && !selectedCity && (
             <>
-              <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>Nivel 1: Ciudades Principales ({selectedProvinceKey.toUpperCase()})</h4>
-              <div style={{ width: '100%', height: '420px', position: 'relative', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)', overflow: 'hidden' }}>
-                {/* Floating Map Zoom Controls */}
-                <div style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <button
-                    onClick={() => setZoomScale(prev => Math.min(prev + 0.25, 3.0))}
-                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', transition: 'all 150ms' }}
-                    title="Acercar (Zoom In)"
-                  >
-                    ➕
-                  </button>
-                  <button
-                    onClick={() => setZoomScale(prev => Math.max(prev - 0.25, 0.5))}
-                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', transition: 'all 150ms' }}
-                    title="Alejar (Zoom Out)"
-                  >
-                    ➖
-                  </button>
-                  <button
-                    onClick={() => setZoomScale(1.0)}
-                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#8f94a5', fontSize: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', transition: 'all 150ms' }}
-                    title="Restablecer (Reset Zoom)"
-                  >
-                    R
-                  </button>
-                  <div style={{ background: 'rgba(15, 23, 42, 0.8)', padding: '2px 6px', borderRadius: '4px', fontSize: '8px', color: '#8f94a5', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    {Math.round(zoomScale * 100)}%
-                  </div>
-                </div>
-                
-                {/* Cities radar visualization */}
-                {(() => {
-                  const PROVINCE_VIEWBOX: Record<string, string> = {
-                    'buenos-aires': '404 512 279 401',
-                    'cordoba': '308 333 172 273',
-                    'santa-fe': '425 268 170 308',
-                    'mendoza': '116 450 173 282'
-                  }
-                  const viewBox = PROVINCE_VIEWBOX[selectedProvinceKey] || "0 0 300 350"
-                  const provData = ARG_PROVINCES.find(p => p.id === selectedProvinceKey)
-                  
-                  // Scale properties based on province dimensions
-                  const getProvinceScale = (key: string) => {
-                    if (key === 'buenos-aires') {
-                      return { radiusOuter: 9, radiusInner: 4, pulseRadius: 15, strokeWidthOuter: 1.5, fontSize: 6.5, textOffsetY: 10, strokeWidthLine: 0.8 }
-                    }
-                    if (key === 'cordoba') {
-                      return { radiusOuter: 6.0, radiusInner: 2.5, pulseRadius: 10.0, strokeWidthOuter: 1.0, fontSize: 4.5, textOffsetY: 7.0, strokeWidthLine: 0.4 }
-                    }
-                    if (key === 'santa-fe') {
-                      return { radiusOuter: 6.0, radiusInner: 2.5, pulseRadius: 10.0, strokeWidthOuter: 1.0, fontSize: 4.5, textOffsetY: 7.0, strokeWidthLine: 0.4 }
-                    }
-                    // mendoza
-                    return { radiusOuter: 6.0, radiusInner: 2.5, pulseRadius: 10.0, strokeWidthOuter: 1.0, fontSize: 4.5, textOffsetY: 7.0, strokeWidthLine: 0.4 }
-                  }
-                  const scale = getProvinceScale(selectedProvinceKey)
-
-                  return (
-                    <svg width="100%" height="100%" viewBox={viewBox}>
-                      {/* Grid background */}
-                      <defs>
-                        <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-                          <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.03)" strokeWidth="1" />
-                        </pattern>
-                      </defs>
-                      <rect width="100%" height="100%" fill="url(#grid)" />
-
-                      <g style={{ transform: `scale(${zoomScale})`, transformOrigin: 'center', transition: 'transform 300ms ease-out' }}>
-                        {/* High-fidelity background contour of the province */}
-                        {provData && (
-                          <path
-                            d={provData.path}
-                            fill="rgba(37, 99, 235, 0.08)"
-                            stroke="rgba(37, 99, 235, 0.35)"
-                            strokeWidth={
-                              selectedProvinceKey === 'santa-fe' ? 0.4 :
-                              selectedProvinceKey === 'buenos-aires' ? 0.4 :
-                              0.25
-                            }
-                          />
-                        )}
-
-                        {/* Inter-city highways in high-fidelity coordinate space */}
-                        {selectedProvinceKey === 'buenos-aires' && (
-                          <path
-                            d="M 605 577 L 622 592"
-                            fill="none"
-                            stroke="rgba(37, 99, 235, 0.2)"
-                            strokeWidth={scale.strokeWidthLine}
-                            strokeDasharray="1,1"
-                          />
-                        )}
-
-                        {mockCitiesList.map((city) => (
-                          <g key={city.key} onClick={() => setSelectedCity(city.key)} style={{ cursor: 'pointer' }}>
-                            <circle
-                              cx={city.x}
-                              cy={city.y}
-                              r={scale.radiusOuter}
-                              fill="rgba(59, 130, 246, 0.2)"
-                              stroke="#3b82f6"
-                              strokeWidth={scale.strokeWidthOuter}
-                            />
-                            <circle
-                              cx={city.x}
-                              cy={city.y}
-                              r={scale.radiusInner}
-                              fill="#3b82f6"
-                            />
-                            <text
-                              x={city.x}
-                              y={city.y - scale.textOffsetY}
-                              fill="#fff"
-                              fontSize={scale.fontSize}
-                              fontWeight="700"
-                              textAnchor="middle"
-                              style={{ textShadow: '0 0.5px 1px rgba(0,0,0,0.8)' }}
-                            >
-                              {city.name}
-                            </text>
-                            <circle
-                              cx={city.x}
-                              cy={city.y}
-                              r={scale.pulseRadius}
-                              fill="none"
-                              stroke="rgba(59, 130, 246, 0.2)"
-                              strokeWidth={scale.strokeWidthOuter / 2}
-                              className="pulse-circle"
-                            />
-                          </g>
-                        ))}
-                      </g>
-                    </svg>
-                  )
-                })()}
-
-                <div style={{ position: 'absolute', bottom: '12px', left: '12px', fontSize: '10px', color: '#8f94a5' }}>
-                  🎯 Pulse en un nodo de radar para ingresar a la ciudad
-                </div>
+              <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: '#fff' }}>Nivel 1: Ciudades Principales ({selectedProvinceKey.toUpperCase()})</h4>
+              <div style={{ position: 'relative', width: '100%', height: '420px', display: 'flex', justifyContent: 'center', overflow: 'hidden', borderRadius: '8px' }}>
+                <svg viewBox="0 0 1000 1200" style={{ width: '100%', height: '100%' }}>
+                  <path
+                    d={ARG_PROVINCES.find(p => p.id === selectedProvinceKey)?.path || ''}
+                    fill="#1e293b"
+                    fillOpacity={0.6}
+                    stroke="#3B82F6"
+                    strokeWidth="2"
+                  />
+                  {mockCitiesList.map(city => (
+                    <g key={city.key} onClick={() => setSelectedCity(city.key)} style={{ cursor: 'pointer' }}>
+                      <circle cx={city.x} cy={city.y} r="14" fill="rgba(59,130,246,0.2)" stroke="#3B82F6" strokeWidth="2" className="pulse-circle" />
+                      <circle cx={city.x} cy={city.y} r="5" fill="#3B82F6" />
+                      <text x={city.x} y={city.y - 18} textAnchor="middle" fill="#fff" fontSize="11" fontWeight="bold">{city.name}</text>
+                    </g>
+                  ))}
+                </svg>
               </div>
             </>
           )}
 
           {selectedCity && (
             <>
-              <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0 }}>
-                Nivel 2: Red de Barrios y Flujos de Pasajeros ({selectedCity.toUpperCase()})
-              </h4>
-              <div style={{ width: '100%', height: '420px', position: 'relative', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)', overflow: 'hidden' }}>
-                {/* Floating Map Zoom Controls */}
-                <div style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 10, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <button
-                    onClick={() => setZoomScale(prev => Math.min(prev + 0.25, 3.0))}
-                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', transition: 'all 150ms' }}
-                    title="Acercar (Zoom In)"
-                  >
-                    ➕
-                  </button>
-                  <button
-                    onClick={() => setZoomScale(prev => Math.max(prev - 0.25, 0.5))}
-                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '14px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', transition: 'all 150ms' }}
-                    title="Alejar (Zoom Out)"
-                  >
-                    ➖
-                  </button>
-                  <button
-                    onClick={() => setZoomScale(1.0)}
-                    style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', color: '#8f94a5', fontSize: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 6px rgba(0,0,0,0.3)', transition: 'all 150ms' }}
-                    title="Restablecer (Reset Zoom)"
-                  >
-                    R
-                  </button>
-                  <div style={{ background: 'rgba(15, 23, 42, 0.8)', padding: '2px 6px', borderRadius: '4px', fontSize: '8px', color: '#8f94a5', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    {Math.round(zoomScale * 100)}%
-                  </div>
-                </div>
-
-                <svg width="100%" height="100%" viewBox="0 0 300 300">
-                  <rect width="100%" height="100%" fill="url(#grid)" />
-
-                  <g style={{ transform: `scale(${zoomScale})`, transformOrigin: 'center', transition: 'transform 300ms ease-out' }}>
-
-                  {/* Coastline / City Limits map representation */}
-                  {selectedCity === 'caba' && (
-                    <>
-                      {/* CABA Outer limits (General Paz & Rio de la Plata coastline) */}
-                      <path
-                        d="M 130,10 L 75,55 L 60,65 L 50,85 L 20,135 L 10,165 L 15,175 L 35,200 L 50,220 L 75,225 L 95,275 L 115,290 L 130,245 L 170,245 L 210,230 L 240,220 L 280,180 L 260,170 L 285,160 L 275,135 L 270,115 L 255,100 L 230,85 L 160,60 L 150,25 Z"
-                        fill="rgba(37, 99, 235, 0.01)"
-                        stroke="#2563eb"
-                        strokeWidth="2.0"
-                      />
-                      {/* Non-interactive backdrop neighborhoods to show complete divisions */}
-                      {[
-{ name: "AGRONOMIA", d: "M 89.8,121.4 L 88.8,124.1 L 88.1,125.9 L 87.4,127.7 L 84.8,126.5 L 82.9,125.7 L 81.3,125.1 L 79.2,124.9 L 77.4,124.8 L 75.7,124.6 L 74.1,124.5 L 71.8,124.4 L 68.7,124.2 L 65.6,124 L 62.8,123.8 L 60.6,123.2 L 59,122.6 L 57.4,122 L 55.9,121.4 L 54.4,120.9 L 55.4,118.7 L 57.2,117.6 L 59,116.5 L 60.8,115.4 L 62.4,114.4 L 63.9,113.4 L 65.5,112.5 L 67,111.5 L 68.6,110.5 L 70.1,109.5 L 71.7,108.6 L 73.5,107.4 L 75.6,109.2 L 76.8,110.5 L 78.2,111.9 L 79.4,113.2 L 82.4,114.3 L 84.1,114.8 L 86.5,115.4 L 88.5,115.9 L 90.7,116.5 L 91.1,118 L 90.4,119.8 L 89.8,121.4 Z" },
-  { name: "ALMAGRO", d: "M 178.1,147.6 L 178.2,149.4 L 178.3,151 L 178.4,153 L 178.5,154.8 L 178.6,156.5 L 176.8,156.7 L 175.1,156.8 L 173.1,157 L 171,157.2 L 169.1,157.3 L 167,157.4 L 165.3,157.6 L 163.5,157.7 L 161.3,158 L 159.2,158.3 L 157.6,158.5 L 157.2,156.6 L 157,155.1 L 156.6,153.3 L 156.2,151.8 L 155.7,149.1 L 154.5,147.4 L 154.3,144.5 L 154.1,142.1 L 153.9,140.1 L 153.8,137.8 L 153.7,136.3 L 152.5,134.9 L 151.4,133.6 L 150,131.8 L 151.5,131.1 L 153,129.4 L 154.2,128 L 155.4,126.9 L 157.4,126 L 159,125.3 L 161.5,125.2 L 163.2,125.2 L 165.9,125 L 167.5,125.1 L 169.5,125.1 L 171.8,125.2 L 173.6,125.2 L 175.7,125.3 L 177.6,125.3 L 179.2,125.4 L 179.2,127.2 L 178.5,130.4 L 178,132.6 L 177.7,134.1 L 177.1,136.6 L 176.7,138.1 L 175.7,139.4 L 175.8,141 L 175.9,142.9 L 177.2,145.2 L 177.8,146.6 L 178.1,147.6 Z" },
-  { name: "BALVANERA", d: "M 179.4,125.4 L 181.7,125.5 L 183.8,125.5 L 186.7,125.5 L 189.1,125.5 L 190.7,126 L 192.3,126.9 L 193.8,127.4 L 195.9,127.6 L 197.5,127.8 L 199.7,127.8 L 201.6,127.7 L 203.5,127.7 L 205.3,127.7 L 205.8,129.3 L 206,130.9 L 206.3,132.5 L 206.4,134.2 L 206.6,135.7 L 206.7,137.3 L 206.8,138.9 L 206.9,140.8 L 207,142.4 L 207.1,144 L 207.2,145.6 L 207.2,147.2 L 207.3,148.7 L 207.3,151.4 L 207.3,153.1 L 205.5,153.2 L 203.4,153.3 L 201.3,153.4 L 199.3,153.5 L 197.3,153.6 L 195.8,153.7 L 192.7,153.9 L 191,154.1 L 188.9,154.5 L 187.1,154.9 L 185.1,155.3 L 183.1,155.7 L 181.4,156 L 178.6,156.5 L 178.5,154.8 L 178.4,153.3 L 178.3,151 L 178.2,149.4 L 178.1,147.6 L 177.5,145.8 L 176.6,144 L 175.8,141 L 175.7,139.4 L 176.7,138.1 L 177.1,136.6 L 177.6,134.1 L 178,132.6 L 178.5,130.4 L 178.9,128.6 L 179.4,125.4 Z" },
-  { name: "BARRACAS", d: "M 236.6,173.4 L 236.9,175.7 L 237.2,177.3 L 237.5,179.5 L 237.9,182 L 238.3,184.7 L 238.7,187.2 L 238.9,188.8 L 239.3,190.9 L 239.6,193.2 L 240,195.6 L 240.3,197.1 L 238.4,198.2 L 237.3,199.3 L 237.5,201.1 L 236.7,202.4 L 234.6,203.3 L 232.6,205.1 L 231.4,206.2 L 228.5,206.3 L 227,206.4 L 225.5,206.9 L 223.8,207.2 L 222.2,207.2 L 219.1,207.2 L 217.1,207.5 L 215.6,208 L 214.3,209.1 L 213.3,210.3 L 212,211.2 L 210.5,211.5 L 208.9,211.9 L 207.7,213 L 206.2,213.6 L 204.7,213.7 L 203,213.6 L 201.5,213.4 L 199.9,213.4 L 198.7,212.3 L 197.1,211.9 L 195.3,211.6 L 194.2,210 L 193.1,207.4 L 192.1,205 L 191.4,203 L 190.9,201.4 L 190.4,199.8 L 189.8,198.2 L 188.9,196.6 L 190.9,194.4 L 192.1,192.9 L 193.7,192.6 L 195.2,192.1 L 199.6,189.5 L 204.8,187.2 L 207.7,186 L 207.6,184.3 L 209.2,183.6 L 209.6,181.9 L 209.5,180.2 L 209.4,178.4 L 209.2,176.8 L 209.1,175.1 L 211.3,174.6 L 212.8,174.2 L 214.4,173.7 L 215.9,173.3 L 217.8,172.7 L 219.7,171.7 L 221.1,170.9 L 221.6,172.6 L 223.1,173.6 L 224,172.3 L 225.2,170.1 L 224.6,168.5 L 226.2,167.5 L 228,166.5 L 229.4,165.7 L 230.8,165 L 233.3,164.9 L 234.9,164.8 L 236,166.8 L 236.1,168.3 L 236.3,170.5 L 236.5,172.1 L 236.6,173.4 Z" },
-  { name: "BOCA", d: "M 258.7,169.1 L 259.4,170.5 L 260.8,174.3 L 260.2,176.2 L 259.3,177.8 L 257.9,178.9 L 256.3,179.8 L 255.2,181 L 253.8,181.9 L 252.3,182 L 250.6,182 L 249,182.8 L 251,184.6 L 252.8,185.2 L 253.8,186.6 L 254.3,188.1 L 254.1,190 L 252.6,190.5 L 251.1,191.4 L 249.6,192.6 L 248.5,193.7 L 246.6,194.4 L 244.9,194.5 L 242.4,196 L 240.4,197.1 L 240,195.6 L 239.7,194.1 L 239.5,192.3 L 239.1,189.9 L 238.9,188.4 L 238.5,185.8 L 238.1,183.3 L 237.7,180.8 L 237.4,178.3 L 236.9,175.7 L 236.7,174.1 L 236.5,172.1 L 236.3,170.5 L 236.2,169 L 237.6,167.3 L 239.7,165.5 L 239.9,163.2 L 241.9,162.8 L 246.1,162.7 L 247.4,161.7 L 248.5,160.5 L 249.9,159.1 L 251,157.9 L 253.2,155.6 L 254.4,154.3 L 255.6,153.1 L 257,154 L 258.7,154.9 L 260.3,155 L 261.9,155.1 L 263.4,154.9 L 264.9,155.3 L 266.9,154.3 L 269.3,154.4 L 271.2,154 L 270.9,155.5 L 269.6,154.6 L 268.6,156.4 L 269.5,157.9 L 270.1,159.5 L 270.6,157.9 L 272.1,157.6 L 272.4,156 L 273,154.6 L 274.4,153.7 L 276.2,153.6 L 277.8,153.8 L 279.5,153.6 L 280.9,154.2 L 281.7,155.5 L 282,157.1 L 282.6,158.5 L 281.4,159.5 L 279.4,159.3 L 277.7,159.3 L 275.9,159.5 L 274.4,159.2 L 277.4,159.8 L 279.4,161.1 L 280.8,162 L 282.4,162.4 L 283.7,163.5 L 285,164.5 L 284.3,166 L 282.5,166.9 L 280.9,167.6 L 279.4,167.8 L 278.7,166.4 L 276.9,165.7 L 275.7,164.7 L 274.2,164.2 L 272.7,164.4 L 273.8,165.7 L 275.1,166.8 L 276.4,167.9 L 275,168.6 L 273.6,167.9 L 272.3,167.1 L 269.6,166.4 L 267.6,166.5 L 266.4,167.5 L 266.7,169.1 L 267.3,170.7 L 268.7,171.5 L 267.5,172.5 L 266,172.8 L 264.4,172.6 L 263,171.3 L 262.3,169.6 L 261.4,168.1 L 259.9,167.7 L 258.3,166.2 L 256.1,164.8 L 254.7,163.9 L 250.4,161.1 L 248.9,161 L 249.6,162.4 L 252.2,164.1 L 254.3,165.5 L 256.6,166.9 L 257.9,168 L 258.7,169.1 Z" },
-  { name: "BOEDO", d: "M 179.6,169.9 L 179.8,171.5 L 180,173.3 L 180.7,175.2 L 181.4,176.6 L 181.1,178.1 L 180.4,180.5 L 177.7,181 L 175.8,181.3 L 174,181.6 L 172.3,181.9 L 170.5,182.2 L 169,182.5 L 167.1,182.8 L 165.2,183.1 L 163.5,183.4 L 162.8,180.5 L 162.3,178.7 L 161.9,177.2 L 161.2,174.5 L 160.8,173 L 160.4,171.4 L 160.1,169.8 L 159.7,168.3 L 159.4,166.8 L 159,165.3 L 158.7,163.7 L 158.1,160.8 L 157.6,158.5 L 159.2,158.3 L 161.2,158 L 162.8,157.8 L 165.3,157.6 L 167,157.4 L 169.1,157.3 L 171,157.2 L 173.1,157 L 175.1,156.8 L 176.8,156.7 L 178.6,156.5 L 178.7,158.2 L 179.3,159.7 L 179.2,162.2 L 179.3,164.6 L 179.4,166.1 L 179.6,168.3 L 179.6,169.9 Z" },
-  { name: "COGHLAN", d: "M 96.3,81.5 L 94.7,82.2 L 93.2,82.4 L 91.1,82.6 L 89.7,81.4 L 88.4,80.2 L 87,79 L 85.7,78 L 84.5,76.8 L 80.9,71.9 L 82.5,71.1 L 84.7,69.8 L 86.2,69 L 88.7,67.6 L 91.2,66.2 L 93.7,64.8 L 95.5,65.3 L 97,67.4 L 98.4,69.1 L 99.5,70.3 L 100.7,71.7 L 102.7,73.9 L 102.8,75.5 L 104.4,76.2 L 103,77.2 L 101.5,78.2 L 100.1,79.1 L 98.7,80 L 96.3,81.5 Z" },
-  { name: "COLEGIALES", d: "M 131.6,85.6 L 133,86.3 L 135.2,87.4 L 136.8,88.2 L 138.2,88.9 L 139.8,89.8 L 138.5,91.1 L 136.5,93.1 L 135.4,94.3 L 136.8,95.2 L 138.3,96.2 L 139.6,97.6 L 140.9,98.7 L 138.7,100.7 L 137.4,101.9 L 136.1,103.1 L 134.7,105 L 132.9,104.2 L 131.1,103.4 L 129.5,102.7 L 127.9,102.2 L 126.4,101.6 L 124.3,100.9 L 122.2,100.2 L 120.4,99.6 L 118.9,99.2 L 117.3,98.7 L 115.3,98.4 L 113.8,98.3 L 111.1,96.3 L 109,93.9 L 109.9,92.7 L 111,91.6 L 112.1,90.5 L 113.8,88.9 L 115,87.7 L 116.1,86.6 L 118,85 L 119.3,84.2 L 121.7,82.8 L 123.9,81.6 L 125.8,82.5 L 127.2,83.3 L 129,84.2 L 131.2,85.4 L 131.6,85.6 Z" },
-  { name: "CONSTITUCION", d: "M 229.4,165.7 L 228,166.5 L 226.5,167.3 L 225.1,168.2 L 225.2,170.1 L 224.1,172.2 L 223.1,173.6 L 221.6,172.6 L 221.5,170.6 L 219.7,171.7 L 217.8,172.7 L 215.9,173.3 L 214.4,173.7 L 212.8,174.1 L 211.3,174.6 L 209.1,175.1 L 208.9,173.1 L 208.7,171.5 L 208.4,168.9 L 208.1,166.9 L 208,165.3 L 207.8,162.8 L 207.6,161.1 L 207.5,159.4 L 207.4,157.8 L 207.4,156 L 207.3,154.4 L 208.1,153.1 L 211,152.9 L 212.7,152.8 L 215.3,152.7 L 217.4,152.6 L 219.2,152.5 L 220.9,152.4 L 223,152.4 L 224.8,152.3 L 227,152.1 L 227,153.7 L 227.1,155.3 L 227.1,156.9 L 227.2,158.5 L 227.3,160.3 L 227.8,162.7 L 228.5,164.3 L 229.4,165.7 Z" },
-  { name: "FLORES", d: "M 112.8,206.2 L 111.5,205.3 L 110.3,204.2 L 108.5,202.8 L 107,201.8 L 105.5,200.6 L 104.2,199.4 L 104.7,197.6 L 106.1,195.9 L 107.3,194.4 L 108.7,192.5 L 107.7,190.6 L 106.3,189.6 L 104.1,187.9 L 102.4,186.5 L 100.6,185.1 L 99.7,183 L 99.1,181.5 L 98.5,180.1 L 97.8,178.5 L 96.5,175.6 L 95.6,173.7 L 94.8,171.9 L 93.9,170 L 93.3,168.6 L 92.1,165.9 L 91.3,164.2 L 90.7,162.8 L 90,161.4 L 88.9,158.9 L 90.3,158.2 L 91.7,157.5 L 93.4,156.6 L 95.6,155.4 L 97.4,154.5 L 99.1,153.6 L 100.5,152.8 L 102.4,151.9 L 104,151.2 L 105.5,150.5 L 107,149.9 L 108.9,149.2 L 110.8,148.5 L 112.4,147.9 L 114.1,147.2 L 115.4,150 L 116.4,152.2 L 117.1,153.6 L 118,155.7 L 118.7,157.3 L 119.4,158.9 L 120.1,160.4 L 120.8,161.8 L 121.5,163.4 L 122.4,165 L 123.1,166.5 L 124.2,168.7 L 124.9,170.3 L 122.6,171 L 121.1,171.5 L 121.8,172.9 L 122.5,174.4 L 123.8,176.9 L 124.4,178.3 L 125.1,179.7 L 126.6,180.6 L 127.9,181.5 L 129.7,182.8 L 131,183.9 L 132.3,184.9 L 133.6,186 L 135,187 L 136.3,185.9 L 137.6,186.9 L 138.8,188.1 L 140,189.2 L 141.3,190.4 L 143.8,192.7 L 147.7,191.8 L 149.4,193.1 L 150.7,194.1 L 151.9,195.1 L 153.4,196.3 L 151.8,198.6 L 150.5,199.6 L 148.5,201.2 L 146.3,202.9 L 144.8,203.9 L 143.6,204.9 L 142.4,203.9 L 140.3,202.2 L 138.7,201 L 137.2,199.8 L 136.3,198.5 L 134.8,198.4 L 130.3,198.4 L 128.7,198.5 L 125.7,198.4 L 123.2,198.3 L 120.7,198 L 120.4,199.6 L 117.5,202.3 L 116.1,203.5 L 114.8,204.6 L 112.9,206.1 L 112.8,206.2 Z" },
-  { name: "FLORESTA", d: "M 81.2,161.3 L 83.2,161.5 L 84.8,160.8 L 86.7,160 L 88.2,159.3 L 89.9,161.3 L 90.7,162.8 L 91.3,164.2 L 92.1,165.9 L 92.7,167.3 L 93.7,169.6 L 94.8,171.9 L 95.6,173.7 L 96.5,175.6 L 97.2,177.2 L 96.3,179 L 94.8,179.4 L 93.5,180.3 L 91.2,181.7 L 89.1,180 L 87.8,179 L 86.3,177.8 L 84.5,176.3 L 82.6,174.8 L 81.2,173.7 L 79.3,172.2 L 77.5,170.8 L 76.3,169.8 L 74.7,168.6 L 73.1,167.3 L 71.8,166.2 L 70.2,165 L 68.3,163.5 L 66.7,162.2 L 65.3,161.1 L 63.8,159.9 L 62.3,158.7 L 60.8,157.5 L 62.2,156.4 L 63.4,155.4 L 64.6,154.4 L 65.9,153.3 L 67.1,152.3 L 68.3,151.3 L 69.9,152.3 L 71.2,153.4 L 72.9,154.7 L 74.4,155.9 L 75.8,157 L 77.3,158.2 L 78.8,159.4 L 80.3,160.6 L 81.2,161.3 Z" },
-  { name: "LINIERS", d: "M 31.9,173.5 L 34.5,173.5 L 36.4,173.7 L 37.9,173.8 L 40,174.4 L 41.5,175.1 L 43.7,176 L 45.1,176.6 L 47,177.3 L 48.6,177.5 L 50.4,178.6 L 45.5,179.3 L 43.9,179.5 L 44.5,181.9 L 45.7,183.9 L 47.3,185.1 L 48.8,186.2 L 50.6,187.6 L 52.2,188.8 L 53.8,190 L 55.2,191.1 L 53.7,191.8 L 52.3,192.5 L 50.9,193.2 L 49.4,193.9 L 47.8,194.6 L 46,195.5 L 43.7,196.5 L 42.3,197.2 L 40.9,197.8 L 38.5,199 L 37.1,199.6 L 35.6,200.3 L 33.3,201.4 L 31.9,202 L 30.5,202.7 L 29.1,203.3 L 27.6,204 L 26.2,204.7 L 24.5,205.5 L 22.9,206.4 L 18.7,203.2 L 17.3,187.8 L 17,182.4 L 16.7,178.1 L 16.6,176.1 L 18.3,176.1 L 19.9,176 L 23.1,175.7 L 24.9,175.5 L 26.7,175.1 L 29.3,174.7 L 30.3,173.5 L 31.9,173.5 L 31.9,173.5 Z" },
-  { name: "MATADEROS", d: "M 54.9,230.6 L 47,224.6 L 41.9,220.7 L 40.1,219.4 L 33.5,214.4 L 31,212.5 L 26.7,209.2 L 24.3,207.4 L 22.9,206.4 L 24.5,205.5 L 26.2,204.7 L 27.6,204 L 29.1,203.3 L 30.5,202.7 L 31.9,202 L 33.3,201.4 L 34.8,200.7 L 36.2,200 L 38.5,199 L 40.9,197.8 L 42.3,197.2 L 43.7,196.6 L 45.8,195.6 L 47.8,194.6 L 49.4,193.9 L 50.9,193.2 L 52.3,192.5 L 53.7,191.8 L 55.2,191.1 L 56.6,190.5 L 58,189.8 L 59.4,189.2 L 60.8,188.5 L 62.3,187.8 L 64.7,189.7 L 66.8,191.4 L 68.3,192.6 L 70.1,194 L 71.6,195.2 L 72.8,196.1 L 74.3,197.3 L 75.6,198.3 L 76.9,199.4 L 78.2,200.4 L 80.5,202.2 L 82.2,203.5 L 83.7,204.7 L 85.3,206 L 87.5,207.7 L 86.1,208.6 L 84.7,209.5 L 82.6,210.8 L 80.2,212.4 L 78.9,213.2 L 76,214.5 L 73.7,215.2 L 72,216.7 L 70.7,217.9 L 69.4,219.2 L 67.3,221.4 L 66.1,222.6 L 64.2,224.5 L 62.4,226 L 60.7,227.2 L 58.7,228.5 L 56.1,229.9 L 54.9,230.6 Z" },
-  { name: "MONTE CASTRO", d: "M 53.5,161.2 L 51.9,162.7 L 50.3,164.3 L 48.5,166 L 47.1,165.2 L 45.6,164.1 L 44.3,163.1 L 42.9,162 L 41.2,162.6 L 39.7,163.9 L 38.5,164.9 L 37.1,166.1 L 35.8,167.3 L 34.4,166.2 L 32.9,165.1 L 31.5,163.9 L 30,162.8 L 28.6,161.7 L 29.9,160.5 L 31.4,159.2 L 33,157.7 L 34.2,156.7 L 35.5,155.6 L 36.8,154.4 L 38.6,152.7 L 40.4,151.2 L 42.3,150 L 43.6,149.2 L 44.9,148.4 L 46.3,147.6 L 47.7,146.9 L 50.6,145.1 L 52.1,144.2 L 53.5,143.4 L 55,142.5 L 56.3,141.7 L 58.1,140.7 L 59.2,142 L 60.5,143.4 L 61.7,144.9 L 63.1,146.4 L 64.4,147.9 L 66.8,149.8 L 68.5,151.2 L 67.1,152.3 L 65.9,153.3 L 64.6,154.4 L 63.4,155.4 L 62.2,156.4 L 60.8,157.5 L 59.2,158.3 L 56.2,159.9 L 54.6,160.7 L 53.5,161.2 Z" },
-  { name: "NUEVA POMPEYA", d: "M 179,194.3 L 181.6,194.6 L 183.4,194.3 L 187.1,193.7 L 189,193.4 L 190.8,193.1 L 189.8,195.8 L 189.3,197.3 L 190.1,198.9 L 190.9,201.4 L 191.4,203 L 192.1,205 L 193.1,207.4 L 194.1,209.9 L 192.5,209.9 L 190.6,209.8 L 188.6,210.1 L 187,210.6 L 185.5,210.5 L 183.9,210.2 L 182.5,209.6 L 181,208.9 L 179.5,208.6 L 178,208.4 L 176.5,208.6 L 174.1,209.2 L 172.6,209.7 L 170.9,210.2 L 169.1,210.7 L 167.1,211.3 L 164.9,212.3 L 163.4,213.1 L 161.9,212.3 L 160.5,210.6 L 159.5,209.4 L 158.3,208.3 L 156.4,206.9 L 155.1,206 L 153.6,204.9 L 151.8,203.6 L 150.3,202.5 L 148.5,201.2 L 150.5,199.6 L 151.8,198.6 L 153.2,197.4 L 151.9,195.1 L 150.7,194.1 L 149.4,193.1 L 147.8,191.7 L 149.7,190.9 L 151.7,190.2 L 151.5,188.1 L 151.4,186.3 L 152.6,185.3 L 154.4,184.9 L 156.6,184.6 L 158.1,184.3 L 159.9,184 L 161.4,183.8 L 163.5,183.4 L 165.2,183.1 L 167.1,182.8 L 168.7,182.5 L 170.2,182.3 L 172.1,182 L 173.6,181.7 L 175.8,181.3 L 177.7,181 L 179.2,180.7 L 179.7,182.4 L 179,184 L 178.4,185.5 L 177.8,187 L 177.8,189.3 L 178.2,190.8 L 178.6,192.4 L 178.9,193.9 L 179,194.3 Z" },
-  { name: "NUÑEZ", d: "M 115.1,41.8 L 115.7,43.7 L 120.6,46.1 L 122.7,46.7 L 124.7,47.5 L 127,48.7 L 127.1,50.5 L 126.1,51.9 L 124.2,54.3 L 123.2,55.6 L 122,57.1 L 121.4,58.6 L 123,60.1 L 121.2,61 L 119.6,61.9 L 118.2,62.6 L 116.6,63.4 L 115,64.2 L 112.8,65.4 L 109.9,66.9 L 108.2,67.8 L 106.1,68.9 L 103.5,70.2 L 102,71 L 100.1,71 L 98.4,69.1 L 97.4,67.9 L 96.2,66.3 L 94.7,64.3 L 93.5,62.7 L 95.9,61.4 L 98.2,60.1 L 100.5,58.8 L 102.1,57.9 L 101,56.6 L 99.7,54.9 L 98.2,52.9 L 96.7,50.9 L 95.1,48.8 L 93.6,46.7 L 92.1,44.7 L 93.2,43 L 95,42.2 L 98.1,40.8 L 102.3,38.9 L 104.4,38 L 106.5,37.1 L 108.1,36.4 L 111.1,32.9 L 112.1,31.7 L 112.9,30.3 L 113.9,29.1 L 114.7,27.7 L 116.2,27.1 L 117.7,27.4 L 119.3,28.3 L 120.7,30 L 122.3,31.9 L 122.5,33.8 L 121.7,35.1 L 120.3,35.8 L 119.7,37.2 L 120,38.7 L 117.8,40.4 L 115.1,41.6 L 115.1,41.8 Z" },
-  { name: "PARQUE AVELLANEDA", d: "M 99.1,181.5 L 99.7,183 L 100.6,184.9 L 102.4,186.5 L 103.9,187.7 L 105.6,189.1 L 106.9,190 L 108.6,191.3 L 108,193.5 L 106.1,195.9 L 105.1,197.1 L 104,198.5 L 105.3,200.4 L 107,201.8 L 108.3,202.6 L 109.8,203.8 L 111.1,204.9 L 112.8,206.2 L 111.6,207.4 L 107.8,210.3 L 106.2,209.9 L 104.9,208.9 L 103.4,207.8 L 100.2,209.4 L 98.8,208.5 L 97.8,210.7 L 96.8,212.9 L 96.1,214.5 L 94.6,213.3 L 93,212 L 91.7,211.1 L 89.9,209.6 L 88.7,208.7 L 87.5,207.7 L 85.6,206.2 L 83.9,204.9 L 82.2,203.5 L 80.7,202.3 L 79,201 L 77.7,200 L 75.8,198.5 L 74.3,197.3 L 73.1,196.4 L 71.6,195.2 L 70.1,194 L 68.5,192.7 L 66.8,191.4 L 65.4,190.3 L 67,188.8 L 68.9,187.9 L 70.9,186.9 L 72.6,186.1 L 74.8,185.1 L 76.3,184.4 L 78.3,183.5 L 80.5,182.4 L 81.9,181.7 L 83.4,181 L 85.3,180.2 L 87.8,179 L 89.1,180 L 90.3,180.9 L 92.3,181.1 L 94.8,179.4 L 96.3,179 L 97.8,178.5 L 98.5,180.1 L 99.1,181.5 Z" },
-  { name: "PARQUE CHACABUCO", d: "M 151.4,185.5 L 151.5,187.3 L 151.6,188.9 L 151,190.3 L 147.8,191.7 L 144.4,193.3 L 142.4,191.4 L 141,190.1 L 139.8,189 L 137.6,186.9 L 136.6,185.6 L 135,187 L 133.6,186 L 132.3,184.9 L 131,183.9 L 129.7,182.8 L 127.9,181.5 L 126.6,180.6 L 125.3,179.7 L 124.4,178.3 L 123.8,176.9 L 122.5,174.4 L 121.8,172.9 L 121.1,171.5 L 122.6,171 L 124.9,170.3 L 126.4,170.1 L 128,169.8 L 129.5,169.6 L 132,169.2 L 134.7,168.8 L 136.8,168.5 L 138.4,168.3 L 141.5,167.8 L 144.7,167.4 L 146.8,167 L 149.3,166.7 L 151.1,166.4 L 153.3,166.1 L 155.1,165.8 L 156.8,165.6 L 158.6,165.3 L 159.4,166.8 L 159.7,168.3 L 160.1,169.8 L 160.4,171.4 L 160.8,173 L 161.2,174.5 L 161.7,176.1 L 162.1,178 L 162.8,180.5 L 163.2,182 L 161.6,183.8 L 159.9,184 L 158.1,184.3 L 156.6,184.6 L 155,184.9 L 153.5,185.1 L 151.7,185.5 L 151.4,185.5 Z" },
-  { name: "PARQUE CHAS", d: "M 98.5,110.9 L 97,112.1 L 95.6,113.2 L 94,114.4 L 92.7,115.5 L 91.5,116.7 L 89.7,116.3 L 86.5,115.4 L 84.6,115 L 83.1,114.5 L 80.8,113.7 L 78.9,112.7 L 77.4,111.1 L 75.6,109.2 L 73.7,107.3 L 76.2,105.9 L 77.6,105 L 79.3,104.1 L 81.5,102.8 L 82.9,102 L 84.3,101.2 L 85.6,100.4 L 86.9,99.6 L 89.7,100 L 92,100.6 L 93.1,101.8 L 94.3,102.9 L 95.5,105.2 L 96.2,106.6 L 98.1,110.1 L 98.5,110.9 Z" },
-  { name: "PARQUE PATRICIOS", d: "M 181.6,194.6 L 179.2,194.9 L 178.6,192.4 L 178.2,190.9 L 177.8,189.3 L 177.6,187.3 L 178.4,185.5 L 179,184 L 179.6,182.6 L 180.2,181 L 180.7,179.4 L 181.4,177.2 L 180.9,175.6 L 180.1,173.5 L 179.8,171.7 L 179.6,169.9 L 181.4,169.5 L 182.9,169.1 L 186.6,168.5 L 188.1,168.3 L 191,168 L 192.6,167.8 L 194.1,167.6 L 196,167.4 L 197.8,167.2 L 200.1,166.8 L 202.2,166.4 L 203.7,166.2 L 205.2,165.9 L 208,165.6 L 208.3,168.5 L 208.5,170.1 L 208.8,172.7 L 209.1,175.1 L 209.2,176.8 L 209.4,178.4 L 209.5,180.2 L 209.6,181.9 L 209.7,183.4 L 207.6,184.3 L 207.7,186 L 204.8,187.2 L 199.6,189.5 L 195.3,191.3 L 193.7,192.5 L 192.1,192.9 L 189,193.4 L 187.1,193.7 L 183.4,194.3 L 181.6,194.6 Z" },
-  { name: "PATERNAL", d: "M 105.7,123.4 L 108,123.2 L 109.9,123.3 L 111.9,123.4 L 114.3,123.6 L 116,124 L 118.2,124.7 L 118.1,126.3 L 117.6,127.8 L 117.1,129.4 L 116.2,132.3 L 114.8,134.2 L 113.3,133.8 L 111.3,133.3 L 109.3,132.8 L 107.3,132.3 L 105.4,131.8 L 103.3,131.2 L 101.3,130.8 L 99.3,132 L 97.4,133.4 L 95.9,134.3 L 94.1,135.5 L 92.8,133.9 L 91.7,132.6 L 90,130.3 L 90.4,128.6 L 89,128 L 87.4,127.7 L 88.1,125.9 L 88.8,124.1 L 89.8,121.4 L 90.4,119.9 L 91.1,118 L 91.7,116.3 L 94,114.4 L 95.2,113.5 L 96.7,112.3 L 98.1,111.2 L 100.7,112.7 L 102.1,113.8 L 103.5,114.9 L 105,115.9 L 106.4,117.1 L 106.7,120 L 106.2,121.7 L 105.7,123.3 L 105.7,123.4 Z" },
-  { name: "PUERTO MADERO", d: "M 261.9,125.6 L 263,126.7 L 264.3,127.6 L 265.5,128.6 L 266.9,129.5 L 268.2,130.5 L 269.1,131.9 L 269.3,133.6 L 270,135 L 270,136.8 L 271.2,138.1 L 272.8,139.1 L 274.1,140 L 275.3,141 L 276.6,142 L 277.2,143.6 L 277.8,145.3 L 278.3,146.9 L 278.5,148.6 L 278.5,150.3 L 277.3,151.4 L 275.7,151.6 L 274.2,151.9 L 272.1,152.5 L 270.6,152.2 L 269.1,152.4 L 267.7,151.7 L 266.2,151.4 L 264.7,151.7 L 263.7,153 L 263.4,154.5 L 261.9,155.1 L 260.3,155 L 258.7,154.9 L 257.2,154.3 L 256.5,152.9 L 254.4,154.3 L 253.2,155.6 L 251.6,157.3 L 250.3,158.6 L 249.1,159.9 L 247.6,161.5 L 246.4,162.7 L 244.2,161.6 L 242.8,160.9 L 242.7,159.4 L 242.5,157.7 L 242.3,156.2 L 242.1,154.6 L 242,153.1 L 241.8,151.4 L 241.6,149.6 L 241.2,146.6 L 241,144.9 L 240.9,143.3 L 240.4,138.9 L 239.9,135.3 L 239.8,133.7 L 239.6,132 L 239.4,130.5 L 239,128.7 L 238.4,127.3 L 237.8,125.8 L 239.7,126 L 241.5,125.8 L 243.9,125.7 L 245.5,125.6 L 246.1,124.2 L 247.9,123.4 L 249.4,122.7 L 251.9,121.6 L 253.8,121.5 L 255.8,121.3 L 257.3,121.8 L 258.5,122.8 L 259.9,123.6 L 261,124.9 L 261.9,125.6 Z" },
-  { name: "RETIRO", d: "M 231.2,98.9 L 239.8,98.2 L 243.4,100.2 L 236.3,101.5 L 237.5,102.5 L 243.7,102.6 L 246.2,102.4 L 248.6,102.2 L 248.9,104.7 L 247.3,104.8 L 244.6,105.1 L 243.1,105.2 L 243.7,106.6 L 250.1,106.4 L 251.2,108.7 L 245.9,109.2 L 246,110.9 L 251.3,110.5 L 251.2,112 L 249.7,112.4 L 246.4,113.1 L 243.7,113.6 L 239.8,114.4 L 241.1,115.3 L 242.7,117 L 243.7,118.5 L 244.8,120.1 L 243.3,119.1 L 242.1,117.9 L 241.2,116.5 L 241.9,118.2 L 240.3,117.1 L 240.8,118.7 L 239.3,119.7 L 238.7,121.2 L 239.8,124.2 L 241.9,124.6 L 244.2,124.4 L 244.8,122 L 246.1,123.5 L 248.2,123 L 249.6,122.3 L 250.8,121.3 L 252.4,121.2 L 254.1,121.1 L 255.6,121 L 257.8,120.9 L 259.4,120.9 L 263.3,121.5 L 258.9,120.9 L 255.5,121.1 L 254,121.5 L 251.9,121.6 L 250.1,122.4 L 247.9,123.4 L 246.3,124.1 L 245.7,125.5 L 243.9,125.7 L 242.1,125.8 L 240.1,125.8 L 238.6,125.9 L 235.8,125.9 L 233.2,126.1 L 231.3,126.3 L 229.7,126.4 L 227.7,126.5 L 225.7,126.6 L 223.7,126.7 L 221.9,126.8 L 219.9,126.9 L 218,127 L 215.8,127.1 L 214,127.2 L 213.7,125.6 L 213.6,124.1 L 213.5,122.6 L 213.3,120.9 L 212.9,118.3 L 212.5,116.7 L 213.8,115.5 L 215.2,114.1 L 216.5,112.7 L 218,111.2 L 216.7,109.4 L 215.6,107.5 L 214.5,106.3 L 213.1,105 L 211.8,104.1 L 210.5,103.3 L 209,102.6 L 207.6,101.9 L 209.1,99.2 L 210.3,98.2 L 211.8,98.1 L 213.9,98.1 L 215.5,98.2 L 217.2,98.2 L 218.7,98.3 L 223.6,100.9 L 227.5,100.6 L 230,101.4 L 231.6,99.4 L 228,97.4 L 229.7,98 L 231.1,98.8 L 231.2,98.9 Z" },
-  { name: "SAAVEDRA", d: "M 74.7,74.9 L 73.3,75.5 L 71.5,76.4 L 69.6,75.1 L 68.1,75.6 L 66.4,76.4 L 64.6,77.2 L 63,78 L 61.3,78.9 L 59.6,79.6 L 58,80.4 L 56.4,81.2 L 54.8,82 L 52.9,82.9 L 51.4,83.7 L 49.7,84.5 L 48.3,85.2 L 46.8,85.9 L 45.5,86.7 L 45.4,84.5 L 49.6,75.7 L 50.4,74 L 51.6,71.4 L 55.6,62.9 L 56.4,61.2 L 57.3,59.2 L 61.8,56.8 L 64.6,55.6 L 66.4,54.8 L 67.9,54.1 L 71.4,52.6 L 75.2,50.9 L 76.8,50.2 L 80.8,48.4 L 84.1,47 L 86.5,45.9 L 88.4,45.1 L 91.4,43.8 L 92.8,45.6 L 94.4,47.8 L 95.9,49.8 L 97.5,51.9 L 99,54 L 100.4,55.8 L 101.4,57.1 L 100.5,58.8 L 98.2,60.1 L 95.9,61.4 L 93.5,62.7 L 94.7,64.3 L 92.5,65.5 L 90,66.9 L 87.5,68.3 L 85.1,69.6 L 83.7,70.4 L 81.2,71.8 L 79,72.9 L 77.2,73.7 L 75.8,74.4 L 74.7,74.9 Z" },
-  { name: "SAN CRISTOBAL", d: "M 207.4,157.8 L 207.5,159.4 L 207.6,161.1 L 207.8,162.8 L 207.9,164.4 L 206.6,165.6 L 203.7,166.2 L 202.2,166.4 L 200.3,166.8 L 198,167.2 L 196.2,167.4 L 194.7,167.6 L 192.6,167.8 L 191,168 L 188.3,168.3 L 186.6,168.5 L 184.3,168.7 L 182.7,169.1 L 180.9,169.6 L 179.6,168.3 L 179.4,166.1 L 179.3,164.6 L 179.2,162.7 L 179,161.1 L 178.8,158.2 L 178.6,156.5 L 181,156.1 L 183.1,155.7 L 185.1,155.3 L 187.1,154.9 L 188.9,154.5 L 191,154.1 L 192.7,153.9 L 194.5,153.8 L 196.9,153.7 L 199.3,153.5 L 201.3,153.4 L 203.4,153.3 L 205.2,153.2 L 206.8,153.1 L 207.4,156 L 207.4,157.8 Z" },
-  { name: "SAN NICOLAS", d: "M 239.9,135.3 L 240.2,137.6 L 238.7,137.5 L 236.8,137.2 L 236,138.5 L 234.1,139.1 L 232.3,139.2 L 230.4,139.2 L 228.6,139.3 L 226.3,139.4 L 224.4,139.6 L 222.7,139.7 L 220.9,139.8 L 218.8,139.9 L 216.9,140.1 L 215.1,140.2 L 213.4,140.3 L 211.6,140.5 L 209.9,140.7 L 207.6,140.9 L 206.8,139.1 L 206.7,137.5 L 206.6,135.9 L 206.4,134.2 L 206.3,132.5 L 206,130.9 L 205.8,129.4 L 205.6,127.7 L 207.4,127.6 L 209.4,127.4 L 212.1,127.3 L 213.9,127.2 L 215.7,127.1 L 217.6,127 L 219.5,126.9 L 221,126.8 L 222.9,126.8 L 225.7,126.6 L 227.7,126.5 L 229.6,126.4 L 231.3,126.3 L 233.2,126.1 L 235,126 L 237.8,125.8 L 238.4,127.3 L 239,128.7 L 239.4,130.5 L 239.6,132 L 239.8,133.7 L 239.9,135.3 Z" },
-  { name: "SAN TELMO", d: "M 246.1,162.7 L 241.9,162.8 L 239.9,162.8 L 239.9,165.3 L 237.8,167.1 L 236.5,168.4 L 236,166.8 L 235.8,165 L 233.6,164.9 L 232.1,165 L 229.4,165.7 L 228.6,164.4 L 227.8,162.7 L 227.5,161.1 L 227.3,159.5 L 227.1,157 L 227.1,155.4 L 227,153.7 L 227,152.1 L 226.9,150.6 L 228.6,150.5 L 230.6,150.3 L 232.6,150.2 L 234.7,150.2 L 236.3,150 L 237.8,149.9 L 240.4,149.7 L 241.8,151.4 L 242,153.1 L 242.1,154.6 L 242.3,156.2 L 242.5,157.7 L 242.7,159.3 L 242.8,160.9 L 244.2,161.6 L 246,162.5 L 246.1,162.7 Z" },
-  { name: "VELEZ SARSFIELD", d: "M 78.2,171.3 L 80.7,173.4 L 82.6,174.8 L 84.5,176.3 L 85.9,177.5 L 87.3,178.7 L 85.8,180 L 83.8,180.9 L 81.9,181.7 L 80.5,182.4 L 79.1,183 L 77.5,183.8 L 75.1,184.9 L 73.8,183.9 L 72,182.5 L 70.8,181.6 L 69.6,180.6 L 67.5,179 L 65.8,177.7 L 64.6,176.7 L 62.2,174.9 L 60.7,173.6 L 58.7,172.1 L 56.9,172.4 L 55.5,171.4 L 54,170.3 L 52.4,169.1 L 51,168.1 L 49.7,167.1 L 48.5,166.2 L 50.1,164.4 L 51.8,162.8 L 53.5,161.2 L 55.9,160 L 58,159 L 59.5,158.2 L 61.3,157.9 L 63.8,159.9 L 65.3,161.1 L 66.5,162.1 L 68.2,163.4 L 69.7,164.6 L 71.5,166 L 73.1,167.3 L 74.5,168.4 L 76.3,169.8 L 77.5,170.8 L 78.2,171.3 Z" },
-  { name: "VERSALLES", d: "M 43.2,172.9 L 44.4,173.9 L 45.7,174.9 L 44.3,176 L 42.8,175.6 L 41.1,174.9 L 39.2,174.2 L 37.2,173.7 L 35.5,173.6 L 32.9,173.5 L 31.3,173.5 L 29.8,173.8 L 27.6,174.9 L 25,175.5 L 23.1,175.7 L 21.3,175.8 L 19.6,176.1 L 18,176 L 16.6,175.4 L 16,166 L 17.9,165 L 19.3,164.3 L 21.3,163.3 L 22.8,162.5 L 25.1,161.4 L 26.9,160.4 L 28.6,161.7 L 30,162.8 L 31.5,163.9 L 32.9,165.1 L 34.4,166.2 L 35.8,167.3 L 37.4,168.5 L 39,169.8 L 40.4,170.8 L 41.8,171.9 L 43.2,172.9 Z" },
-  { name: "VILLA CRESPO", d: "M 163.2,125.2 L 161.5,125.2 L 159.7,125.2 L 157.6,125.9 L 155.7,126.7 L 154.4,127.8 L 153.2,129.2 L 152,130.5 L 150.3,131.7 L 147.7,132.9 L 145.5,134 L 143.6,135 L 141.9,135.8 L 140.4,136.3 L 138.8,136.7 L 137,137.2 L 135.1,137.7 L 133,138.3 L 131.2,138.3 L 128.4,137.7 L 126.8,137.3 L 125,136.8 L 123,136.3 L 120.2,135.6 L 118.1,135 L 116,134.5 L 116.2,132.3 L 116.7,130.6 L 117.5,128.2 L 118,126.4 L 118.5,124.8 L 120.5,124.5 L 121.8,123.6 L 123.2,122.6 L 124.5,121.7 L 125.8,120.8 L 142.7,112.6 L 144.8,113.9 L 146.1,114.7 L 148.6,116.4 L 149.9,117.2 L 151.3,118.2 L 152.9,119.3 L 154.2,120.1 L 155.5,120.9 L 157.2,122 L 158.7,122.9 L 160.1,123.5 L 161.7,124.1 L 163.5,124.9 L 163.2,125.2 Z" },
-  { name: "VILLA DEL PARQUE", d: "M 65.7,148.6 L 63.2,146.6 L 61.9,145.1 L 60.9,143.9 L 59.2,142 L 58.1,140.7 L 57,139.5 L 56,138.3 L 54.5,136.6 L 53.4,135.4 L 52,133.8 L 50.9,132.6 L 49.9,131.4 L 51.7,130.3 L 53.3,129.3 L 55.3,128.1 L 57.1,126.9 L 59,125.8 L 60.8,124.7 L 62.2,123.8 L 65.6,124 L 67.4,124.1 L 70.4,124.3 L 72.7,124.4 L 75.1,124.6 L 76.7,124.7 L 78.7,124.9 L 81.1,125.1 L 82.9,125.7 L 84.8,126.5 L 86.2,127.2 L 87.8,127.8 L 90.8,128.4 L 89.3,129.3 L 90.8,131.4 L 92.8,133.9 L 94.1,135.5 L 92.8,136.3 L 91.1,137.3 L 89.5,138.1 L 87.6,138.7 L 86.1,139.1 L 84,139.6 L 81.1,140.3 L 79.4,140.8 L 77.9,141.1 L 75.1,141.8 L 73.6,142.3 L 71.9,143.6 L 70.4,144.8 L 69,145.8 L 67.5,147.1 L 65.7,148.6 Z" },
-  { name: "VILLA DEVOTO", d: "M 46.9,147.3 L 45.2,148.3 L 43.8,149.1 L 42.3,150 L 41,150.8 L 39.6,151.9 L 37.8,153.5 L 36.3,154.8 L 35,155.9 L 33.3,154.6 L 31.7,153.4 L 30.4,152.4 L 28.1,150.7 L 26.5,149.5 L 25.2,148.4 L 23.9,147.3 L 21.8,146 L 20.2,144.8 L 18.6,143.7 L 20.1,138.3 L 22.3,133.7 L 26,125.7 L 36.8,102.7 L 38.3,103 L 39.9,104.7 L 41.2,106.2 L 43,108.2 L 44.9,110.2 L 45.9,111.4 L 47,112.6 L 49.1,114.9 L 50.9,116.9 L 52.7,118.9 L 54.1,120.4 L 55.9,121.4 L 57.4,122 L 59,122.6 L 60.6,123.2 L 62.2,123.8 L 60.8,124.7 L 59,125.8 L 57.5,126.7 L 55.3,128.1 L 53.7,129.1 L 51.7,130.3 L 49.9,131.4 L 50.9,132.6 L 52,133.8 L 53.2,135.2 L 54.3,136.4 L 55.4,137.7 L 57,139.5 L 58.1,140.7 L 56.5,141.6 L 55.1,142.5 L 53.7,143.3 L 52.1,144.2 L 50.7,145.1 L 48.6,146.3 L 47.3,147.1 L 46.9,147.3 Z" },
-  { name: "VILLA GRAL. MITRE", d: "M 97.7,154.3 L 96.2,153 L 95.1,151.7 L 94,150.3 L 92.9,148.9 L 91.8,147.5 L 90.7,146.1 L 89.7,144.9 L 88.5,143.4 L 87.4,142 L 86.3,140.6 L 85.3,139.3 L 86.9,138.9 L 89.1,138.3 L 90.8,137.4 L 92.3,136.5 L 93.6,135.7 L 95.4,134.6 L 97.1,133.6 L 99,132.2 L 100.6,131.1 L 102.9,131.2 L 105,131.7 L 106.5,132.1 L 109.1,132.7 L 111.2,133.2 L 113.2,133.7 L 114.8,134.2 L 113.8,135.4 L 111.2,137.2 L 109.9,138.1 L 110.3,139.7 L 111.1,141.2 L 111.9,142.8 L 112.6,144.3 L 113.3,145.7 L 114.1,147.2 L 112.4,147.9 L 110.8,148.5 L 109.2,149.1 L 107.7,149.7 L 105.7,150.5 L 104.2,151.1 L 102.4,151.9 L 100.8,152.6 L 99.1,153.6 L 97.7,154.3 Z" },
-  { name: "VILLA LUGANO", d: "M 105.5,209.3 L 106.7,210.3 L 105.9,212.1 L 104.5,213.3 L 103.3,214.4 L 101.7,215.7 L 100.1,215.7 L 99.4,217.1 L 100.8,218.2 L 102.4,219.4 L 106.1,222.3 L 107.6,223.1 L 109.4,224.1 L 110.5,225.5 L 113.3,227.9 L 114,229.3 L 116.5,230.4 L 120.1,233.3 L 122.8,235.4 L 125.1,237.2 L 126,238.4 L 124.8,239.6 L 123.4,240.8 L 121.6,242.5 L 119.6,244.3 L 118.4,245.4 L 116.8,246.7 L 115.6,247.8 L 114.1,249.4 L 112.5,250.9 L 110.5,252.6 L 108.7,254.4 L 106.1,252.4 L 104.5,251.1 L 102.9,249.9 L 101.4,248.7 L 100.2,247.7 L 98.9,246.7 L 97.6,245.7 L 96.3,244.7 L 94.8,243.6 L 93.2,242.3 L 92,241.4 L 90.5,242.1 L 89.1,243.4 L 87.4,244.9 L 85.3,246.8 L 83.2,248.7 L 82,249.8 L 80.3,249.8 L 78.2,248.2 L 76.8,247.1 L 73.7,244.8 L 72,243.5 L 70.1,242.1 L 67.6,240.2 L 65.2,238.4 L 60.1,234.5 L 54.9,230.6 L 57.4,229.2 L 59.5,228 L 61.2,226.9 L 64,224.7 L 66.1,222.6 L 67.3,221.4 L 68.5,220.1 L 69.7,218.9 L 72,216.7 L 73.5,215.3 L 75,214.8 L 77.7,214 L 80.2,212.4 L 82.6,210.8 L 83.9,210 L 85.4,209 L 86.7,208.2 L 88.2,208.3 L 89.9,209.6 L 91.5,210.9 L 93,212 L 94.6,213.3 L 96,214.4 L 96.8,212.9 L 97.8,210.7 L 98.6,209 L 100.2,209.4 L 102.8,207.2 L 104.1,208.3 L 105.4,209.2 L 105.5,209.3 Z" },
-  { name: "VILLA LURO", d: "M 56.2,171.9 L 58.4,171.8 L 59.7,172.9 L 61.6,174.4 L 63.4,175.8 L 64.7,176.8 L 66.9,178.5 L 69,180.1 L 70.8,181.6 L 72,182.5 L 73.8,183.9 L 75.1,184.9 L 72.7,186.1 L 71.3,186.8 L 69.8,187.4 L 67,188.8 L 65.4,189.6 L 63.3,188.6 L 60.8,188.5 L 59.4,189.2 L 58,189.8 L 56.6,190.5 L 55.2,191.1 L 53.8,190 L 52.4,188.9 L 50.6,187.6 L 48.9,186.3 L 47.3,185.1 L 45.7,183.9 L 44.5,181.9 L 43.9,179.7 L 45.5,179.3 L 50.5,178.6 L 49,177.4 L 47,177.3 L 45.4,176.8 L 43.7,176 L 45.4,175.9 L 44.4,173.9 L 43.2,172.9 L 41.8,171.9 L 40.6,170.9 L 39,169.8 L 37.8,168.8 L 36.5,167.8 L 37,166.3 L 38.2,165.2 L 39.5,164 L 40.9,162.8 L 42.1,161.7 L 43.6,162.5 L 45.5,164 L 46.9,165 L 48.3,166.1 L 49.7,167.1 L 51,168.1 L 52.4,169.1 L 54,170.3 L 55.4,171.3 L 56.2,171.9 Z" },
-  { name: "VILLA ORTUZAR", d: "M 112.6,97.8 L 112.6,100.2 L 112.6,103.2 L 112.6,106.2 L 112.8,107.8 L 111.3,108.7 L 109.2,110.2 L 107.1,112.2 L 105.4,113.9 L 103.9,115.2 L 102.5,114.1 L 101.1,113 L 99.3,111.6 L 98.1,110.1 L 96.7,107.5 L 95.5,105.2 L 94.7,103.8 L 93.7,102.4 L 92.1,100.6 L 90.4,100.2 L 87.2,99.4 L 88.9,98.5 L 91.9,96.8 L 93.2,96 L 94.7,95.2 L 96.9,93.9 L 98.4,93.1 L 99.7,92.3 L 101.9,91.1 L 103.2,90.3 L 105,91.5 L 106.5,92.4 L 108.7,93.8 L 110.1,95.2 L 112.5,97.7 L 112.6,97.8 Z" },
-  { name: "VILLA PUEYRREDON", d: "M 53.8,119.7 L 51.8,117.9 L 50,115.9 L 48,113.7 L 45.9,111.4 L 44.9,110.2 L 43.2,108.3 L 42.1,107.2 L 40.1,104.9 L 38.4,103 L 37,102.4 L 39.3,97.5 L 40.9,94.2 L 43.1,89.5 L 44.1,87.4 L 44.7,86 L 47.4,87.8 L 48.9,88.7 L 50.3,89.5 L 52.6,90.8 L 54.2,91.7 L 56,93.1 L 57.4,94.2 L 58.8,95.3 L 61,97 L 62.2,97.9 L 64,99.3 L 66,100.8 L 67.3,101.9 L 68.6,102.8 L 70.7,104.6 L 72.3,106 L 73.7,107.3 L 71.7,108.6 L 70.1,109.5 L 68.6,110.5 L 67,111.5 L 65.5,112.5 L 63.9,113.4 L 62.4,114.4 L 60.8,115.4 L 59,116.5 L 57.2,117.6 L 55.7,118.5 L 53.8,119.7 Z" },
-  { name: "VILLA REAL", d: "M 23.8,147.4 L 25.2,148.4 L 26.5,149.5 L 28.1,150.7 L 29.4,151.7 L 30.7,152.6 L 32.4,153.9 L 33.9,155.1 L 34.2,156.7 L 33,157.7 L 31.7,158.9 L 30.4,160 L 29.2,161.1 L 26.9,160.4 L 25.4,161.2 L 23.6,162.2 L 22.1,162.9 L 20,164 L 18.6,164.7 L 17,165.5 L 15,149.5 L 15.6,148.1 L 17.8,143.1 L 19.1,144 L 20.7,145.2 L 22.8,146.7 L 23.8,147.4 Z" },
-  { name: "VILLA RIACHUELO", d: "M 127.4,239 L 129,240.2 L 134.6,244.7 L 125.4,256.3 L 116.1,267.2 L 114.8,268.7 L 112.9,270.9 L 111.8,272 L 110.3,272.4 L 107.7,270.4 L 96.8,262.3 L 94,260.1 L 82.9,251.7 L 81.3,250.5 L 82.5,249.3 L 84.3,247.7 L 86.3,245.9 L 88.4,244 L 90.2,242.4 L 91.6,241.1 L 93.2,242.3 L 94.8,243.6 L 96.1,244.6 L 97.6,245.7 L 98.9,246.7 L 100.2,247.7 L 101.4,248.7 L 102.9,249.9 L 104.3,250.9 L 105.9,252.2 L 107.7,253.6 L 109.6,253.5 L 112,251.3 L 113.2,250.2 L 114.7,248.8 L 116.4,247 L 117.6,246 L 119.6,244.3 L 121.6,242.5 L 123.2,241 L 124.6,239.7 L 126.2,239.2 L 127.4,239 Z" },
-  { name: "VILLA SANTA RITA", d: "M 83.2,161.5 L 81.2,161.3 L 79,159.6 L 77.3,158.2 L 75.8,157 L 74.6,156 L 72.9,154.7 L 71.4,153.5 L 69.9,152.3 L 68.5,151.2 L 67,150 L 65.5,148.8 L 67.4,147.2 L 69,145.8 L 70.4,144.8 L 71.7,143.7 L 73.1,142.7 L 74.6,141.9 L 76.9,141.4 L 78.4,141 L 80.3,140.6 L 82.8,139.9 L 85.3,139.3 L 86.3,140.6 L 87.4,142 L 88.5,143.4 L 89.6,144.7 L 90.7,146.1 L 91.8,147.5 L 92.9,148.9 L 94,150.3 L 95.1,151.7 L 96.2,153 L 97.4,154.5 L 96,155.2 L 93.8,156.3 L 92,157.3 L 90.3,158.2 L 88.9,158.9 L 87.5,159.7 L 84.8,160.8 L 83.4,161.5 L 83.2,161.5 Z" },
-  { name: "VILLA SOLDATI", d: "M 128.3,198.5 L 130.3,198.4 L 134,198.3 L 136,198.5 L 137,199.7 L 138.6,200.9 L 140.3,202.2 L 141.5,203.2 L 143,204.4 L 144.8,203.9 L 146.3,202.9 L 147.6,201.9 L 150.3,202.5 L 151.7,203.5 L 153.3,204.6 L 154.8,205.7 L 156.1,206.7 L 157.4,207.6 L 158.9,208.7 L 160.5,210.6 L 161.4,211.8 L 162.5,213.2 L 161.5,214.4 L 159.6,215.9 L 158.2,217.4 L 157,218.7 L 155.6,220.3 L 154.5,221.7 L 152.5,224 L 151.4,225.3 L 150.3,226.6 L 149.2,227.9 L 148.2,229.1 L 146.8,230.8 L 145.2,232.7 L 142.9,235.4 L 141.8,236.8 L 139.5,239.5 L 138.2,241.2 L 136.6,243 L 135.2,244.6 L 129,240.2 L 127.4,239 L 125.9,239.3 L 125.8,237.7 L 123.1,235.6 L 120.9,233.9 L 116.5,230.4 L 114.7,229.6 L 113.7,228.4 L 111.6,226.5 L 110.2,225.2 L 108.9,223.6 L 106.8,222.9 L 102.4,219.4 L 100.8,218.2 L 99.4,217.1 L 99.3,215.6 L 100.8,215.9 L 102.5,215 L 103.9,213.8 L 105.2,212.7 L 106.5,211.4 L 107.8,210.3 L 110.5,208.2 L 112.4,206.7 L 113.8,205.4 L 115.3,204.2 L 116.6,203.1 L 119.5,200.6 L 120.5,199.4 L 121.8,198.1 L 124.4,198.4 L 128.3,198.5 Z" },
-  { name: "VILLA URQUIZA", d: "M 84.5,76.8 L 85.7,78 L 87.1,78.6 L 88.4,80.2 L 89.7,81.4 L 91.1,82.6 L 92.5,81.7 L 94.6,82.2 L 95.8,83.3 L 96.9,84.6 L 98,85.9 L 99,87.1 L 100.2,88.5 L 101.2,89.7 L 102.2,90.9 L 100.8,91.7 L 98.4,93.1 L 96.9,93.9 L 95.6,94.7 L 93.2,96 L 91.9,96.8 L 89.8,98 L 88.3,98.8 L 86.9,99.6 L 85.6,100.4 L 84.3,101.2 L 82.9,102 L 81.5,102.8 L 79.3,104.1 L 77.8,104.9 L 76.2,105.9 L 74.7,106.7 L 72.8,106.4 L 71.5,105.3 L 69.7,103.8 L 67.6,102.1 L 66.1,101 L 64.8,100 L 63.3,98.8 L 61.3,97.2 L 59.9,96.2 L 58.6,95.1 L 56.5,93.5 L 55.2,92.5 L 52.9,91 L 51.3,90 L 49.4,89 L 47.8,88.1 L 45.9,86.9 L 48.3,85.2 L 49.7,84.5 L 51.2,83.8 L 52.7,83 L 54.6,82.1 L 56.4,81.2 L 58,80.4 L 59.5,79.7 L 61.1,78.9 L 62.7,78.2 L 64.6,77.2 L 66.2,76.5 L 68.1,75.6 L 69.6,75.1 L 70.7,76.8 L 73.1,75.7 L 74.5,75 L 76,74.3 L 78.5,73.1 L 79.9,72.4 L 84.2,76.6 L 84.5,76.8 Z" }
-                      ].map((barrio, idx) => (
-                        <path
-                          key={idx}
-                          d={barrio.d}
-                          fill="rgba(37, 99, 235, 0.02)"
-                          stroke="rgba(37, 99, 235, 0.15)"
-                          strokeWidth="0.6"
-                        />
-                      ))}
-                      {/* Belgrano */}
-                      <path
-                        d="M 126.3,39.6 L 123.2,39.7 L 121.5,40.9 L 120.4,42 L 121.3,43.8 L 123.3,44.9 L 124.6,44.1 L 125.7,43 L 127.2,42.1 L 127.1,40.3 L 128.4,39.5 L 128.2,41 L 129.9,41.5 L 131.5,40.4 L 133.2,40.1 L 134.7,40.4 L 136.3,40.8 L 137.7,41.9 L 139,43.5 L 139.6,45.7 L 141.5,45.7 L 143,45.6 L 144.5,45.7 L 146,46.1 L 147.3,47.2 L 148.4,48.3 L 149,49.7 L 150.5,50.4 L 151.8,51.2 L 152.9,52.4 L 153.5,53.8 L 153.6,55.6 L 154.4,56.9 L 155.6,58 L 157.1,58.4 L 159.2,58.9 L 158.6,57.4 L 160.7,57.8 L 160.5,59.5 L 159.4,61.5 L 156.7,61.2 L 154.9,60.7 L 153.2,60.9 L 151.7,61.7 L 149.9,62.8 L 148.6,63.6 L 147.5,65.5 L 146,66.3 L 144.8,67.3 L 143.1,68.2 L 141.5,68.7 L 139.9,69.7 L 139,71.2 L 139.4,72.8 L 140.6,74.1 L 141.9,74.9 L 143.6,75.6 L 145.1,75.8 L 146.7,75.8 L 145.3,76.7 L 143,76.6 L 141.4,76.4 L 139.2,76.1 L 138.1,77.3 L 135.8,79 L 134.5,79.8 L 132.5,80.9 L 130.8,81.9 L 129.3,83.1 L 127.2,83.3 L 125.8,82.5 L 123.9,81.6 L 121.9,82.7 L 120.5,83.5 L 118.4,84.7 L 116.8,85.7 L 115,87.7 L 113.8,88.9 L 112.1,90.5 L 111,91.6 L 109.9,92.7 L 108.7,93.8 L 106.5,92.4 L 105,91.5 L 103.2,90.3 L 101.2,89.7 L 100.2,88.5 L 99,87.1 L 98,85.9 L 96.9,84.6 L 95.8,83.3 L 96.3,81.5 L 97.7,80.6 L 99,79.8 L 101.5,78.2 L 102.8,77.3 L 104.3,76.3 L 102.8,75.5 L 102.7,73.9 L 101.1,72.1 L 102.7,70.7 L 104.8,69.6 L 107.4,68.2 L 109.4,67.1 L 111.5,66.1 L 114.1,64.7 L 115.8,63.8 L 118.2,62.6 L 119.6,61.9 L 121.2,61 L 123,60.1 L 121.6,58.7 L 122,57.1 L 123.2,55.6 L 124.2,54.3 L 126.1,51.9 L 127.1,50.5 L 128.1,49.3 L 124.7,47.5 L 123.2,46.9 L 120.6,46.1 L 116.8,44.3 L 114.1,42.6 L 117.1,41.2 L 118.5,40.6 L 120,39.8 L 121.4,39 L 122.2,37.7 L 123.4,36.5 L 124.5,35 L 125.9,35.6 L 126.5,37.1 L 127,38.6 L 126.3,39.6 Z"
-                        fill={selectedNeighborhood === 'belgrano' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'belgrano' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
-                        strokeWidth={selectedNeighborhood === 'belgrano' ? 2 : 1}
-                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
-                        onClick={() => setSelectedNeighborhood('belgrano')}
-                      />
-                      {/* Palermo */}
-                      <path
-                        d="M 159,62.2 L 160.5,62.3 L 162.5,63 L 164,63.5 L 166.6,64.1 L 168.1,64.5 L 169.6,64.9 L 171.1,65.2 L 172.6,65.6 L 174.3,66.1 L 175.7,66.7 L 177.2,67.5 L 178.6,68.2 L 180,69.1 L 182,68.5 L 181.8,70 L 182.8,71.3 L 184.3,72.5 L 185.7,73.7 L 187,74.8 L 188.4,76.1 L 189.7,77 L 191.2,77.4 L 192.6,76.8 L 195.4,75.3 L 197.3,74.3 L 194.8,75.8 L 191.5,77.5 L 192.6,78.6 L 194.3,77.8 L 195.6,78.6 L 197.1,78.3 L 198.8,79.5 L 200.1,80.3 L 199.3,81.7 L 198.2,82.9 L 197,84 L 195.9,85.1 L 197.3,84.4 L 198.5,83.2 L 199.7,82.2 L 201,83 L 201.9,84.3 L 202.6,85.7 L 203.9,86.8 L 205.5,89.6 L 203.6,90 L 198.1,87.4 L 196.7,86.7 L 196,88.3 L 194.9,89.5 L 193.4,91.2 L 192.4,92.4 L 193.6,94.2 L 194.9,95.2 L 197.1,96.4 L 198.7,97.4 L 200.2,98.4 L 198.6,101.3 L 196.7,104.4 L 195.9,105.7 L 194.3,106.1 L 190.3,105.4 L 188.5,105.4 L 187,105.9 L 186.1,107.2 L 184.8,109.1 L 183.4,111 L 182,113.1 L 180.4,114.9 L 178.9,116.7 L 177.2,118.6 L 176,120 L 175.1,122.1 L 174.5,123.6 L 173.8,125.2 L 172.1,125.2 L 169.9,125.1 L 168.1,125.1 L 165.9,125 L 163.7,125.1 L 161.7,124.1 L 160.1,123.5 L 158.7,122.9 L 157.2,122 L 155.7,121.1 L 154.3,120.2 L 152.9,119.3 L 151.3,118.2 L 149.9,117.2 L 148.6,116.4 L 147.3,115.5 L 144.8,113.9 L 143.5,113 L 141.7,111.8 L 139.3,110.3 L 137.5,109 L 136.1,108.1 L 134.5,107.1 L 134.8,105 L 135.6,103.7 L 137.4,101.9 L 138.7,100.7 L 140.1,99.4 L 139.6,97.6 L 138.3,96.3 L 137.1,95.4 L 135.7,94.5 L 136.5,93.1 L 138.5,91.1 L 139.8,89.8 L 138.2,88.9 L 136.8,88.2 L 135.2,87.4 L 133,86.3 L 131.6,85.6 L 129.7,84.6 L 129.3,83.1 L 130.8,81.9 L 132.5,80.9 L 134.5,79.8 L 135.8,79 L 137.2,78.1 L 138.8,76.6 L 141.3,76.4 L 143,76.6 L 145.3,76.7 L 147.2,76.6 L 145.9,75.8 L 144.1,75.7 L 142.6,75.3 L 141.1,74.4 L 139.7,73.2 L 139,71.8 L 139.4,70.3 L 140.6,69.2 L 142,68.5 L 143.6,68 L 145.1,67 L 146.4,66.1 L 148.9,64.8 L 149.8,62.8 L 151.4,62 L 153.2,60.9 L 154.9,60.7 L 156.4,61 L 158.3,61.9 L 159,62.2 Z"
-                        fill={selectedNeighborhood === 'palermo' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'palermo' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
-                        strokeWidth={selectedNeighborhood === 'palermo' ? 2 : 1}
-                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
-                        onClick={() => setSelectedNeighborhood('palermo')}
-                      />
-                      {/* Recoleta */}
-                      <path
-                        d="M 223.3,86.9 L 224.8,87.3 L 227.8,88.9 L 229.1,89.7 L 231.4,91.1 L 234.8,93.1 L 231.7,91.4 L 229.5,90 L 226.8,88.5 L 225.3,87.7 L 223.4,87.5 L 224.8,89.6 L 218.5,91.3 L 219.9,92.4 L 223.1,92.8 L 228.7,92.3 L 231.4,93.3 L 233.9,94.7 L 236,96 L 228.8,97.2 L 231.6,99.4 L 230,101.4 L 228.6,100.6 L 223.6,100.9 L 219.4,98.5 L 217.9,98.2 L 216.1,98.2 L 214.5,98.1 L 212.9,98.1 L 210.3,98.2 L 209.1,99.2 L 207.9,100.9 L 208.5,102.3 L 209.9,103 L 211.2,103.8 L 212.6,104.6 L 213.8,105.5 L 214.9,106.7 L 216,108.1 L 217.1,110.2 L 216.5,112.7 L 215.2,114.1 L 213.8,115.5 L 212.5,116.6 L 212.9,118.3 L 213.3,120.6 L 213.5,122.3 L 213.6,123.9 L 213.7,125.6 L 213.9,127.2 L 212.2,127.3 L 210.4,127.4 L 207.7,127.5 L 205.6,127.7 L 203.5,127.7 L 201.6,127.7 L 199.7,127.8 L 197.7,127.8 L 195.9,127.6 L 194.4,127.4 L 192.4,126.9 L 190.8,126.1 L 189.3,125.5 L 187.7,125.5 L 184.8,125.5 L 182.9,125.5 L 179.4,125.4 L 177.6,125.3 L 175.7,125.3 L 173.8,125.2 L 174.5,123.6 L 175.1,122.1 L 175.7,120.7 L 177.2,118.6 L 178.7,116.9 L 180.4,114.9 L 182,113.1 L 183.2,111.4 L 184.4,109.7 L 185.3,108.3 L 187,105.9 L 188.5,105.4 L 190.3,105.4 L 193,105.4 L 195.1,106.8 L 196.8,104.4 L 198.4,101.6 L 200.1,99.3 L 198.8,97.5 L 197.1,96.4 L 195.1,95.4 L 193.6,94.2 L 192.5,93 L 193.4,91.2 L 194.9,89.5 L 195.9,88.3 L 196.1,86.6 L 197.6,87.2 L 202.4,89.9 L 204.7,90 L 207.5,90.8 L 209,91.7 L 211.5,93.1 L 214.9,94.9 L 218.6,95.4 L 213.6,91 L 207.9,87.7 L 208.8,86.3 L 217.4,85.4 L 218.9,84.7 L 221.3,84.7 L 222.3,86.1 L 222.9,84.7 L 223,86.7 L 223.3,86.9 Z"
-                        fill={selectedNeighborhood === 'recoleta' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'recoleta' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
-                        strokeWidth={selectedNeighborhood === 'recoleta' ? 2 : 1}
-                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
-                        onClick={() => setSelectedNeighborhood('recoleta')}
-                      />
-                      {/* Chacarita */}
-                      <path
-                        d="M 123.2,122.6 L 121.9,123.5 L 120.5,124.5 L 118.9,125 L 117.4,124.4 L 115.7,123.9 L 112.3,123.5 L 110.1,123.4 L 108.2,123.2 L 106.2,123.4 L 106.2,121.7 L 106.7,120 L 107.2,118.2 L 105.3,116.1 L 103.9,115.2 L 105.4,113.9 L 107.1,112.2 L 109.1,110.4 L 110.7,109.1 L 112.8,108.3 L 112.6,106.2 L 112.6,103.2 L 112.6,100.2 L 112.6,98.3 L 115.3,98.4 L 117,98.7 L 118.9,99.2 L 120.4,99.6 L 122.2,100.2 L 124.1,100.8 L 125.7,101.3 L 127.1,101.9 L 129.2,102.7 L 131.1,103.4 L 132.9,104.2 L 134.5,104.9 L 134.3,106.9 L 136.1,108.1 L 137.5,109 L 138.9,110 L 140.6,111.1 L 142.7,112.5 L 126.3,120.4 L 124.7,121.6 L 123.2,122.6 Z"
-                        fill={selectedNeighborhood === 'chacarita' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'chacarita' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
-                        strokeWidth={selectedNeighborhood === 'chacarita' ? 2 : 1}
-                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
-                        onClick={() => setSelectedNeighborhood('chacarita')}
-                      />
-                      {/* Caballito */}
-                      <path
-                        d="M 153.8,137.8 L 153.9,139.9 L 154.1,142.1 L 154.2,144.3 L 154.4,146.5 L 154.5,149.4 L 156.2,151.8 L 156.6,153.3 L 156.9,154.9 L 157.2,156.6 L 157.6,158.2 L 158,160.6 L 158.4,162.3 L 158.7,164 L 158,165.4 L 155.1,165.8 L 153.3,166.1 L 151.4,166.4 L 149.3,166.7 L 146.8,167 L 144.7,167.4 L 142.8,167.6 L 138.4,168.3 L 136.8,168.5 L 134.7,168.8 L 132.5,169.1 L 130.5,169.4 L 128.4,169.8 L 126.4,170.1 L 124.9,170.3 L 124.2,168.7 L 123.4,167.1 L 122.4,165 L 121.7,163.6 L 120.8,161.8 L 120.1,160.4 L 119.4,158.9 L 118.7,157.3 L 118,155.7 L 117.2,153.8 L 116.4,152.2 L 115.4,150 L 114.7,148.4 L 114,147 L 112.7,144.5 L 111.9,142.8 L 111.1,141.2 L 110.3,139.7 L 109.6,138.3 L 111.1,137.3 L 112.6,136.2 L 114,135.3 L 115.4,134.3 L 118.1,135 L 120.2,135.6 L 122.9,136.3 L 125,136.8 L 126.8,137.3 L 128.4,137.7 L 131.2,138.3 L 133,138.3 L 135.1,137.7 L 136.7,137.2 L 138.6,136.7 L 140.4,136.3 L 141.9,135.8 L 143.6,135 L 145.2,134.2 L 147.2,133.2 L 149.2,132.2 L 151.4,133.6 L 152.5,134.9 L 153.7,136.3 L 153.8,137.8 Z"
-                        fill={selectedNeighborhood === 'caballito' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'caballito' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
-                        strokeWidth={selectedNeighborhood === 'caballito' ? 2 : 1}
-                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
-                        onClick={() => setSelectedNeighborhood('caballito')}
-                      />
-                      {/* Monserrat */}
-                      <path
-                        d="M 238.7,137.5 L 240.2,137.6 L 240.9,143.3 L 241,144.9 L 241.2,146.6 L 241.4,148.2 L 240.4,149.7 L 238.7,149.8 L 236.7,150 L 234.7,150.1 L 233,150.2 L 231.1,150.3 L 229,150.4 L 227.1,150.5 L 227,152.1 L 225,152.3 L 223.5,152.4 L 221.8,152.4 L 219.6,152.5 L 217.4,152.6 L 215.7,152.7 L 213.4,152.8 L 211,152.9 L 209.4,153 L 207.6,153.1 L 207.3,151.4 L 207.3,149.7 L 207.2,147.5 L 207.2,145.8 L 207.1,144.2 L 207,142.7 L 206.9,140.9 L 208.8,140.8 L 210.7,140.6 L 212.4,140.5 L 214.7,140.2 L 216.4,140.1 L 218.1,140 L 219.6,139.9 L 221.5,139.7 L 223.4,139.6 L 226.3,139.4 L 228.3,139.3 L 230.2,139.2 L 232.2,139.1 L 234.1,139.1 L 235.6,138.9 L 236.8,137.5 L 238.7,137.5 Z"
-                        fill={selectedNeighborhood === 'monserrat' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'monserrat' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
-                        strokeWidth={selectedNeighborhood === 'monserrat' ? 2 : 1}
-                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
-                        onClick={() => setSelectedNeighborhood('monserrat')}
-                      />
-                    </>
-                  )}
-
-                  {selectedCity === 'cordoba-cap' && (
-                    <>
-                      {/* Córdoba Circumvalation outline */}
-                      <path
-                        d="M 50,50 C 120,40 200,40 250,60 C 270,120 280,180 260,240 C 200,270 120,270 50,230 C 30,180 30,120 50,50 Z"
-                        fill="rgba(37, 99, 235, 0.01)"
-                        stroke="#2563eb"
-                        strokeWidth="1.8"
-                      />
-                      {/* Non-interactive backdrop neighborhoods */}
-                      {[
-                        { name: "Alberdi", d: "M 50,120 L 70,120 L 100,120 L 80,220 L 50,230 Z" },
-                        { name: "General Paz", d: "M 180,120 L 250,120 L 220,180 L 180,190 Z" },
-                        { name: "Villa Belgrano", d: "M 50,50 L 100,50 L 100,120 L 50,120 Z" }
-                      ].map((barrio, idx) => (
-                        <path
-                          key={idx}
-                          d={barrio.d}
-                          fill="rgba(37, 99, 235, 0.02)"
-                          stroke="rgba(37, 99, 235, 0.15)"
-                          strokeWidth="0.6"
-                        />
-                      ))}
-                      {/* Alta Córdoba */}
-                      <path
-                        d="M 60,60 C 100,55 140,55 160,60 L 150,120 L 70,120 Z"
-                        fill={selectedNeighborhood === 'alta-cordoba' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'alta-cordoba' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
-                        strokeWidth={selectedNeighborhood === 'alta-cordoba' ? 2 : 1}
-                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
-                        onClick={() => setSelectedNeighborhood('alta-cordoba')}
-                      />
-                      {/* Nueva Córdoba */}
-                      <path
-                        d="M 70,120 L 150,120 L 220,180 L 190,230 L 80,220 Z"
-                        fill={selectedNeighborhood === 'nueva-cordoba' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'nueva-cordoba' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
-                        strokeWidth={selectedNeighborhood === 'nueva-cordoba' ? 2 : 1}
-                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
-                        onClick={() => setSelectedNeighborhood('nueva-cordoba')}
-                      />
-                      {/* Centro */}
-                      <path
-                        d="M 160,60 C 190,65 220,70 240,80 L 220,180 L 150,120 Z"
-                        fill={selectedNeighborhood === 'centro-cba' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'centro-cba' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
-                        strokeWidth={selectedNeighborhood === 'centro-cba' ? 2 : 1}
-                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
-                        onClick={() => setSelectedNeighborhood('centro-cba')}
-                      />
-                    </>
-                  )}
-
-                  {selectedCity === 'santa-fe-cap' && (
-                    <>
-                      {/* Santa Fe Limits outline */}
-                      <path
-                        d="M 70,40 L 170,40 L 230,190 L 140,265 L 65,140 Z"
-                        fill="rgba(37, 99, 235, 0.01)"
-                        stroke="#2563eb"
-                        strokeWidth="1.8"
-                      />
-                      {/* Non-interactive backdrop neighborhoods */}
-                      {[
-                        { name: "Colastiné", d: "M 170,40 L 230,120 L 230,190 L 210,130 L 180,50 Z" },
-                        { name: "El Pozo", d: "M 155,130 L 210,130 L 190,240 L 155,130 Z" },
-                        { name: "Roma", d: "M 70,40 L 80,80 L 80,170 L 65,140 Z" }
-                      ].map((barrio, idx) => (
-                        <path
-                          key={idx}
-                          d={barrio.d}
-                          fill="rgba(37, 99, 235, 0.02)"
-                          stroke="rgba(37, 99, 235, 0.15)"
-                          strokeWidth="0.6"
-                        />
-                      ))}
-                      {/* Centro */}
-                      <path
-                        d="M 80,80 L 140,50 L 155,130 L 140,190 L 80,170 Z"
-                        fill={selectedNeighborhood === 'centro-sf' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'centro-sf' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
-                        strokeWidth={selectedNeighborhood === 'centro-sf' ? 2 : 1}
-                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
-                        onClick={() => setSelectedNeighborhood('centro-sf')}
-                      />
-                      {/* Barrio Sur */}
-                      <path
-                        d="M 80,170 L 140,190 L 155,130 L 210,130 L 190,240 L 95,240 Z"
-                        fill={selectedNeighborhood === 'barrio-sur-sf' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'barrio-sur-sf' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
-                        strokeWidth={selectedNeighborhood === 'barrio-sur-sf' ? 2 : 1}
-                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
-                        onClick={() => setSelectedNeighborhood('barrio-sur-sf')}
-                      />
-                      {/* Guadalupe */}
-                      <path
-                        d="M 140,50 L 180,50 L 210,130 L 155,130 Z"
-                        fill={selectedNeighborhood === 'guadalupe' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'guadalupe' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
-                        strokeWidth={selectedNeighborhood === 'guadalupe' ? 2 : 1}
-                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
-                        onClick={() => setSelectedNeighborhood('guadalupe')}
-                      />
-                    </>
-                  )}
-
-                  {selectedCity === 'mendoza-cap' && (
-                    <>
-                      {/* Mendoza Limits outline */}
-                      <path
-                        d="M 50,60 L 240,70 L 230,240 L 50,220 Z"
-                        fill="rgba(37, 99, 235, 0.01)"
-                        stroke="#2563eb"
-                        strokeWidth="1.8"
-                      />
-                      {/* Non-interactive backdrop neighborhoods */}
-                      {[
-                        { name: "Sexta Sección", d: "M 50,60 L 100,50 L 140,70 L 60,70 Z" },
-                        { name: "San Martín", d: "M 100,50 L 200,55 L 150,70 L 140,70 Z" },
-                        { name: "Godoy Cruz border", d: "M 215,180 L 230,240 L 195,235 Z" }
-                      ].map((barrio, idx) => (
-                        <path
-                          key={idx}
-                          d={barrio.d}
-                          fill="rgba(37, 99, 235, 0.02)"
-                          stroke="rgba(37, 99, 235, 0.15)"
-                          strokeWidth="0.6"
-                        />
-                      ))}
-                      {/* Quinta Sección */}
-                      <path
-                        d="M 60,70 L 140,70 L 125,160 L 60,150 Z"
-                        fill={selectedNeighborhood === 'quinta-seccion' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'quinta-seccion' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
-                        strokeWidth={selectedNeighborhood === 'quinta-seccion' ? 2 : 1}
-                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
-                        onClick={() => setSelectedNeighborhood('quinta-seccion')}
-                      />
-                      {/* Barrio Bombal */}
-                      <path
-                        d="M 60,150 L 125,160 L 215,180 L 195,235 L 75,225 Z"
-                        fill={selectedNeighborhood === 'bombal' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'bombal' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
-                        strokeWidth={selectedNeighborhood === 'bombal' ? 2 : 1}
-                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
-                        onClick={() => setSelectedNeighborhood('bombal')}
-                      />
-                      {/* Centro Mendoza */}
-                      <path
-                        d="M 150,70 L 240,70 L 240,250 L 150,250 Z"
-                        fill={selectedNeighborhood === 'centro-mdz' ? 'rgba(37, 99, 235, 0.25)' : 'rgba(37, 99, 235, 0.05)'}
-                        stroke={selectedNeighborhood === 'centro-mdz' ? '#3b82f6' : 'rgba(37, 99, 235, 0.25)'}
-                        strokeWidth={selectedNeighborhood === 'centro-mdz' ? 2 : 1}
-                        style={{ cursor: 'pointer', transition: 'all 200ms' }}
-                        onClick={() => setSelectedNeighborhood('centro-mdz')}
-                      />
-                    </>
-                  )}
-
-                  {/* Flowing connection lines */}
-                  {selectedCity === 'caba' && (
-                    <>
-                      {/* Palermo <-> Recoleta */}
-                      <line x1="167.3" y1="89.8" x2="213.9" y2="104.9" stroke="rgba(139, 92, 246, 0.6)" strokeWidth="2.5" className="flow-path" />
-                      {/* Belgrano <-> Palermo */}
-                      <line x1="122.6" y1="58.7" x2="167.3" y2="89.8" stroke="rgba(16, 185, 129, 0.6)" strokeWidth="2.5" className="flow-path" />
-                    </>
-                  )}
-
-                  {/* Render neighborhood points */}
-                  {mockNeighborhoodsList.map((n) => {
-                    const active = selectedNeighborhood === n.key
-                    return (
-                      <g key={n.key} onClick={() => setSelectedNeighborhood(n.key)} style={{ cursor: 'pointer' }}>
-                        <circle cx={n.x} cy={n.y} r={active ? '6' : '3.5'} fill={active ? '#60a5fa' : '#1e40af'} stroke="#fff" strokeWidth="0.8" />
-                        <text x={n.x} y={n.y - 7} fill="#fff" fontSize="5.5" fontWeight="700" textAnchor="middle" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
-                          {n.name}
-                        </text>
-                        <text x={n.x} y={n.y + 8} fill="#a3a6b8" fontSize="4.5" fontWeight="600" textAnchor="middle" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
-                          {n.count.toLocaleString()} pax/d
-                        </text>
-                      </g>
-                    )
-                  })}
-                  </g>
+              <h4 style={{ fontSize: '14px', fontWeight: 700, margin: 0, color: '#fff' }}>Nivel 2: Red de Barrios y Flujos de Pasajeros ({selectedCity.toUpperCase()})</h4>
+              <div style={{ position: 'relative', width: '100%', height: '420px', display: 'flex', justifyContent: 'center', overflow: 'hidden', borderRadius: '8px' }}>
+                <svg viewBox="0 0 350 250" style={{ width: '100%', height: '100%', background: '#0F172A' }}>
+                  <polygon points="120,30 220,30 300,100 240,210 140,200 80,110" fill="none" stroke="#3B82F6" strokeWidth="2" />
+                  {mockNeighborhoodsList.map(n => (
+                    <g key={n.key} onClick={() => setSelectedNeighborhood(n.key)} style={{ cursor: 'pointer' }}>
+                      <circle cx={n.x} cy={n.y} r="10" fill={n.count > 0 ? "rgba(16,185,129,0.3)" : "rgba(148,163,184,0.2)"} stroke={n.count > 0 ? "#10B981" : "#94A3B8"} strokeWidth="2" />
+                      <circle cx={n.x} cy={n.y} r="4" fill={n.count > 0 ? "#10B981" : "#94A3B8"} />
+                      <text x={n.x} y={n.y - 14} textAnchor="middle" fill="#fff" fontSize="10" fontWeight="bold">{n.name}</text>
+                      <text x={n.x} y={n.y + 18} textAnchor="middle" fill="#94A3B8" fontSize="8" fontFamily="DM Mono">{n.count.toLocaleString()} pax/d</text>
+                    </g>
+                  ))}
                 </svg>
-                <div style={{ position: 'absolute', bottom: '12px', left: '12px', fontSize: '9px', color: '#8f94a5', display: 'flex', gap: '15px' }}>
-                  <span>🔵 Nodo Resaltado: Activo</span>
-                  <span>⚡ Líneas discontinuas: Sentido de tránsito</span>
-                </div>
               </div>
             </>
           )}
 
-          <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)', padding: '14px', borderRadius: '8px', fontSize: '11px', color: '#8f94a5', lineHeight: 1.4 }}>
-            💡 Haga clic en cualquier nivel de las migas de pan superiores para volver o modificar la escala de visualización geográfica.
-          </div>
         </div>
 
-        {/* Right: Selected Province details and Neighborhood distribution */}
-        <div style={{ gridColumn: 'span 5', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
-          {/* Level 3: Neighborhood stats dashboard */}
-          {currentNeighborhoodData ? (() => {
-            // Find neighborhood metrics proportion
-            const neighData = mockNeighborhoodsList.find(n => n.key === selectedNeighborhood)
-            const neighCount = neighData ? neighData.count : 0
-            const cityTotalCount = mockNeighborhoodsList.reduce((sum, n) => sum + n.count, 0) || 1
-            const neighProportion = neighCount / cityTotalCount
-
-            // Province proportion
-            let provProportion = 0.1
-            if (selectedProvinceKey === 'buenos-aires') provProportion = 0.63
-            if (selectedProvinceKey === 'cordoba') provProportion = 0.13
-            if (selectedProvinceKey === 'santa-fe') provProportion = 0.09
-            if (selectedProvinceKey === 'mendoza') provProportion = 0.06
-
-            const neighTotalPeriod = Math.round(getMetrics.total * provProportion * neighProportion)
-            const neighActive = Math.round(realtimeActiveUsers * provProportion * neighProportion)
-            const neighRegistries = Math.round(getMetrics.registriesVal * provProportion * neighProportion)
-
-            return (
-              <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* Period Filter Header */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <h4 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#10B981' }}>{currentNeighborhoodData.name}</h4>
-                      <span style={{ fontSize: '11px', color: '#8f94a5' }}>Estadísticas de la plataforma a nivel barrio</span>
-                    </div>
-                    <input
-                      type="date"
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                      style={{
-                        background: '#1a1f37',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                        color: '#fff',
-                        fontSize: '11px',
-                        padding: '4px 8px',
-                        borderRadius: '6px',
-                        outline: 'none',
-                        cursor: 'pointer'
-                      }}
-                    />
-                  </div>
-                  <div style={{ display: 'flex', background: 'rgba(255,255,255,0.02)', padding: '2px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)', alignSelf: 'flex-start' }}>
-                    {(['day', 'week', 'month'] as const).map((period) => (
-                      <button
-                        key={period}
-                        onClick={() => setTimePeriod(period)}
-                        style={{
-                          background: timePeriod === period ? '#10B981' : 'transparent',
-                          color: timePeriod === period ? '#fff' : '#8f94a5',
-                          border: 'none',
-                          fontSize: '10px',
-                          fontWeight: 700,
-                          padding: '4px 10px',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          transition: 'all 150ms'
-                        }}
-                      >
-                        {period === 'day' ? 'Día' : period === 'week' ? 'Semana' : 'Mes'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* KPIs */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                    <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>{timePeriod === 'day' ? 'Únicos (Día)' : timePeriod === 'week' ? 'Únicos (Sem)' : 'Únicos (Mes)'}</span>
-                    <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{neighTotalPeriod.toLocaleString()}</span>
-                  </div>
-                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                    <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Activos Barrio</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }} className="pulse-circle"></span>
-                      <span style={{ fontSize: '16px', fontWeight: 700, color: '#10B981' }}>{neighActive}</span>
-                    </div>
-                  </div>
-                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                    <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>{timePeriod === 'day' ? 'Regs. Hoy' : timePeriod === 'week' ? 'Regs. Sem' : 'Regs. Mes'}</span>
-                    <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{neighRegistries.toLocaleString()}</span>
-                  </div>
-                </div>
-
-                {/* Edades */}
+        {/* Right: Demographics & Analytics Panel */}
+        <div style={{ gridColumn: 'span 5', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Header & Date / Time Filter */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '8px' }}>Rango de Edades de Pasajeros ({currentNeighborhoodData.name})</span>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {neighAges.map((item, idx) => (
-                      <div key={idx} style={{ fontSize: '10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#fff' }}>{item.range}</span>
-                          <span style={{ color: '#8f94a5' }}>{item.pct}%</span>
-                        </div>
-                        <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
-                          <div style={{ width: `${item.pct}%`, height: '100%', background: item.color, borderRadius: '2px' }}></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <h4 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#3B82F6' }}>
+                    {selectedNeighborhood ? selectedNeighborhood.toUpperCase() : selectedCity ? selectedCity.toUpperCase() : selectedProvinceKey ? (selectedProvinceKey === 'buenos-aires' ? 'Buenos Aires & CABA' : selectedProvinceKey.toUpperCase()) : 'Demografía Nacional'}
+                  </h4>
+                  <span style={{ fontSize: '11px', color: '#8f94a5' }}>
+                    {selectedNeighborhood ? 'Estadísticas del barrio' : selectedCity ? 'Estadísticas de la ciudad' : selectedProvinceKey ? 'Estadísticas provinciales' : 'Resumen nacional de usuarios registrados'}
+                  </span>
                 </div>
-
-                {/* Proposito */}
-                <div>
-                  <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Propósito Principal de Viaje ({currentNeighborhoodData.name})</span>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
-                    {neighPurposes.map((p, idx) => (
-                      <div key={idx} style={{ flex: 1, background: 'rgba(255,255,255,0.01)', padding: '6px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)', textAlign: 'center' }}>
-                        <span style={{ fontSize: '9px', color: '#8f94a5', display: 'block' }}>{p.label}</span>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{p.pct}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Traffic SVG Chart */}
-                <div>
-                  <span style={{ fontSize: '11px', color: '#8f94a5', display: 'block', marginBottom: '8px' }}>Volumen Horario de Pasajeros (Tránsito)</span>
-                  <svg width="100%" height="80" viewBox="0 0 240 80" style={{ background: 'rgba(0,0,0,0.15)', borderRadius: '6px' }}>
-                    <polyline
-                      fill="none"
-                      stroke="#10B981"
-                      strokeWidth="2"
-                      points={currentNeighborhoodData.hourlyTraffic.map((val, idx) => `${idx * 20 + 10},${70 - (val / 500) * 60}`).join(' ')}
-                    />
-                    {currentNeighborhoodData.hourlyTraffic.map((val, idx) => (
-                      <circle
-                        key={idx}
-                        cx={idx * 20 + 10}
-                        cy={70 - (val / 500) * 60}
-                        r="2"
-                        fill="#fff"
-                      />
-                    ))}
-                  </svg>
-                </div>
-
-                {/* Bus stops & Served lines */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700 }}>Paradas Clave y Publicidad</span>
-                  {currentNeighborhoodData.stops.map((stop, sIdx) => (
-                    <div key={sIdx} style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{stop.name}</span>
-                        <span style={{ fontSize: '10px', color: '#10B981', fontWeight: 600 }}>{stop.usage}% uso</span>
-                      </div>
-                      <div style={{ fontSize: '10px', color: '#8f94a5' }}>
-                        Líneas: {stop.busLines.join(', ')}
-                      </div>
-
-                      {/* Integrated Stop Ad Campaign Details */}
-                      {stop.ad && (
-                        <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '8px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          <span style={{ fontSize: '9px', background: 'rgba(245,158,11,0.15)', color: '#f59e0b', padding: '2px 6px', borderRadius: '4px', alignSelf: 'flex-start', fontWeight: 700 }}>
-                            CAMPAÑA ACTIVA
-                          </span>
-                          
-                          {/* Physical Ad Banner Mockup Card */}
-                          <div style={{
-                            background: stop.ad.bannerBg,
-                            padding: '10px',
-                            borderRadius: '6px',
-                            color: '#fff',
-                            textAlign: 'center',
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
-                          }}>
-                            <span style={{ fontSize: '14px', display: 'block' }}>{stop.ad.image}</span>
-                            <span style={{ fontSize: '11px', fontWeight: 700, display: 'block', marginTop: '2px' }}>{stop.ad.title}</span>
-                            <span style={{ fontSize: '9px', opacity: 0.8, display: 'block', lineHeight: 1.2, marginTop: '2px' }}>{stop.ad.tagline}</span>
-                          </div>
-
-                          {/* Advertiser Profile Card & Action */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.15)', padding: '8px', borderRadius: '6px' }}>
-                            <div>
-                              <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Anunciante</span>
-                              <span style={{ fontSize: '11px', fontWeight: 600, color: '#fff' }}>{stop.ad.userName}</span>
-                            </div>
-                            <button
-                              onClick={() => handleMessageAdvertiser(stop.ad)}
-                              style={{
-                                background: '#3B82F6',
-                                border: 'none',
-                                color: '#fff',
-                                borderRadius: '4px',
-                                padding: '4px 8px',
-                                fontSize: '10px',
-                                fontWeight: 700,
-                                cursor: 'pointer'
-                              }}
-                            >
-                              Mensajear
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  style={{ background: '#1a1f37', border: '1px solid rgba(255,255,255,0.08)', color: '#fff', fontSize: '11px', padding: '4px 8px', borderRadius: '6px', outline: 'none', cursor: 'pointer' }}
+                />
               </div>
-            )
-          })() : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {!selectedProvinceKey && (
-                <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {/* Period Filter Header */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <h4 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#3B82F6' }}>Demografía Nacional</h4>
-                        <span style={{ fontSize: '11px', color: '#8f94a5' }}>Resumen del estado y uso en el país</span>
-                      </div>
-                      <input
-                        type="date"
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                        style={{
-                          background: '#1a1f37',
-                          border: '1px solid rgba(255,255,255,0.08)',
-                          color: '#fff',
-                          fontSize: '11px',
-                          padding: '4px 8px',
-                          borderRadius: '6px',
-                          outline: 'none',
-                          cursor: 'pointer'
-                        }}
-                      />
-                    </div>
-                    
-                    {/* Day / Week / Month selector */}
-                    <div style={{ display: 'flex', background: 'rgba(255,255,255,0.02)', padding: '2px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)', alignSelf: 'flex-start' }}>
-                      {(['day', 'week', 'month'] as const).map((period) => (
-                        <button
-                          key={period}
-                          onClick={() => setTimePeriod(period)}
-                          style={{
-                            background: timePeriod === period ? '#3B82F6' : 'transparent',
-                            color: timePeriod === period ? '#fff' : '#8f94a5',
-                            border: 'none',
-                            fontSize: '10px',
-                            fontWeight: 700,
-                            padding: '4px 10px',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            transition: 'all 150ms'
-                          }}
-                        >
-                          {period === 'day' ? 'Día' : period === 'week' ? 'Semana' : 'Mes'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* KPIs */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>{getMetrics.label}</span>
-                      <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{getMetrics.total.toLocaleString()}</span>
-                      <span style={{ fontSize: '8px', color: getMetrics.trendColor, display: 'block', marginTop: '2px' }}>{getMetrics.trendText}</span>
-                    </div>
-                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Activos Ahora</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }} className="pulse-circle"></span>
-                        <span style={{ fontSize: '16px', fontWeight: 700, color: '#10B981' }}>{realtimeActiveUsers}</span>
-                      </div>
-                      <span style={{ fontSize: '8px', color: '#8f94a5', display: 'block', marginTop: '2px' }}>⚡ En tiempo real</span>
-                    </div>
-                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>{getMetrics.registriesLabel}</span>
-                      <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{getMetrics.registriesVal.toLocaleString()}</span>
-                      <span style={{ fontSize: '8px', color: '#10B981', display: 'block', marginTop: '2px' }}>{getMetrics.registriesTrend}</span>
-                    </div>
-                  </div>
-
-                  {/* Edades */}
-                  <div>
-                    <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '8px' }}>Rango de Edades de Pasajeros</span>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {getMetrics.ages.map((item, idx) => (
-                        <div key={idx} style={{ fontSize: '10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: '#fff' }}>{item.range}</span>
-                            <span style={{ color: '#8f94a5' }}>{item.pct}%</span>
-                          </div>
-                          <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
-                            <div style={{ width: `${item.pct}%`, height: '100%', background: item.color, borderRadius: '2px' }}></div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Proposito */}
-                  <div>
-                    <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Propósito Principal de Viaje</span>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
-                      {getMetrics.purposes.map((p, idx) => (
-                        <div key={idx} style={{ flex: 1, background: 'rgba(255,255,255,0.01)', padding: '6px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)', textAlign: 'center' }}>
-                          <span style={{ fontSize: '9px', color: '#8f94a5', display: 'block' }}>{p.label}</span>
-                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{p.pct}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {selectedProvinceKey && !selectedCity && (() => {
-                const provData = ARG_PROVINCES.find(p => p.id === selectedProvinceKey)
-                // Calculate real-time active proportion
-                let proportion = 0.1
-                if (selectedProvinceKey === 'buenos-aires') proportion = 0.63
-                if (selectedProvinceKey === 'cordoba') proportion = 0.13
-                if (selectedProvinceKey === 'santa-fe') proportion = 0.09
-                if (selectedProvinceKey === 'mendoza') proportion = 0.06
-                
-                const provTotalPeriod = Math.round(getMetrics.total * proportion)
-                const provActive = Math.round(realtimeActiveUsers * proportion)
-                const provRegistries = Math.round(getMetrics.registriesVal * proportion)
-
-                return (
-                  <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {/* Period Filter Header */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <h4 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#10B981' }}>{provData?.name}</h4>
-                          <span style={{ fontSize: '11px', color: '#8f94a5' }}>Estadísticas de la plataforma a nivel provincial</span>
-                        </div>
-                        <input
-                          type="date"
-                          value={selectedDate}
-                          onChange={(e) => setSelectedDate(e.target.value)}
-                          style={{
-                            background: '#1a1f37',
-                            border: '1px solid rgba(255,255,255,0.08)',
-                            color: '#fff',
-                            fontSize: '11px',
-                            padding: '4px 8px',
-                            borderRadius: '6px',
-                            outline: 'none',
-                            cursor: 'pointer'
-                          }}
-                        />
-                      </div>
-                      <div style={{ display: 'flex', background: 'rgba(255,255,255,0.02)', padding: '2px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)', alignSelf: 'flex-start' }}>
-                        {(['day', 'week', 'month'] as const).map((period) => (
-                          <button
-                            key={period}
-                            onClick={() => setTimePeriod(period)}
-                            style={{
-                              background: timePeriod === period ? '#10B981' : 'transparent',
-                              color: timePeriod === period ? '#fff' : '#8f94a5',
-                              border: 'none',
-                              fontSize: '10px',
-                              fontWeight: 700,
-                              padding: '4px 10px',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              transition: 'all 150ms'
-                            }}
-                          >
-                            {period === 'day' ? 'Día' : period === 'week' ? 'Semana' : 'Mes'}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* KPIs */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                        <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>{timePeriod === 'day' ? 'Únicos (Día)' : timePeriod === 'week' ? 'Únicos (Sem)' : 'Únicos (Mes)'}</span>
-                        <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{provTotalPeriod.toLocaleString()}</span>
-                      </div>
-                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                        <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Activos Prov.</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }} className="pulse-circle"></span>
-                          <span style={{ fontSize: '16px', fontWeight: 700, color: '#10B981' }}>{provActive}</span>
-                        </div>
-                      </div>
-                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                        <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>{timePeriod === 'day' ? 'Regs. Hoy' : timePeriod === 'week' ? 'Regs. Sem' : 'Regs. Mes'}</span>
-                        <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{provRegistries.toLocaleString()}</span>
-                      </div>
-                    </div>
-
-                    {/* Habits / Insight list */}
-                    <div>
-                      <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '8px' }}>Hábitos y Patrones de Tránsito</span>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {(PROVINCES_DATA[selectedProvinceKey]?.habits || [
-                          '📍 El 80% de los usuarios inician viajes recurrentes desde áreas residenciales periféricas.',
-                          '🚌 Líneas con mayor concentración de uso registradas en horario laboral matutino.'
-                        ]).map((habit, idx) => (
-                          <div key={idx} style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.03)', padding: '10px', borderRadius: '6px', fontSize: '10px', color: '#cbd5e1', lineHeight: 1.3 }}>
-                            {habit}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Edades */}
-                    <div>
-                      <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '8px' }}>Rango de Edades de Pasajeros ({provData?.name})</span>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {provAges.map((item, idx) => (
-                          <div key={idx} style={{ fontSize: '10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <span style={{ color: '#fff' }}>{item.range}</span>
-                              <span style={{ color: '#8f94a5' }}>{item.pct}%</span>
-                            </div>
-                            <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
-                              <div style={{ width: `${item.pct}%`, height: '100%', background: item.color, borderRadius: '2px' }}></div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Proposito */}
-                    <div>
-                      <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Propósito Principal de Viaje ({provData?.name})</span>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
-                        {provPurposes.map((p, idx) => (
-                          <div key={idx} style={{ flex: 1, background: 'rgba(255,255,255,0.01)', padding: '6px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)', textAlign: 'center' }}>
-                            <span style={{ fontSize: '9px', color: '#8f94a5', display: 'block' }}>{p.label}</span>
-                            <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{p.pct}%</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )
-              })()}
-
-              {selectedCity && !selectedNeighborhood && (
-                <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div style={{ borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
-                    <h4 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#3B82F6' }}>{currentCityData?.name || selectedCity.toUpperCase()}</h4>
-                    <span style={{ fontSize: '11px', color: '#8f94a5' }}>Distribución de pasajeros y paradas en la red metropolitana</span>
-                  </div>
-
-                  {/* Info Row */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Pasajeros / día</span>
-                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>
-                        {selectedCity === 'caba' ? '35,500' : '8,500'}
-                      </span>
-                    </div>
-                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Nodos Activos</span>
-                      <span style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>
-                        {selectedCity === 'caba' ? '3' : '1'}
-                      </span>
-                    </div>
-                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Estado Red</span>
-                      <span style={{ fontSize: '12px', fontWeight: 700, color: '#10B981' }}>Estable</span>
-                    </div>
-                  </div>
-
-                  {/* List of neighborhoods in city */}
-                  <div>
-                    <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '8px' }}>Flujo de Pasajeros por Barrio</span>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      {mockNeighborhoodsList.map((n, idx) => (
-                        <div key={idx} onClick={() => setSelectedNeighborhood(n.key)} style={{ cursor: 'pointer', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', padding: '10px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div>
-                            <span style={{ fontSize: '11px', fontWeight: 700, color: '#fff', display: 'block' }}>{n.name}</span>
-                            <span style={{ fontSize: '9px', color: '#8f94a5' }}>Click para ver reporte de tránsito y publicidad</span>
-                          </div>
-                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#3B82F6' }}>
-                            {n.count.toLocaleString()} pax/d
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
+              
+              {/* Day / Week / Month selector */}
+              <div style={{ display: 'flex', background: 'rgba(255,255,255,0.02)', padding: '2px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)', alignSelf: 'flex-start' }}>
+                {(['day', 'week', 'month'] as const).map((period) => (
+                  <button
+                    key={period}
+                    onClick={() => setTimePeriod(period)}
+                    style={{
+                      background: timePeriod === period ? '#3B82F6' : 'transparent',
+                      color: timePeriod === period ? '#fff' : '#8f94a5',
+                      border: 'none', fontSize: '10px', fontWeight: 700,
+                      padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', transition: 'all 150ms'
+                    }}
+                  >
+                    {period === 'day' ? 'Día' : period === 'week' ? 'Semana' : 'Mes'}
+                  </button>
+                ))}
+              </div>
             </div>
-          )}
+
+            {/* Real-Time KPIs (Usuarios SUBE, Activos Ahora, Registros) */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>
+                  {timePeriod === 'day' ? 'Usuarios (Día)' : timePeriod === 'week' ? 'Usuarios (Sem)' : 'Usuarios SUBE (Mes)'}
+                </span>
+                <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{filteredUsers.length}</span>
+                <span style={{ fontSize: '8px', color: '#10B981', display: 'block', marginTop: '2px' }}>✓ Datos en vivo</span>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>Activos Ahora</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }} className="pulse-circle"></span>
+                  <span style={{ fontSize: '16px', fontWeight: 700, color: '#10B981' }}>{activeCount}</span>
+                </div>
+                <span style={{ fontSize: '8px', color: '#8f94a5', display: 'block', marginTop: '2px' }}>⚡ En tiempo real</span>
+              </div>
+              <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                <span style={{ fontSize: '10px', color: '#8f94a5', display: 'block' }}>
+                  {timePeriod === 'day' ? 'Regs. Hoy' : timePeriod === 'week' ? 'Regs. Sem' : 'Registros Mes'}
+                </span>
+                <span style={{ fontSize: '16px', fontWeight: 700, color: '#fff' }}>{periodRegistries}</span>
+                <span style={{ fontSize: '8px', color: '#10B981', display: 'block', marginTop: '2px' }}>✓ tiempo real</span>
+              </div>
+            </div>
+
+            {/* Rango de Edades de Pasajeros */}
+            <div>
+              <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '8px' }}>Rango de Edades de Pasajeros</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {ageStats.map((item, idx) => (
+                  <div key={idx} style={{ fontSize: '10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: '#fff' }}>{item.range}</span>
+                      <span style={{ color: '#8f94a5' }}>{item.pct}%</span>
+                    </div>
+                    <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
+                      <div style={{ width: `${item.pct}%`, height: '100%', background: item.color, borderRadius: '2px' }}></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Propósito Principal de Viaje */}
+            <div>
+              <span style={{ fontSize: '11px', color: '#8f94a5', fontWeight: 700, display: 'block', marginBottom: '6px' }}>Propósito Principal de Viaje</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px' }}>
+                {purposeStats.map((p, idx) => (
+                  <div key={idx} style={{ flex: 1, background: 'rgba(255,255,255,0.01)', padding: '6px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)', textAlign: 'center' }}>
+                    <span style={{ fontSize: '9px', color: '#8f94a5', display: 'block' }}>{p.label}</span>
+                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{p.pct}%</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-// ─── CRM Pipeline Kanban Tasks component ─────────────────────────────────────
+
 function CRMTasksTab({
   todos,
   onUpdateTodo,
