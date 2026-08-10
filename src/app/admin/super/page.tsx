@@ -6368,7 +6368,13 @@ function AdsTab({
         {/* Horizontal Tracks for ALL 15 LINES */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           {MOCK_LINES.map((lineObj) => {
-            const lineStops = getMockStopsForLine(lineObj.id as any)
+            let lineStops: any[] = []
+            try {
+              lineStops = getMockStopsForLine(lineObj)
+            } catch (e) {
+              console.error('Error loading stops for line:', lineObj.name, e)
+              lineStops = []
+            }
 
             return (
               <div key={lineObj.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
