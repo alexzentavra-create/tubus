@@ -7323,121 +7323,328 @@ function ChatTab({
 // ─── Reports complaints view component ───────────────────────────────────────
 function ReportsTab({ bannedUsers, onToggleBan }: { bannedUsers: string[]; onToggleBan: (email: string) => void }) {
   const [complaints, setComplaints] = useState<any[]>([])
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'resolved'>('all')
+  const [searchTerm, setSearchTerm] = useState('')
   const [selectedReporter, setSelectedReporter] = useState<any | null>(null)
   const [deleteReportTarget, setDeleteReportTarget] = useState<{ id: string; name: string } | null>(null)
+
+  const DEFAULT_DRIVER_REPORTS = [
+    {
+      id: 'rep-seed-1',
+      type: '⚠️ Exceso de velocidad',
+      driver: 'Marcos Rossi',
+      driverId: 'd-1',
+      bus: '104',
+      line: 'Línea 12',
+      lineId: 'linea-12',
+      reason: 'Exceso de velocidad',
+      desc: 'El chofer cruzó en rojo el semáforo de Av. Santa Fe y Pueyrredón a alta velocidad poniendo en riesgo a los pasajeros.',
+      time: 'Hoy 21:15 hs',
+      timestamp: new Date().toISOString(),
+      status: 'pending',
+      reporter: {
+        name: 'Lucía Fernández',
+        email: 'lucia.f@gmail.com',
+        avatar: 'LF',
+        pastReports: 2,
+        behavior: 'Ocasional'
+      }
+    },
+    {
+      id: 'rep-seed-2',
+      type: '😤 Mal trato al pasajero',
+      driver: 'Carlos Benítez',
+      driverId: 'd-2',
+      bus: '208',
+      line: 'Línea 37',
+      lineId: 'linea-37',
+      reason: 'Mal trato al pasajero',
+      desc: 'No quiso esperar a una persona mayor que intentaba subir en la parada de Plaza Italia y arrancó bruscamente.',
+      time: 'Hoy 19:40 hs',
+      timestamp: new Date(Date.now() - 3600000 * 2).toISOString(),
+      status: 'pending',
+      reporter: {
+        name: 'Gonzalo Pérez',
+        email: 'gonzalo.perez@hotmail.com',
+        avatar: 'GP',
+        pastReports: 5,
+        behavior: 'Frecuente'
+      }
+    },
+    {
+      id: 'rep-seed-3',
+      type: '🚌 Omisión de Parada',
+      driver: 'Néstor Peralta',
+      driverId: 'd-3',
+      bus: '315',
+      line: 'Línea 152',
+      lineId: 'linea-152',
+      reason: 'No paró en la parada',
+      desc: 'Ignoró las señas de tres pasajeros parados en la parada oficial de Retiro a pesar de tener espacio disponible.',
+      time: 'Ayer 18:20 hs',
+      timestamp: new Date(Date.now() - 3600000 * 24).toISOString(),
+      status: 'resolved',
+      reporter: {
+        name: 'Mariana Gómez',
+        email: 'marianagomez@yahoo.com.ar',
+        avatar: 'MG',
+        pastReports: 1,
+        behavior: 'Ocasional'
+      }
+    }
+  ]
+
+  const loadComplaints = () => {
+    try {
+      const savedUserReportsStr = localStorage.getItem('bu_reports') || '[]'
+      const savedUserReports = JSON.parse(savedUserReportsStr)
+      const deletedReportIds = JSON.parse(localStorage.getItem('bu_deleted_report_ids') || '[]')
+
+      // Filter out Ad reports so only Driver/Bus complaints are rendered here
+      const driverOnlyReports = (Array.isArray(savedUserReports) ? savedUserReports : []).filter((r: any) => r.type !== 'Publicidad' && !r.adTitle)
+
+      const allList = [...driverOnlyReports, ...DEFAULT_DRIVER_REPORTS]
+      const dict: Record<string, any> = {}
+      allList.forEach(r => {
+        if (r && r.id && !deletedReportIds.includes(r.id) && !dict[r.id]) {
+          dict[r.id] = r
+        }
+      })
+
+      setComplaints(Object.values(dict))
+    } catch (e) {
+      setComplaints(DEFAULT_DRIVER_REPORTS)
+    }
+  }
+
+  useEffect(() => {
+    loadComplaints()
+    const handleStorage = () => loadComplaints()
+    window.addEventListener('storage', handleStorage)
+    window.addEventListener('driver_reports_updated', handleStorage)
+    return () => {
+      window.removeEventListener('storage', handleStorage)
+      window.removeEventListener('driver_reports_updated', handleStorage)
+    }
+  }, [])
+
+  const handleToggleResolveStatus = (reportId: string) => {
+    const updated = complaints.map(c => {
+      if (c.id === reportId) {
+        const nextStatus = c.status === 'resolved' ? 'pending' : 'resolved'
+        toast.success(nextStatus === 'resolved' ? '✓ Denuncia marcada como Resuelta' : 'Denuncia reactivada como Pendiente')
+        return { ...c, status: nextStatus }
+      }
+      return c
+    })
+    setComplaints(updated)
+    localStorage.setItem('bu_reports', JSON.stringify(updated))
+    try { window.dispatchEvent(new Event('storage')) } catch (e) {}
+  }
 
   const handleConfirmReportDelete = () => {
     if (!deleteReportTarget) return
     const { id, name } = deleteReportTarget
-    const updated = complaints.filter((c: any, idx: number) => idx.toString() !== id && c.driver !== name)
+    const updated = complaints.filter(c => c.id !== id)
     setComplaints(updated)
+
+    // Save to deleted report registry
+    const deletedReportIds = JSON.parse(localStorage.getItem('bu_deleted_report_ids') || '[]')
+    if (!deletedReportIds.includes(id)) deletedReportIds.push(id)
+    localStorage.setItem('bu_deleted_report_ids', JSON.stringify(deletedReportIds))
     localStorage.setItem('bu_reports', JSON.stringify(updated))
+
     try { window.dispatchEvent(new Event('storage')) } catch (e) {}
-    toast.success(`🗑️ "${name}" eliminada permanentemente.`)
+    toast.success(`🗑️ "${name}" eliminada permanentemente del sistema.`)
     setDeleteReportTarget(null)
   }
 
-  useEffect(() => {
-    const list = Object.entries(LINE_DETAILS).flatMap(([lineId, details]) => {
-      const lineInfo = LINES_DATA.find(l => l.id === lineId) || { name: `Línea` }
-      return details.complaintsList.map((c, idx) => {
-        // Distribute mock reporters from MOCK_USERS
-        const reporter = MOCK_USERS[idx % MOCK_USERS.length]
-        return {
-          ...c,
-          line: lineInfo.name,
-          reporter: {
-            id: reporter.id,
-            name: reporter.name,
-            email: reporter.email,
-            avatar: reporter.avatar,
-            joinedDate: reporter.joinedDate,
-            pastReports: (idx % 2 === 0) ? 4 : 1, // mock reports frequency data
-            behavior: (idx % 2 === 0) ? 'Frecuente' : 'Ocasional'
-          }
-        }
-      })
-    })
-    setComplaints(list)
-  }, [])
+  const filteredComplaints = complaints.filter(c => {
+    const matchesStatus = statusFilter === 'all' || c.status === statusFilter
+    const q = searchTerm.toLowerCase()
+    const matchesSearch = !q || c.driver.toLowerCase().includes(q) || c.line.toLowerCase().includes(q) || c.desc.toLowerCase().includes(q) || c.reporter?.name?.toLowerCase().includes(q)
+    return matchesStatus && matchesSearch
+  })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div>
-        <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Registro de Denuncias contra Choferes</h3>
-        <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Reportes recibidos en tiempo real a través de las aplicaciones móviles de pasajeros</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#fff' }}>Registro de Denuncias contra Choferes</h3>
+          <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Reportes de pasajeros recibidos en tiempo real a través de la app móvil</p>
+        </div>
+
+        {/* Status Filters */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button
+            onClick={() => setStatusFilter('all')}
+            style={{
+              padding: '6px 14px', borderRadius: '8px',
+              background: statusFilter === 'all' ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.03)',
+              border: `1px solid ${statusFilter === 'all' ? '#3B82F6' : 'rgba(255,255,255,0.08)'}`,
+              color: statusFilter === 'all' ? '#3B82F6' : '#94A3B8',
+              fontSize: '12px', fontWeight: 700, cursor: 'pointer'
+            }}
+          >
+            Todas ({complaints.length})
+          </button>
+          <button
+            onClick={() => setStatusFilter('pending')}
+            style={{
+              padding: '6px 14px', borderRadius: '8px',
+              background: statusFilter === 'pending' ? 'rgba(245,158,11,0.2)' : 'rgba(255,255,255,0.03)',
+              border: `1px solid ${statusFilter === 'pending' ? '#F59E0B' : 'rgba(255,255,255,0.08)'}`,
+              color: statusFilter === 'pending' ? '#F59E0B' : '#94A3B8',
+              fontSize: '12px', fontWeight: 700, cursor: 'pointer'
+            }}
+          >
+            Pendientes ({complaints.filter(c => c.status === 'pending').length})
+          </button>
+          <button
+            onClick={() => setStatusFilter('resolved')}
+            style={{
+              padding: '6px 14px', borderRadius: '8px',
+              background: statusFilter === 'resolved' ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.03)',
+              border: `1px solid ${statusFilter === 'resolved' ? '#10B981' : 'rgba(255,255,255,0.08)'}`,
+              color: statusFilter === 'resolved' ? '#10B981' : '#94A3B8',
+              fontSize: '12px', fontWeight: 700, cursor: 'pointer'
+            }}
+          >
+            Resueltas ({complaints.filter(c => c.status === 'resolved').length})
+          </button>
+
+          <input
+            type="text"
+            placeholder="Buscar chofer, línea o motivo..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            style={{
+              background: 'rgba(0,0,0,0.3)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '8px',
+              padding: '6px 12px',
+              color: '#FFFFFF',
+              fontSize: '12px',
+              width: '220px',
+              outline: 'none'
+            }}
+          />
+        </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {complaints.map((c, i) => (
-          <div key={i} style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '12px', fontWeight: 700, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444', padding: '2px 8px', borderRadius: '6px' }}>{c.type}</span>
-                <span style={{ fontSize: '11px', color: '#8f94a5' }}>Chofer: <strong style={{ color: '#fff' }}>{c.driver}</strong> (Unidad {c.bus})</span>
+        {filteredComplaints.length === 0 ? (
+          <div style={{ background: '#121527', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '12px', padding: '30px', textAlign: 'center', color: '#8f94a5', fontSize: '13px' }}>
+            No hay denuncias de choferes registradas en este estado.
+          </div>
+        ) : (
+          filteredComplaints.map((c) => (
+            <div key={c.id} style={{ background: '#121527', border: `1px solid ${c.status === 'resolved' ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.06)'}`, borderRadius: '12px', padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444', padding: '3px 10px', borderRadius: '6px' }}>
+                    {c.type || c.reason || 'Denuncia'}
+                  </span>
+                  <span style={{ fontSize: '12px', color: '#8f94a5' }}>
+                    Chofer: <strong style={{ color: '#fff' }}>{c.driver}</strong> (Unidad <strong style={{ color: '#60A5FA' }}>#{c.bus}</strong>) • <strong style={{ color: '#10B981' }}>{c.line}</strong>
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '11px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{c.time || 'Reciente'}</span>
+                  <button
+                    onClick={() => setDeleteReportTarget({ id: c.id, name: `Denuncia contra ${c.driver}` })}
+                    style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#EF4444', borderRadius: '6px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 700 }}
+                    title="Eliminar Denuncia Definitivamente"
+                  >
+                    <Trash2 size={12} /> Eliminar
+                  </button>
+                </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '11px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{c.time}</span>
+
+              <p style={{ fontSize: '13px', color: '#d1d5db', margin: 0, lineHeight: 1.5, background: 'rgba(0,0,0,0.2)', padding: '10px 14px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                {c.desc}
+              </p>
+
+              {/* Reporter details row */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                <span style={{ fontSize: '11px', color: '#8f94a5' }}>
+                  Denunciante: <strong style={{ color: '#fff' }}>{c.reporter?.name || 'Pasajero'}</strong> ({c.reporter?.email || 'pasajero@bienparada.com.ar'})
+                </span>
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setDeleteReportTarget({ id: i.toString(), name: `Denuncia contra ${c.driver}` })
+                  onClick={() => setSelectedReporter(c.reporter)}
+                  style={{
+                    background: 'rgba(59, 130, 246, 0.1)',
+                    border: '1px solid rgba(59, 130, 246, 0.25)',
+                    color: '#3b82f6',
+                    borderRadius: '6px',
+                    padding: '4px 10px',
+                    cursor: 'pointer',
+                    fontSize: '11px',
+                    fontWeight: 600
                   }}
-                  style={{ background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#EF4444', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                  title="Eliminar Denuncia"
                 >
-                  <Trash2 size={11} />
+                  👤 Ver Perfil
                 </button>
               </div>
-            </div>
-            
-            <p style={{ fontSize: '12px', color: '#a3a6b8', margin: 0, lineHeight: 1.4 }}>{c.desc}</p>
-            
-            {/* Reporter details row */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
-              <span style={{ fontSize: '11px', color: '#8f94a5' }}>
-                Denunciante: <strong style={{ color: '#fff' }}>{c.reporter.name}</strong> ({c.reporter.email})
-              </span>
-              <button
-                onClick={() => setSelectedReporter(c.reporter)}
-                style={{
-                  background: 'rgba(59, 130, 246, 0.1)',
-                  border: '1px solid rgba(59, 130, 246, 0.25)',
-                  color: '#3b82f6',
-                  borderRadius: '6px',
-                  padding: '4px 10px',
-                  cursor: 'pointer',
-                  fontSize: '10px',
-                  fontWeight: 600,
-                  transition: 'all 150ms'
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59, 130, 246, 0.2)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)' }}
-              >
-                Ver Perfil
-              </button>
-            </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '8px', marginTop: '4px' }}>
-              <span style={{ fontSize: '11px', color: '#8f94a5' }}>Línea asociada: <strong style={{ color: '#fff' }}>{c.line}</strong></span>
-              <span style={{ fontSize: '10px', background: c.status === 'resolved' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)', color: c.status === 'resolved' ? '#10B981' : '#f59e0b', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>{c.status.toUpperCase()}</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '10px', marginTop: '2px' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => handleToggleResolveStatus(c.id)}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '6px',
+                      background: c.status === 'resolved' ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)',
+                      border: `1px solid ${c.status === 'resolved' ? 'rgba(245,158,11,0.3)' : 'rgba(16,185,129,0.3)'}`,
+                      color: c.status === 'resolved' ? '#F59E0B' : '#10B981',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {c.status === 'resolved' ? '⏪ Marcar como Pendiente' : '✓ Marcar como Resuelto'}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      toast.success(`⚠️ Sanción disciplinaria aplicada al chofer ${c.driver}.`)
+                    }}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '6px',
+                      background: 'rgba(239,68,68,0.15)',
+                      border: '1px solid rgba(239,68,68,0.3)',
+                      color: '#EF4444',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ⚠️ Sancionar Chofer
+                  </button>
+                </div>
+
+                <span style={{ fontSize: '10px', background: c.status === 'resolved' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)', color: c.status === 'resolved' ? '#10B981' : '#f59e0b', padding: '4px 8px', borderRadius: '6px', fontWeight: 800, textTransform: 'uppercase' }}>
+                  {c.status === 'resolved' ? 'RESUELTO' : 'PENDIENTE'}
+                </span>
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Reporter Profile Detail Modal & Banning Controls */}
       {selectedReporter && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '24px', width: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,8,16,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999 }}>
+          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '24px', width: '380px', display: 'flex', flexDirection: 'column', gap: '16px', color: '#fff' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Perfil del Denunciante</h3>
-              <button onClick={() => setSelectedReporter(null)} style={{ background: 'none', border: 'none', color: '#8f94a5', cursor: 'pointer', fontSize: '14px' }}>✕</button>
+              <button onClick={() => setSelectedReporter(null)} style={{ background: 'none', border: 'none', color: '#8f94a5', cursor: 'pointer', fontSize: '16px' }}>✕</button>
             </div>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 'bold', fontSize: '16px' }}>
-                {selectedReporter.avatar}
+                {selectedReporter.avatar || 'P'}
               </div>
               <div>
                 <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>{selectedReporter.name}</div>
@@ -7448,7 +7655,7 @@ function ReportsTab({ bannedUsers, onToggleBan }: { bannedUsers: string[]; onTog
             <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                 <span style={{ color: '#8f94a5' }}>Denuncias realizadas:</span>
-                <span style={{ color: '#fff', fontWeight: 600 }}>{selectedReporter.pastReports} reportes</span>
+                <span style={{ color: '#fff', fontWeight: 600 }}>{selectedReporter.pastReports || 1} reportes</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                 <span style={{ color: '#8f94a5' }}>Frecuencia de quejas:</span>
@@ -7456,71 +7663,54 @@ function ReportsTab({ bannedUsers, onToggleBan }: { bannedUsers: string[]; onTog
                   color: selectedReporter.behavior === 'Frecuente' ? '#ef4444' : '#10B981',
                   fontWeight: 700
                 }}>
-                  {selectedReporter.behavior}
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-                <span style={{ color: '#8f94a5' }}>Estado de la Cuenta:</span>
-                <span style={{
-                  color: bannedUsers.includes(selectedReporter.email.toLowerCase()) ? '#ef4444' : '#10B981',
-                  fontWeight: 700
-                }}>
-                  {bannedUsers.includes(selectedReporter.email.toLowerCase()) ? 'BANEADO' : 'ACTIVO'}
+                  {selectedReporter.behavior || 'Normal'}
                 </span>
               </div>
             </div>
 
-            {/* Banning actions layout */}
+            <button
+              onClick={() => {
+                onToggleBan(selectedReporter.email)
+                toast.success(bannedUsers.includes(selectedReporter.email) ? `Usuario ${selectedReporter.email} desbaneado` : `Usuario ${selectedReporter.email} baneado de la plataforma`)
+              }}
+              style={{
+                width: '100%',
+                padding: '10px',
+                borderRadius: '8px',
+                background: bannedUsers.includes(selectedReporter.email) ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+                border: `1px solid ${bannedUsers.includes(selectedReporter.email) ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                color: bannedUsers.includes(selectedReporter.email) ? '#10B981' : '#ef4444',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              {bannedUsers.includes(selectedReporter.email) ? '✓ Quitar Baneo de Usuario' : '🚫 Banear Pasajero por Falsas Denuncias'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal for Permanent Report Deletion */}
+      {deleteReportTarget && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,8,16,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999 }}>
+          <div style={{ background: '#121527', border: '1.5px solid rgba(239, 68, 68, 0.4)', borderRadius: '16px', padding: '24px', maxWidth: '400px', width: '100%', color: '#FFFFFF', boxShadow: '0 20px 50px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EF4444' }}>
+                <AlertTriangle size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>Eliminar Denuncia</h3>
+                <span style={{ fontSize: '11px', color: '#94A3B8' }}>Registro de Choferes</span>
+              </div>
+            </div>
+            <p style={{ margin: 0, fontSize: '13px', color: '#CBD5E1', lineHeight: '1.5' }}>
+              ¿Estás seguro de eliminar permanentemente la denuncia <strong style={{ color: '#fff' }}>"${deleteReportTarget.name}"</strong>?
+            </p>
             <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
-              {bannedUsers.includes(selectedReporter.email.toLowerCase()) ? (
-                <button
-                  onClick={() => onToggleBan(selectedReporter.email.toLowerCase())}
-                  style={{
-                    flex: 1,
-                    padding: '10px',
-                    background: '#10B981',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#fff',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    fontSize: '12px'
-                  }}
-                >
-                  Desbloquear (Unban)
-                </button>
-              ) : (
-                <button
-                  onClick={() => onToggleBan(selectedReporter.email.toLowerCase())}
-                  style={{
-                    flex: 1,
-                    padding: '10px',
-                    background: '#ef4444',
-                    border: 'none',
-                    borderRadius: '8px',
-                    color: '#fff',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    fontSize: '12px'
-                  }}
-                >
-                  Bloquear (Ban)
-                </button>
-              )}
-              
-              <button
-                onClick={() => setSelectedReporter(null)}
-                style={{
-                  padding: '10px 16px',
-                  background: 'rgba(255,255,255,0.05)',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#8f94a5',
-                  cursor: 'pointer',
-                  fontSize: '12px'
-                }}
-              >
-                Cerrar
+              <button onClick={() => setDeleteReportTarget(null)} style={{ flex: 1, padding: '10px 16px', borderRadius: '10px', background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: '#94A3B8', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={handleConfirmReportDelete} style={{ flex: 1.5, padding: '10px 16px', borderRadius: '10px', background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)', border: 'none', color: '#FFFFFF', fontSize: '12px', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 15px rgba(239,68,68,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <Trash2 size={14} /> Eliminar Definitivamente
               </button>
             </div>
           </div>
@@ -7529,6 +7719,7 @@ function ReportsTab({ bannedUsers, onToggleBan }: { bannedUsers: string[]; onTog
     </div>
   )
 }
+
 
 // ─── Provinces map and Demography component ──────────────────────────────────
 const DRILLDOWN_DATA: Record<string, {

@@ -27782,30 +27782,53 @@ function MapAdBanner({
                 <button
                   onClick={() => {
                     try {
-                      const existingReports = JSON.parse(localStorage.getItem('bu_reports') || '[]')
+                      const existingAdReports = JSON.parse(localStorage.getItem('bu_ad_reports') || '[]')
                       const activeUserStr = localStorage.getItem('active_user')
                       const activeUser = activeUserStr ? JSON.parse(activeUserStr) : null
                       const newAdReport = {
                         id: 'rep-ad-' + Date.now(),
-                        type: 'Publicidad',
-                        line: 'Publicidad General',
-                        bus: reportingAdObj.id,
-                        driver: reportingAdObj.title,
+                        adId: reportingAdObj.id,
+                        adTitle: reportingAdObj.title,
+                        adDesc: reportingAdObj.desc || reportingAdObj.description,
+                        reason: adReportReason,
+                        desc: adReportDetails.trim() || `Denuncia por ${adReportReason}`,
                         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                         date: new Date().toISOString().split('T')[0],
-                        desc: `📢 Denuncia de Anuncio "${reportingAdObj.title}": ${adReportReason}. ${adReportDetails}`,
+                        timestamp: new Date().toISOString(),
                         reporter: {
-                          name: activeUser?.name || 'Pasajero',
-                          email: activeUser?.email || 'pasajero@bienparada.ar',
-                          pastReports: 1,
-                          behavior: 'Normal',
-                          avatar: (activeUser?.name || 'P').charAt(0).toUpperCase()
+                          name: activeUser?.name || profileName || 'Pasajero',
+                          email: activeUser?.email || profileEmail || 'pasajero@bienparada.ar',
+                          avatar: (activeUser?.name || profileName || 'P').charAt(0).toUpperCase()
                         },
-                        status: 'Pendiente'
+                        status: 'pending'
                       }
-                      existingReports.unshift(newAdReport)
-                      localStorage.setItem('bu_reports', JSON.stringify(existingReports))
-                      toast.success("⚠️ Denuncia enviada con éxito al Panel Super Admin")
+
+                      existingAdReports.unshift(newAdReport)
+                      localStorage.setItem('bu_ad_reports', JSON.stringify(existingAdReports))
+
+                      // Update ad object with reports badge in bu_submitted_ads
+                      const submittedAds = JSON.parse(localStorage.getItem('bu_submitted_ads') || '[]')
+                      const updatedAds = submittedAds.map((a: any) => {
+                        if (a.id === reportingAdObj.id || a.title === reportingAdObj.title) {
+                          const reportsList = a.reportsList || []
+                          reportsList.push(newAdReport)
+                          return {
+                            ...a,
+                            hasReports: true,
+                            reportsCount: (a.reportsCount || 0) + 1,
+                            reportsList
+                          }
+                        }
+                        return a
+                      })
+                      localStorage.setItem('bu_submitted_ads', JSON.stringify(updatedAds))
+                      localStorage.setItem('mock_super_ads', JSON.stringify(updatedAds))
+
+                      window.dispatchEvent(new Event('storage'))
+                      window.dispatchEvent(new Event('ads_updated'))
+                      window.dispatchEvent(new Event('ad_reports_updated'))
+
+                      toast.success("⚠️ Denuncia de publicidad enviada al Panel de Anuncios")
                     } catch (e) {
                       console.error('Error saving ad report:', e)
                     }
