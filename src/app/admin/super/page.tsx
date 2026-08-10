@@ -11,7 +11,7 @@ import {
   Settings, UserPlus, KeyRound, Shield, Save, Edit3, ShieldAlert, Ban, UserX
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
-import { getStoredGeneralTerms, getStoredAdsTerms, saveStoredGeneralTerms, saveStoredAdsTerms } from '@/lib/termsData'
+import { getStoredGeneralTerms, getStoredAdsTerms, getStoredGeneralVersion, getStoredAdsVersion, saveStoredGeneralTerms, saveStoredAdsTerms, getStoredTermsHistory, deleteTermsHistoryEntry, TermsHistoryEntry } from '@/lib/termsData'
 import { QRCodeDisplay } from '@/components/common/QRCodeDisplay'
 import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre'
 import { MOCK_LINES, MOCK_PLACES, getMockStopsForLine, getMockRoutePathForLine } from '@/lib/mockData'
@@ -2894,192 +2894,20 @@ export default function SuperAdminDashboard() {
     )
   }
 
-  const renderTermsDetail = () => {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        {/* Header Card */}
-        <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-          <div>
-            <div style={{ fontSize: '18px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <ShieldCheck size={20} style={{ color: '#10B981' }} /> Editor de Términos y Condiciones
-            </div>
-            <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>
-              Administrá los textos legales y reglas de publicación de la aplicación. Todos los cambios guardados se sincronizan en tiempo real en los popups de usuarios y anunciantes.
-            </p>
-          </div>
-
-          {/* Sub-tab selection */}
-          <div style={{ display: 'flex', background: '#1b1d2e', borderRadius: '8px', padding: '3px', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <button
-              onClick={() => setAdminTermsTab('general')}
-              style={{
-                padding: '8px 16px',
-                border: 'none',
-                background: adminTermsTab === 'general' ? '#10B981' : 'transparent',
-                color: '#fff',
-                fontSize: '12px',
-                fontWeight: 600,
-                borderRadius: '6px',
-                cursor: 'pointer',
-                transition: 'all 150ms',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              📜 Términos Generales de App
-            </button>
-            <button
-              onClick={() => setAdminTermsTab('ads')}
-              style={{
-                padding: '8px 16px',
-                border: 'none',
-                background: adminTermsTab === 'ads' ? '#3B82F6' : 'transparent',
-                color: '#fff',
-                fontSize: '12px',
-                fontWeight: 600,
-                borderRadius: '6px',
-                cursor: 'pointer',
-                transition: 'all 150ms',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              📢 Reglas y Términos de Anuncios
-            </button>
-          </div>
-        </div>
-
-        {/* Content Grid: Left Editor | Right Live Popup Preview */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-          {/* Left Column: Editor Form */}
-          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>
-                {adminTermsTab === 'general' ? 'Editando: Términos y Condiciones Generales' : 'Editando: Términos y Reglas de Publicación de Anuncios'}
-              </span>
-              <span style={{ fontSize: '10px', color: '#10B981', fontFamily: 'DM Mono' }}>● Sincronización activa</span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '10px', color: '#8f94a5', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 600 }}>Versión</label>
-                <input
-                  type="text"
-                  value={adminTermsTab === 'general' ? generalVersionInput : adsVersionInput}
-                  onChange={e => adminTermsTab === 'general' ? setGeneralVersionInput(e.target.value) : setAdsVersionInput(e.target.value)}
-                  style={{ width: '100%', padding: '8px 10px', background: '#181b2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', fontSize: '12px', outline: 'none' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '10px', color: '#8f94a5', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 600 }}>Estado</label>
-                <div style={{ padding: '8px 10px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '6px', color: '#10B981', fontSize: '11px', fontWeight: 700, textAlign: 'center' }}>
-                  VIGENTE EN LA APP
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '10px', color: '#8f94a5', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 600 }}>Cuerpo del Documento (Markdown / Texto)</label>
-              <textarea
-                value={adminTermsTab === 'general' ? generalTermsInput : adsTermsInput}
-                onChange={e => adminTermsTab === 'general' ? setGeneralTermsInput(e.target.value) : setAdsTermsInput(e.target.value)}
-                rows={16}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  background: '#181b2e',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '8px',
-                  color: '#fff',
-                  fontSize: '12px',
-                  fontFamily: 'DM Sans, sans-serif',
-                  lineHeight: '1.5',
-                  outline: 'none',
-                  resize: 'vertical'
-                }}
-              />
-            </div>
-
-            <button
-              onClick={() => {
-                if (adminTermsTab === 'general') {
-                  saveStoredGeneralTerms(generalTermsInput, generalVersionInput)
-                } else {
-                  saveStoredAdsTerms(adsTermsInput, adsVersionInput)
-                }
-                toast.success('¡Términos y condiciones guardados y sincronizados en tiempo real!')
-              }}
-              style={{
-                width: '100%',
-                padding: '12px',
-                background: adminTermsTab === 'general' ? 'linear-gradient(135deg, #10B981, #059669)' : 'linear-gradient(135deg, #3B82F6, #1D4ED8)',
-                border: 'none',
-                borderRadius: '8px',
-                color: '#fff',
-                fontSize: '13px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                transition: 'all 150ms'
-              }}
-            >
-              💾 Guardar y Sincronizar Términos
-            </button>
-          </div>
-
-          {/* Right Column: Live Popup Preview */}
-          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>
-                👁️ Vista Previa del Popup para el Usuario
-              </span>
-              <span style={{ fontSize: '10px', color: '#8f94a5' }}>Previsualización en pantalla</span>
-            </div>
-
-            <div style={{
-              flex: 1,
-              background: '#181b2e',
-              border: '1px solid ' + (adminTermsTab === 'general' ? 'rgba(16,185,129,0.4)' : 'rgba(59,130,246,0.4)'),
-              borderRadius: '14px',
-              display: 'flex',
-              flexDirection: 'column',
-              maxHeight: '480px',
-              overflow: 'hidden',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
-            }}>
-              <div style={{
-                padding: '12px 16px',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                background: adminTermsTab === 'general' ? 'rgba(16,185,129,0.08)' : 'rgba(59,130,246,0.08)'
-              }}>
-                <h4 style={{ fontSize: '13px', fontWeight: 700, margin: 0, color: '#fff' }}>
-                  {adminTermsTab === 'general' ? '📜 Términos y Condiciones Generales' : '📢 Términos y Reglas de Publicación'}
-                </h4>
-                <span style={{ fontSize: '10px', color: adminTermsTab === 'general' ? '#10B981' : '#3B82F6', fontWeight: 600 }}>
-                  {adminTermsTab === 'general' ? generalVersionInput : adsVersionInput}
-                </span>
-              </div>
-
-              <div style={{ flex: 1, overflowY: 'auto', padding: '16px', color: '#a3a6b8', fontSize: '12px', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
-                {adminTermsTab === 'general' ? generalTermsInput : adsTermsInput}
-              </div>
-
-              <div style={{ padding: '10px 16px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', justifyContent: 'flex-end', background: 'rgba(0,0,0,0.2)' }}>
-                <button style={{ padding: '6px 14px', borderRadius: '6px', border: 'none', background: adminTermsTab === 'general' ? '#10B981' : '#3B82F6', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'default' }}>
-                  Entendido y Aceptar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  const renderTermsDetail = () => (
+    <TermsAndConditionsManagerTab
+      adminTermsTab={adminTermsTab}
+      setAdminTermsTab={setAdminTermsTab}
+      generalTermsInput={generalTermsInput}
+      setGeneralTermsInput={setGeneralTermsInput}
+      generalVersionInput={generalVersionInput}
+      setGeneralVersionInput={setGeneralVersionInput}
+      adsTermsInput={adsTermsInput}
+      setAdsTermsInput={setAdsTermsInput}
+      adsVersionInput={adsVersionInput}
+      setAdsVersionInput={setAdsVersionInput}
+    />
+  )
 
   const logout = async () => {
     await supabase.auth.signOut()
@@ -9215,6 +9043,286 @@ function RealtimeNewsAndTipsTab({
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+
+function TermsAndConditionsManagerTab({
+  adminTermsTab,
+  setAdminTermsTab,
+  generalTermsInput,
+  setGeneralTermsInput,
+  generalVersionInput,
+  setGeneralVersionInput,
+  adsTermsInput,
+  setAdsTermsInput,
+  adsVersionInput,
+  setAdsVersionInput
+}: {
+  adminTermsTab: 'general' | 'ads'
+  setAdminTermsTab: (tab: 'general' | 'ads') => void
+  generalTermsInput: string
+  setGeneralTermsInput: (val: string) => void
+  generalVersionInput: string
+  setGeneralVersionInput: (val: string) => void
+  adsTermsInput: string
+  setAdsTermsInput: (val: string) => void
+  adsVersionInput: string
+  setAdsVersionInput: (val: string) => void
+}) {
+  const [historyList, setHistoryList] = useState<TermsHistoryEntry[]>([])
+
+  const loadHistory = () => {
+    const list = getStoredTermsHistory(adminTermsTab)
+    setHistoryList(list)
+  }
+
+  useEffect(() => {
+    loadHistory()
+  }, [adminTermsTab])
+
+  const handleSaveTerms = () => {
+    if (adminTermsTab === 'general') {
+      saveStoredGeneralTerms(generalTermsInput, generalVersionInput)
+    } else {
+      saveStoredAdsTerms(adsTermsInput, adsVersionInput)
+    }
+    loadHistory()
+    toast.success(`¡Términos y condiciones (${adminTermsTab === 'general' ? 'Generales' : 'Anuncios'}) guardados y versión registrada en tiempo real!`)
+  }
+
+  const handleRestoreVersion = (entry: TermsHistoryEntry) => {
+    if (adminTermsTab === 'general') {
+      setGeneralTermsInput(entry.content)
+      setGeneralVersionInput(entry.version)
+      saveStoredGeneralTerms(entry.content, entry.version)
+    } else {
+      setAdsTermsInput(entry.content)
+      setAdsVersionInput(entry.version)
+      saveStoredAdsTerms(entry.content, entry.version)
+    }
+    loadHistory()
+    toast.success(`🔄 Versión ${entry.version} restaurada y activada como vigente en la app.`)
+  }
+
+  const handleDeleteHistory = (id: string) => {
+    const updated = deleteTermsHistoryEntry(id, adminTermsTab)
+    setHistoryList(updated)
+    toast.success('Registro eliminado del historial')
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Header Card */}
+      <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <div style={{ fontSize: '18px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ShieldCheck size={20} style={{ color: adminTermsTab === 'general' ? '#10B981' : '#3B82F6' }} /> Editor de Términos y Condiciones Sincronizados
+          </div>
+          <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>
+            Gestioná de forma independiente los textos legales de la app y las reglas de anuncios. Todas las versiones guardadas quedan registradas en el historial para su restauración en 1 clic.
+          </p>
+        </div>
+
+        {/* Sub-tab selection (Generales vs Anuncios) */}
+        <div style={{ display: 'flex', background: '#1b1d2e', borderRadius: '8px', padding: '3px', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <button
+            onClick={() => setAdminTermsTab('general')}
+            style={{
+              padding: '8px 16px', border: 'none',
+              background: adminTermsTab === 'general' ? '#10B981' : 'transparent',
+              color: '#fff', fontSize: '12px', fontWeight: 600, borderRadius: '6px',
+              cursor: 'pointer', transition: 'all 150ms', display: 'flex', alignItems: 'center', gap: '6px'
+            }}
+          >
+            📜 Términos Generales de App
+          </button>
+          <button
+            onClick={() => setAdminTermsTab('ads')}
+            style={{
+              padding: '8px 16px', border: 'none',
+              background: adminTermsTab === 'ads' ? '#3B82F6' : 'transparent',
+              color: '#fff', fontSize: '12px', fontWeight: 600, borderRadius: '6px',
+              cursor: 'pointer', transition: 'all 150ms', display: 'flex', alignItems: 'center', gap: '6px'
+            }}
+          >
+            📢 Reglas y Términos de Anuncios
+          </button>
+        </div>
+      </div>
+
+      {/* Content Grid: Left Editor | Right Live Popup Preview */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+        {/* Left Column: Editor Form */}
+        <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>
+              {adminTermsTab === 'general' ? 'Editando: Términos y Condiciones Generales' : 'Editando: Términos y Reglas de Publicación de Anuncios'}
+            </span>
+            <span style={{ fontSize: '10px', color: '#10B981', fontFamily: 'DM Mono' }}>● Sincronización activa</span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '10px', color: '#8f94a5', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 600 }}>Versión del Documento</label>
+              <input
+                type="text"
+                value={adminTermsTab === 'general' ? generalVersionInput : adsVersionInput}
+                onChange={e => adminTermsTab === 'general' ? setGeneralVersionInput(e.target.value) : setAdsVersionInput(e.target.value)}
+                placeholder="Ej. v2.4"
+                style={{ width: '100%', padding: '8px 10px', background: '#181b2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#fff', fontSize: '12px', outline: 'none' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '10px', color: '#8f94a5', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 600 }}>Estado de Publicación</label>
+              <div style={{ padding: '8px 10px', background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '6px', color: '#10B981', fontSize: '11px', fontWeight: 700, textAlign: 'center' }}>
+                VIGENTE EN LA APP
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '10px', color: '#8f94a5', marginBottom: '4px', textTransform: 'uppercase', fontWeight: 600 }}>Cuerpo del Documento (Markdown / Texto)</label>
+            <textarea
+              value={adminTermsTab === 'general' ? generalTermsInput : adsTermsInput}
+              onChange={e => adminTermsTab === 'general' ? setGeneralTermsInput(e.target.value) : setAdsTermsInput(e.target.value)}
+              rows={14}
+              style={{
+                width: '100%', padding: '12px', background: '#181b2e',
+                border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px',
+                color: '#fff', fontSize: '12px', fontFamily: 'DM Sans, sans-serif',
+                lineHeight: '1.5', outline: 'none', resize: 'vertical'
+              }}
+            />
+          </div>
+
+          <button
+            onClick={handleSaveTerms}
+            style={{
+              width: '100%', padding: '12px',
+              background: adminTermsTab === 'general' ? 'linear-gradient(135deg, #10B981, #059669)' : 'linear-gradient(135deg, #3B82F6, #1D4ED8)',
+              border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 700,
+              cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', transition: 'all 150ms'
+            }}
+          >
+            💾 Guardar y Sincronizar Términos ({adminTermsTab === 'general' ? 'Generales' : 'Anuncios'})
+          </button>
+        </div>
+
+        {/* Right Column: Live Popup Preview */}
+        <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>
+              👁️ Vista Previa del Popup para el Usuario
+            </span>
+            <span style={{ fontSize: '10px', color: '#8f94a5' }}>Previsualización en pantalla</span>
+          </div>
+
+          <div style={{
+            flex: 1, background: '#181b2e',
+            border: '1px solid ' + (adminTermsTab === 'general' ? 'rgba(16,185,129,0.4)' : 'rgba(59,130,246,0.4)'),
+            borderRadius: '14px', display: 'flex', flexDirection: 'column', maxHeight: '460px',
+            overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+          }}>
+            <div style={{
+              padding: '12px 16px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              background: adminTermsTab === 'general' ? 'rgba(16,185,129,0.08)' : 'rgba(59,130,246,0.08)'
+            }}>
+              <h4 style={{ fontSize: '13px', fontWeight: 700, margin: 0, color: '#fff' }}>
+                {adminTermsTab === 'general' ? '📜 Términos y Condiciones Generales' : '📢 Términos y Reglas de Publicación'}
+              </h4>
+              <span style={{ fontSize: '10px', color: adminTermsTab === 'general' ? '#10B981' : '#3B82F6', fontWeight: 600 }}>
+                {adminTermsTab === 'general' ? generalVersionInput : adsVersionInput}
+              </span>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px', color: '#a3a6b8', fontSize: '12px', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+              {adminTermsTab === 'general' ? generalTermsInput : adsTermsInput}
+            </div>
+
+            <div style={{ padding: '10px 16px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', justifyContent: 'flex-end', background: 'rgba(0,0,0,0.2)' }}>
+              <button style={{ padding: '6px 14px', borderRadius: '6px', border: 'none', background: adminTermsTab === 'general' ? '#10B981' : '#3B82F6', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'default' }}>
+                Entendido y Aceptar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Full-Width Section: Version History & One-Click Restore */}
+      <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              📜 Historial de Versiones Anteriores ({adminTermsTab === 'general' ? 'Términos Generales' : 'Reglas de Anuncios'})
+            </h4>
+            <p style={{ fontSize: '11px', color: '#8f94a5', margin: '4px 0 0' }}>
+              Cada vez que guardás una versión con su número correspondiente, se registra automáticamente abajo. Podés previsualizar o hacer clic en "Restaurar" para volver a activar cualquier versión anterior al instante.
+            </p>
+          </div>
+
+          <span style={{ fontSize: '11px', color: adminTermsTab === 'general' ? '#10B981' : '#3B82F6', fontWeight: 700, fontFamily: 'DM Mono' }}>
+            {historyList.length} versiones registradas
+          </span>
+        </div>
+
+        {historyList.length === 0 ? (
+          <div style={{ padding: '30px', textAlign: 'center', color: '#8f94a5', fontSize: '12px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px dashed rgba(255,255,255,0.08)' }}>
+            No hay versiones guardadas en el historial de {adminTermsTab === 'general' ? 'Términos Generales' : 'Reglas de Anuncios'}. Al presionar "Guardar y Sincronizar Términos", se registrará la primera versión acá.
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+            {historyList.map(item => (
+              <div
+                key={item.id}
+                style={{
+                  background: '#181b2e', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px',
+                  padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px'
+                }}
+              >
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 800, background: adminTermsTab === 'general' ? 'rgba(16,185,129,0.15)' : 'rgba(59,130,246,0.15)', color: adminTermsTab === 'general' ? '#10B981' : '#3B82F6', padding: '2px 8px', borderRadius: '4px', fontFamily: 'DM Mono' }}>
+                      Versión {item.version}
+                    </span>
+                    <span style={{ fontSize: '10px', color: '#8f94a5' }}>
+                      📅 {item.savedAt}
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: '11px', color: '#94A3B8', lineHeight: '1.4', maxHeight: '60px', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
+                    {item.content}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '10px' }}>
+                  <button
+                    onClick={() => handleRestoreVersion(item)}
+                    style={{
+                      padding: '6px 12px', background: adminTermsTab === 'general' ? 'rgba(16,185,129,0.15)' : 'rgba(59,130,246,0.15)',
+                      border: '1px solid ' + (adminTermsTab === 'general' ? 'rgba(16,185,129,0.3)' : 'rgba(59,130,246,0.3)'),
+                      borderRadius: '6px', color: adminTermsTab === 'general' ? '#10B981' : '#3B82F6', fontSize: '11px', fontWeight: 700,
+                      cursor: 'pointer', transition: 'all 150ms'
+                    }}
+                  >
+                    🔄 Restaurar esta Versión
+                  </button>
+
+                  <button
+                    onClick={() => handleDeleteHistory(item.id)}
+                    style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '11px', cursor: 'pointer' }}
+                    title="Eliminar registro"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

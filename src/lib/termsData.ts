@@ -65,6 +65,14 @@ No se admitirán anuncios que contengan o promuevan:
 Los anuncios aprobados se mostrarán a los pasajeros en los canales seleccionados (Tarjetas de Noticias, Búsqueda de Recorridos, Banner de Paradas) según la segmentación de la campaña.
 `
 
+export interface TermsHistoryEntry {
+  id: string
+  version: string
+  content: string
+  savedAt: string
+  category: 'general' | 'ads'
+}
+
 export function getStoredGeneralTerms(): string {
   if (typeof window === 'undefined') return DEFAULT_GENERAL_TERMS
   return localStorage.getItem('tu_bus_terms_general') || DEFAULT_GENERAL_TERMS
@@ -75,16 +83,77 @@ export function getStoredAdsTerms(): string {
   return localStorage.getItem('tu_bus_terms_ads') || DEFAULT_ADS_TERMS
 }
 
+export function getStoredGeneralVersion(): string {
+  if (typeof window === 'undefined') return 'v2.4'
+  return localStorage.getItem('tu_bus_terms_general_version') || 'v2.4'
+}
+
+export function getStoredAdsVersion(): string {
+  if (typeof window === 'undefined') return 'v2.1'
+  return localStorage.getItem('tu_bus_terms_ads_version') || 'v2.1'
+}
+
+export function getStoredTermsHistory(category: 'general' | 'ads'): TermsHistoryEntry[] {
+  if (typeof window === 'undefined') return []
+  const key = category === 'general' ? 'bu_terms_history_general' : 'bu_terms_history_ads'
+  try {
+    const data = localStorage.getItem(key)
+    return data ? JSON.parse(data) : []
+  } catch (e) {
+    return []
+  }
+}
+
 export function saveStoredGeneralTerms(text: string, version?: string) {
   if (typeof window === 'undefined') return
   localStorage.setItem('tu_bus_terms_general', text)
-  if (version) localStorage.setItem('tu_bus_terms_general_version', version)
+  const v = version || 'v2.4'
+  localStorage.setItem('tu_bus_terms_general_version', v)
+
+  // Append entry to history
+  const history = getStoredTermsHistory('general')
+  const newEntry: TermsHistoryEntry = {
+    id: `ver-gen-${Date.now()}`,
+    version: v,
+    content: text,
+    savedAt: new Date().toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    category: 'general'
+  }
+  // Keep unique version entries or prepend
+  const updatedHistory = [newEntry, ...history.filter(h => h.version !== v || h.content !== text)]
+  localStorage.setItem('bu_terms_history_general', JSON.stringify(updatedHistory))
+
   window.dispatchEvent(new Event('storage'))
+  window.dispatchEvent(new Event('general_terms_updated'))
 }
 
 export function saveStoredAdsTerms(text: string, version?: string) {
   if (typeof window === 'undefined') return
   localStorage.setItem('tu_bus_terms_ads', text)
-  if (version) localStorage.setItem('tu_bus_terms_ads_version', version)
+  const v = version || 'v2.1'
+  localStorage.setItem('tu_bus_terms_ads_version', v)
+
+  // Append entry to history
+  const history = getStoredTermsHistory('ads')
+  const newEntry: TermsHistoryEntry = {
+    id: `ver-ads-${Date.now()}`,
+    version: v,
+    content: text,
+    savedAt: new Date().toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+    category: 'ads'
+  }
+  const updatedHistory = [newEntry, ...history.filter(h => h.version !== v || h.content !== text)]
+  localStorage.setItem('bu_terms_history_ads', JSON.stringify(updatedHistory))
+
   window.dispatchEvent(new Event('storage'))
+  window.dispatchEvent(new Event('ads_terms_updated'))
+}
+
+export function deleteTermsHistoryEntry(id: string, category: 'general' | 'ads'): TermsHistoryEntry[] {
+  if (typeof window === 'undefined') return []
+  const key = category === 'general' ? 'bu_terms_history_general' : 'bu_terms_history_ads'
+  const history = getStoredTermsHistory(category)
+  const filtered = history.filter(h => h.id !== id)
+  localStorage.setItem(key, JSON.stringify(filtered))
+  return filtered
 }
