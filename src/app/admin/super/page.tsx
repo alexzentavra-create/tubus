@@ -4345,151 +4345,7 @@ export default function SuperAdminDashboard() {
         {/* 8. Transport Industry News */}
         {tab === 'pois' && <PoisTab />}
 
-        {tab === 'news' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Noticias y Tips del Transporte Argentino</h3>
-                <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Información reciente (antigüedad menor a 10 días) de colectivos, taxis, aplicaciones y subtes</p>
-              </div>
-
-              {/* Starred vs All filter switch */}
-              <div style={{ display: 'flex', background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '2px' }}>
-                <button
-                  onClick={() => setNewsFilter('all')}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '6px',
-                    background: newsFilter === 'all' ? 'rgba(16,185,129,0.15)' : 'transparent',
-                    border: 'none',
-                    color: newsFilter === 'all' ? '#10B981' : '#8f94a5',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Todas
-                </button>
-                <button
-                  onClick={() => setNewsFilter('starred')}
-                  style={{
-                    padding: '6px 12px',
-                    borderRadius: '6px',
-                    background: newsFilter === 'starred' ? 'rgba(16,185,129,0.15)' : 'transparent',
-                    border: 'none',
-                    color: newsFilter === 'starred' ? '#10B981' : '#8f94a5',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  ⭐ Favoritos
-                </button>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
-              {news
-                .filter(item => newsFilter === 'all' || item.starred)
-                .map(item => (
-                  <div
-                    key={item.id}
-                    onClick={() => window.open(item.url, '_blank')}
-                    onContextMenu={(e) => handleItemContextMenu(e, item.id, 'news')}
-                    style={{
-                      background: '#121527',
-                      border: '1px solid rgba(255,255,255,0.06)',
-                      borderRadius: '12px',
-                      padding: '20px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      gap: '14px',
-                      cursor: 'pointer',
-                      transition: 'transform 200ms, border-color 200ms'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                    onMouseLeave={e => e.currentTarget.style.transform = 'none'}
-                  >
-                    <div>
-                      {/* Image Preview */}
-                      {item.image && (
-                        <img
-                          src={item.image}
-                          alt=""
-                          style={{ width: '100%', height: '130px', objectFit: 'cover', borderRadius: '8px', marginBottom: '12px' }}
-                        />
-                      )}
-
-                      {/* Header tags */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
-                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '9px', background: 'rgba(16,185,129,0.15)', color: '#10B981', padding: '2px 6px', borderRadius: '4px', fontWeight: 700, fontFamily: 'DM Mono' }}>
-                            {item.source}
-                          </span>
-                          {item.isNew && (
-                            <span style={{ fontSize: '8px', background: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                              NUEVO
-                            </span>
-                          )}
-                          {item.isBusRelated && (
-                            <span style={{ fontSize: '8px', background: 'rgba(59,130,246,0.15)', color: '#3b82f6', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                              COLECTIVOS
-                            </span>
-                          )}
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              const updated = news.map(n => n.id === item.id ? { ...n, starred: !n.starred } : n)
-                              saveNews(updated)
-                              toast.success(item.starred ? 'Destacado removido' : 'Noticia guardada en favoritos')
-                            }}
-                            style={{ background: 'none', border: 'none', color: item.starred ? '#eab308' : '#8f94a5', cursor: 'pointer', padding: 0 }}
-                          >
-                            {item.starred ? '★' : '☆'}
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setDeleteTarget({ type: 'news', id: item.id, name: item.title })
-                            }}
-                            style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#EF4444', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                            title="Eliminar Noticia"
-                          >
-                            <Trash2 size={11} />
-                          </button>
-                        </div>
-                      </div>
-
-                      <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#fff', margin: '6px 0 6px', lineHeight: 1.3 }}>{item.title}</h4>
-                      <p style={{ fontSize: '12px', color: '#8f94a5', margin: 0, lineHeight: 1.4 }}>{item.desc}</p>
-                      
-                      <div style={{ fontSize: '11px', color: '#3B82F6', textDecoration: 'underline', marginTop: '10px', display: 'inline-block' }}>
-                        Ver noticia original ↗
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <div style={{ fontSize: '11px', color: '#8f94a5', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between' }}>
-                        <span>Fecha: {item.date}</span>
-                      </div>
-                      
-                      {/* Comments hint and counter */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '9px', color: '#8f94a5', marginTop: '2px' }}>
-                        <span>💡 Clic derecho para comentar</span>
-                        <span style={{ fontWeight: 700, color: (item.comments?.length || 0) > 0 ? '#3b82f6' : '#8f94a5' }}>
-                          💬 {item.comments?.length || 0} comentarios
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
+        {tab === 'news' && <RealtimeNewsAndTipsTab setDeleteTarget={setDeleteTarget} setContextMenu={setContextMenu} handleItemContextMenu={handleItemContextMenu} saveNews={saveNews} news={news} />}
 
         {/* Right-click Context Menu */}
         {contextMenu?.visible && (
@@ -8856,6 +8712,483 @@ function CRMTasksTab({
                 style={{ padding: '8px 14px', background: '#10B981', border: 'none', borderRadius: '6px', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '12px' }}
               >
                 Crear Tarea
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RealtimeNewsAndTipsTab({
+  setDeleteTarget,
+  setContextMenu,
+  handleItemContextMenu,
+  saveNews,
+  news
+}: {
+  setDeleteTarget: (target: any) => void
+  setContextMenu: (menu: any) => void
+  handleItemContextMenu: (e: any, id: string, type: 'news' | 'ad') => void
+  saveNews: (news: any[]) => void
+  news: any[]
+}) {
+  const [subTab, setSubTab] = useState<'news' | 'tips' | 'starred'>('news')
+  const [loadingNews, setLoadingNews] = useState(false)
+  const [lastSyncTime, setLastSyncTime] = useState<string>('')
+  
+  // Passenger Tips state
+  const [tips, setTips] = useState<any[]>([])
+  const [showAddTipModal, setShowAddTipModal] = useState(false)
+  const [newTipTitle, setNewTipTitle] = useState('')
+  const [newTipCategory, setNewTipCategory] = useState('SUBE & Tarifas')
+  const [newTipDesc, setNewTipDesc] = useState('')
+  const [newTipBadge, setNewTipBadge] = useState('RECOMENDADO')
+
+  // Initial passenger tips defaults
+  const DEFAULT_TIPS = [
+    {
+      id: 'tip-1',
+      title: '💳 Registrá tu Tarjeta SUBE para Evitar Tarifas Más Altas',
+      category: 'SUBE & Tarifas',
+      desc: 'Asociá tu tarjeta SUBE a tu DNI en argentina.gob.ar/sube para mantener la tarifa nominal ajustada y evitar pagar recargos adicionales en colectivos y trenes del AMBA.',
+      badge: 'IMPRESCINDIBLE',
+      color: '#3B82F6',
+      date: 'Actualizado este mes',
+      starred: true
+    },
+    {
+      id: 'tip-2',
+      title: '💰 Tarifa Social Federal: 55% de Descuento Automático',
+      category: 'Beneficios',
+      desc: 'Jubilados, pensionados, beneficiarios de AUH, Monotributistas Sociales y personal de casas particulares cuentan con 55% de descuento directo al viajar con SUBE.',
+      badge: 'DESCUENTO',
+      color: '#10B981',
+      date: 'Vigente en AMBA',
+      starred: false
+    },
+    {
+      id: 'tip-3',
+      title: '🔄 Red SUBE: Descuentos Progresivos en Combinaciones',
+      category: 'Movilidad',
+      desc: 'Al realizar trasbordos entre colectivos, subtes y trenes dentro de las 2 horas, obtenés un 50% de descuento en el 2° viaje y un 75% a partir del 3° viaje.',
+      badge: 'AHORRO',
+      color: '#F59E0B',
+      date: 'Automático',
+      starred: false
+    },
+    {
+      id: 'tip-4',
+      title: '📱 Carga Electrónica y Acreditación por Celular NFC',
+      category: 'Tecnología',
+      desc: 'Podés cargar saldo desde Mercado Pago, Cuenta DNI o Homebanking y acreditarlo al instante apoyando tu tarjeta en celulares con tecnología NFC mediante la app SUBE.',
+      badge: 'TUTORIAL',
+      color: '#8B5CF6',
+      date: 'Paso a paso',
+      starred: false
+    },
+    {
+      id: 'tip-5',
+      title: '⚠️ Reportá Choferes y Unidades en Tiempo Real desde BienParada',
+      category: 'Seguridad',
+      desc: 'Si presenciás conducción peligrosa, omisión de paradas o mal trato, utilizá el botón "Realizar Denuncia" en la app para alertar a la Línea y al Super Admin.',
+      badge: 'COMUNIDAD',
+      color: '#EF4444',
+      date: 'Soporte 24/7',
+      starred: true
+    }
+  ]
+
+  // Fetch online news from API with hourly auto-sync
+  const fetchLiveNews = async () => {
+    setLoadingNews(true)
+    try {
+      const res = await fetch('/api/news')
+      const data = await res.json()
+      if (data.success && Array.isArray(data.news) && data.news.length > 0) {
+        // Merge with existing comments and starred status
+        const mergedNews = data.news.map((item: any) => {
+          const existing = news.find(n => n.title === item.title || n.url === item.url)
+          return {
+            ...item,
+            starred: existing ? existing.starred : false,
+            comments: existing ? (existing.comments || []) : []
+          }
+        })
+        saveNews(mergedNews)
+        const timeStr = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+        setLastSyncTime(timeStr)
+        localStorage.setItem('bu_last_news_sync', Date.now().toString())
+      }
+    } catch (err) {
+      console.error('Error fetching live transit news:', err)
+    } finally {
+      setLoadingNews(false)
+    }
+  }
+
+  // Initial load & hourly automatic check
+  useEffect(() => {
+    // Load tips
+    const storedTips = localStorage.getItem('bu_passenger_tips')
+    if (storedTips) {
+      try { setTips(JSON.parse(storedTips)) } catch (e) { setTips(DEFAULT_TIPS) }
+    } else {
+      setTips(DEFAULT_TIPS)
+      localStorage.setItem('bu_passenger_tips', JSON.stringify(DEFAULT_TIPS))
+    }
+
+    // Auto-sync news every 1 hour (3600000ms)
+    const lastSync = parseInt(localStorage.getItem('bu_last_news_sync') || '0', 10)
+    const now = Date.now()
+    if (now - lastSync > 3600000 || news.length === 0) {
+      fetchLiveNews()
+    } else {
+      setLastSyncTime(new Date(lastSync).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }))
+    }
+
+    const interval = setInterval(() => {
+      fetchLiveNews()
+    }, 3600000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  const saveTips = (newTips: any[]) => {
+    setTips(newTips)
+    localStorage.setItem('bu_passenger_tips', JSON.stringify(newTips))
+  }
+
+  const handleAddTip = () => {
+    if (!newTipTitle.trim() || !newTipDesc.trim()) return
+    const newTip = {
+      id: `tip-${Date.now()}`,
+      title: newTipTitle.trim(),
+      category: newTipCategory,
+      desc: newTipDesc.trim(),
+      badge: newTipBadge,
+      color: '#10B981',
+      date: 'Reciente',
+      starred: false
+    }
+    saveTips([newTip, ...tips])
+    setNewTipTitle('')
+    setNewTipDesc('')
+    setShowAddTipModal(false)
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Header section with Sub-tab switcher */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#fff' }}>Noticias y Tips del Transporte Argentino</h3>
+          <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>
+            {subTab === 'news' ? 'Noticias en tiempo real sincronizadas en vivo de medios sobre colectivos, tarifas SUBE y tránsito' : subTab === 'tips' ? 'Guías y consejos prácticos para pasajeros del transporte público' : 'Artículos y tips marcados como favoritos'}
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* Sub-tab pills */}
+          <div style={{ display: 'flex', background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '3px' }}>
+            <button
+              onClick={() => setSubTab('news')}
+              style={{
+                padding: '6px 14px', borderRadius: '6px',
+                background: subTab === 'news' ? '#3B82F6' : 'transparent',
+                border: 'none', color: subTab === 'news' ? '#fff' : '#8f94a5',
+                fontSize: '11px', fontWeight: 700, cursor: 'pointer'
+              }}
+            >
+              📰 Noticias en Vivo
+            </button>
+            <button
+              onClick={() => setSubTab('tips')}
+              style={{
+                padding: '6px 14px', borderRadius: '6px',
+                background: subTab === 'tips' ? '#10B981' : 'transparent',
+                border: 'none', color: subTab === 'tips' ? '#fff' : '#8f94a5',
+                fontSize: '11px', fontWeight: 700, cursor: 'pointer'
+              }}
+            >
+              💡 Tips & Consejos ({tips.length})
+            </button>
+            <button
+              onClick={() => setSubTab('starred')}
+              style={{
+                padding: '6px 14px', borderRadius: '6px',
+                background: subTab === 'starred' ? '#EAB308' : 'transparent',
+                border: 'none', color: subTab === 'starred' ? '#fff' : '#8f94a5',
+                fontSize: '11px', fontWeight: 700, cursor: 'pointer'
+              }}
+            >
+              ⭐ Favoritos
+            </button>
+          </div>
+
+          {/* Action buttons */}
+          {subTab === 'news' && (
+            <button
+              onClick={fetchLiveNews}
+              disabled={loadingNews}
+              style={{
+                padding: '8px 14px', background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)',
+                borderRadius: '8px', color: '#3B82F6', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '6px'
+              }}
+            >
+              {loadingNews ? '🔄 Buscando Noticias...' : '🔄 Actualizar Noticias Online'}
+            </button>
+          )}
+
+          {subTab === 'tips' && (
+            <button
+              onClick={() => setShowAddTipModal(true)}
+              style={{
+                padding: '8px 14px', background: '#10B981', border: 'none',
+                borderRadius: '8px', color: '#fff', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '6px'
+              }}
+            >
+              <Plus size={14} /> Crear Nuevo Tip
+            </button>
+          )}
+        </div>
+      </div>
+
+      {lastSyncTime && subTab === 'news' && (
+        <div style={{ fontSize: '11px', color: '#10B981', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '-10px' }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }} className="pulse-circle"></span>
+          <span>Sincronización automática activa cada 1 hora. Última actualización: {lastSyncTime} hs.</span>
+        </div>
+      )}
+
+      {/* 📰 NOTICIAS TAB */}
+      {subTab === 'news' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
+          {news.length === 0 ? (
+            <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: '#8f94a5', background: '#121527', borderRadius: '12px', border: '1px dashed rgba(255,255,255,0.08)' }}>
+              {loadingNews ? '⏳ Buscando las noticias de transporte más recientes online...' : 'Buscando novedades en el servicio de transporte. Presioná "Actualizar Noticias Online" para consultar medios locales.'}
+            </div>
+          ) : (
+            news.map(item => (
+              <div
+                key={item.id}
+                onClick={() => window.open(item.url, '_blank')}
+                onContextMenu={(e) => handleItemContextMenu(e, item.id, 'news')}
+                style={{
+                  background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px',
+                  padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                  gap: '14px', cursor: 'pointer', transition: 'all 200ms'
+                }}
+                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+              >
+                <div>
+                  {item.image && (
+                    <img src={item.image} alt="" style={{ width: '100%', height: '130px', objectFit: 'cover', borderRadius: '8px', marginBottom: '12px' }} />
+                  )}
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '9px', background: 'rgba(16,185,129,0.15)', color: '#10B981', padding: '2px 6px', borderRadius: '4px', fontWeight: 700, fontFamily: 'DM Mono' }}>
+                        {item.source}
+                      </span>
+                      {item.isNew && (
+                        <span style={{ fontSize: '8px', background: 'rgba(239,68,68,0.15)', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                          EN VIVO
+                        </span>
+                      )}
+                      <span style={{ fontSize: '8px', background: 'rgba(59,130,246,0.15)', color: '#3b82f6', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                        COLECTIVOS & SUBE
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const updated = news.map(n => n.id === item.id ? { ...n, starred: !n.starred } : n)
+                          saveNews(updated)
+                        }}
+                        style={{ background: 'none', border: 'none', color: item.starred ? '#eab308' : '#8f94a5', cursor: 'pointer', padding: 0 }}
+                      >
+                        {item.starred ? '★' : '☆'}
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setDeleteTarget({ type: 'news', id: item.id, name: item.title })
+                        }}
+                        style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#EF4444', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer' }}
+                        title="Eliminar Noticia"
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#fff', margin: '6px 0 6px', lineHeight: 1.3 }}>{item.title}</h4>
+                  <p style={{ fontSize: '12px', color: '#8f94a5', margin: 0, lineHeight: 1.4 }}>{item.desc}</p>
+                  
+                  <div style={{ fontSize: '11px', color: '#3B82F6', textDecoration: 'underline', marginTop: '10px', display: 'inline-block', fontWeight: 600 }}>
+                    Ver artículo original en {item.source} ↗
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ fontSize: '11px', color: '#8f94a5', borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>Fecha: {item.date}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '9px', color: '#8f94a5', marginTop: '2px' }}>
+                    <span>💡 Clic derecho para comentar</span>
+                    <span style={{ fontWeight: 700, color: (item.comments?.length || 0) > 0 ? '#3b82f6' : '#8f94a5' }}>
+                      💬 {item.comments?.length || 0} comentarios
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* 💡 TIPS TAB */}
+      {subTab === 'tips' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
+          {tips.map(tip => (
+            <div
+              key={tip.id}
+              style={{
+                background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px',
+                padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                gap: '14px'
+              }}
+            >
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '9px', background: 'rgba(16,185,129,0.15)', color: '#10B981', padding: '2px 8px', borderRadius: '4px', fontWeight: 700, fontFamily: 'DM Mono' }}>
+                    {tip.category}
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button
+                      onClick={() => {
+                        const updated = tips.map(t => t.id === tip.id ? { ...t, starred: !t.starred } : t)
+                        saveTips(updated)
+                      }}
+                      style={{ background: 'none', border: 'none', color: tip.starred ? '#eab308' : '#8f94a5', cursor: 'pointer' }}
+                    >
+                      {tip.starred ? '★' : '☆'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        const updated = tips.filter(t => t.id !== tip.id)
+                        saveTips(updated)
+                      }}
+                      style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#EF4444', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer' }}
+                      title="Eliminar Tip"
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
+                </div>
+
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: '0 0 8px', lineHeight: 1.3 }}>{tip.title}</h4>
+                <p style={{ fontSize: '12px', color: '#94A3B8', margin: 0, lineHeight: 1.5 }}>{tip.desc}</p>
+              </div>
+
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.04)', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', color: '#8F94A5' }}>
+                <span>💡 Tip Oficial de Pasajeros</span>
+                <span style={{ color: '#10B981', fontWeight: 700 }}>{tip.date}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ⭐ FAVORITOS TAB */}
+      {subTab === 'starred' && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px' }}>
+          {news.filter(n => n.starred).concat(tips.filter(t => t.starred)).length === 0 ? (
+            <div style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: '#8f94a5', background: '#121527', borderRadius: '12px' }}>
+              No tenés noticias ni tips marcados como favoritos. Hacé click en la estrella (⭐) para guardarlos acá.
+            </div>
+          ) : (
+            news.filter(n => n.starred).map(item => (
+              <div key={item.id} onClick={() => window.open(item.url, '_blank')} style={{ background: '#121527', border: '1px solid rgba(234,179,8,0.3)', borderRadius: '12px', padding: '20px', cursor: 'pointer' }}>
+                <span style={{ fontSize: '9px', background: 'rgba(234,179,8,0.15)', color: '#eab308', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>⭐ NOTICIA DESTACADA</span>
+                <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#fff', margin: '8px 0 6px' }}>{item.title}</h4>
+                <p style={{ fontSize: '12px', color: '#8f94a5', margin: 0 }}>{item.desc}</p>
+              </div>
+            )).concat(
+              tips.filter(t => t.starred).map(tip => (
+                <div key={tip.id} style={{ background: '#121527', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '12px', padding: '20px' }}>
+                  <span style={{ fontSize: '9px', background: 'rgba(16,185,129,0.15)', color: '#10B981', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>💡 TIP CONSEJO</span>
+                  <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#fff', margin: '8px 0 6px' }}>{tip.title}</h4>
+                  <p style={{ fontSize: '12px', color: '#8f94a5', margin: 0 }}>{tip.desc}</p>
+                </div>
+              ))
+            )
+          )}
+        </div>
+      )}
+
+      {/* Modal to add custom passenger tip */}
+      {showAddTipModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '24px', width: '100%', maxWidth: '480px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#fff' }}>💡 Crear Nuevo Tip para Pasajeros</h3>
+            
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', color: '#8f94a5', marginBottom: '4px' }}>Título del Tip</label>
+              <input
+                type="text"
+                value={newTipTitle}
+                onChange={e => setNewTipTitle(e.target.value)}
+                placeholder="Ej. Cómo consultar saldo SUBE..."
+                style={{ width: '100%', padding: '10px', background: '#1a1f37', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#fff', fontSize: '13px' }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', color: '#8f94a5', marginBottom: '4px' }}>Categoría</label>
+              <select
+                value={newTipCategory}
+                onChange={e => setNewTipCategory(e.target.value)}
+                style={{ width: '100%', padding: '10px', background: '#1a1f37', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#fff', fontSize: '13px' }}
+              >
+                <option value="SUBE & Tarifas">SUBE & Tarifas</option>
+                <option value="Beneficios">Beneficios</option>
+                <option value="Movilidad">Movilidad</option>
+                <option value="Seguridad">Seguridad</option>
+                <option value="Tecnología">Tecnología</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '11px', color: '#8f94a5', marginBottom: '4px' }}>Descripción y Consejos</label>
+              <textarea
+                rows={4}
+                value={newTipDesc}
+                onChange={e => setNewTipDesc(e.target.value)}
+                placeholder="Escribí los detalles explicativos para los usuarios..."
+                style={{ width: '100%', padding: '10px', background: '#1a1f37', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '8px', color: '#fff', fontSize: '13px', resize: 'vertical' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+              <button
+                onClick={() => setShowAddTipModal(false)}
+                style={{ padding: '8px 16px', background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '6px', color: '#8f94a5', cursor: 'pointer', fontSize: '12px' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleAddTip}
+                style={{ padding: '8px 16px', background: '#10B981', border: 'none', borderRadius: '6px', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: '12px' }}
+              >
+                Guardar Tip
               </button>
             </div>
           </div>
