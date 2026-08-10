@@ -8977,15 +8977,12 @@ function RealtimeNewsAndTipsTab({
             news.map(item => (
               <div
                 key={item.id}
-                onClick={() => window.open(item.url, '_blank')}
                 onContextMenu={(e) => handleItemContextMenu(e, item.id, 'news')}
                 style={{
                   background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px',
                   padding: '20px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
-                  gap: '14px', cursor: 'pointer', transition: 'all 200ms'
+                  gap: '14px', transition: 'all 200ms'
                 }}
-                onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'none'}
               >
                 <div>
                   {item.image && (
@@ -9010,23 +9007,35 @@ function RealtimeNewsAndTipsTab({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <button
                         onClick={(e) => {
-                          e.stopPropagation()
-                          const updated = news.map(n => n.id === item.id ? { ...n, starred: !n.starred } : n)
-                          saveNews(updated)
+                          e.stopPropagation();
+                          e.preventDefault();
+                          const updated = news.map(n => n.id === item.id ? { ...n, starred: !n.starred } : n);
+                          saveNews(updated);
                         }}
                         style={{ background: 'none', border: 'none', color: item.starred ? '#eab308' : '#8f94a5', cursor: 'pointer', padding: 0 }}
+                        title="Marcar Favorito"
                       >
                         {item.starred ? '★' : '☆'}
                       </button>
                       <button
                         onClick={(e) => {
-                          e.stopPropagation()
-                          setDeleteTarget({ type: 'news', id: item.id, name: item.title })
+                          e.stopPropagation();
+                          e.preventDefault();
+                          // Direct bulletproof deletion
+                          const updated = news.filter((n: any) => n.id !== item.id && n.title !== item.title);
+                          saveNews(updated);
+
+                          const deletedTitles = JSON.parse(localStorage.getItem('deleted_news_titles') || '[]');
+                          if (item.title && !deletedTitles.includes(item.title)) deletedTitles.push(item.title);
+                          if (item.id && !deletedTitles.includes(item.id)) deletedTitles.push(item.id);
+                          localStorage.setItem('deleted_news_titles', JSON.stringify(deletedTitles));
+
+                          toast.success(`🗑️ Noticia eliminada con éxito`);
                         }}
-                        style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#EF4444', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                        style={{ background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#EF4444', borderRadius: '6px', padding: '6px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         title="Eliminar Noticia"
                       >
-                        <Trash2 size={12} />
+                        <Trash2 size={14} style={{ color: '#EF4444' }} />
                       </button>
                     </div>
                   </div>
@@ -9034,7 +9043,14 @@ function RealtimeNewsAndTipsTab({
                   <h4 style={{ fontSize: '14px', fontWeight: 700, color: '#fff', margin: '6px 0 6px', lineHeight: 1.3 }}>{item.title}</h4>
                   <p style={{ fontSize: '12px', color: '#8f94a5', margin: 0, lineHeight: 1.4 }}>{item.desc}</p>
                   
-                  <div style={{ fontSize: '11px', color: '#3B82F6', textDecoration: 'underline', marginTop: '10px', display: 'inline-block', fontWeight: 600 }}>
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      window.open(item.url, '_blank');
+                    }}
+                    style={{ fontSize: '11px', color: '#3B82F6', textDecoration: 'underline', marginTop: '10px', display: 'inline-block', fontWeight: 600, cursor: 'pointer' }}
+                  >
                     Ver artículo original en {item.source} ↗
                   </div>
                 </div>
@@ -9084,14 +9100,17 @@ function RealtimeNewsAndTipsTab({
                       {tip.starred ? '★' : '☆'}
                     </button>
                     <button
-                      onClick={() => {
-                        const updated = tips.filter(t => t.id !== tip.id)
-                        saveTips(updated)
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        const updated = tips.filter(t => t.id !== tip.id);
+                        saveTips(updated);
+                        toast.success('🗑️ Tip eliminado con éxito');
                       }}
-                      style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', color: '#EF4444', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer' }}
+                      style={{ background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#EF4444', borderRadius: '6px', padding: '6px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       title="Eliminar Tip"
                     >
-                      <Trash2 size={11} />
+                      <Trash2 size={14} style={{ color: '#EF4444' }} />
                     </button>
                   </div>
                 </div>
