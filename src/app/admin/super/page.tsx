@@ -6385,14 +6385,79 @@ function AdsTab({
 
             return (
               <div key={lineObj.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: lineObj.color || '#3B82F6' }} />
-                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#fff' }}>{lineObj.name}</span>
-                  <span style={{ fontSize: '10px', color: '#8f94a5', fontFamily: 'DM Mono' }}>({lineStops.length} Paradas)</span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: lineObj.color || '#3B82F6', boxShadow: `0 0 8px ${lineObj.color || '#3B82F6'}` }} />
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#fff' }}>{lineObj.name}</span>
+                    <span style={{ fontSize: '11px', color: '#8f94a5', fontFamily: 'DM Mono' }}>({lineStops.length} Paradas)</span>
+                  </div>
+
+                  {/* Left & Right Scroll Controls */}
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      onClick={() => {
+                        const el = document.getElementById(`track-scroll-${lineObj.id.replace(/[^a-zA-Z0-9_-]/g, '_')}`)
+                        if (el) el.scrollBy({ left: -320, behavior: 'smooth' })
+                      }}
+                      style={{
+                        padding: '3px 8px', borderRadius: '6px',
+                        background: 'rgba(255,255,255,0.05)', border: `1px solid ${lineObj.color || '#3B82F6'}40`,
+                        color: lineObj.color || '#3B82F6', fontSize: '12px', fontWeight: 700, cursor: 'pointer'
+                      }}
+                      title="Desplazar a la izquierda"
+                    >
+                      ◀
+                    </button>
+                    <button
+                      onClick={() => {
+                        const el = document.getElementById(`track-scroll-${lineObj.id.replace(/[^a-zA-Z0-9_-]/g, '_')}`)
+                        if (el) el.scrollBy({ left: 320, behavior: 'smooth' })
+                      }}
+                      style={{
+                        padding: '3px 8px', borderRadius: '6px',
+                        background: 'rgba(255,255,255,0.05)', border: `1px solid ${lineObj.color || '#3B82F6'}40`,
+                        color: lineObj.color || '#3B82F6', fontSize: '12px', fontWeight: 700, cursor: 'pointer'
+                      }}
+                      title="Desplazar a la derecha"
+                    >
+                      ▶
+                    </button>
+                  </div>
                 </div>
 
-                {/* Horizontal line track containing the stops */}
-                <div style={{ position: 'relative', display: 'flex', gap: '12px', alignItems: 'center', padding: '10px 0', overflowX: 'auto', scrollbarWidth: 'thin' }}>
+                {/* Horizontal line track containing the stops with line-colored custom scrollbar */}
+                <style>{`
+                  .custom-line-scroll-${lineObj.id.replace(/[^a-zA-Z0-9_-]/g, '_')}::-webkit-scrollbar {
+                    height: 6px;
+                  }
+                  .custom-line-scroll-${lineObj.id.replace(/[^a-zA-Z0-9_-]/g, '_')}::-webkit-scrollbar-track {
+                    background: rgba(255, 255, 255, 0.03);
+                    border-radius: 10px;
+                  }
+                  .custom-line-scroll-${lineObj.id.replace(/[^a-zA-Z0-9_-]/g, '_')}::-webkit-scrollbar-thumb {
+                    background: ${lineObj.color || '#3B82F6'};
+                    border-radius: 10px;
+                    box-shadow: 0 0 10px ${lineObj.color || '#3B82F6'}99;
+                    cursor: pointer;
+                  }
+                  .custom-line-scroll-${lineObj.id.replace(/[^a-zA-Z0-9_-]/g, '_')}::-webkit-scrollbar-thumb:hover {
+                    background: ${lineObj.color || '#3B82F6'};
+                    filter: brightness(1.3);
+                  }
+                `}</style>
+                <div
+                  className={`custom-line-scroll-${lineObj.id.replace(/[^a-zA-Z0-9_-]/g, '_')}`}
+                  id={`track-scroll-${lineObj.id.replace(/[^a-zA-Z0-9_-]/g, '_')}`}
+                  style={{
+                    position: 'relative',
+                    display: 'flex',
+                    gap: '12px',
+                    alignItems: 'center',
+                    padding: '12px 0 14px',
+                    overflowX: 'auto',
+                    scrollBehavior: 'smooth'
+                  }}
+                >
                   {/* Horizontal Bar line */}
                   <div style={{ position: 'absolute', top: '50%', left: '10px', right: '10px', height: '2px', background: 'rgba(255,255,255,0.06)', zIndex: 1 }} />
 
