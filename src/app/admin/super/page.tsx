@@ -1266,7 +1266,9 @@ export default function SuperAdminDashboard() {
     if (savedAds) {
       try {
         const parsed = JSON.parse(savedAds)
-        setAds(Array.isArray(parsed) ? parsed : [])
+        const deletedAdIds = JSON.parse(localStorage.getItem('deleted_ad_ids') || '[]')
+        const filtered = (Array.isArray(parsed) ? parsed : []).filter((a: any) => !deletedAdIds.includes(a.id) && !deletedAdIds.includes(a.title))
+        setAds(filtered)
       } catch (e) {
         setAds([])
       }
@@ -1302,9 +1304,14 @@ export default function SuperAdminDashboard() {
   }
 
   const saveAds = (newAds: any[]) => {
-    setAds(newAds)
-    localStorage.setItem('bu_submitted_ads', JSON.stringify(newAds))
-    localStorage.setItem('mock_super_ads', JSON.stringify(newAds))
+    const deletedAdIds = JSON.parse(localStorage.getItem('deleted_ad_ids') || '[]')
+    const filtered = newAds.filter((a: any) => !deletedAdIds.includes(a.id) && !deletedAdIds.includes(a.title))
+    setAds(filtered)
+    localStorage.setItem('bu_submitted_ads', JSON.stringify(filtered))
+    localStorage.setItem('bu_user_ads', JSON.stringify(filtered))
+    localStorage.setItem('mock_super_ads', JSON.stringify(filtered))
+    localStorage.setItem('tu_bus_ads', JSON.stringify(filtered))
+    localStorage.setItem('mock_ads', JSON.stringify(filtered))
   }
 
   const saveChats = (newChats: any[]) => {
@@ -4222,6 +4229,20 @@ export default function SuperAdminDashboard() {
               saveAds(updated)
               toast.error('Campaña rechazada')
             }}
+            onDeleteAd={(id, name) => {
+              const deletedAdIds = JSON.parse(localStorage.getItem('deleted_ad_ids') || '[]')
+              if (!deletedAdIds.includes(id)) deletedAdIds.push(id)
+              if (name && !deletedAdIds.includes(name)) deletedAdIds.push(name)
+              localStorage.setItem('deleted_ad_ids', JSON.stringify(deletedAdIds))
+
+              const updated = ads.filter(a => a.id !== id && a.title !== name)
+              saveAds(updated)
+              try {
+                window.dispatchEvent(new Event('storage'))
+                window.dispatchEvent(new Event('ads_updated'))
+              } catch (e) {}
+              toast.success(`🗑️ Anuncio "${name || id}" eliminado permanentemente de la plataforma.`)
+            }}
             onToggleActive={(id) => {
               const updated = ads.map(a => {
                 if (a.id === id) {
@@ -6096,6 +6117,7 @@ function AdsTab({
   ads,
   onApprove,
   onReject,
+  onDeleteAd,
   onToggleActive,
   onMessageUser,
   onAdContextMenu
@@ -6103,6 +6125,7 @@ function AdsTab({
   ads: any[];
   onApprove: (id: string) => void;
   onReject: (id: string) => void;
+  onDeleteAd: (id: string, name?: string) => void;
   onToggleActive: (id: string) => void;
   onMessageUser: (name: string, email: string) => void;
   onAdContextMenu?: (e: React.MouseEvent, id: string) => void;
@@ -6116,26 +6139,10 @@ function AdsTab({
     if (!deleteAdTarget) return
     const { id, name } = deleteAdTarget
     try {
-      // 1. Remove from all localStorage ad stores
-      const rawAdsStr = localStorage.getItem('bu_submitted_ads') || '[]'
-      const parsed = JSON.parse(rawAdsStr)
-      const updated = parsed.filter((a: any) => a.id !== id && a.title !== name)
-      localStorage.setItem('bu_submitted_ads', JSON.stringify(updated))
-      localStorage.setItem('mock_super_ads', JSON.stringify(updated))
-      localStorage.setItem('tu_bus_ads', JSON.stringify(updated))
-      localStorage.setItem('mock_ads', JSON.stringify(updated))
-
-      // Also invoke parent delete callback / onReject if needed to update state
-      onReject(id)
+      onDeleteAd(id, name)
     } catch (e) {
       console.error(e)
     }
-    try {
-      window.dispatchEvent(new Event('storage'))
-      window.dispatchEvent(new Event('ads_updated'))
-    } catch (e) {}
-
-    toast.success(`🗑️ Anuncio "${name}" eliminado permanentemente de la plataforma.`)
     setDeleteAdTarget(null)
     if (selectedAd?.id === id) setSelectedAd(null)
   }

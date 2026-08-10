@@ -28109,7 +28109,8 @@ function MapAdBanner({
                   {/* Ads List */}
                   {(() => {
                     // Combine default TUFIX ads + user submitted ads
-                    const userSubmitted = JSON.parse(localStorage.getItem('bu_submitted_ads') || '[]')
+                    const deletedAdIds = JSON.parse(localStorage.getItem('deleted_ad_ids') || '[]')
+const userSubmitted = (JSON.parse(localStorage.getItem('bu_submitted_ads') || '[]')).filter((a: any) => !deletedAdIds.includes(a.id) && !deletedAdIds.includes(a.title))
                     const tufixList = TUFIX_ADS.map((ad, idx) => ({
                       id: 'tufix-' + idx,
                       title: ad.title,
