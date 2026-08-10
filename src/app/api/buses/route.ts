@@ -26,64 +26,7 @@ function getHeading(pt1: { lat: number; lng: number }, pt2: { lat: number; lng: 
 }
 
 function generateFallbackSimulatedBuses(lineId: string, lineNumber: string): BusPosition[] {
-  const cleanedLineNum = lineNumber.replace(/^0+/, '')
-  // Only generate fallback simulated buses for Line 12 as requested. All other lines start at 0 buses.
-  if (cleanedLineNum !== '12') return []
-  const localRoute = OFFICIAL_ROUTES[cleanedLineNum]
-  if (!localRoute) return []
-
-  const mappedBuses: BusPosition[] = []
-  const drivers = LINE_DRIVERS[cleanedLineNum] || ['Chofer Auxiliar']
-  const timeSecs = Math.floor(Date.now() / 1000)
-
-  const directions: ('ida' | 'vuelta')[] = ['ida', 'vuelta']
-
-  directions.forEach(direction => {
-    const path = direction === 'vuelta' ? localRoute.vuelta?.path : localRoute.ida?.path
-    if (!path || path.length < 2) return
-
-    const N = path.length
-
-    for (let i = 0; i < 8; i++) {
-      const busIdx = direction === 'vuelta' ? i + 8 : i
-      const offset = i / 8
-      
-      const busSpeed = 25 + ((timeSecs + busIdx * 45) % 15)
-      const stepIndex = Math.floor(timeSecs / 3)
-      const startNode = Math.floor(N * offset)
-      const index = (stepIndex + startNode) % N
-
-      const pt = path[index]
-      const nextPt = path[(index + 1) % N] || pt
-      const headingVal = getHeading(pt, nextPt)
-      const driverName = drivers[busIdx % drivers.length] || 'Chofer Auxiliar'
-      const passengerCount = 5 + ((timeSecs + busIdx * 80) % 41)
-
-      mappedBuses.push({
-        id: `sim-${lineId}-${direction}-${i}`,
-        driver_id: `sim-driver-${lineId}-${direction}-${i}`,
-        line_id: lineId,
-        line_number: lineNumber,
-        bus_unit: `${lineNumber}-${String(300 + busIdx)}`,
-        driver_name: driverName,
-        latitude: pt.lat,
-        longitude: pt.lng,
-        heading: headingVal,
-        speed_kmh: busSpeed,
-        next_stop_id: `stop-${lineNumber}-${index}`,
-        next_stop_name: localRoute[direction]?.stops?.[Math.min(localRoute[direction].stops.length - 1, Math.floor(index / 10))]?.name || 'Siguiente parada',
-        eta_minutes: busSpeed > 5 ? Math.max(1, Math.ceil(3 / (busSpeed / 60))) : 5,
-        status: busSpeed > 0 ? 'moving' : 'stopped',
-        passenger_count: passengerCount,
-        timestamp: new Date().toISOString(),
-        reports_count: i % 4 === 0 ? 1 : 0,
-        direction: direction,
-        ramal: `${lineNumber}-A`
-      })
-    }
-  })
-
-  return mappedBuses
+  return []
 }
 
 export async function GET(request: NextRequest) {

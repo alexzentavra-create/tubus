@@ -1974,7 +1974,7 @@ export default function CompanyDashboard() {
           onMouseLeave={(e) => { if (!showPuntualidadTimeline) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}
         >
           <span style={{ fontSize: '12px', color: '#8f94a5', fontWeight: 500 }}>Puntualidad</span>
-          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{activeStats.punctuality}</span>
+          <span style={{ fontSize: '24px', fontWeight: 700, color: '#fff' }}>{activeSessions.length > 0 ? activeStats.punctuality : '0%'}</span>
           <span style={{ fontSize: '11px', color: '#00c689', fontWeight: 600 }}>✓ Normal</span>
         </div>
       </div>
