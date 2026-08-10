@@ -6135,6 +6135,14 @@ function AdsTab({
   const [deleteAdTarget, setDeleteAdTarget] = useState<{ id: string; name: string } | null>(null)
   const [placementFilter, setPlacementFilter] = useState<string>('all')
 
+  // Station Multi-Ad Inspection Modal State
+  const [selectedStationModal, setSelectedStationModal] = useState<{
+    lineName: string;
+    lineColor: string;
+    stopName: string;
+    matchingAds: any[];
+  } | null>(null)
+
   const handleConfirmAdDelete = () => {
     if (!deleteAdTarget) return
     const { id, name } = deleteAdTarget
@@ -6145,6 +6153,9 @@ function AdsTab({
     }
     setDeleteAdTarget(null)
     if (selectedAd?.id === id) setSelectedAd(null)
+    if (selectedStationModal) {
+      setSelectedStationModal(prev => prev ? { ...prev, matchingAds: prev.matchingAds.filter(a => a.id !== id && a.title !== name) } : null)
+    }
   }
 
   // Filter ads by placement category sub-tabs if selected
@@ -6264,11 +6275,13 @@ function AdsTab({
                 </div>
 
                 <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: '12px 0 4px' }}>{ad.title}</h4>
-                <p style={{ fontSize: '12px', color: '#8f94a5', margin: 0, lineHeight: 1.4 }}>{ad.desc}</p>
+                <p style={{ fontSize: '12px', color: '#8f94a5', margin: 0, lineHeight: 1.4 }}>{ad.description || ad.desc}</p>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '12px', background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                  <div style={{ fontSize: '11px', color: '#8f94a5' }}>Parada asignada: <strong style={{ color: '#fff' }}>{ad.stop || 'Sin parada'} ({ad.route || ad.line || 'Línea'})</strong></div>
-                  <div style={{ fontSize: '11px', color: '#8f94a5' }}>Vigencia contratada: <strong style={{ color: '#fff' }}>{ad.duration || '30 Días'}</strong></div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '12px', background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                  <div style={{ fontSize: '11px', color: '#8f94a5' }}>Paradas contratadas: <strong style={{ color: '#fff' }}>{ad.stop || (ad.selectedStops && ad.selectedStops.length > 0 ? ad.selectedStops.join(', ') : 'Todas las paradas')}</strong></div>
+                  <div style={{ fontSize: '11px', color: '#8f94a5' }}>Líneas: <strong style={{ color: '#fff' }}>{ad.route || ad.line || 'Todas las líneas'}</strong></div>
+                  <div style={{ fontSize: '11px', color: '#8f94a5' }}>Fechas de Vigencia: <strong style={{ color: '#3B82F6' }}>{ad.startDate || 'Hoy'} ➔ {ad.endDate || '30 Días'}</strong></div>
+                  
                   <div style={{ display: 'flex', gap: '12px', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed rgba(255,255,255,0.06)' }}>
                     <div style={{ fontSize: '11px', color: '#60A5FA', fontWeight: 600 }}>
                       👁️ Vistas (Showed): <strong style={{ color: '#fff' }}>{ad.views || ad.viewsCount || 0}</strong>
@@ -6369,7 +6382,7 @@ function AdsTab({
       <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <div>
           <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: 0 }}>Monitoreo de Campañas por Parada (Todas las Líneas de Colectivo)</h4>
-          <p style={{ fontSize: '11px', color: '#8f94a5', margin: '4px 0 0' }}>Seleccione una parada en el recorrido de cualquier línea para inspeccionar las campañas activas y presupuestos contratados</p>
+          <p style={{ fontSize: '11px', color: '#8f94a5', margin: '4px 0 0' }}>Seleccione cualquier parada para inspeccionar en tiempo real todas las campañas activas, fechas de vigencia y presupuestos contratados</p>
         </div>
 
         {/* Horizontal Tracks for ALL 15 LINES */}
@@ -6425,7 +6438,7 @@ function AdsTab({
                   </div>
                 </div>
 
-                {/* Horizontal line track containing the stops with line-colored custom scrollbar */}
+                {/* Horizontal line track containing the stops */}
                 <style>{`
                   .custom-line-scroll-${lineObj.id.replace(/[^a-zA-Z0-9_-]/g, '_')}::-webkit-scrollbar {
                     height: 6px;
@@ -6463,65 +6476,61 @@ function AdsTab({
 
                   {lineStops.map((stopObj, idx) => {
                     const stopName = stopObj.name
-                    const matchingAd = ads.find(a => 
-                      a.isActive && 
-                      a.status === 'approved' && 
-                      (a.route === lineObj.name || a.line === lineObj.name || a.route === lineObj.id) &&
-                      (a.stop?.toLowerCase().includes(stopName.toLowerCase()) || stopName.toLowerCase().includes(a.stop?.toLowerCase() || ''))
-                    )
+                    // Comprehensive multi-ad matching for this stop & line
+                    const matchingAds = ads.filter(a => {
+                      if (!a) return false
+                      const isLineMatch = !a.route || a.route === 'Todas las líneas' || a.line === 'Todas las líneas' ||
+                        a.route === lineObj.name || a.line === lineObj.name || a.route === lineObj.id ||
+                        (a.selectedLines && (a.selectedLines.includes(lineObj.id) || a.selectedLines.includes(lineObj.name)))
+                      
+                      const isStopMatch = !a.stop || a.stop === 'Todas las paradas' ||
+                        a.stop === stopName || (a.selectedStops && a.selectedStops.includes(stopName)) ||
+                        (a.stop && a.stop.toLowerCase().includes(stopName.toLowerCase())) ||
+                        (stopName && a.stop && stopName.toLowerCase().includes(a.stop.toLowerCase()))
+                      
+                      return isLineMatch && isStopMatch
+                    })
+
+                    const count = matchingAds.length
 
                     return (
                       <div
                         key={`${lineObj.id}-${idx}-${stopName}`}
                         onClick={() => {
-                          if (matchingAd) {
-                            setSelectedAd(matchingAd)
-                          } else {
-                            setSelectedAd({
-                              id: `empty-${lineObj.id}-${idx}`,
-                              title: 'Sin Publicidad Activa',
-                              desc: `La parada ${stopName} de la ${lineObj.name} actualmente no cuenta con ninguna campaña de publicidad contratada.`,
-                              stop: stopName,
-                              route: lineObj.name,
-                              duration: 'N/A',
-                              budget: 0,
-                              userName: 'N/A',
-                              userEmail: 'N/A',
-                              userAvatar: '?',
-                              bannerBg: 'linear-gradient(135deg, #1e293b, #0f172a)',
-                              bannerText: 'Espacio Disponible',
-                              bannerTagline: '¡Anunciate aquí con BienParada!',
-                              status: 'approved',
-                              isActive: false,
-                              timestamp: 'Hoy'
-                            })
-                          }
+                          setSelectedStationModal({
+                            lineName: lineObj.name,
+                            lineColor: lineObj.color || '#3B82F6',
+                            stopName: stopName,
+                            matchingAds: matchingAds
+                          })
                         }}
                         style={{
                           position: 'relative',
                           zIndex: 2,
                           background: '#121527',
-                          border: matchingAd ? `2px solid ${lineObj.color}` : '1px solid rgba(255,255,255,0.1)',
+                          border: count > 0 ? `2px solid ${lineObj.color || '#10B981'}` : '1px solid rgba(255,255,255,0.1)',
                           borderRadius: '16px',
-                          padding: '6px 12px',
+                          padding: '6px 14px',
                           cursor: 'pointer',
                           transition: 'all 150ms',
                           flexShrink: 0,
-                          boxShadow: matchingAd ? `0 0 10px ${lineObj.color}40` : 'none'
+                          boxShadow: count > 0 ? `0 0 12px ${lineObj.color || '#10B981'}55` : 'none'
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.transform = 'scale(1.05)';
-                          e.currentTarget.style.borderColor = lineObj.color;
+                          e.currentTarget.style.borderColor = lineObj.color || '#3B82F6';
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.transform = 'none';
-                          e.currentTarget.style.borderColor = matchingAd ? lineObj.color : 'rgba(255,255,255,0.1)';
+                          e.currentTarget.style.borderColor = count > 0 ? (lineObj.color || '#10B981') : 'rgba(255,255,255,0.1)';
                         }}
                       >
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
                           <span style={{ fontSize: '10px', fontWeight: 600, color: '#fff', textAlign: 'center', whiteSpace: 'nowrap' }}>{stopName}</span>
-                          {matchingAd ? (
-                            <span style={{ fontSize: '8px', color: '#10B981', fontWeight: 700 }}>📢 ACTIVO: ${matchingAd.title.substring(0, 15)}</span>
+                          {count > 0 ? (
+                            <span style={{ fontSize: '8px', color: '#10B981', fontWeight: 800 }}>
+                              📢 {count === 1 ? `1 Campaña (${matchingAds[0].title.substring(0, 10)})` : `${count} Campañas Activas`}
+                            </span>
                           ) : (
                             <span style={{ fontSize: '8px', color: '#8f94a5' }}>Libre</span>
                           )}
@@ -6535,6 +6544,132 @@ function AdsTab({
           })}
         </div>
       </div>
+
+      {/* STATION MULTI-AD INSPECTION MODAL */}
+      {selectedStationModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(5, 8, 16, 0.85)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 99999, padding: '20px'
+        }}>
+          <div style={{
+            width: '100%', maxWidth: '650px', maxHeight: '85vh', overflowY: 'auto',
+            background: '#121527', border: `1px solid ${selectedStationModal.lineColor}40`,
+            borderTop: `4px solid ${selectedStationModal.lineColor}`,
+            borderRadius: '16px', padding: '24px',
+            display: 'flex', flexDirection: 'column', gap: '18px',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: selectedStationModal.lineColor }} />
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: selectedStationModal.lineColor }}>{selectedStationModal.lineName}</span>
+                </div>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#fff', margin: '4px 0 0' }}>
+                  🚏 Parada: {selectedStationModal.stopName}
+                </h3>
+              </div>
+              <button
+                onClick={() => setSelectedStationModal(null)}
+                style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '50%', width: '32px', height: '32px', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '16px' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {selectedStationModal.matchingAds.length === 0 ? (
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.1)', padding: '24px', borderRadius: '12px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '32px' }}>🟢</span>
+                <div style={{ fontSize: '14px', fontWeight: 700, color: '#fff' }}>Parada Libre (Sin Publicidad Contratada)</div>
+                <p style={{ fontSize: '12px', color: '#8f94a5', margin: 0, maxWidth: '380px' }}>
+                  Esta parada en la <strong>{selectedStationModal.lineName}</strong> no tiene campañas publicitarias activas en este momento. Está disponible para nuevos patrocinantes.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ fontSize: '12px', color: '#10B981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>📢</span> Se encontraron {selectedStationModal.matchingAds.length} campaña(s) activa(s) en esta parada:
+                </div>
+
+                {selectedStationModal.matchingAds.map((ad, idx) => (
+                  <div
+                    key={ad.id || idx}
+                    style={{
+                      background: 'rgba(255,255,255,0.02)',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '12px',
+                      padding: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <span style={{ fontSize: '10px', color: '#60A5FA', fontWeight: 700, textTransform: 'uppercase' }}>Campaña #{idx + 1}</span>
+                        <h4 style={{ fontSize: '16px', fontWeight: 700, color: '#fff', margin: '2px 0 0' }}>{ad.title}</h4>
+                      </div>
+                      <span style={{
+                        fontSize: '10px',
+                        background: ad.status === 'approved' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+                        color: ad.status === 'approved' ? '#10B981' : '#f59e0b',
+                        padding: '4px 8px', borderRadius: '6px', fontWeight: 700
+                      }}>
+                        {ad.status === 'approved' ? 'Aprobado' : 'Pendiente'}
+                      </span>
+                    </div>
+
+                    <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>{ad.description || ad.desc}</p>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', background: '#0a0d1a', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <div>
+                        <span style={{ fontSize: '10px', color: '#6b7280', display: 'block' }}>Anunciante:</span>
+                        <strong style={{ fontSize: '12px', color: '#fff' }}>{ad.userName || 'Corporativo'}</strong>
+                        <span style={{ fontSize: '10px', color: '#9ca3af', display: 'block' }}>{ad.userEmail || 'N/A'}</span>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '10px', color: '#6b7280', display: 'block' }}>Presupuesto Contratado:</span>
+                        <strong style={{ fontSize: '14px', color: '#10B981' }}>$${(ad.budget || 0).toLocaleString()} ARS</strong>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '10px', color: '#6b7280', display: 'block' }}>Fecha de Inicio:</span>
+                        <strong style={{ fontSize: '12px', color: '#60A5FA' }}>{ad.startDate || 'Hoy'}</strong>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '10px', color: '#6b7280', display: 'block' }}>Fecha de Finalización:</span>
+                        <strong style={{ fontSize: '12px', color: '#F59E0B' }}>{ad.endDate || ad.duration || 'En 30 Días'}</strong>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: '6px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                      {ad.status === 'pending' && (
+                        <button
+                          onClick={() => onApprove(ad.id)}
+                          style={{ padding: '6px 12px', background: '#10B981', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                        >
+                          Aprobar
+                        </button>
+                      )}
+                      <button
+                        onClick={() => {
+                          setDeleteAdTarget({ id: ad.id, name: ad.title || 'Anuncio' })
+                        }}
+                        style={{ padding: '6px 10px', background: 'rgba(239,68,68,0.15)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <Trash2 size={12} /> Eliminar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Modal Preview Ad Picture / Banner */}
       {selectedAd && (
@@ -6575,7 +6710,7 @@ function AdsTab({
                 Patrocinado • {selectedAd.stop || 'Parada'} ({selectedAd.route || selectedAd.line || 'Línea'})
               </div>
               <div style={{ fontSize: '18px', fontWeight: 800 }}>{selectedAd.bannerText || selectedAd.title}</div>
-              <div style={{ fontSize: '12px', color: '#cbd5e1' }}>{selectedAd.bannerTagline || selectedAd.desc}</div>
+              <div style={{ fontSize: '12px', color: '#cbd5e1' }}>{selectedAd.bannerTagline || selectedAd.description || selectedAd.desc}</div>
               <button style={{
                 marginTop: '10px', background: '#3B82F6', color: '#fff', border: 'none',
                 padding: '8px 16px', borderRadius: '8px', fontSize: '11px', fontWeight: 700,
@@ -6591,8 +6726,12 @@ function AdsTab({
                 <span style={{ color: '#fff', fontWeight: 600 }}>{selectedAd.userName || 'Corporativo'} ({selectedAd.userEmail || 'N/A'})</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '6px' }}>
-                <span style={{ color: '#8f94a5' }}>Parada Asignada:</span>
+                <span style={{ color: '#8f94a5' }}>Paradas Asignadas:</span>
                 <span style={{ color: '#fff', fontWeight: 600 }}>{selectedAd.stop || 'Parada'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '6px' }}>
+                <span style={{ color: '#8f94a5' }}>Vigencia:</span>
+                <span style={{ color: '#60A5FA', fontWeight: 600 }}>{selectedAd.startDate || 'Hoy'} ➔ {selectedAd.endDate || '30 Días'}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.04)', paddingBottom: '6px' }}>
                 <span style={{ color: '#8f94a5' }}>Presupuesto:</span>

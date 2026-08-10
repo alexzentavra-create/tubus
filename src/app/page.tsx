@@ -23109,17 +23109,15 @@ function MapAdBanner({
       setSearchHistory(JSON.parse(existingHistory))
     }
 
-    // Always reset bu_submitted_ads to empty [] if it contains mock data or on fresh load
-    const existingAdsStr = localStorage.getItem('bu_submitted_ads')
-    if (!existingAdsStr || existingAdsStr.includes('ad-map-1') || existingAdsStr.includes('dlgfgmsk')) {
-      localStorage.setItem('bu_submitted_ads', '[]')
+    // Read user submitted ads from localStorage without wiping user-created campaigns
+    const existingAdsStr = localStorage.getItem('bu_submitted_ads') || localStorage.getItem('mock_super_ads') || '[]'
+    try {
+      const deletedAdIds = JSON.parse(localStorage.getItem('deleted_ad_ids') || '[]')
+      const parsed = JSON.parse(existingAdsStr)
+      const filtered = (Array.isArray(parsed) ? parsed : []).filter((a: any) => !deletedAdIds.includes(a.id) && !deletedAdIds.includes(a.title))
+      setAdSubmissions(filtered)
+    } catch (e) {
       setAdSubmissions([])
-    } else {
-      try {
-        setAdSubmissions(JSON.parse(existingAdsStr))
-      } catch (e) {
-        setAdSubmissions([])
-      }
     }
 
     // Seed Chat if empty
@@ -29620,6 +29618,7 @@ function ProfilePanel({
   const [influenceRadius, setInfluenceRadius] = useState('150m')
   const [selectedAdSchedules, setSelectedAdSchedules] = useState<string[]>(['todos'])
   const [adSelectedStops, setAdSelectedStops] = useState<string[]>([])
+  const [adSelectedLines, setAdSelectedLines] = useState<string[]>(['Línea 12'])
   const adFileInputRef = useRef<HTMLInputElement>(null)
   const [adCostPerMinute, setAdCostPerMinute] = useState(5)
 
@@ -29946,22 +29945,32 @@ function ProfilePanel({
       id: Date.now().toString(),
       title: adTitle,
       description: adDesc,
+      desc: adDesc,
       businessAddress: adPickedAddress || 'Av. Corrientes 1380, CABA',
       businessCoord: adPickedCoord || { lat: -34.6037, lng: -58.4173 },
       placement: 'bottom',
       promoCode: 'BIENPARADA-' + Math.floor(1000 + Math.random() * 9000),
       imageUrl: adUploadedImg || adImg || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80',
       budget: Number(adBudget) || 50,
-      startDate: adStartDate,
-      endDate: adEndDate,
+      startDate: adStartDate || 'Hoy',
+      endDate: adEndDate || 'En 30 días',
+      duration: `${adStartDate || 'Hoy'} - ${adEndDate || '30 Días'}`,
       autoDebit: adAutoDebit,
       status: 'pending',
+      isActive: true,
+      userName: profileName || 'Anunciante Corporativo',
+      userEmail: profileEmail || 'ads@bienparada.com.ar',
       created_at: new Date().toISOString(),
+      timestamp: 'Hoy',
       adminComment: 'Aguardando revisión del equipo de moderación y aprobación de pago.',
       targetAudience,
       influenceRadius,
       selectedAdSchedule: selectedAdSchedules.join(','),
-      selectedStops: targetAudience !== 'todos' ? adSelectedStops : [],
+      selectedStops: adSelectedStops,
+      selectedLines: adSelectedLines || [],
+      stop: adSelectedStops && adSelectedStops.length > 0 ? adSelectedStops.join(', ') : 'Todas las paradas',
+      route: adSelectedLines && adSelectedLines.length > 0 ? adSelectedLines.join(', ') : 'Todas las líneas',
+      line: adSelectedLines && adSelectedLines.length > 0 ? adSelectedLines.join(', ') : 'Todas las líneas',
       adScheduleDetails: selectedAdSchedules.reduce((acc, id) => {
         acc[id] = {
           splits: adScheduleDetails[id]?.splits || 1,
