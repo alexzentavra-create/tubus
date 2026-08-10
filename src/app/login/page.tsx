@@ -402,15 +402,48 @@ export default function LoginPage() {
           return
         }
 
-        // 1. Check Super Admin (`admin@admin.com` with password `Admin`)
-        if (lowerEmail === 'admin@admin.com') {
-          if (pass === 'Admin' || pass === 'admin') {
-            localStorage.setItem('active_user', JSON.stringify({
-              name: 'Super Admin',
-              email: 'admin@admin.com',
-              password: 'Admin',
-              role: 'superadmin'
-            }))
+        // 1. Dynamic Check for All Registered Super Admin Accounts (bu_super_admins)
+        const storedSuperAdminsStr = localStorage.getItem('bu_super_admins') || '[]'
+        let registeredSuperAdmins: any[] = []
+        try {
+          registeredSuperAdmins = JSON.parse(storedSuperAdminsStr)
+        } catch (e) {}
+
+        const defaultSuperAdmin = {
+          id: 'sa-1',
+          name: 'Super Admin',
+          email: 'admin@admin.com',
+          password: 'Admin',
+          role: 'Super Admin Principal',
+          status: 'Activo'
+        }
+
+        if (!registeredSuperAdmins.some((sa: any) => sa.email?.toLowerCase() === 'admin@admin.com')) {
+          registeredSuperAdmins.unshift(defaultSuperAdmin)
+        }
+
+        const matchedSuperAdmin = registeredSuperAdmins.find((sa: any) => sa.email?.toLowerCase() === lowerEmail)
+
+        if (matchedSuperAdmin) {
+          if (matchedSuperAdmin.status && matchedSuperAdmin.status !== 'Activo') {
+            toast.error('⚠️ Acceso denegado: Esta cuenta de Super Administrador ha sido suspendida.')
+            setLoading(false)
+            return
+          }
+
+          if (pass === matchedSuperAdmin.password || (lowerEmail === 'admin@admin.com' && (pass === 'Admin' || pass === 'admin'))) {
+            const initials = matchedSuperAdmin.name.trim().split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+            const activeSaPayload = {
+              id: matchedSuperAdmin.id || `sa-${Date.now()}`,
+              name: matchedSuperAdmin.name,
+              email: matchedSuperAdmin.email,
+              password: matchedSuperAdmin.password,
+              role: 'superadmin',
+              saRole: matchedSuperAdmin.role || 'Super Admin Completo',
+              avatar: initials || 'SA'
+            }
+            localStorage.setItem('active_user', JSON.stringify(activeSaPayload))
+            localStorage.setItem('active_super_admin', JSON.stringify(activeSaPayload))
             window.location.href = '/admin/super'
             return
           } else {
