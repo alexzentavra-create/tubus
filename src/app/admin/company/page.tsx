@@ -341,6 +341,7 @@ export default function CompanyDashboard() {
 
     const loadRealDrivers = () => {
       try {
+        const LEGACY_MOCK_NAMES = ['néstor garcía', 'roberto sánchez', 'carlos martínez', 'juan gómez', 'marcos díaz', 'juan carlos pérez', 'n.stor.garc.a.linea12@tubus.ar']
         const deletedDriverIds: string[] = JSON.parse(localStorage.getItem('deleted_driver_ids') || localStorage.getItem('deleted_drivers') || '[]')
           .map((x: any) => String(x).toLowerCase())
         
@@ -354,7 +355,10 @@ export default function CompanyDashboard() {
 
         allCandidates.forEach(d => {
           const key = (d.email || d.id || d.name || '').toLowerCase()
-          if (!key || deletedDriverIds.includes(key) || deletedDriverIds.includes(d.name?.toLowerCase()) || deletedDriverIds.includes(d.id?.toLowerCase())) {
+          const nameLower = (d.name || '').toLowerCase()
+          const emailLower = (d.email || '').toLowerCase()
+
+          if (!key || LEGACY_MOCK_NAMES.includes(nameLower) || LEGACY_MOCK_NAMES.includes(emailLower) || deletedDriverIds.includes(key) || deletedDriverIds.includes(nameLower) || deletedDriverIds.includes(d.id?.toLowerCase())) {
             return
           }
           if (!uniqueDriversMap[key]) {
@@ -362,7 +366,17 @@ export default function CompanyDashboard() {
           }
         })
 
-        const activeSessions: any[] = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+        // Clean out legacy mock drivers from localStorage
+        const cleanedStored = storedLineDrivers.filter((d: any) => {
+          const nameLower = (d.name || '').toLowerCase()
+          const emailLower = (d.email || '').toLowerCase()
+          return !LEGACY_MOCK_NAMES.includes(nameLower) && !LEGACY_MOCK_NAMES.includes(emailLower)
+        })
+        if (cleanedStored.length !== storedLineDrivers.length) {
+          localStorage.setItem(lineKey, JSON.stringify(cleanedStored))
+        }
+
+          const activeSessions: any[] = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
           .filter((s: any) => s.line_number === activeLine.line_number || s.company_id === `mock-company-${activeLine.id}`)
 
         const cleanDrivers = Object.values(uniqueDriversMap).map((d: any, idx: number) => {

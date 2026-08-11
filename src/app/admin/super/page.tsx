@@ -4987,8 +4987,14 @@ function DriversTab() {
     }
   })
 
-  // Filter out any driver that has been deleted permanently
-  const allDrivers = combinedDrivers.filter(d => !deletedDrivers.includes(d.email.toLowerCase()) && !deletedDrivers.includes(d.name.toLowerCase()))
+  // Filter out any legacy mock drivers or deleted drivers permanently
+  const LEGACY_MOCK_NAMES = ['néstor garcía', 'roberto sánchez', 'carlos martínez', 'juan gómez', 'marcos díaz', 'juan carlos pérez', 'n.stor.garc.a.linea12@tubus.ar']
+  const allDrivers = combinedDrivers.filter(d => 
+    !LEGACY_MOCK_NAMES.includes(d.name.toLowerCase()) && 
+    !LEGACY_MOCK_NAMES.includes(d.email.toLowerCase()) && 
+    !deletedDrivers.includes(d.email.toLowerCase()) && 
+    !deletedDrivers.includes(d.name.toLowerCase())
+  )
 
   // Active drivers map for dynamic Unidad matching
   const mappedDrivers = allDrivers.map(d => {
