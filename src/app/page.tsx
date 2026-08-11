@@ -21959,13 +21959,25 @@ function MapAdBanner({
   
   const [routeUpdateTick, setRouteUpdateTick] = useState(0)
   useEffect(() => {
+    const triggerRefresh = () => setRouteUpdateTick(prev => prev + 1)
+    
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key && (e.key.startsWith('mock_route_path_') || e.key.startsWith('mock_custom_stops_') || e.key.startsWith('mock_blocked_stops_') || e.key === 'bu_custom_pois' || e.key === 'bu_deleted_poi_ids')) {
-        setRouteUpdateTick(prev => prev + 1)
+      if (!e.key || e.key.startsWith('mock_route_path_') || e.key.startsWith('mock_custom_stops_') || e.key.startsWith('mock_blocked_stops_') || e.key.startsWith('mock_detour_') || e.key === 'bu_custom_pois' || e.key === 'bu_deleted_poi_ids') {
+        triggerRefresh()
       }
     }
+
     window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
+    window.addEventListener('map_updated', triggerRefresh)
+    window.addEventListener('detour_updated', triggerRefresh)
+    window.addEventListener('stops_updated', triggerRefresh)
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+      window.removeEventListener('map_updated', triggerRefresh)
+      window.removeEventListener('detour_updated', triggerRefresh)
+      window.removeEventListener('stops_updated', triggerRefresh)
+    }
   }, [])
   
   // Mobile, Onboarding and Desktop-Preview states

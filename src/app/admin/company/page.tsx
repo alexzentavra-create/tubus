@@ -6115,15 +6115,19 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
     
     // Remove custom detour path from localStorage
     localStorage.removeItem(`mock_route_path_${activeLine.line_number}_${direction}`)
+    localStorage.removeItem(`mock_detour_${activeLine.line_number}_${direction}`)
     
     // Reload original path
     const loadedPath = getMockRoutePathForLine(activeLine, direction)
     setRoutePath(loadedPath)
     setIsDirty(true)
+    window.dispatchEvent(new Event('storage'))
+    window.dispatchEvent(new Event('map_updated'))
+    window.dispatchEvent(new Event('detour_updated'))
     toast.success("Desvío removido. Recorrido original restaurado.")
   }
 
-  // Save changes to localStorage
+  // Save changes to localStorage with real-time event dispatching
   const saveChanges = () => {
     localStorage.setItem(`mock_blocked_stops_${activeLine.line_number}`, JSON.stringify(blockedStops))
     localStorage.setItem(`mock_custom_stops_${activeLine.line_number}_${direction}`, JSON.stringify(stops))
@@ -6135,7 +6139,11 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
       localStorage.removeItem(`mock_detour_${activeLine.line_number}_${direction}`)
     }
     setIsDirty(false)
-    toast.success("¡Cambios operativos guardados y sincronizados con pasajeros y choferes!")
+    window.dispatchEvent(new Event('storage'))
+    window.dispatchEvent(new Event('map_updated'))
+    window.dispatchEvent(new Event('detour_updated'))
+    window.dispatchEvent(new Event('stops_updated'))
+    toast.success("¡Cambios operativos guardados y sincronizados con el panel de usuarios y choferes en tiempo real!")
   }
 
   // Handle click on map to add stop or detour waypoint
