@@ -29846,7 +29846,7 @@ function ProfilePanel({
     }
   }
 
-  const [targetAudience, setTargetAudience] = useState('todos')
+  const [targetAudience, setTargetAudience] = useState('Línea 12')
   const [influenceRadius, setInfluenceRadius] = useState('150m')
   const [selectedAdSchedules, setSelectedAdSchedules] = useState<string[]>(['todos'])
   const [adSelectedStops, setAdSelectedStops] = useState<string[]>([])
@@ -30196,15 +30196,13 @@ function ProfilePanel({
       alert('Por favor completá los campos requeridos (Título y Descripción).')
       return
     }
-    if (targetAudience !== 'todos') {
-      if (adSelectedStops.length === 0) {
-        alert('Por favor seleccioná al menos 1 parada de la línea para tu campaña.')
-        return
-      }
-      if (adSelectedStops.length > 2) {
-        alert('Podés seleccionar como máximo 2 paradas para tu campaña.')
-        return
-      }
+    if (adSelectedStops.length === 0) {
+      alert('Por favor seleccioná 1 o 2 paradas de la línea para tu campaña.')
+      return
+    }
+    if (adSelectedStops.length > 2) {
+      alert('Podés seleccionar como máximo 2 paradas para tu campaña.')
+      return
     }
     if (!adTermsAccepted) {
       alert('Debés aceptar los términos y condiciones de contenido publicitario para continuar.')
@@ -31011,7 +31009,7 @@ function ProfilePanel({
                       color: 'var(--text-primary)', fontSize: '13px', outline: 'none', transition: 'border-color 0.2s'
                     }}
                   >
-                    <option value="todos">Público General (Toda la red)</option>
+                    
                     <option value="Línea 12">Línea 12 (Palermo - Barracas)</option>
                     <option value="Línea 28">Línea 28 (Retiro - Liniers)</option>
                     <option value="Línea 37">Línea 37 (Lanús - Palermo)</option>
@@ -31022,7 +31020,7 @@ function ProfilePanel({
                   </select>
                 </div>
 
-                {targetAudience !== 'todos' && (() => {
+                {(() => {
                   const lineNum = targetAudience.replace('Línea ', '')
                   const matchedLine = MOCK_LINES.find(l => l.line_number === lineNum)
                   if (!matchedLine) return null
