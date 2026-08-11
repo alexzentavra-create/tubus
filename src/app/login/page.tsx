@@ -599,6 +599,10 @@ export default function LoginPage() {
               localStorage.setItem('profile_gender', foundUser.gender)
               localStorage.setItem('tu_bus_profile_gender', foundUser.gender)
             }
+            const realPass = foundUser.password || foundUser.pass || form.password || ''
+            if (realPass) {
+              localStorage.setItem('tu_bus_profile_password', realPass)
+            }
 
             if (foundUser.role === 'driver') {
               localStorage.setItem('mock_driver_identity', JSON.stringify({
@@ -757,6 +761,9 @@ export default function LoginPage() {
           localStorage.setItem('tu_bus_profile_phone', newUserData.phone)
           localStorage.setItem('profile_gender', newUserData.gender)
           localStorage.setItem('tu_bus_profile_gender', newUserData.gender)
+          if (newUserData.password) {
+            localStorage.setItem('tu_bus_profile_password', newUserData.password)
+          }
 
           // 4. Initialize clean 0 state for new user
           localStorage.setItem('bu_search_history_' + userId, JSON.stringify([]))

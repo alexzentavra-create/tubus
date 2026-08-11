@@ -29494,7 +29494,34 @@ function ProfilePanel({
   const [localEmail, setLocalEmail] = useState(profileEmail)
   const [localAvatar, setLocalAvatar] = useState(profileAvatar)
   const [localCountry, setLocalCountry] = useState<string>(() => typeof window !== 'undefined' ? localStorage.getItem('tu_bus_profile_country') || 'Argentina' : 'Argentina')
-  const [localPassword, setLocalPassword] = useState<string>(() => typeof window !== 'undefined' ? localStorage.getItem('tu_bus_profile_password') || 'bienparada2026' : 'bienparada2026')
+  const getSignedInUserPassword = (): string => {
+    if (typeof window === 'undefined') return ''
+    try {
+      const activeUser = JSON.parse(localStorage.getItem('active_user') || '{}')
+      if (activeUser?.password) return activeUser.password
+      if (activeUser?.pass) return activeUser.pass
+
+      const email = activeUser?.email || localStorage.getItem('tu_bus_profile_email') || localStorage.getItem('profile_email')
+      if (email) {
+        const regUsers = JSON.parse(localStorage.getItem('bu_registered_users') || localStorage.getItem('registered_users') || '[]')
+        const matched = regUsers.find((u: any) => u.email?.toLowerCase() === email.toLowerCase())
+        if (matched?.password) return matched.password
+        if (matched?.pass) return matched.pass
+
+        const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
+        const matchedMock = mockUsers.find((u: any) => u.email?.toLowerCase() === email.toLowerCase())
+        if (matchedMock?.password) return matchedMock.password
+        if (matchedMock?.pass) return matchedMock.pass
+      }
+
+      const stored = localStorage.getItem('tu_bus_profile_password')
+      if (stored) return stored
+    } catch (e) {}
+
+    return ''
+  }
+
+  const [localPassword, setLocalPassword] = useState<string>(() => getSignedInUserPassword())
   const [showPassword, setShowPassword] = useState(false)
 
   // 2FA Security Modal State
@@ -29795,6 +29822,8 @@ function ProfilePanel({
     setLocalPhone(profilePhone)
     setLocalEmail(profileEmail)
     setLocalAvatar(profileAvatar)
+    const realPass = getSignedInUserPassword()
+    if (realPass) setLocalPassword(realPass)
   }, [profileName, profilePhone, profileEmail, profileAvatar])
 
   useEffect(() => {
@@ -29874,6 +29903,37 @@ function ProfilePanel({
     localStorage.setItem('tu_bus_profile_avatar', localAvatar)
     localStorage.setItem('tu_bus_profile_country', localCountry)
     localStorage.setItem('tu_bus_profile_password', localPassword)
+    
+    // Sync real password to active_user, bu_registered_users, and mock_users
+    try {
+      const activeUser = JSON.parse(localStorage.getItem('active_user') || '{}')
+      if (activeUser && activeUser.email) {
+        activeUser.password = localPassword
+        activeUser.pass = localPassword
+        localStorage.setItem('active_user', JSON.stringify(activeUser))
+      }
+
+      const currentEmail = activeUser?.email || localEmail || localStorage.getItem('tu_bus_profile_email')
+      if (currentEmail) {
+        const regUsers = JSON.parse(localStorage.getItem('bu_registered_users') || '[]')
+        const updatedReg = regUsers.map((u: any) => {
+          if (u.email?.toLowerCase() === currentEmail.toLowerCase()) {
+            return { ...u, password: localPassword, pass: localPassword }
+          }
+          return u
+        })
+        localStorage.setItem('bu_registered_users', JSON.stringify(updatedReg))
+
+        const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
+        const updatedMock = mockUsers.map((u: any) => {
+          if (u.email?.toLowerCase() === currentEmail.toLowerCase()) {
+            return { ...u, password: localPassword, pass: localPassword }
+          }
+          return u
+        })
+        localStorage.setItem('mock_users', JSON.stringify(updatedMock))
+      }
+    } catch (e) {}
 
     // 3. Sync user namespace data
     const userAdsKey = getUserStorageKey('bu_submitted_ads', localEmail)
