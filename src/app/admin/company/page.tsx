@@ -1033,41 +1033,50 @@ export default function CompanyDashboard() {
     setGpsPassageLogs([])
     if (activeLine.line_number === '0' && buses.length === 0) return
     const mergeLogs = () => {
-      setGpsPassageLogs(prev => {
-        const updated = [...prev]
-        let changed = false
+      try {
+        const activeSessions: any[] = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+          .filter((s: any) => s.line_number === activeLine.line_number && s.is_active)
         
-        try {
-          const keys = Object.keys(localStorage)
-          keys.forEach(k => {
-            if (k.startsWith(`driver_passage_logs_${activeLine.line_number}_`)) {
-              const busUnit = k.replace(`driver_passage_logs_${activeLine.line_number}_`, '')
-              const list = JSON.parse(localStorage.getItem(k) || '[]')
-              list.forEach((log: any) => {
-                const logId = `driver-${busUnit}-${log.stopId}`
-                const exists = updated.some(l => l.id === logId)
-                if (!exists) {
-                  const tf = stopsTimeframes[log.stopId] || { start: '--:--', end: '--:--' }
-                  updated.unshift({
-                    id: logId,
-                    busUnit,
-                    driver: 'Néstor García',
-                    stopName: log.stopName,
-                    time: log.arrivalTime,
-                    scheduled: `${tf.start} - ${tf.end} hs`,
-                    status: log.status
-                  })
-                  changed = true
-                }
-              })
+        const activeUnits = activeSessions.map((s: any) => String(s.bus_unit))
+
+        // Clean out stale driver passage logs in localStorage from units no longer active
+        const keys = Object.keys(localStorage)
+        keys.forEach(k => {
+          if (k.startsWith(`driver_passage_logs_${activeLine.line_number}_`)) {
+            const unit = k.replace(`driver_passage_logs_${activeLine.line_number}_`, '')
+            if (!activeUnits.includes(unit)) {
+              localStorage.removeItem(k)
             }
-          })
-        } catch (e) {
-          console.error(e)
+          }
+        })
+
+        if (activeUnits.length === 0) {
+          setGpsPassageLogs([])
+          return
         }
-        
-        return changed ? updated.slice(0, 30) : prev
-      })
+
+        const freshLogs: any[] = []
+        activeSessions.forEach((sess: any) => {
+          const key = `driver_passage_logs_${activeLine.line_number}_${sess.bus_unit}`
+          const list = JSON.parse(localStorage.getItem(key) || '[]')
+          list.forEach((log: any) => {
+            const tf = stopsTimeframes[log.stopId] || { start: '--:--', end: '--:--' }
+            freshLogs.unshift({
+              id: `driver-${sess.bus_unit}-${log.stopId}-${log.arrivalTime}`,
+              busUnit: sess.bus_unit,
+              driver: sess.driverName || sess.profiles?.name || 'Chofer Registrado',
+              stopName: log.stopName,
+              time: log.arrivalTime,
+              scheduled: `${tf.start} - ${tf.end} hs`,
+              status: log.status
+            })
+          })
+        })
+
+        setGpsPassageLogs(freshLogs)
+      } catch (e) {
+        setGpsPassageLogs([])
+      }
     }
     
     mergeLogs()
