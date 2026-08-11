@@ -334,98 +334,80 @@ export default function CompanyDashboard() {
     setDriverWarnings(local)
   }, [selectedLineNumber])
 
-  // Drivers List state & localStorage sync
+  // Drivers List state & localStorage sync — strictly real drivers from registered_drivers / mock_drivers
   const [driversList, setDriversList] = useState<any[]>([])
   useEffect(() => {
     if (!activeLine) return
-    const initialDrivers = getLineDrivers(activeLine.line_number)
-    const stored = localStorage.getItem(`mock_drivers_${activeLine.line_number}`)
-    
-    let loadedDrivers: any[] = []
-    if (stored) {
+
+    const loadRealDrivers = () => {
       try {
-        loadedDrivers = JSON.parse(stored)
-      } catch (e) {
-        loadedDrivers = []
-      }
-    }
-    
-    if (loadedDrivers.length === 0) {
-      loadedDrivers = initialDrivers.map((d: any, idx: number) => ({
-        ...d,
-        id: `driver-${idx}-${Date.now()}`,
-        dni: String(28000000 + idx * 45293),
-        age: 32 + idx * 4,
-        phone: `+54 9 11 ${5429 - idx * 100} 8234`,
-        historyBuses: [`${activeLine.line_number}-301`, `${activeLine.line_number}-302`],
-        historyDenuncias: idx % 3 === 0 ? [{
-          id: `rep-idx-${idx}-${Date.now()}`,
-          type: 'No paró',
-          date: 'Ayer',
-          time: '15:30',
-          desc: 'El colectivo no se detuvo en la parada indicada a pesar de la seña del pasajero.',
-          driver: d.name,
-          bus: `${activeLine.line_number}-301`,
-          stop: 'Av. Rivadavia y Pueyrredón'
-        }] : []
-      }))
-    }
+        const deletedDriverIds: string[] = JSON.parse(localStorage.getItem('deleted_driver_ids') || localStorage.getItem('deleted_drivers') || '[]')
+          .map((x: any) => String(x).toLowerCase())
+        
+        const lineKey = `mock_drivers_${activeLine.line_number}`
+        const storedLineDrivers: any[] = JSON.parse(localStorage.getItem(lineKey) || '[]')
+        const registered: any[] = JSON.parse(localStorage.getItem('registered_drivers') || '[]')
+          .filter((d: any) => d.line_number === activeLine.line_number || d.lineNumber === activeLine.line_number || d.line === `Línea ${activeLine.line_number}`)
 
-    // Ensure every loaded driver has a valid email, password, and is registered in mock_users
-    let needsUpdate = false
-    try {
-      const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
-      let mockUsersUpdated = false
+        const allCandidates = [...storedLineDrivers, ...registered]
+        const uniqueDriversMap: Record<string, any> = {}
 
-      loadedDrivers = loadedDrivers.map((d: any) => {
-        let email = d.email
-        let password = d.password
-
-        // Generate email if missing
-        if (!email) {
-          email = `${d.name.toLowerCase().replace(/[^a-z0-9]/g, '.').replace(/\.+/g, '.')}.linea${activeLine.line_number}@bienparada.ar`
-          d.email = email
-          needsUpdate = true
-        }
-        // Generate password if missing
-        if (!password) {
-          password = d.name.split(' ')[0] || 'chofer123'
-          if (password.length < 5) password = `${password}123`
-          d.password = password
-          needsUpdate = true
-        }
-
-        // Register in mockUsers if not already there
-        const existingIdx = mockUsers.findIndex((u: any) => u.email.toLowerCase() === email.toLowerCase())
-        const userEntry = { name: d.name, email, password, role: 'driver', lineNumber: activeLine.line_number }
-        if (existingIdx >= 0) {
-          const u = mockUsers[existingIdx]
-          if (u.role !== 'driver' || u.lineNumber !== activeLine.line_number || u.password !== password) {
-            mockUsers[existingIdx] = { ...u, ...userEntry }
-            mockUsersUpdated = true
+        allCandidates.forEach(d => {
+          const key = (d.email || d.id || d.name || '').toLowerCase()
+          if (!key || deletedDriverIds.includes(key) || deletedDriverIds.includes(d.name?.toLowerCase()) || deletedDriverIds.includes(d.id?.toLowerCase())) {
+            return
           }
-        } else {
-          mockUsers.push(userEntry)
-          mockUsersUpdated = true
-        }
+          if (!uniqueDriversMap[key]) {
+            uniqueDriversMap[key] = d
+          }
+        })
 
-        return d
-      })
+        const activeSessions: any[] = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+          .filter((s: any) => s.line_number === activeLine.line_number || s.company_id === `mock-company-${activeLine.id}`)
 
-      if (mockUsersUpdated) {
-        localStorage.setItem('mock_users', JSON.stringify(mockUsers))
+        const cleanDrivers = Object.values(uniqueDriversMap).map((d: any, idx: number) => {
+          const activeSess = activeSessions.find((s: any) => 
+            s.profiles?.name?.toLowerCase() === d.name?.toLowerCase() ||
+            s.driverEmail?.toLowerCase() === d.email?.toLowerCase() ||
+            s.driverId === d.id
+          )
+
+          return {
+            id: d.id || `driver-${idx}-${Date.now()}`,
+            name: d.name || 'Chofer Registrado',
+            email: d.email || `chofer${idx}@linea${activeLine.line_number}.ar`,
+            password: d.password || d.pass || 'Bienparada',
+            dni: d.dni || String(28000000 + idx * 45293),
+            age: d.age || 32,
+            phone: d.phone || '+54 9 11 5429 8234',
+            rating: d.rating || 0.0,
+            onTime: d.onTime || 0,
+            sessions: activeSess ? (d.sessions || 1) : (d.sessions || 0),
+            sanctions: d.sanctions || 0,
+            reports: d.historyDenuncias?.length || 0,
+            historyBuses: activeSess ? [activeSess.bus_unit] : (d.historyBuses || []),
+            historyDenuncias: d.historyDenuncias || [],
+            status: activeSess ? `EN SERVICIO (${activeSess.bus_unit})` : 'FUERA DE SERVICIO',
+            lastActive: activeSess ? 'En vivo' : (d.lastActive || 'Sin actividad')
+          }
+        })
+
+        setDriversList(cleanDrivers)
+      } catch (e) {
+        setDriversList([])
       }
-    } catch (e) {
-      console.error('Error during drivers login registration sync:', e)
     }
 
-    setDriversList(loadedDrivers)
-    if (needsUpdate || !stored) {
-      localStorage.setItem(`mock_drivers_${activeLine.line_number}`, JSON.stringify(loadedDrivers))
+    loadRealDrivers()
+    window.addEventListener('storage', loadRealDrivers)
+    window.addEventListener('drivers_updated', loadRealDrivers)
+    return () => {
+      window.removeEventListener('storage', loadRealDrivers)
+      window.removeEventListener('drivers_updated', loadRealDrivers)
     }
   }, [activeLine])
 
-  const updateDrivers = (updatedList: any[]) => {
+    const updateDrivers = (updatedList: any[]) => {
     setDriversList(updatedList)
     localStorage.setItem(`mock_drivers_${activeLine.line_number}`, JSON.stringify(updatedList))
   }
@@ -468,20 +450,49 @@ export default function CompanyDashboard() {
 
   const deleteDriver = (id: string) => {
     const driver = driversList.find(d => d.id === id)
-    const updated = driversList.filter(d => d.id !== id)
-    setDriversList(updated)
-    localStorage.setItem(`mock_drivers_${activeLine.line_number}`, JSON.stringify(updated))
-    // Also remove their login credentials
+    const deletedDriverIds: string[] = JSON.parse(localStorage.getItem('deleted_driver_ids') || localStorage.getItem('deleted_drivers') || '[]')
+    
+    if (id && !deletedDriverIds.includes(id.toLowerCase())) deletedDriverIds.push(id.toLowerCase())
+    if (driver?.email && !deletedDriverIds.includes(driver.email.toLowerCase())) deletedDriverIds.push(driver.email.toLowerCase())
+    if (driver?.name && !deletedDriverIds.includes(driver.name.toLowerCase())) deletedDriverIds.push(driver.name.toLowerCase())
+    
+    localStorage.setItem('deleted_driver_ids', JSON.stringify(deletedDriverIds))
+    localStorage.setItem('deleted_drivers', JSON.stringify(deletedDriverIds))
+
+    // Remove from mock_drivers_${activeLine.line_number}
+    const lineKey = `mock_drivers_${activeLine.line_number}`
+    const prevLineDrivers = JSON.parse(localStorage.getItem(lineKey) || '[]')
+    const updatedLineDrivers = prevLineDrivers.filter((d: any) => d.id !== id && d.email?.toLowerCase() !== driver?.email?.toLowerCase() && d.name?.toLowerCase() !== driver?.name?.toLowerCase())
+    localStorage.setItem(lineKey, JSON.stringify(updatedLineDrivers))
+
+    // Remove from registered_drivers
+    const prevReg = JSON.parse(localStorage.getItem('registered_drivers') || '[]')
+    const updatedReg = prevReg.filter((d: any) => d.id !== id && d.email?.toLowerCase() !== driver?.email?.toLowerCase() && d.name?.toLowerCase() !== driver?.name?.toLowerCase())
+    localStorage.setItem(lineKey, JSON.stringify(updatedReg))
+
+    // Remove login credentials from mock_users
     if (driver?.email) {
       try {
         const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
-        localStorage.setItem('mock_users', JSON.stringify(mockUsers.filter((u: any) => u.email?.toLowerCase() !== driver.email.toLowerCase())))
+        const updatedUsers = mockUsers.filter((u: any) => u.email?.toLowerCase() !== driver.email.toLowerCase())
+        localStorage.setItem('mock_users', JSON.stringify(updatedUsers))
       } catch (e) {}
     }
-    toast.success('Chofer eliminado con éxito de los registros');
+
+    // Remove active sessions if any
+    try {
+      const activeSess = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+      const updatedSess = activeSess.filter((s: any) => s.driverEmail?.toLowerCase() !== driver?.email?.toLowerCase() && s.profiles?.name?.toLowerCase() !== driver?.name?.toLowerCase())
+      localStorage.setItem('mock_active_sessions', JSON.stringify(updatedSess))
+    } catch (e) {}
+
+    setDriversList(prev => prev.filter(d => d.id !== id && d.email?.toLowerCase() !== driver?.email?.toLowerCase()))
+    window.dispatchEvent(new Event('storage'))
+    window.dispatchEvent(new Event('drivers_updated'))
+    toast.success('Chofer eliminado permanentemente de la plataforma');
   }
 
-  // Add Driver Form states
+    // Add Driver Form states
   const [showAddDriverModal, setShowAddDriverModal] = useState(false)
   const [newDriverName, setNewDriverName] = useState('')
   const [newDriverLegajo, setNewDriverLegajo] = useState('')
@@ -1134,8 +1145,8 @@ export default function CompanyDashboard() {
   const currentChartData = getChartData()
 
   const LINE_DRIVERS: Record<string, string[]> = {
-    '0': ['Marcos Díaz', 'Carlos Martínez'],
-    '12': ['Néstor García', 'Roberto Sánchez'],
+    '0': [],
+    '12': [],
     '28': [],
     '37': [],
     '39': [],
@@ -1327,17 +1338,39 @@ export default function CompanyDashboard() {
       age: parseInt(newDriverAge) || 30,
       phone: newDriverPhone.trim() || '+54 9 11 5000 0000',
       email,
+      password,
       sessions: 0,
-      onTime: 100,
-      rating: "5.0",
+      onTime: 0,
+      rating: 0.0,
       reports: 0,
-      lastActive: 'Sin actividad reciente',
+      lastActive: 'Sin actividad',
       historyBuses: [],
       historyDenuncias: []
     }
     const updated = [...driversList, newDriver]
     setDriversList(updated)
     localStorage.setItem(`mock_drivers_${activeLine.line_number}`, JSON.stringify(updated))
+
+    // Save to registered_drivers so Super Admin immediately sees it
+    try {
+      const regDrivers = JSON.parse(localStorage.getItem('registered_drivers') || '[]')
+      const regIdx = regDrivers.findIndex((d: any) => d.email?.toLowerCase() === email.toLowerCase())
+      const regEntry = {
+        id: newDriver.id,
+        name: newDriver.name,
+        email,
+        password,
+        lineNumber: activeLine.line_number,
+        line_number: activeLine.line_number,
+        line_name: `Línea ${activeLine.line_number}`
+      }
+      if (regIdx >= 0) {
+        regDrivers[regIdx] = regEntry
+      } else {
+        regDrivers.push(regEntry)
+      }
+      localStorage.setItem('registered_drivers', JSON.stringify(regDrivers))
+    } catch (e) {}
 
     // Register credentials in mock_users so the driver can log in from /login
     try {
@@ -1353,6 +1386,9 @@ export default function CompanyDashboard() {
     } catch (e) {
       console.error('Error saving driver credentials:', e)
     }
+
+    window.dispatchEvent(new Event('storage'))
+    window.dispatchEvent(new Event('drivers_updated'))
 
     setShowAddDriverModal(false)
     

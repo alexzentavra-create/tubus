@@ -4970,14 +4970,8 @@ function DriversTab() {
     }))
   }
 
-  // Base list of baseline real choferes across lines
-  const BASE_DRIVERS = [
-    { name: 'Marcos Díaz', email: 'marcos@linea0.ar', pass: 'Bienparada', line: 'Línea 0', line_number: '0' },
-    { name: 'Carlos Martínez', email: 'carlos@linea0.ar', pass: 'Bienparada', line: 'Línea 0', line_number: '0' },
-    { name: 'Néstor García', email: 'nestor@linea12.ar', pass: 'Bienparada', line: 'Línea 12', line_number: '12' },
-    { name: 'Roberto Sánchez', email: 'roberto@linea12.ar', pass: 'Bienparada', line: 'Línea 12', line_number: '12' },
-    { name: 'Juan Carlos Pérez', email: 'juan@linea12.ar', pass: 'Bienparada', line: 'Línea 12', line_number: '12' },
-  ]
+  // Base list of drivers — strictly real drivers registered by line admins
+  const BASE_DRIVERS: any[] = []
 
   // Combine baseline drivers + dynamic registered drivers
   const combinedDrivers = [...BASE_DRIVERS]
