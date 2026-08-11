@@ -5088,6 +5088,14 @@ function CompanyReports({ reports, driverWarnings = {}, onAddWarning, onResolve,
 }
 
 function getColorConfig(val: number, avg: number) {
+  if (!val || val === 0 || !avg || avg === 0) {
+    return {
+      bg: 'rgba(255, 255, 255, 0.03)',
+      border: 'rgba(255, 255, 255, 0.08)',
+      text: '#8f94a5',
+      label: 'Sin datos de operación (0 pas)'
+    }
+  }
   if (val < avg * 0.9) {
     return {
       bg: 'rgba(255, 77, 106, 0.1)',
@@ -5136,33 +5144,34 @@ function CalendarTab({ themeColor, activeLine, activeStats }: { themeColor: stri
 
   const getRichDetails = (item: any) => {
     if (!item) return null;
-    const seed = item.passengers;
-    const rawStops = getMockStopsForLine(activeLine, 'ida')
-    const stopsList = activeLine.line_number === '0'
-      ? rawStops.map(s => ({ name: s.name, flow: 0 }))
-      : [
-          { name: 'Plaza Italia', flow: Math.round(seed * 0.28) },
-          { name: 'Estación Palermo', flow: Math.round(seed * 0.22) },
-          { name: 'Barrancas de Belgrano', flow: Math.round(seed * 0.18) }
-        ];
+    const seed = item.passengers || 0;
     
-    let activeBuses = [];
+    // Paradas Críticas — strictly 0 flow when 0 passengers
+    const rawStops = getMockStopsForLine(activeLine, 'ida')
+    const stopsList = rawStops.map(s => ({
+      name: s.name,
+      flow: seed > 0 ? Math.round(seed * 0.25) : 0
+    }))
+    
+    // Flota Asignada — strictly real active QR codes or active driver sessions
+    let activeBuses: string[] = []
     try {
-      const targetDateStr = format(item.date, 'yyyy-MM-dd')
-      const key = `mock_active_buses_line_${activeLine.line_number}_${targetDateStr}`
-      const recordedBuses = JSON.parse(localStorage.getItem(key) || '[]')
-      activeBuses = recordedBuses.length > 0
-        ? recordedBuses
-        : (activeLine.line_number !== '12'
-           ? []
-           : (item.type === 'day'
-              ? [`Coche ${item.bus}`, `Coche 30${(seed % 4) + 1}`, `Coche 305`]
-              : [`Coche 301`, `Coche 302`, `Coche 304`, `Coche 305`].slice(0, item.busesCount || 4)));
+      const lineQRs = JSON.parse(localStorage.getItem(`mock_bus_qr_codes_${activeLine.line_number}`) || '[]')
+        .filter((q: any) => q.is_active)
+        .map((q: any) => q.bus_unit ? `Coche ${q.bus_unit}` : `Coche ${q.qr_token}`)
+
+      const activeSess = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+        .filter((s: any) => s.line_number === activeLine.line_number)
+        .map((s: any) => `Coche ${s.bus_unit}`)
+
+      activeBuses = Array.from(new Set([...lineQRs, ...activeSess]))
     } catch (e) {
-      activeBuses = activeLine.line_number === '12' ? [`Coche 301`, `Coche 302`, `Coche 305`] : []
+      activeBuses = []
     }
 
-    const peakHour = (seed % 2 === 0) ? '08:00 - 09:30 (Pico Mañana)' : '17:30 - 19:00 (Pico Tarde)';
+    const peakHour = seed > 0
+      ? ((seed % 2 === 0) ? '08:00 - 09:30 (Pico Mañana)' : '17:30 - 19:00 (Pico Tarde)')
+      : 'Sin pico registrado (0 pas)';
     
     let ageGroup10_18 = 0;
     let ageGroup19_30 = 0;
@@ -5170,40 +5179,24 @@ function CalendarTab({ themeColor, activeLine, activeStats }: { themeColor: stri
     let ageGroup51_70 = 0;
 
     try {
-      const boardingsKey = `mock_boardings_line_${activeLine.line_number}`
+      const todayStr = new Date().toISOString().split('T')[0]
+      const boardingsKey = `line_boardings_${activeLine.line_number}_${todayStr}`
       const liveBoardings = JSON.parse(localStorage.getItem(boardingsKey) || '[]')
       
-      let matching = liveBoardings
-      if (item.type === 'day') {
-        const targetDateStr = format(item.date, 'yyyy-MM-dd')
-        matching = liveBoardings.filter((b: any) => b.date === targetDateStr)
-      }
-      
-      if (matching.length > 0) {
+      if (Array.isArray(liveBoardings) && liveBoardings.length > 0) {
         let c1 = 0, c2 = 0, c3 = 0, c4 = 0
-        matching.forEach((b: any) => {
-          if (b.age >= 10 && b.age <= 18) c1++
-          else if (b.age >= 19 && b.age <= 30) c2++
-          else if (b.age >= 31 && b.age <= 50) c3++
-          else if (b.age >= 51 && b.age <= 70) c4++
+        liveBoardings.forEach((b: any) => {
+          const age = b.age || 25
+          if (age >= 10 && age <= 18) c1++
+          else if (age >= 19 && age <= 30) c2++
+          else if (age >= 31 && age <= 50) c3++
+          else if (age >= 51 && age <= 70) c4++
         })
-        const tot = matching.length
+        const tot = liveBoardings.length
         ageGroup10_18 = Math.round((c1 / tot) * 100)
         ageGroup19_30 = Math.round((c2 / tot) * 100)
         ageGroup31_50 = Math.round((c3 / tot) * 100)
         ageGroup51_70 = 100 - ageGroup10_18 - ageGroup19_30 - ageGroup31_50
-      } else {
-        if (activeLine.line_number === '0') {
-          ageGroup10_18 = 0
-          ageGroup19_30 = 0
-          ageGroup31_50 = 0
-          ageGroup51_70 = 0
-        } else {
-          ageGroup10_18 = 15 + (seed % 8)
-          ageGroup19_30 = 35 + (seed % 12)
-          ageGroup31_50 = 30 + (seed % 10)
-          ageGroup51_70 = 100 - ageGroup10_18 - ageGroup19_30 - ageGroup31_50
-        }
       }
     } catch (e) {
       console.error(e)
@@ -5212,7 +5205,7 @@ function CalendarTab({ themeColor, activeLine, activeStats }: { themeColor: stri
     return { stopsList, activeBuses, peakHour, ageStats: { ageGroup10_18, ageGroup19_30, ageGroup31_50, ageGroup51_70 } };
   };
 
-  const [yearStr, monthStr] = historyBaseMonth.split('-')
+    const [yearStr, monthStr] = historyBaseMonth.split('-')
   const year = parseInt(yearStr, 10)
   const month = parseInt(monthStr, 10)
   const monthEnd = new Date(year, month, 0)
@@ -5535,14 +5528,18 @@ function CalendarTab({ themeColor, activeLine, activeStats }: { themeColor: stri
             <div style={{ background: 'rgba(6,8,16,0.3)', borderRadius: '10px', padding: '16px' }}>
               <div style={{ color: '#8f94a5', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Flota Asignada</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {(getRichDetails(selected)?.activeBuses || []).map((bus: any, idx: number) => (
-                  <span key={idx} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '11px', padding: '4px 8px', borderRadius: '6px' }}>
-                    {bus}
-                  </span>
-                ))}
+                {(getRichDetails(selected)?.activeBuses || []).length === 0 ? (
+                  <span style={{ color: '#8f94a5', fontSize: '11px' }}>No hay unidades asignadas</span>
+                ) : (
+                  (getRichDetails(selected)?.activeBuses || []).map((bus: any, idx: number) => (
+                    <span key={idx} style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontSize: '11px', padding: '4px 8px', borderRadius: '6px' }}>
+                      {bus}
+                    </span>
+                  ))
+                )}
               </div>
               <div style={{ color: '#8f94a5', fontSize: '11px', marginTop: '12px' }}>
-                {selected.type === 'day' ? `Horario: ${selected.hours}` : `${selected.busesCount || 4} coches registrados`}
+                {(getRichDetails(selected)?.activeBuses || []).length > 0 ? `Horario: ${selected.hours || '06:00 - 23:00'}` : 'Sin servicio activo'}
               </div>
             </div>
 
