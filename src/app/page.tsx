@@ -22171,6 +22171,67 @@ function MapAdBanner({
   const [profileAvatar, setProfileAvatar] = useState('avatar1')
   const [searchHistory, setSearchHistory] = useState<any[]>([])
   const [adSubmissions, setAdSubmissions] = useState<any[]>([])
+  const [adTickerSec, setAdTickerSec] = useState(0)
+  const [notifiedAdProximityIds, setNotifiedAdProximityIds] = useState<string[]>([])
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setAdTickerSec(s => s + 1)
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  // 300-meter Geofenced Push Alert monitoring for active passenger GPS location
+  useEffect(() => {
+    if (!userCoords || adSubmissions.length === 0) return
+
+    const activePushAds = adSubmissions.filter((ad: any) => {
+      if (ad.status !== 'approved' && ad.status) return false
+      const types = ad.selectedAdTypes || ad.placements || [ad.placement]
+      return types.includes('notification') || types.includes('notificaciones') || ad.placement === 'notification'
+    })
+
+    activePushAds.forEach((ad: any) => {
+      if (notifiedAdProximityIds.includes(ad.id)) return
+      const targetCoord = ad.businessCoord || { lat: -34.6037, lng: -58.4173 }
+      const distKm = distanceKm({ latitude: userCoords.lat, longitude: userCoords.lng }, targetCoord)
+
+      // 300 meter radius (0.3 km)
+      if (distKm <= 0.3) {
+        setNotifiedAdProximityIds(prev => [...prev, ad.id])
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          try { navigator.vibrate([200, 100, 200, 100, 300]); } catch (e) {}
+        }
+        playNotificationBeep()
+        toast.custom((t) => (
+          <div style={{
+            background: 'linear-gradient(135deg, #1E3A8A, #1D4ED8)',
+            color: '#FFFFFF',
+            padding: '14px 18px',
+            borderRadius: '16px',
+            boxShadow: '0 10px 25px rgba(29, 78, 216, 0.5)',
+            border: '1.5px solid rgba(255, 255, 255, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            maxWidth: '360px'
+          }}>
+            <div style={{ fontSize: '24px' }}>🔔</div>
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: '#60A5FA', letterSpacing: '0.05em' }}>
+                Anuncio Geolocalizado (A menos de 300m)
+              </div>
+              <div style={{ fontSize: '13px', fontWeight: 700, margin: '2px 0' }}>{ad.title}</div>
+              <div style={{ fontSize: '11px', opacity: 0.9 }}>{ad.description || ad.desc}</div>
+              {ad.businessAddress && (
+                <div style={{ fontSize: '10px', opacity: 0.75, marginTop: '4px' }}>📍 {ad.businessAddress}</div>
+              )}
+            </div>
+          </div>
+        ), { duration: 6000 })
+      }
+    })
+  }, [userCoords, adSubmissions, notifiedAdProximityIds])
   const [triggeredAd, setTriggeredAd] = useState<any | null>(null)
   const [chatMessages, setChatMessages] = useState<any[]>([])
 
@@ -23122,7 +23183,7 @@ function MapAdBanner({
     }
 
     // Read user submitted ads from localStorage without wiping user-created campaigns
-    const existingAdsStr = localStorage.getItem('bu_submitted_ads') || localStorage.getItem('mock_super_ads') || '[]'
+    const existingAdsStr = localStorage.getItem('bu_submitted_ads') || '[]'
     try {
       const deletedAdIds = JSON.parse(localStorage.getItem('deleted_ad_ids') || '[]')
       const parsed = JSON.parse(existingAdsStr)
@@ -25606,6 +25667,61 @@ function MapAdBanner({
               </div>
             </Marker>
           )}
+
+          {/* Interactive Map POI Markers for Option 2 Ads (Marcador en Mapa) */}
+          {adSubmissions.filter((ad: any) => {
+            if (ad.status !== 'approved' && ad.status) return false
+            const types = ad.selectedAdTypes || ad.placements || [ad.placement]
+            return types.includes('map') || types.includes('mapa') || ad.placement === 'map'
+          }).map((ad: any, idx: number) => {
+            const coord = ad.businessCoord || { lat: -34.6037, lng: -58.4173 }
+            return (
+              <Marker key={`ad_map_pin_${ad.id || idx}`} longitude={coord.lng} latitude={coord.lat} anchor="bottom">
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSelectedBottomAdDetail(ad)
+                  }}
+                  style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', transition: 'transform 0.2s', zIndex: 100 }}
+                  className="hover:scale-110"
+                >
+                  <div style={{
+                    background: 'linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%)',
+                    color: '#FFF',
+                    fontSize: '10px',
+                    fontWeight: 800,
+                    padding: '4px 8px',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 14px rgba(37, 99, 235, 0.5)',
+                    border: '1.5px solid #FFFFFF',
+                    marginBottom: '4px',
+                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
+                    <span>📍 {ad.title}</span>
+                    <span style={{ fontSize: '8px', background: '#10B981', color: '#FFF', padding: '1px 5px', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 900 }}>PROMO</span>
+                  </div>
+                  <div style={{
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '50%',
+                    background: '#2563EB',
+                    border: '2px solid #FFFFFF',
+                    boxShadow: '0 0 14px rgba(37, 99, 235, 0.8)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#FFFFFF',
+                    fontSize: '12px'
+                  }}>
+                    📣
+                  </div>
+                </div>
+              </Marker>
+            )
+          })}
 
           {/* Ad Location Dropped Pin Marker */}
           {adLocationMarker && (
@@ -30036,6 +30152,11 @@ function ProfilePanel({
       return
     }
 
+    const baseBudgetNum = Math.max(10, Number(adBudget) || 50);
+    const extraMapCost = selectedAdTypes.includes('map') ? 20 : 0;
+    const extraNotifCost = selectedAdTypes.includes('notification') ? 100 : 0;
+    const totalCalculatedCost = baseBudgetNum + extraMapCost + extraNotifCost;
+
     const newAd = {
       id: Date.now().toString(),
       title: adTitle,
@@ -30043,10 +30164,15 @@ function ProfilePanel({
       desc: adDesc,
       businessAddress: adPickedAddress || 'Av. Corrientes 1380, CABA',
       businessCoord: adPickedCoord || { lat: -34.6037, lng: -58.4173 },
-      placement: 'bottom',
+      placement: selectedAdTypes[0] || 'standard',
+      placements: selectedAdTypes,
+      selectedAdTypes: selectedAdTypes,
       promoCode: 'BIENPARADA-' + Math.floor(1000 + Math.random() * 9000),
       imageUrl: adUploadedImg || adImg || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80',
-      budget: Number(adBudget) || 50,
+      baseBudget: baseBudgetNum,
+      extraCost: extraMapCost + extraNotifCost,
+      budget: totalCalculatedCost,
+      totalCost: totalCalculatedCost,
       startDate: adStartDate || 'Hoy',
       endDate: adEndDate || 'En 30 días',
       duration: `${adStartDate || 'Hoy'} - ${adEndDate || '30 Días'}`,
@@ -30079,7 +30205,7 @@ function ProfilePanel({
     };
 
     setPendingAd(newAd);
-    setPaymentAmount(newAd.budget);
+    setPaymentAmount(totalCalculatedCost);
     setShowMercadoPagoModal(true);
   }
 
@@ -31045,6 +31171,46 @@ function ProfilePanel({
                   </div>
                 </div>
 
+                {/* Real-Time Pricing Math Breakdown Card */}
+                <div style={{
+                  marginBottom: '14px',
+                  padding: '12px 14px',
+                  borderRadius: '12px',
+                  background: prefs.darkMap ? 'rgba(16, 185, 129, 0.06)' : 'rgba(16, 185, 129, 0.05)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>
+                    <span>Inversión Base (Presupuesto):</span>
+                    <span style={{ fontFamily: 'DM Mono', fontWeight: 700, color: 'var(--text-primary)' }}>$ {(Number(adBudget) || 50).toLocaleString('es-AR')} ARS</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: 'var(--text-muted)' }}>
+                    <span>1ª Opción (Banner Estándar):</span>
+                    <span style={{ fontWeight: 600, color: '#10B981' }}>+$0 ARS</span>
+                  </div>
+                  {selectedAdTypes.includes('map') && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#3B82F6' }}>
+                      <span>2ª Opción (Marcador en Mapa):</span>
+                      <span style={{ fontFamily: 'DM Mono', fontWeight: 700 }}>+$20 ARS</span>
+                    </div>
+                  )}
+                  {selectedAdTypes.includes('notification') && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#F59E0B' }}>
+                      <span>3ª Opción (Push Notificación 300m):</span>
+                      <span style={{ fontFamily: 'DM Mono', fontWeight: 700 }}>+$100 ARS</span>
+                    </div>
+                  )}
+                  <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '4px 0' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>Total Inversión a Pagar:</span>
+                    <span style={{ fontSize: '18px', fontWeight: 900, color: '#10B981', fontFamily: 'DM Mono' }}>
+                      $ {((Number(adBudget) || 50) + (selectedAdTypes.includes('map') ? 20 : 0) + (selectedAdTypes.includes('notification') ? 100 : 0)).toLocaleString('es-AR')} ARS
+                    </span>
+                  </div>
+                </div>
+
                 {/* Estimate Runtime Display */}
                 {(() => {
                   const budgetNum = Number(adBudget) || 0
@@ -31249,6 +31415,69 @@ function ProfilePanel({
                         </div>
 
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', lineHeight: '1.3' }}>{ad.description}</div>
+
+                        {/* Selected Ad Types Badges */}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '8px' }}>
+                          {(ad.selectedAdTypes || ad.placements || [ad.placement]).map((type: string, tIdx: number) => {
+                            if (type === 'standard' || type === 'portada' || type === 'bottom') {
+                              return <span key={tIdx} style={{ fontSize: '9px', background: 'rgba(16, 185, 129, 0.12)', color: '#10B981', padding: '2px 6px', borderRadius: '6px', fontWeight: 700 }}>📺 Banner Estándar</span>;
+                            }
+                            if (type === 'map' || type === 'mapa') {
+                              return <span key={tIdx} style={{ fontSize: '9px', background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', padding: '2px 6px', borderRadius: '6px', fontWeight: 700 }}>📍 Marcador en Mapa (+$20 ARS)</span>;
+                            }
+                            if (type === 'notification' || type === 'notificaciones') {
+                              return <span key={tIdx} style={{ fontSize: '9px', background: 'rgba(245, 158, 11, 0.12)', color: '#F59E0B', padding: '2px 6px', borderRadius: '6px', fontWeight: 700 }}>🔔 Push 300m (+$100 ARS)</span>;
+                            }
+                            return null;
+                          })}
+                        </div>
+
+                        {/* Real-time Countdown Timer Clock */}
+                        {(() => {
+                          const now = new Date();
+                          const start = ad.startDate ? new Date(ad.startDate) : new Date();
+                          const end = ad.endDate ? new Date(ad.endDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+                          if (ad.status === 'approved') {
+                            if (now < start) {
+                              const diffMs = start.getTime() - now.getTime();
+                              const hours = Math.floor(diffMs / (1000 * 60 * 60));
+                              const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                              return (
+                                <div style={{ fontSize: '10px', background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '6px 10px', borderRadius: '8px', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span>⏳ Programado:</span>
+                                  <span>inicia en {hours}h {mins}m</span>
+                                </div>
+                              );
+                            } else if (now > end) {
+                              return (
+                                <div style={{ fontSize: '10px', background: 'rgba(148, 163, 184, 0.12)', color: '#94A3B8', border: '1px solid rgba(148, 163, 184, 0.3)', padding: '6px 10px', borderRadius: '8px', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span>⏹️ Finalizado</span>
+                                </div>
+                              );
+                            } else {
+                              const diffMs = end.getTime() - now.getTime();
+                              const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+                              const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                              const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                              const secs = Math.floor((diffMs % (1000 * 60)) / 1000);
+                              const timerStr = days > 0 ? `${days}d ${hours}h ${mins}m ${secs}s` : `${hours}h ${mins}m ${secs}s`;
+                              return (
+                                <div style={{ fontSize: '10px', background: 'rgba(16, 185, 129, 0.12)', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '6px 10px', borderRadius: '8px', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span>🟢 En emisión:</span>
+                                  <span style={{ fontFamily: 'DM Mono' }}>{timerStr} restantes</span>
+                                </div>
+                              );
+                            }
+                          } else if (ad.status === 'pending') {
+                            return (
+                              <div style={{ fontSize: '10px', background: 'rgba(245, 158, 11, 0.12)', color: '#F59E0B', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '6px 10px', borderRadius: '8px', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span>🟡 En revisión de moderación</span>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.03)', paddingTop: '8px', marginTop: '4px' }}>
                           <span>Presupuesto: <strong style={{ color: 'var(--text-secondary)', fontFamily: 'DM Mono' }}>${ad.budget}/mes</strong></span>
