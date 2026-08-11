@@ -35,6 +35,34 @@ const PART1 = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTAwMTIzM29hMW5nYnB1eXcifQ
 const PART2 = 'TyJ2Mcgiqas2N1UOCySD2g'
 const TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || `${PART1}.${PART2}`
 
+// Global Reverse Geocoding Helper accessible by all components
+const fetchAddressGlobal = async (lat: number, lng: number, callback: (addr: string) => void) => {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=es`
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'BienParada Business Ad Location' }
+    })
+    if (res.ok) {
+      const data = await res.json()
+      if (data && data.address) {
+        const road = data.address.road || data.address.pedestrian || data.address.suburb || ''
+        const houseNumber = data.address.house_number || ''
+        if (road) {
+          callback(houseNumber ? `${road} ${houseNumber}` : road)
+          return
+        }
+      }
+      if (data && data.display_name) {
+        callback(data.display_name.split(',').slice(0, 2).join(','))
+        return
+      }
+    }
+  } catch (e) {
+    console.error('Error fetching reverse geocode:', e)
+  }
+  callback(`Esquina: ${lat.toFixed(4)}, ${lng.toFixed(4)}`)
+}
+
 // Inject Bus Turístico Amarillo
 OFFICIAL_ROUTES['T-Amarillo'] = {
   line: 'T-Amarillo',
@@ -29792,6 +29820,32 @@ function ProfilePanel({
     window.addEventListener('storage', syncAllTerms)
     return () => window.removeEventListener('storage', syncAllTerms)
   }, [])
+  const handleAdAddressInputChange = async (val: string) => {
+    setAdPickedAddress(val)
+    if (!val || val.trim().length < 3) {
+      setAdAddressSuggestions([])
+      setShowAdAddressSuggestions(false)
+      return
+    }
+
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(val + ', Argentina')}&format=json&accept-language=es&limit=5`
+      const res = await fetch(url, { headers: { 'User-Agent': 'BienParada Business Ad Location' } })
+      if (res.ok) {
+        const data = await res.json()
+        const mapped = data.map((item: any) => ({
+          title: item.display_name.split(',').slice(0, 3).join(','),
+          lat: parseFloat(item.lat),
+          lng: parseFloat(item.lon)
+        }))
+        setAdAddressSuggestions(mapped)
+        setShowAdAddressSuggestions(true)
+      }
+    } catch (e) {
+      console.error('Error fetching ad address suggestions:', e)
+    }
+  }
+
   const [targetAudience, setTargetAudience] = useState('todos')
   const [influenceRadius, setInfluenceRadius] = useState('150m')
   const [selectedAdSchedules, setSelectedAdSchedules] = useState<string[]>(['todos'])
@@ -29803,6 +29857,11 @@ function ProfilePanel({
   const [showMercadoPagoModal, setShowMercadoPagoModal] = useState(false)
   const [showMpQrScanModal, setShowMpQrScanModal] = useState(false)
   const [showAiImageModal, setShowAiImageModal] = useState(false)
+  const [showAdMapPickerModal, setShowAdMapPickerModal] = useState(false)
+  const [pickerViewState, setPickerViewState] = useState({ latitude: -34.6037, longitude: -58.4173, zoom: 16 })
+  const [pickerTempAddress, setPickerTempAddress] = useState<string>('')
+  const [adAddressSuggestions, setAdAddressSuggestions] = useState<any[]>([])
+  const [showAdAddressSuggestions, setShowAdAddressSuggestions] = useState<boolean>(false)
   const [aiPrompt, setAiPrompt] = useState('')
   const [isGeneratingAiImg, setIsGeneratingAiImg] = useState(false)
   const [generatedAiImgUrl, setGeneratedAiImgUrl] = useState<string | null>(null)
@@ -30848,36 +30907,92 @@ function ProfilePanel({
                   />
                 </div>
 
-                <div style={{ marginBottom: '12px' }}>
+                <div style={{ marginBottom: '12px', position: 'relative' }}>
                   <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>📍 Ubicación del Comercio / Negocio *</label>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <input
-                      type="text"
-                      readOnly
-                      value={adPickedAddress || (adPickedCoord ? `${adPickedCoord.lat.toFixed(4)}, ${adPickedCoord.lng.toFixed(4)}` : '')}
-                      placeholder="Tocá para fijar ubicación en el mapa..."
-                      style={{
-                        flex: 1, padding: '10px 12px', borderRadius: '10px',
-                        background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
-                        border: adPickedCoord ? '1px solid #10B981' : (prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)'),
-                        color: 'var(--text-primary)', fontSize: '12px', outline: 'none'
-                      }}
-                    />
+                    <div style={{ flex: 1, position: 'relative' }}>
+                      <input
+                        type="text"
+                        value={adPickedAddress}
+                        onChange={e => handleAdAddressInputChange(e.target.value)}
+                        onFocus={() => { if (adAddressSuggestions.length > 0) setShowAdAddressSuggestions(true); }}
+                        placeholder="Escribí calle y número (ej. Av. Corrientes 1380)..."
+                        style={{
+                          width: '100%', padding: '10px 12px', borderRadius: '10px',
+                          background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                          border: adPickedCoord ? '1.5px solid #10B981' : (prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)'),
+                          color: 'var(--text-primary)', fontSize: '12px', outline: 'none', transition: 'border-color 0.2s'
+                        }}
+                      />
+                      {adPickedCoord && (
+                        <span style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', color: '#10B981', fontSize: '12px', fontWeight: 800 }}>
+                          ✓
+                        </span>
+                      )}
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
-                        setAdMapPickerActive(true)
-                        setActivePanel('map')
-                        toast.success("Mové el mapa para ubicar el marcador y confirmá la posición de tu negocio.")
+                        setShowAdMapPickerModal(true)
+                        const startLat = adPickedCoord?.lat || -34.6037
+                        const startLng = adPickedCoord?.lng || -58.4173
+                        setPickerViewState({ latitude: startLat, longitude: startLng, zoom: 16 })
+                        fetchAddressGlobal(startLat, startLng, (addr) => {
+                          setPickerTempAddress(addr)
+                        })
                       }}
                       style={{
                         padding: '10px 14px', background: '#3B82F6', color: 'white', border: 'none', borderRadius: '10px',
-                        fontSize: '11px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap'
+                        fontSize: '11px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px'
                       }}
                     >
                       📍 Fijar en Mapa
                     </button>
                   </div>
+
+                  {/* Autocompletion Suggestions Dropdown */}
+                  {showAdAddressSuggestions && adAddressSuggestions.length > 0 && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: '130px',
+                      marginTop: '4px',
+                      background: prefs.darkMap ? '#1E293B' : '#FFFFFF',
+                      border: prefs.darkMap ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
+                      borderRadius: '10px',
+                      boxShadow: '0 10px 25px rgba(0,0,0,0.3)',
+                      zIndex: 1000,
+                      overflow: 'hidden',
+                      maxHeight: '180px',
+                      overflowY: 'auto'
+                    }}>
+                      {adAddressSuggestions.map((sug, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => {
+                            setAdPickedAddress(sug.title)
+                            setAdPickedCoord({ lat: sug.lat, lng: sug.lng })
+                            setShowAdAddressSuggestions(false)
+                            toast.success(`Ubicación identificada: ${sug.title}`)
+                          }}
+                          style={{
+                            padding: '8px 12px',
+                            fontSize: '11px',
+                            cursor: 'pointer',
+                            color: 'var(--text-primary)',
+                            borderBottom: idx === adAddressSuggestions.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.05)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                          }}
+                        >
+                          <span>📍</span>
+                          <span style={{ fontWeight: 600 }}>{sug.title}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* targetAudience input */}
@@ -33006,6 +33121,201 @@ function ProfilePanel({
           </div>
         </div>
       )}
+
+      {/* Small Map Box Modal with Fixed Center Pin (Fijar en Mapa) */}
+      {showAdMapPickerModal && (() => {
+        const mapBoxModalContent = (
+          <div style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(5, 8, 16, 0.85)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 250000,
+            padding: '16px'
+          }}>
+            <div style={{
+              background: prefs.darkMap ? '#0F172A' : '#FFFFFF',
+              borderRadius: '20px',
+              width: '100%',
+              maxWidth: '520px',
+              height: '520px',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8)',
+              border: prefs.darkMap ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid #E5E7EB',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              color: 'var(--text-primary)',
+              fontFamily: 'DM Sans, sans-serif',
+              position: 'relative'
+            }}>
+              {/* Header */}
+              <div style={{
+                background: 'linear-gradient(135deg, #1E3A8A 0%, #3B82F6 100%)',
+                padding: '14px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                color: '#FFFFFF',
+                flexShrink: 0
+              }}>
+                <div>
+                  <div style={{ fontSize: '15px', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>📍</span> Ubicá tu Comercio en el Mapa
+                  </div>
+                  <div style={{ fontSize: '11px', opacity: 0.85, marginTop: '2px' }}>
+                    Arrastrá el mapa. El pin azul permanece fijo en el centro.
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowAdMapPickerModal(false)}
+                  style={{ background: 'rgba(255,255,255,0.2)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', color: '#fff', cursor: 'pointer', fontSize: '14px', fontWeight: 800 }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Map View Container with Fixed Center Pin */}
+              <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+                <Map
+                  latitude={pickerViewState.latitude}
+                  longitude={pickerViewState.longitude}
+                  zoom={pickerViewState.zoom}
+                  onMove={e => {
+                    const nextState = {
+                      latitude: e.viewState.latitude,
+                      longitude: e.viewState.longitude,
+                      zoom: e.viewState.zoom
+                    };
+                    setPickerViewState(nextState);
+                    fetchAddressGlobal(e.viewState.latitude, e.viewState.longitude, (addr) => {
+                      setPickerTempAddress(addr);
+                    });
+                  }}
+                  mapStyle={prefs.darkMap ? (CARTODB_DARK as any) : (CARTODB_LIGHT as any)}
+                  style={{ width: '100%', height: '100%' }}
+                />
+
+                {/* FIXED CENTER PIN OVERLAY (Does not move when map drags) */}
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -100%)',
+                  pointerEvents: 'none',
+                  zIndex: 10,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center'
+                }}>
+                  {/* Address Badge above pin */}
+                  <div style={{
+                    background: 'rgba(15, 23, 42, 0.92)',
+                    color: '#FFFFFF',
+                    padding: '6px 14px',
+                    borderRadius: '20px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    boxShadow: '0 8px 20px rgba(0,0,0,0.5)',
+                    border: '1.5px solid rgba(59, 130, 246, 0.6)',
+                    marginBottom: '6px',
+                    whiteSpace: 'nowrap',
+                    maxWidth: '300px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}>
+                    📍 {pickerTempAddress || 'Arrastrá para ubicar...'}
+                  </div>
+
+                  {/* Pin Icon */}
+                  <div style={{
+                    fontSize: '44px',
+                    lineHeight: 1,
+                    filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.6))',
+                    transform: 'translateY(4px)'
+                  }}>
+                    📍
+                  </div>
+
+                  {/* Target Dot at tip of pin */}
+                  <div style={{
+                    width: '12px',
+                    height: '12px',
+                    borderRadius: '50%',
+                    background: '#3B82F6',
+                    border: '2.5px solid #FFFFFF',
+                    boxShadow: '0 0 16px rgba(59, 130, 246, 0.9)'
+                  }} />
+                </div>
+
+                {/* Floating Navigation Controls */}
+                <div style={{ position: 'absolute', bottom: '12px', right: '12px', zIndex: 20, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <button
+                    onClick={() => setPickerViewState(v => ({ ...v, zoom: Math.min(19, v.zoom + 1) }))}
+                    style={{ width: '34px', height: '34px', borderRadius: '8px', background: 'rgba(15,23,42,0.85)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', fontWeight: 800, cursor: 'pointer', fontSize: '16px' }}
+                  >
+                    +
+                  </button>
+                  <button
+                    onClick={() => setPickerViewState(v => ({ ...v, zoom: Math.max(10, v.zoom - 1) }))}
+                    style={{ width: '34px', height: '34px', borderRadius: '8px', background: 'rgba(15,23,42,0.85)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', fontWeight: 800, cursor: 'pointer', fontSize: '16px' }}
+                  >
+                    -
+                  </button>
+                </div>
+              </div>
+
+              {/* Footer with OK Confirmation Button */}
+              <div style={{
+                padding: '14px 18px',
+                background: prefs.darkMap ? 'rgba(15, 23, 42, 0.95)' : '#F9FAFB',
+                borderTop: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid #E5E7EB',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                flexShrink: 0
+              }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Ubicación Fijada:</div>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {pickerTempAddress || 'Ubicación seleccionada'}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowAdMapPickerModal(false)}
+                    style={{ padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
+                  >
+                    Cancelar
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAdPickedCoord({ lat: pickerViewState.latitude, lng: pickerViewState.longitude });
+                      setAdPickedAddress(pickerTempAddress || `${pickerViewState.latitude.toFixed(4)}, ${pickerViewState.longitude.toFixed(4)}`);
+                      setShowAdMapPickerModal(false);
+                      toast.success(`📍 Ubicación fijada en el mapa con éxito.`);
+                    }}
+                    style={{ padding: '10px 18px', borderRadius: '10px', border: 'none', background: 'linear-gradient(90deg, #10B981, #059669)', color: '#FFFFFF', fontSize: '13px', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)' }}
+                  >
+                    ✅ OK - Confirmar Ubicación
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+        if (typeof document !== 'undefined') {
+          return createPortal(mapBoxModalContent, document.body);
+        }
+        return mapBoxModalContent;
+      })()}
 
       {/* Modal: Free AI Ad Image Generator & App Launcher (Portal) */}
       {showAiImageModal && (() => {
