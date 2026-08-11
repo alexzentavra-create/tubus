@@ -2505,7 +2505,7 @@ export default function CompanyDashboard() {
                   const totalCrossings = crossings.length
                   const punctualityPct = totalCrossings > 0
                     ? Math.round((onTimeCount / totalCrossings) * 100)
-                    : (activeLine.line_number === '12' ? 92 : 0)
+                    : 0
 
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', textAlign: 'center' }}>
