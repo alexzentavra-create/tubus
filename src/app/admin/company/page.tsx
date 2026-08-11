@@ -3542,35 +3542,45 @@ export default function CompanyDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[
-                    { name: 'Alejandro Gómez', action: 'Subió', stop: stops[0]?.name || 'Pueyrredón', time: '16:12', bus: '301' },
-                    { name: 'María Rodríguez', action: 'Bajó', stop: stops[1]?.name || 'Corrientes', time: '16:15', bus: '301' },
-                    { name: 'Javier López', action: 'Subió', stop: stops[2]?.name || 'Medrano', time: '16:22', bus: '302' },
-                    { name: 'Ana Fernández', action: 'Subió', stop: stops[0]?.name || 'Pueyrredón', time: '16:34', bus: '303' },
-                    { name: 'Diego Martínez', action: 'Bajó', stop: stops[2]?.name || 'Medrano', time: '16:45', bus: '302' },
-                    { name: 'Sofia Romero', action: 'Subió', stop: stops[1]?.name || 'Corrientes', time: '16:50', bus: '301' },
-                    { name: 'Nicolás Silva', action: 'Bajó', stop: stops[0]?.name || 'Pueyrredón', time: '16:55', bus: '303' },
-                    { name: 'Estela Bianchi', action: 'Subió', stop: stops[3]?.name || 'Cabildo', time: '17:02', bus: '301' },
-                    { name: 'Lucas Rossi', action: 'Subió', stop: stops[1]?.name || 'Corrientes', time: '17:10', bus: '302' }
-                  ].map((p, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                      <td style={{ padding: '10px 12px', color: '#fff', fontWeight: 600 }}>{p.name}</td>
-                      <td style={{ padding: '10px 12px' }}>
-                        <span style={{
-                          background: p.action === 'Subió' ? 'rgba(34,211,160,0.1)' : 'rgba(255,77,106,0.1)',
-                          color: p.action === 'Subió' ? '#22D3A0' : '#FF4D6A',
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          fontWeight: 600
-                        }}>{p.action}</span>
-                      </td>
-                      <td style={{ padding: '10px 12px', color: '#a3a6b8' }}>{p.stop}</td>
-                      <td style={{ padding: '10px 12px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{p.time}</td>
-                      <td style={{ padding: '10px 12px', color: '#fff', fontWeight: 600 }}>Coche {p.bus}</td>
-                    </tr>
-                  ))}
-                </tbody>
+                  {(() => {
+                    let realLogs: any[] = []
+                    if (typeof window !== 'undefined') {
+                      try {
+                        const todayStr = new Date().toISOString().split('T')[0]
+                        const stored = localStorage.getItem(`line_passenger_logs_${activeLine.line_number}_${todayStr}`) || localStorage.getItem(`line_boardings_${activeLine.line_number}_${todayStr}`)
+                        if (stored) realLogs = JSON.parse(stored)
+                      } catch (e) {}
+                    }
+
+                    if (!Array.isArray(realLogs) || realLogs.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={5} style={{ padding: '28px', textAlign: 'center', color: '#8f94a5', fontSize: '13px' }}>
+                            No hay registros de pasajeros hoy para esta línea.
+                          </td>
+                        </tr>
+                      )
+                    }
+
+                    return realLogs.map((p, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                        <td style={{ padding: '10px 12px', color: '#fff', fontWeight: 600 }}>{p.name || p.passengerName || 'Pasajero'}</td>
+                        <td style={{ padding: '10px 12px' }}>
+                          <span style={{
+                            background: p.action === 'Subió' || p.type === 'boarding' ? 'rgba(34,211,160,0.1)' : 'rgba(255,77,106,0.1)',
+                            color: p.action === 'Subió' || p.type === 'boarding' ? '#22D3A0' : '#FF4D6A',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            fontSize: '11px',
+                            fontWeight: 600
+                          }}>{p.action || (p.type === 'boarding' ? 'Subió' : 'Bajó')}</span>
+                        </td>
+                        <td style={{ padding: '10px 12px', color: '#a3a6b8' }}>{p.stop || p.stopName || 'Parada'}</td>
+                        <td style={{ padding: '10px 12px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{p.time || p.timestamp || '--:--'}</td>
+                        <td style={{ padding: '10px 12px', color: '#fff', fontWeight: 600 }}>{p.bus ? `Coche ${p.bus}` : (p.bus_unit ? `Unidad ${p.bus_unit}` : '--')}</td>
+                      </tr>
+                    ))
+                  })()}                </tbody>
               </table>
             </div>
           </div>
