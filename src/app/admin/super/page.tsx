@@ -3685,11 +3685,14 @@ export default function SuperAdminDashboard() {
             <button
               onClick={() => setShowSuperAdminChat(prev => !prev)}
               style={{
-                padding: '8px 14px', borderRadius: '10px', background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)',
-                color: '#60A5FA', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
+                padding: '8px 14px', borderRadius: '10px', background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.35)',
+                color: '#60A5FA', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
+                transition: 'all 200ms'
               }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.25)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(59,130,246,0.15)'}
             >
-              💬 Chat Super Admin
+              💬 Chat entre Super Admins
             </button>
           {/* Light/Dark Mode Toggle Button */}
           <button
@@ -3751,6 +3754,11 @@ export default function SuperAdminDashboard() {
           </button>
         </div>
       </header>
+
+      {/* Super Admin Internal Chat Modal */}
+      {showSuperAdminChat && (
+        <SuperAdminInternalChatModal onClose={() => setShowSuperAdminChat(false)} />
+      )}
 
       {/* Main Horizontal Navigation */}
       <div style={{
@@ -9322,6 +9330,203 @@ function TermsAndConditionsManagerTab({
             ))}
           </div>
         )}
+      </div>
+
+    </div>
+  )
+}
+
+
+function SuperAdminInternalChatModal({ onClose }: { onClose: () => void }) {
+  const [messages, setMessages] = useState<any[]>([])
+  const [inputText, setInputText] = useState('')
+  const [senderName, setSenderName] = useState('Super Admin 1')
+
+  const loadMessages = () => {
+    try {
+      const stored = localStorage.getItem('mock_super_admin_internal_chat')
+      if (stored) {
+        setMessages(JSON.parse(stored))
+      } else {
+        const initial = [
+          { id: '1', sender: 'Super Admin - Alejandro', text: 'Canal de chat interno habilitado para el equipo de Super Admins.', time: '09:00', role: 'Super Admin' },
+          { id: '2', sender: 'Super Admin 2', text: 'Excelente. Todas las líneas activas sincronizadas en tiempo real.', time: '09:05', role: 'Super Admin' }
+        ]
+        setMessages(initial)
+        localStorage.setItem('mock_super_admin_internal_chat', JSON.stringify(initial))
+      }
+    } catch (e) {
+      setMessages([])
+    }
+  }
+
+  useEffect(() => {
+    loadMessages()
+    window.addEventListener('storage', loadMessages)
+    window.addEventListener('super_internal_chat_updated', loadMessages)
+    return () => {
+      window.removeEventListener('storage', loadMessages)
+      window.removeEventListener('super_internal_chat_updated', loadMessages)
+    }
+  }, [])
+
+  const handleSendMessage = (e?: any) => {
+    if (e) e.preventDefault()
+    if (!inputText.trim()) return
+
+    const now = new Date()
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+    const newMsg = {
+      id: `msg-${Date.now()}`,
+      sender: senderName,
+      text: inputText.trim(),
+      time: timeStr,
+      role: 'Super Admin'
+    }
+
+    const updated = [...messages, newMsg]
+    setMessages(updated)
+    localStorage.setItem('mock_super_admin_internal_chat', JSON.stringify(updated))
+    setInputText('')
+    window.dispatchEvent(new Event('storage'))
+    window.dispatchEvent(new Event('super_internal_chat_updated'))
+  }
+
+  const handleClearHistory = () => {
+    setMessages([])
+    localStorage.setItem('mock_super_admin_internal_chat', JSON.stringify([]))
+    window.dispatchEvent(new Event('storage'))
+    window.dispatchEvent(new Event('super_internal_chat_updated'))
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+    }}>
+      <div style={{
+        background: '#121527', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '16px',
+        width: '100%', maxWidth: '580px', height: '620px', display: 'flex', flexDirection: 'column',
+        overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.6)'
+      }}>
+        {/* Modal Header */}
+        <div style={{
+          padding: '16px 20px', background: 'rgba(59,130,246,0.08)', borderBottom: '1px solid rgba(255,255,255,0.08)',
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+        }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              💬 Chat Interno entre Super Admins
+            </h3>
+            <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#8f94a5' }}>
+              Canal privado de comunicación en tiempo real entre los Administradores de la Plataforma
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '8px', color: '#fff',
+              fontSize: '14px', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Sender Identity Switcher */}
+        <div style={{ padding: '10px 20px', background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: '11px', color: '#8f94a5' }}>Tu Identidad en el Chat:</span>
+          <select
+            value={senderName}
+            onChange={e => setSenderName(e.target.value)}
+            style={{
+              background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.1)', color: '#60A5FA',
+              fontSize: '11px', fontWeight: 600, borderRadius: '6px', padding: '4px 8px', outline: 'none', cursor: 'pointer'
+            }}
+          >
+            <option value="Super Admin - Alejandro">Super Admin - Alejandro</option>
+            <option value="Super Admin 1">Super Admin 1</option>
+            <option value="Super Admin 2">Super Admin 2</option>
+            <option value="Soporte Técnico SA">Soporte Técnico SA</option>
+          </select>
+        </div>
+
+        {/* Messages Body */}
+        <div style={{ flex: 1, padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', background: '#0b0d19' }}>
+          {messages.length === 0 ? (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: '12px' }}>
+              <div style={{ fontSize: '32px', marginBottom: '8px' }}>💬</div>
+              <div>No hay mensajes en el chat interno entre Super Admins.</div>
+              <div style={{ fontSize: '11px', marginTop: '4px' }}>Escribí un mensaje abajo para iniciar la conversación.</div>
+            </div>
+          ) : (
+            messages.map((m, idx) => {
+              const isSelf = m.sender === senderName
+              return (
+                <div
+                  key={m.id || idx}
+                  style={{
+                    alignSelf: isSelf ? 'flex-end' : 'flex-start',
+                    maxWidth: '82%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: isSelf ? 'flex-end' : 'flex-start'
+                  }}
+                >
+                  <div style={{ fontSize: '10px', color: '#8f94a5', marginBottom: '2px', display: 'flex', gap: '6px' }}>
+                    <span style={{ fontWeight: 600, color: isSelf ? '#60A5FA' : '#10B981' }}>{m.sender}</span>
+                    <span>· {m.time}</span>
+                  </div>
+                  <div style={{
+                    padding: '10px 14px',
+                    borderRadius: isSelf ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
+                    background: isSelf ? 'rgba(59,130,246,0.18)' : 'rgba(255,255,255,0.06)',
+                    border: '1px solid ' + (isSelf ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)'),
+                    color: '#fff',
+                    fontSize: '13px',
+                    lineHeight: '1.4',
+                    wordBreak: 'break-word'
+                  }}>
+                    {m.text}
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+
+        {/* Input Bar */}
+        <form onSubmit={handleSendMessage} style={{ padding: '14px 20px', background: '#121527', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: '10px' }}>
+          <input
+            type="text"
+            placeholder="Escribí un mensaje para los demás Super Admins..."
+            value={inputText}
+            onChange={e => setInputText(e.target.value)}
+            style={{
+              flex: 1, background: '#181b2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px',
+              color: '#fff', fontSize: '13px', padding: '10px 14px', outline: 'none'
+            }}
+          />
+          <button
+            type="submit"
+            disabled={!inputText.trim()}
+            style={{
+              padding: '10px 18px', background: inputText.trim() ? 'linear-gradient(135deg, #3B82F6, #1D4ED8)' : 'rgba(255,255,255,0.05)',
+              border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 700,
+              cursor: inputText.trim() ? 'pointer' : 'not-allowed', opacity: inputText.trim() ? 1 : 0.5
+            }}
+          >
+            Enviar
+          </button>
+        </form>
+
+        {/* Footer info */}
+        <div style={{ padding: '6px 20px', background: 'rgba(0,0,0,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', color: '#64748b' }}>
+          <span>Mensajes sincronizados en tiempo real entre Super Admins</span>
+          <button onClick={handleClearHistory} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '10px', cursor: 'pointer' }}>
+            Vaciar Chat
+          </button>
+        </div>
       </div>
     </div>
   )
