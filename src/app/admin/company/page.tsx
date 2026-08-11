@@ -1017,57 +1017,16 @@ export default function CompanyDashboard() {
   }, [selectedLineNumber, activeLine])
 
   // Simulated GPS tracking passage logs
+  // GPS logs are strictly driven by real active driver sessions and real stop crossings
   useEffect(() => {
-    if (buses.length === 0) return
-    const now = new Date()
-    const currentHour = now.getHours()
-    const currentMin = now.getMinutes()
-    const currentSec = now.getSeconds()
-
-    setGpsPassageLogs(prev => {
-      const updated = [...prev]
-      let changed = false
-
-      buses.forEach(bus => {
-        const matchedStop = stops.find(s => s.name === bus.next_stop_name || s.id === bus.next_stop_id)
-        if (matchedStop) {
-          const logId = `gps-${bus.id}-${matchedStop.id}-${currentHour}-${currentMin}`
-          const exists = updated.some(l => l.id === logId)
-          if (!exists) {
-            const defaultStart = matchedStop.stop_number ? `${String(Math.floor((360 + (matchedStop.stop_number - 1) * 10) / 60)).padStart(2, '0')}:${String(((matchedStop.stop_number - 1) * 10) % 60).padStart(2, '0')}` : "06:00"
-            const defaultEnd = matchedStop.stop_number ? `${String(Math.floor((1440 + (matchedStop.stop_number - 1) * 10) / 60) % 24).padStart(2, '0')}:${String(((matchedStop.stop_number - 1) * 10 + 30) % 60).padStart(2, '0')}` : "23:30"
-            const tf = stopsTimeframes[matchedStop.id] || { start: defaultStart, end: defaultEnd }
-            
-            const timeToMin = (t: string) => {
-              const [h, m] = t.split(':').map(Number)
-              return h * 60 + m
-            }
-            
-            const currentMinOfDay = currentHour * 60 + currentMin
-            const startMinOfDay = timeToMin(tf.start)
-            const endMinOfDay = timeToMin(tf.end)
-            
-            const inTimeframe = currentMinOfDay >= startMinOfDay && currentMinOfDay <= endMinOfDay
-            const isLate = currentMinOfDay > endMinOfDay
-            const status = inTimeframe ? 'A tiempo' : (isLate ? 'Demorado' : 'Adelantado')
-
-            updated.unshift({
-              id: logId,
-              busUnit: bus.bus_unit,
-              driver: bus.driver_name,
-              stopName: matchedStop.name,
-              time: `${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}:${String(currentSec).padStart(2, '0')}`,
-              scheduled: `${tf.start} - ${tf.end} hs`,
-              status
-            })
-            changed = true
-          }
-        }
-      })
-
-      return changed ? updated.slice(0, 20) : prev
-    })
-  }, [buses, stopsTimeframes])
+    if (!activeLine) return
+    const activeSessions: any[] = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+      .filter((s: any) => s.line_number === activeLine.line_number)
+    
+    if (activeSessions.length === 0) {
+      setGpsPassageLogs([])
+    }
+  }, [activeLine, buses])
 
   useEffect(() => {
     if (!activeLine) return
@@ -2017,7 +1976,7 @@ export default function CompanyDashboard() {
                                     <span>Ultimo GPS: Unidad {lastPass.busUnit} pasó a las {lastPass.time} ({lastPass.status})</span>
                                   </div>
                                 ) : (
-                                  <div style={{ marginTop: '8px', fontSize: '10px', color: '#64748b', fontFamily: 'DM Mono' }}>Esperando paso de colectivos por GPS...</div>
+                                  <div style={{ marginTop: '8px', fontSize: '10px', color: '#64748b', fontFamily: 'DM Mono' }}>Sin registros GPS hoy (Esperando paso de colectivos en servicio)</div>
                                 )}
                               </div>
 
