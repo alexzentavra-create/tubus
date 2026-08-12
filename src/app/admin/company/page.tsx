@@ -498,6 +498,7 @@ export default function CompanyDashboard() {
       const activeSess = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
       const updatedSess = activeSess.filter((s: any) => s.driverEmail?.toLowerCase() !== driver?.email?.toLowerCase() && s.profiles?.name?.toLowerCase() !== driver?.name?.toLowerCase())
       localStorage.setItem('mock_active_sessions', JSON.stringify(updatedSess))
+      if (typeof window !== 'undefined') { window.dispatchEvent(new Event('storage')); window.dispatchEvent(new Event('mock_active_sessions_updated')); }
     } catch (e) {}
 
     setDriversList(prev => prev.filter(d => d.id !== id && d.email?.toLowerCase() !== driver?.email?.toLowerCase()))

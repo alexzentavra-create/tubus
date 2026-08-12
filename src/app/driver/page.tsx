@@ -439,6 +439,7 @@ export default function DriverPage() {
         return s
       })
       localStorage.setItem('mock_active_sessions', JSON.stringify(updated))
+      if (typeof window !== 'undefined') { window.dispatchEvent(new Event('storage')); window.dispatchEvent(new Event('mock_active_sessions_updated')); }
     } catch (e) {
       console.error(e)
     }
@@ -611,6 +612,7 @@ export default function DriverPage() {
           if (idx >= 0) {
             sessions[idx] = { ...sessions[idx], latitude: lat, longitude: lng, speed_kmh: spd, heading, status, last_gps: ts }
             localStorage.setItem('mock_active_sessions', JSON.stringify(sessions))
+            if (typeof window !== 'undefined') { window.dispatchEvent(new Event('storage')); window.dispatchEvent(new Event('mock_active_sessions_updated')); }
           }
         } catch (e) {}
         return // skip Supabase calls in mock mode
@@ -1028,6 +1030,7 @@ export default function DriverPage() {
           company_id: companyId
         })
         localStorage.setItem('mock_active_sessions', JSON.stringify(updatedSessions))
+        if (typeof window !== 'undefined') { window.dispatchEvent(new Event('storage')); window.dispatchEvent(new Event('mock_active_sessions_updated')); }
 
         const path = getMockRoutePathForLine(MOCK_LINES.find(l => l.id === lineId) || MOCK_LINES[0])
         if (path && path.length > 0) {
@@ -1137,6 +1140,7 @@ export default function DriverPage() {
       company_id: 'comp-1'
     })
     localStorage.setItem('mock_active_sessions', JSON.stringify(updatedSessions))
+    if (typeof window !== 'undefined') { window.dispatchEvent(new Event('storage')); window.dispatchEvent(new Event('mock_active_sessions_updated')); }
 
     setNextStopIndex(0)
     setLastCrossedStop(null)
@@ -1163,6 +1167,7 @@ export default function DriverPage() {
       const activeSessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
       const updated = activeSessions.filter((s: any) => s.profiles?.name !== driverName)
       localStorage.setItem('mock_active_sessions', JSON.stringify(updated))
+      if (typeof window !== 'undefined') { window.dispatchEvent(new Event('storage')); window.dispatchEvent(new Event('mock_active_sessions_updated')); }
     }
 
     if (session && !session.sessionId.startsWith('mock-')) {

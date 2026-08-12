@@ -21269,65 +21269,64 @@ function getDistanceToPathIndex(
 const initializeSimulatedBuses = (availableLines: BusLine[]): SimulatedBusState[] => {
   const allBuses: SimulatedBusState[] = []
 
-  availableLines.forEach(line => {
-    // Only generate simulated buses for Line 12 as requested. All other lines start at 0 buses.
-    if (line.line_number !== '12') return
-    const routeKey = line.line_number.replace(/^0+/, '')
-    const officialRoute = OFFICIAL_ROUTES[routeKey]
-    if (!officialRoute) return
+  if (typeof window === 'undefined') return allBuses
 
-    const drivers = LINE_DRIVERS[routeKey] || ['Chofer Auxiliar']
-    const directions: ('ida' | 'vuelta')[] = ['ida', 'vuelta']
+  // Read real active driver sessions created via QR Code scans in Driver & Admin Panel
+  let activeSessions: any[] = []
+  try {
+    activeSessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+  } catch (e) {
+    activeSessions = []
+  }
 
-    directions.forEach(direction => {
-      const dirObj = direction === 'vuelta' ? officialRoute.vuelta : officialRoute.ida
-      if (!dirObj || !dirObj.path || dirObj.path.length < 2) return
+  // Filter for valid active running sessions
+  const runningSessions = (Array.isArray(activeSessions) ? activeSessions : []).filter((s: any) => {
+    return s && (s.status === 'active' || s.status === 'moving' || s.status === 'stopped' || !s.status)
+  })
 
-      const path = dirObj.path
-      const N = path.length
+  runningSessions.forEach((sess: any) => {
+    const rawLineStr = String(sess.line_number || sess.lineNumber || sess.line || '12').replace(/^0+/, '')
+    const matchedLine = availableLines.find(l => l.line_number.replace(/^0+/, '') === rawLineStr) || {
+      id: sess.line_id || `line-${rawLineStr}`,
+      line_number: rawLineStr,
+      name: `Línea ${rawLineStr}`,
+      color: '#3B82F6'
+    }
 
-      // 8 buses in each direction for normal lines, 4 for tourist lines
-      const busCount = (line as any).is_tourist ? 4 : 8
-      for (let i = 0; i < busCount; i++) {
-        const busIdx = direction === 'vuelta' ? i + busCount : i
-        const offset = i / busCount
-        const pathIndex = Math.floor(N * offset)
-        const pCurr = path[pathIndex]
-        const pNext = path[pathIndex + 1] || pCurr
+    const officialRoute = (OFFICIAL_ROUTES as any)[rawLineStr]
+    const direction: 'ida' | 'vuelta' = (sess.direction === 'vuelta' ? 'vuelta' : 'ida')
+    const dirObj = officialRoute ? (direction === 'vuelta' ? officialRoute.vuelta : officialRoute.ida) : null
+    const path = dirObj?.path || []
 
-        const dy = pNext.lat - pCurr.lat
-        const dx = pNext.lng - pCurr.lng
-        const headingVal = ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360
+    const pathIndex = typeof sess.pathIndex === 'number' ? sess.pathIndex : 0
+    const pCurr = path[pathIndex] || { lat: sess.latitude || -34.6037, lng: sess.longitude || -58.4173 }
 
-        const passengers = 5 + Math.floor(Math.random() * 35)
-        // Slow down simulated speed (14-22 km/h for standard, 12-16 km/h for tourist)
-        const maxSpeed = (line as any).is_tourist ? (12 + Math.random() * 4) : (14 + Math.random() * 8)
+    const rawUnit = String(sess.bus_unit || sess.unitNumber || sess.busUnit || '101').replace(/^.*?-/, '')
+    const fullUnitName = `Interno ${rawLineStr}-${rawUnit}`
 
-        allBuses.push({
-          id: `sim-${line.id}-${direction}-${i}`,
-          driver_id: `sim-driver-${line.id}-${direction}-${i}`,
-          line_id: line.id,
-          line_number: line.line_number,
-          bus_unit: `${line.line_number}-${300 + busIdx}`,
-          driver_name: drivers[busIdx % drivers.length] || 'Chofer Auxiliar',
-          color: line.color,
-          direction: direction,
-          pathIndex: pathIndex,
-          segmentProgress: 0,
-          speed_kmh: maxSpeed,
-          maxSpeedKmh: maxSpeed,
-          status: 'moving',
-          passenger_count: passengers,
-          dwellTimeSeconds: 0,
-          lastStoppedStopIndex: -1,
-          latitude: pCurr.lat,
-          longitude: pCurr.lng,
-          heading: headingVal,
-          ramal: `${line.line_number}-A`,
-          reports_count: i % 4 === 0 ? 1 : 0,
-          timestamp: new Date().toISOString()
-        })
-      }
+    allBuses.push({
+      id: sess.id || `active-${matchedLine.id}-${rawUnit}`,
+      driver_id: sess.driver_id || sess.driverId || `driver-${rawUnit}`,
+      line_id: matchedLine.id,
+      line_number: matchedLine.line_number,
+      bus_unit: fullUnitName,
+      driver_name: sess.driver_name || sess.driverName || sess.profiles?.name || 'Chofer Activo',
+      color: matchedLine.color || '#3B82F6',
+      direction: direction,
+      pathIndex: pathIndex,
+      segmentProgress: sess.segmentProgress || 0,
+      speed_kmh: typeof sess.speed_kmh === 'number' ? sess.speed_kmh : 22,
+      maxSpeedKmh: 40,
+      status: sess.status === 'stopped' ? 'stopped' : 'moving',
+      passenger_count: typeof sess.total_passengers === 'number' ? sess.total_passengers : (sess.passenger_count || 0),
+      dwellTimeSeconds: 0,
+      lastStoppedStopIndex: -1,
+      latitude: typeof sess.latitude === 'number' ? sess.latitude : pCurr.lat,
+      longitude: typeof sess.longitude === 'number' ? sess.longitude : pCurr.lng,
+      heading: typeof sess.heading === 'number' ? sess.heading : 0,
+      ramal: `${rawLineStr}-A`,
+      reports_count: 0,
+      timestamp: sess.timestamp || new Date().toISOString()
     })
   })
 
@@ -22479,6 +22478,7 @@ function MapAdBanner({
                 return s
               })
               localStorage.setItem('mock_active_sessions', JSON.stringify(updated))
+              if (typeof window !== 'undefined') { window.dispatchEvent(new Event('storage')); window.dispatchEvent(new Event('mock_active_sessions_updated')); }
             } catch (e) {
               console.error(e)
             }
@@ -23163,6 +23163,15 @@ function MapAdBanner({
     
     simulatedBusesRef.current = initializeSimulatedBuses(availableLines)
     setUseMockBuses(true)
+
+    // Storage listener to immediately add/remove buses when drivers scan QR codes or end shifts
+    const handleActiveSessionsChange = () => {
+      const updatedBuses = initializeSimulatedBuses(availableLines)
+      simulatedBusesRef.current = updatedBuses
+      setBuses(updatedBuses)
+    }
+    window.addEventListener('storage', handleActiveSessionsChange)
+    window.addEventListener('mock_active_sessions_updated', handleActiveSessionsChange)
     
     setSelectedLines([])
 
@@ -23450,6 +23459,14 @@ function MapAdBanner({
         try {
           activeSessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
         } catch (e) {}
+      }
+
+      // Re-sync simulatedBusesRef with active sessions list if count changed (e.g. driver logged in or out)
+      const currentActiveSessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+      const activeRunningCount = (Array.isArray(currentActiveSessions) ? currentActiveSessions : []).filter((s: any) => s.status !== 'inactive' && s.status !== 'completed').length
+
+      if (simulatedBusesRef.current.length !== activeRunningCount) {
+        simulatedBusesRef.current = initializeSimulatedBuses(lines.length > 0 ? lines : MOCK_LINES)
       }
 
       // Update all simulated buses
@@ -26887,6 +26904,7 @@ function MapAdBanner({
                                   return s
                                 })
                                 localStorage.setItem('mock_active_sessions', JSON.stringify(updated))
+                                if (typeof window !== 'undefined') { window.dispatchEvent(new Event('storage')); window.dispatchEvent(new Event('mock_active_sessions_updated')); }
                               } catch (e) {
                                 console.error('Error logging boarding:', e)
                               }

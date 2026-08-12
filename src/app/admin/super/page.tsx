@@ -5046,6 +5046,7 @@ function DriversTab() {
       const prevActive = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
       const updatedActive = prevActive.filter((s: any) => s.profiles?.name?.toLowerCase() !== name?.toLowerCase() && s.driverEmail?.toLowerCase() !== email?.toLowerCase())
       localStorage.setItem('mock_active_sessions', JSON.stringify(updatedActive))
+      if (typeof window !== 'undefined') { window.dispatchEvent(new Event('storage')); window.dispatchEvent(new Event('mock_active_sessions_updated')); }
 
       window.dispatchEvent(new Event('drivers_updated'))
       toast.success(`🗑️ Chofer "${name}" eliminado permanentemente de la plataforma.`)
@@ -5066,6 +5067,7 @@ function DriversTab() {
       const prevActive = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
       const updatedActive = prevActive.filter((s: any) => s.bus_unit !== bus_unit)
       localStorage.setItem('mock_active_sessions', JSON.stringify(updatedActive))
+      if (typeof window !== 'undefined') { window.dispatchEvent(new Event('storage')); window.dispatchEvent(new Event('mock_active_sessions_updated')); }
 
       window.dispatchEvent(new Event('qr_codes_updated'))
       toast.success(`🗑️ Código QR y Unidad ${bus_unit} eliminados permanentemente.`)
