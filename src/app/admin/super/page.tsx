@@ -290,6 +290,31 @@ interface Todo {
 }
 
 export default function SuperAdminDashboard() {
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const activeUserStr = localStorage.getItem('active_user') || localStorage.getItem('active_super_admin')
+    let activeUser: any = null
+    try {
+      activeUser = activeUserStr ? JSON.parse(activeUserStr) : null
+    } catch (e) {}
+
+    if (!activeUser || (activeUser.role !== 'superadmin' && activeUser.role !== 'Super Admin Principal')) {
+      toast.error('Acceso denegado. Iniciá sesión con tu cuenta de Super Administrador.')
+      window.location.href = '/login'
+      return
+    }
+
+    const activeEmail = (activeUser.email || '').toLowerCase().trim()
+    const deletedSuperList = JSON.parse(localStorage.getItem('deleted_super_admins') || '[]').map((e: string) => e.toLowerCase().trim())
+    const bannedList = JSON.parse(localStorage.getItem('banned_users') || '[]').map((e: string) => e.toLowerCase().trim())
+
+    if (deletedSuperList.includes(activeEmail) || bannedList.includes(activeEmail)) {
+      toast.error('Acceso denegado: Esta cuenta de Super Administrador ha sido deshabilitada.')
+      localStorage.removeItem('active_user')
+      localStorage.removeItem('active_super_admin')
+      window.location.href = '/login'
+    }
+  }, [])
   const supabase = createClient()
   const [tab, setTab] = useState<Tab>('overview')
 
@@ -497,13 +522,25 @@ export default function SuperAdminDashboard() {
 
   // Super Admin Accounts Management State
   const [superAdminAccounts, setSuperAdminAccounts] = useState<any[]>(() => {
+    const defaultAdmins = [
+      { id: 'sa-1', name: 'Super Admin', email: 'admin@admin.com', password: 'Admin', role: 'Super Admin Principal', avatar: 'SA', status: 'Activo', lastLogin: 'Hoy 09:30 hs' },
+      { id: 'sa-2', name: 'Nestor Admin', email: 'nestoradmin@nestoradmin.com', password: 'NestorAdmin123!', role: 'Super Admin Completo', avatar: 'NA', status: 'Activo', lastLogin: 'Hoy 10:00 hs' }
+    ]
     try {
       const stored = localStorage.getItem('bu_super_admins')
-      if (stored) return JSON.parse(stored)
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          defaultAdmins.forEach(dsa => {
+            if (!parsed.some((a: any) => a.email?.toLowerCase() === dsa.email.toLowerCase())) {
+              parsed.unshift(dsa)
+            }
+          })
+          return parsed
+        }
+      }
     } catch (e) {}
-    return [
-      { id: 'sa-1', name: 'Super Admin', email: 'admin@admin.com', password: 'Admin', role: 'Super Admin Principal', avatar: 'SA', status: 'Activo', lastLogin: 'Hoy 09:30 hs' }
-    ]
+    return defaultAdmins
   })
 
   // Global Platform Settings State

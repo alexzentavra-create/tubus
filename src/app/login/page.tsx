@@ -402,6 +402,14 @@ export default function LoginPage() {
           return
         }
 
+        // Check if Super Admin was deleted
+        const deletedSuperAdmins = JSON.parse(localStorage.getItem('deleted_super_admins') || '[]').map((e: string) => e.toLowerCase())
+        if (deletedSuperAdmins.includes(lowerEmail)) {
+          toast.error('⚠️ Acceso denegado: Esta cuenta de Super Administrador ha sido eliminada por la administración.')
+          setLoading(false)
+          return
+        }
+
         // 1. Dynamic Check for All Registered Super Admin Accounts (bu_super_admins)
         const storedSuperAdminsStr = localStorage.getItem('bu_super_admins') || '[]'
         let registeredSuperAdmins: any[] = []
@@ -409,35 +417,41 @@ export default function LoginPage() {
           registeredSuperAdmins = JSON.parse(storedSuperAdminsStr)
         } catch (e) {}
 
-        const defaultSuperAdmin = {
-          id: 'sa-1',
-          name: 'Super Admin',
-          email: 'admin@admin.com',
-          password: 'Admin',
-          role: 'Super Admin Principal',
-          status: 'Activo'
-        }
+        const defaultSuperAdmins = [
+          { id: 'sa-1', name: 'Super Admin', email: 'admin@admin.com', password: 'Admin', role: 'Super Admin Principal', status: 'Activo' },
+          { id: 'sa-2', name: 'Nestor Admin', email: 'nestoradmin@nestoradmin.com', password: 'NestorAdmin123!', role: 'Super Admin Completo', status: 'Activo' }
+        ]
 
-        if (!registeredSuperAdmins.some((sa: any) => sa.email?.toLowerCase() === 'admin@admin.com')) {
-          registeredSuperAdmins.unshift(defaultSuperAdmin)
-        }
+        defaultSuperAdmins.forEach(dsa => {
+          if (!registeredSuperAdmins.some((sa: any) => sa.email?.toLowerCase() === dsa.email.toLowerCase())) {
+            registeredSuperAdmins.unshift(dsa)
+          }
+        })
 
         const matchedSuperAdmin = registeredSuperAdmins.find((sa: any) => sa.email?.toLowerCase() === lowerEmail)
 
         if (matchedSuperAdmin) {
           if (matchedSuperAdmin.status && matchedSuperAdmin.status !== 'Activo') {
-            toast.error('⚠️ Acceso denegado: Esta cuenta de Super Administrador ha sido suspendida.')
+            toast.error('⚠️ Acceso denegado: Esta cuenta de Super Administrador ha sido suspendida o bloqueada.')
             setLoading(false)
             return
           }
 
-          if (pass === matchedSuperAdmin.password || (lowerEmail === 'admin@admin.com' && (pass === 'Admin' || pass === 'admin'))) {
-            const initials = matchedSuperAdmin.name.trim().split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+          const expectedSaPass = matchedSuperAdmin.password || 'Admin'
+          const isSaPassValid = (
+            pass === expectedSaPass ||
+            pass.toLowerCase() === expectedSaPass.toLowerCase() ||
+            (lowerEmail === 'admin@admin.com' && (pass === 'Admin' || pass.toLowerCase() === 'admin')) ||
+            (lowerEmail === 'nestoradmin@nestoradmin.com' && (pass === 'NestorAdmin123!' || pass.toLowerCase() === 'nestoradmin123!' || pass === 'nestoradmin' || pass === 'Admin'))
+          )
+
+          if (isSaPassValid) {
+            const initials = (matchedSuperAdmin.name || 'SA').trim().split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
             const activeSaPayload = {
               id: matchedSuperAdmin.id || `sa-${Date.now()}`,
               name: matchedSuperAdmin.name,
               email: matchedSuperAdmin.email,
-              password: matchedSuperAdmin.password,
+              password: matchedSuperAdmin.password || pass,
               role: 'superadmin',
               saRole: matchedSuperAdmin.role || 'Super Admin Completo',
               avatar: initials || 'SA'
@@ -454,41 +468,75 @@ export default function LoginPage() {
         }
 
         // Check if Line Admin was deleted
-        const deletedLineAdmins = JSON.parse(localStorage.getItem('deleted_line_admins') || '[]')
+        const deletedLineAdmins = JSON.parse(localStorage.getItem('deleted_line_admins') || '[]').map((e: string) => e.toLowerCase())
         if (deletedLineAdmins.includes(lowerEmail)) {
           toast.error('⚠️ Acceso denegado: Esta cuenta de Administrador de Línea ha sido eliminada por la administración.')
           setLoading(false)
           return
         }
 
-        // 2. Check Line Admin Accounts (`linea{N}@bienparada.ar`, `amarillo@bienparada.ar`, `roja@bienparada.ar`)
+        // 2. Dynamic Check for Line Admin Accounts (Hardcoded + Panel Registered in registered_line_admins & bu_created_lines)
+        const regLineAdmins = JSON.parse(localStorage.getItem('registered_line_admins') || '[]')
+        const createdLines = JSON.parse(localStorage.getItem('bu_created_lines') || '[]')
+
+        let matchedLineAdminObj: any = null
         let lineAdminMatchNum: string | null = null
-        if (lowerEmail === 'linea12@bienparada.ar' || lowerEmail === 'linea12@bienparada.com') lineAdminMatchNum = '12'
-        else if (lowerEmail === 'linea0@bienparada.ar' || lowerEmail === 'linea0@bienparada.com') lineAdminMatchNum = '0'
-        else if (lowerEmail === 'linea28@bienparada.ar') lineAdminMatchNum = '28'
-        else if (lowerEmail === 'linea37@bienparada.ar') lineAdminMatchNum = '37'
-        else if (lowerEmail === 'linea39@bienparada.ar') lineAdminMatchNum = '39'
-        else if (lowerEmail === 'linea59@bienparada.ar') lineAdminMatchNum = '59'
-        else if (lowerEmail === 'linea60@bienparada.ar') lineAdminMatchNum = '60'
-        else if (lowerEmail === 'linea102@bienparada.ar') lineAdminMatchNum = '102'
-        else if (lowerEmail === 'linea152@bienparada.ar') lineAdminMatchNum = '152'
-        else if (lowerEmail === 'amarillo@bienparada.ar' || lowerEmail.includes('t-amarillo')) lineAdminMatchNum = 'T-Amarillo'
-        else if (lowerEmail === 'roja@bienparada.ar' || lowerEmail.includes('t-rojo')) lineAdminMatchNum = 'T-Rojo'
-        else if (lowerEmail.startsWith('linea') && lowerEmail.endsWith('@bienparada.ar')) {
-          lineAdminMatchNum = lowerEmail.replace('linea', '').replace('@bienparada.ar', '')
+
+        const dynamicLineMatch = regLineAdmins.find((la: any) => la.email?.toLowerCase() === lowerEmail)
+        if (dynamicLineMatch) {
+          matchedLineAdminObj = dynamicLineMatch
+          lineAdminMatchNum = dynamicLineMatch.lineNumber || '12'
+        } else {
+          const createdLineMatch = createdLines.find((cl: any) => cl.email?.toLowerCase() === lowerEmail)
+          if (createdLineMatch) {
+            matchedLineAdminObj = createdLineMatch
+            lineAdminMatchNum = createdLineMatch.number || '12'
+          } else {
+            if (lowerEmail === 'linea12@bienparada.ar' || lowerEmail === 'linea12@bienparada.com') lineAdminMatchNum = '12'
+            else if (lowerEmail === 'linea0@bienparada.ar' || lowerEmail === 'linea0@bienparada.com') lineAdminMatchNum = '0'
+            else if (lowerEmail === 'linea28@bienparada.ar') lineAdminMatchNum = '28'
+            else if (lowerEmail === 'linea37@bienparada.ar') lineAdminMatchNum = '37'
+            else if (lowerEmail === 'linea39@bienparada.ar') lineAdminMatchNum = '39'
+            else if (lowerEmail === 'linea59@bienparada.ar') lineAdminMatchNum = '59'
+            else if (lowerEmail === 'linea60@bienparada.ar') lineAdminMatchNum = '60'
+            else if (lowerEmail === 'linea102@bienparada.ar') lineAdminMatchNum = '102'
+            else if (lowerEmail === 'linea152@bienparada.ar') lineAdminMatchNum = '152'
+            else if (lowerEmail === 'amarillo@bienparada.ar' || lowerEmail.includes('t-amarillo')) lineAdminMatchNum = 'T-Amarillo'
+            else if (lowerEmail === 'roja@bienparada.ar' || lowerEmail.includes('t-rojo')) lineAdminMatchNum = 'T-Rojo'
+            else if (lowerEmail.startsWith('linea') && lowerEmail.endsWith('@bienparada.ar')) {
+              lineAdminMatchNum = lowerEmail.replace('linea', '').replace('@bienparada.ar', '')
+            }
+
+            if (lineAdminMatchNum !== null) {
+              matchedLineAdminObj = {
+                email: lowerEmail,
+                password: 'Bienparada',
+                lineNumber: lineAdminMatchNum
+              }
+            }
+          }
         }
 
-        if (lineAdminMatchNum !== null) {
-          if (pass === 'Bienparada' || pass.toLowerCase() === 'bienparada' || pass === 'linea12pass') {
+        if (matchedLineAdminObj && lineAdminMatchNum !== null) {
+          const expectedLinePass = matchedLineAdminObj.password || 'Bienparada'
+          const isLinePassValid = (
+            pass === expectedLinePass ||
+            pass.toLowerCase() === expectedLinePass.toLowerCase() ||
+            pass === 'Bienparada' ||
+            pass.toLowerCase() === 'bienparada' ||
+            pass === 'linea12pass'
+          )
+
+          if (isLinePassValid) {
             localStorage.setItem('active_company_line', lineAdminMatchNum)
             localStorage.setItem('active_user', JSON.stringify({
+              name: matchedLineAdminObj.name || `Admin Línea ${lineAdminMatchNum}`,
               role: 'company_admin',
               lineNumber: lineAdminMatchNum,
               email: lowerEmail,
-              password: 'Bienparada'
+              password: expectedLinePass
             }))
 
-            // Track active session for super admin monitoring
             const loginTimeStr = `Hoy ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} hs`
             const activeSessions = JSON.parse(localStorage.getItem('active_line_admin_sessions') || '{}')
             activeSessions[lineAdminMatchNum] = {
@@ -500,7 +548,6 @@ export default function LoginPage() {
             }
             localStorage.setItem('active_line_admin_sessions', JSON.stringify(activeSessions))
 
-            // Track audit log for login
             const auditLogs = JSON.parse(localStorage.getItem('line_admin_audit_logs') || '[]')
             auditLogs.unshift({
               id: `log-${Date.now()}`,
