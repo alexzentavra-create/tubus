@@ -1,6 +1,7 @@
 
 'use client'
 import { useState, useEffect, useMemo } from 'react'
+import { syncAllGlobalKeys, pushGlobalKey } from '@/lib/sync'
 
 // Helper to log line admin actions for Super Admin audit log
 function recordLineAdminAuditLog(lineParam: any, action: string, detail: string) {
@@ -111,26 +112,38 @@ function QRDisplay({ token, busUnit }: { token: string; busUnit: string }) {
 export default function CompanyDashboard() {
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const activeUserStr = localStorage.getItem('active_user')
-    let activeUser: any = null
-    try {
-      activeUser = activeUserStr ? JSON.parse(activeUserStr) : null
-    } catch (e) {}
 
-    if (!activeUser || (activeUser.role !== 'company_admin' && activeUser.role !== 'admin')) {
-      toast.error('Acceso denegado. Iniciá sesión con tu cuenta de Administrador de Línea.')
-      window.location.href = '/login'
-      return
+    const runSync = async () => {
+      await syncAllGlobalKeys().catch(() => {})
+
+      const activeUserStr = localStorage.getItem('active_user')
+      let activeUser: any = null
+      try {
+        activeUser = activeUserStr ? JSON.parse(activeUserStr) : null
+      } catch (e) {}
+
+      if (!activeUser || (activeUser.role !== 'company_admin' && activeUser.role !== 'admin')) {
+        toast.error('Acceso denegado. Iniciá sesión con tu cuenta de Administrador de Línea.')
+        window.location.href = '/login'
+        return
+      }
+
+      const activeEmail = (activeUser.email || '').toLowerCase().trim()
+      const deletedLineList = JSON.parse(localStorage.getItem('deleted_line_admins') || '[]').map((e: string) => e.toLowerCase().trim())
+
+      if (deletedLineList.includes(activeEmail)) {
+        toast.error('Acceso denegado: Esta cuenta de Administrador de Línea ha sido deshabilitada.')
+        localStorage.removeItem('active_user')
+        window.location.href = '/login'
+      }
     }
 
-    const activeEmail = (activeUser.email || '').toLowerCase().trim()
-    const deletedLineList = JSON.parse(localStorage.getItem('deleted_line_admins') || '[]').map((e: string) => e.toLowerCase().trim())
+    runSync()
+    const syncInterval = setInterval(() => {
+      syncAllGlobalKeys().catch(() => {})
+    }, 5000)
 
-    if (deletedLineList.includes(activeEmail)) {
-      toast.error('Acceso denegado: Esta cuenta de Administrador de Línea ha sido deshabilitada.')
-      localStorage.removeItem('active_user')
-      window.location.href = '/login'
-    }
+    return () => clearInterval(syncInterval)
   }, [])
   const supabase = createClient()
   const [tab, setTab] = useState<Tab>('overview')

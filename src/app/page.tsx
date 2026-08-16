@@ -20,6 +20,7 @@ import {
   HelpCircle, Upload, Smartphone, CreditCard, PhoneCall, Sparkles, Eye, EyeOff, Lock, ShieldCheck
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
+import { syncAllGlobalKeys, pushGlobalKey } from '@/lib/sync'
 import { getStoredGeneralTerms, getStoredAdsTerms } from '@/lib/termsData'
 import { OFFICIAL_ROUTES } from '@/lib/officialRoutes'
 import type { BusPosition, BusLine, BusStop } from '@/types'
@@ -23175,6 +23176,12 @@ function MapAdBanner({
     
     setSelectedLines([])
 
+    // Run global cross-device synchronization on mount and set polling interval
+    syncAllGlobalKeys().catch(() => {})
+    const globalSyncInterval = setInterval(() => {
+      syncAllGlobalKeys().catch(() => {})
+    }, 5000)
+
     // Validate User Auth state (localStorage active_user OR Supabase user session)
     const activeUserStr = typeof window !== 'undefined' ? localStorage.getItem('active_user') : null
     let activeUser: any = null
@@ -28049,6 +28056,7 @@ function MapAdBanner({
 
                       existingAdReports.unshift(newAdReport)
                       localStorage.setItem('bu_ad_reports', JSON.stringify(existingAdReports))
+                      pushGlobalKey('bu_ad_reports', existingAdReports).catch(() => {})
 
                       // Update ad object with reports badge in bu_submitted_ads
                       const submittedAds = JSON.parse(localStorage.getItem('bu_submitted_ads') || '[]')
@@ -28067,6 +28075,7 @@ function MapAdBanner({
                       })
                       localStorage.setItem('bu_submitted_ads', JSON.stringify(updatedAds))
                       localStorage.setItem('mock_super_ads', JSON.stringify(updatedAds))
+                      pushGlobalKey('bu_submitted_ads', updatedAds).catch(() => {})
 
                       window.dispatchEvent(new Event('storage'))
                       window.dispatchEvent(new Event('ads_updated'))

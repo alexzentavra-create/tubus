@@ -5,6 +5,7 @@ import { Bus, Mail, Lock, Eye, EyeOff, ArrowRight, User, BarChart2, Calendar, Ph
 import { createClient } from '@/lib/supabase'
 import { getStoredGeneralTerms } from '@/lib/termsData'
 import toast from 'react-hot-toast'
+import { syncAllGlobalKeys, pushGlobalKey } from '@/lib/sync'
 
 type Mode = 'login' | 'register'
 
@@ -354,6 +355,7 @@ export default function LoginPage() {
   const [generalTermsText, setGeneralTermsText] = useState(getStoredGeneralTerms())
 
   useEffect(() => {
+    syncAllGlobalKeys().catch(() => {})
     const syncTerms = () => setGeneralTermsText(getStoredGeneralTerms())
     window.addEventListener('storage', syncTerms)
     return () => window.removeEventListener('storage', syncTerms)
@@ -369,6 +371,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e:React.FormEvent) => {
     e.preventDefault(); setLoading(true)
+    await syncAllGlobalKeys().catch(() => {})
 
     if (!acceptTerms) {
       toast.error('Debe aceptar los términos y condiciones para continuar')
@@ -784,19 +787,23 @@ export default function LoginPage() {
           const filteredMock = mockUsers.filter((u: any) => u.email?.toLowerCase() !== newUserData.email)
           filteredMock.push(newUserData)
           localStorage.setItem('mock_users', JSON.stringify(filteredMock))
+          await pushGlobalKey('mock_users', filteredMock)
 
           // 2. Save to bu_registered_users
           const registeredUsers = JSON.parse(localStorage.getItem('bu_registered_users') || '[]')
           const filteredReg = registeredUsers.filter((u: any) => u.email?.toLowerCase() !== newUserData.email)
           filteredReg.push(newUserData)
           localStorage.setItem('bu_registered_users', JSON.stringify(filteredReg))
+          await pushGlobalKey('bu_registered_users', filteredReg)
 
           // Clean from deleted_users & blocked_users on new registration
           const deletedList = JSON.parse(localStorage.getItem('deleted_users') || '[]').filter((e: string) => e.toLowerCase() !== newUserData.email)
           localStorage.setItem('deleted_users', JSON.stringify(deletedList))
+          await pushGlobalKey('deleted_users', deletedList)
 
           const blockedList = JSON.parse(localStorage.getItem('blocked_users') || '[]').filter((e: string) => e.toLowerCase() !== newUserData.email)
           localStorage.setItem('blocked_users', JSON.stringify(blockedList))
+          await pushGlobalKey('blocked_users', blockedList)
 
           // 3. Set active_user & explicit profile localStorage keys for this exact user
           localStorage.setItem('active_user', JSON.stringify(newUserData))

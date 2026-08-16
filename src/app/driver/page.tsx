@@ -5,6 +5,7 @@ import { Bus, Navigation, Wifi, WifiOff, Users, Power, AlertCircle, Gauge, Clock
 import { createClient } from '@/lib/supabase'
 import { MOCK_LINES, getMockRoutePathForLine, getMockStopsForLine } from '@/lib/mockData'
 import toast from 'react-hot-toast'
+import { syncAllGlobalKeys, pushGlobalKey } from '@/lib/sync'
 import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre'
 
 interface ActiveSession {

@@ -22,6 +22,7 @@ import {
 import { format, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
+import { syncAllGlobalKeys, pushGlobalKey } from '@/lib/sync'
 
 // Map style
 const CARTODB_DARK = {
@@ -1021,14 +1022,24 @@ export default function SuperAdminDashboard() {
         }))
         localStorage.setItem('bu_registered_users', JSON.stringify(mergedList))
         localStorage.setItem('mock_super_users', JSON.stringify(mergedList))
+        pushGlobalKey('bu_registered_users', mergedList).catch(() => {})
       } catch (err) {
         console.error('Error syncing real-time user data:', err)
       }
     }
 
-    syncUsersFromStorage()
+    const runFullSync = async () => {
+      await syncAllGlobalKeys()
+      syncUsersFromStorage()
+    }
+
+    runFullSync()
+    const syncInterval = setInterval(runFullSync, 4000)
     window.addEventListener('storage', syncUsersFromStorage)
-    return () => window.removeEventListener('storage', syncUsersFromStorage)
+    return () => {
+      clearInterval(syncInterval)
+      window.removeEventListener('storage', syncUsersFromStorage)
+    }
   }, [])
 
   // Graph mode (day, week, month)
