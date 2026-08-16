@@ -21980,6 +21980,7 @@ function MapAdBanner({
   const [walkingPath2, setWalkingPath2] = useState<{ lat: number; lng: number }[]>([])
 
   const [user, setUser]                     = useState<any>(null)
+  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true)
   const [buses, setBuses]                   = useState<BusPosition[]>([])
   const [lines, setLines]                   = useState<BusLine[]>([])
   const [selectedLines, setSelectedLines]   = useState<BusLine[]>([])
@@ -23156,7 +23157,6 @@ function MapAdBanner({
       setViewState(v => ({ ...v, latitude: -34.6037, longitude: -58.4173, zoom: 13, pitch: 30, bearing: 0 }))
     }
 
-    supabase.auth.getUser().then(({ data: { user } }) => { if (user) setUser(user) })
     const ALLOWED_LINES = ['0', '12', '28', '37', '39', '59', '60', '102', '152', 'T-Amarillo', 'T-Rojo']
     const availableLines = MOCK_LINES.filter(l => ALLOWED_LINES.includes(l.line_number))
     setLines(availableLines)
@@ -23175,22 +23175,47 @@ function MapAdBanner({
     
     setSelectedLines([])
 
-    // Load User Profile dynamically for the active logged-in user
-    const activeUserStr = localStorage.getItem('active_user')
+    // Validate User Auth state (localStorage active_user OR Supabase user session)
+    const activeUserStr = typeof window !== 'undefined' ? localStorage.getItem('active_user') : null
     let activeUser: any = null
     try {
       activeUser = activeUserStr ? JSON.parse(activeUserStr) : null
     } catch (e) {}
 
-    const savedName = activeUser?.name || localStorage.getItem('profile_name') || localStorage.getItem('tu_bus_profile_name') || 'Usuario'
-    const savedPhone = activeUser?.phone || localStorage.getItem('profile_phone') || localStorage.getItem('tu_bus_profile_phone') || '+54 11 5555-5555'
-    const savedEmail = activeUser?.email || localStorage.getItem('profile_email') || localStorage.getItem('tu_bus_profile_email') || 'usuario@bienparada.com.ar'
-    const savedAvatar = activeUser?.avatar || localStorage.getItem('profile_avatar') || localStorage.getItem('tu_bus_profile_avatar') || 'avatar1'
+    supabase.auth.getUser().then(({ data: { user: sbUser } }) => {
+      let loggedInUser = activeUser
 
-    setProfileName(savedName)
-    setProfilePhone(savedPhone)
-    setProfileEmail(savedEmail)
-    setProfileAvatar(savedAvatar)
+      if (!loggedInUser && sbUser) {
+        loggedInUser = {
+          name: sbUser.user_metadata?.full_name || sbUser.email?.split('@')[0] || 'Usuario',
+          email: sbUser.email,
+          avatar: sbUser.user_metadata?.avatar_url || 'avatar1',
+          role: 'user'
+        }
+        localStorage.setItem('active_user', JSON.stringify(loggedInUser))
+        localStorage.setItem('profile_email', sbUser.email || '')
+        localStorage.setItem('tu_bus_profile_email', sbUser.email || '')
+      }
+
+      if (!loggedInUser) {
+        // Unauthenticated visitor -> Redirect to login menu immediately!
+        window.location.href = '/login'
+        return
+      }
+
+      setUser(sbUser || null)
+
+      const savedName = loggedInUser?.name || localStorage.getItem('profile_name') || localStorage.getItem('tu_bus_profile_name') || 'Usuario'
+      const savedPhone = loggedInUser?.phone || localStorage.getItem('profile_phone') || localStorage.getItem('tu_bus_profile_phone') || '+54 11 5555-5555'
+      const savedEmail = loggedInUser?.email || localStorage.getItem('profile_email') || localStorage.getItem('tu_bus_profile_email') || 'usuario@bienparada.com.ar'
+      const savedAvatar = loggedInUser?.avatar || localStorage.getItem('profile_avatar') || localStorage.getItem('tu_bus_profile_avatar') || 'avatar1'
+
+      setProfileName(savedName)
+      setProfilePhone(savedPhone)
+      setProfileEmail(savedEmail)
+      setProfileAvatar(savedAvatar)
+      setIsAuthChecking(false)
+    })
 
     // Seed Search History if empty
     const existingHistory = localStorage.getItem('bu_search_history')
@@ -24001,7 +24026,20 @@ function MapAdBanner({
   }
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    localStorage.removeItem('active_user')
+    localStorage.removeItem('active_super_admin')
+    localStorage.removeItem('active_company_line')
+    localStorage.removeItem('profile_email')
+    localStorage.removeItem('tu_bus_profile_email')
+    localStorage.removeItem('profile_name')
+    localStorage.removeItem('tu_bus_profile_name')
+    localStorage.removeItem('profile_phone')
+    localStorage.removeItem('tu_bus_profile_phone')
+    localStorage.removeItem('profile_avatar')
+    localStorage.removeItem('tu_bus_profile_avatar')
+    try {
+      await supabase.auth.signOut()
+    } catch (e) {}
     window.location.href = '/login'
   }
 
@@ -24930,6 +24968,38 @@ function MapAdBanner({
     )
   }
 
+
+  if (isAuthChecking) {
+    return (
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        background: '#0A0E1A',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#FFFFFF',
+        fontFamily: 'DM Sans, sans-serif',
+        zIndex: 99999
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            border: '3px solid rgba(255,255,255,0.1)',
+            borderTopColor: '#3B82F6',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto 16px'
+          }} />
+          <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+          <p style={{ fontSize: '14px', fontWeight: 600, color: 'rgba(255,255,255,0.8)' }}>
+            Verificando sesión...
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   const showTravelPins = (drawerState !== 'collapsed') || showLineSelector || !!mapSelectionMode
 
