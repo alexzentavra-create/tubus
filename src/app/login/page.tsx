@@ -5,7 +5,7 @@ import { Bus, Mail, Lock, Eye, EyeOff, ArrowRight, User, BarChart2, Calendar, Ph
 import { createClient } from '@/lib/supabase'
 import { getStoredGeneralTerms } from '@/lib/termsData'
 import toast from 'react-hot-toast'
-import { syncAllGlobalKeys, pushGlobalKey } from '@/lib/sync'
+import { syncAllGlobalKeys, pushGlobalKey, getUserStorageKey, purgeUserDataForEmail } from '@/lib/sync'
 
 type Mode = 'login' | 'register'
 
@@ -876,10 +876,18 @@ export default function LoginPage() {
             localStorage.setItem('tu_bus_profile_password', newUserData.password)
           }
 
-          // 4. Initialize clean 0 state for new user
-          localStorage.setItem('bu_search_history_' + userId, JSON.stringify([]))
-          localStorage.setItem('bu_user_ads_' + userId, JSON.stringify([]))
-          localStorage.setItem('bu_user_points_' + userId, '0')
+          // 4. Purge any previous data for this email and initialize clean 0 state for new account
+          purgeUserDataForEmail(newUserData.email)
+
+          const cleanHistoryKey = getUserStorageKey('bu_search_history', newUserData.email)
+          const cleanPointsKey = getUserStorageKey('user_points', newUserData.email)
+          const cleanPointsHistKey = getUserStorageKey('user_points_history', newUserData.email)
+          const cleanAdsKey = getUserStorageKey('bu_submitted_ads', newUserData.email)
+
+          localStorage.setItem(cleanHistoryKey, JSON.stringify([]))
+          localStorage.setItem(cleanPointsKey, '0')
+          localStorage.setItem(cleanPointsHistKey, JSON.stringify([]))
+          localStorage.setItem(cleanAdsKey, JSON.stringify([]))
         } catch (e) {
           console.error(e)
         }

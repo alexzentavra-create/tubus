@@ -1,11 +1,4 @@
 'use client'
-// Per-User Storage Helper: isolates ads, history, points, and chats per account
-const getUserStorageKey = (baseKey: string, emailOverride?: string) => {
-  if (typeof window === 'undefined') return baseKey;
-  const email = emailOverride || localStorage.getItem('tu_bus_profile_email') || 'usuario@bienparada.com.ar';
-  const cleanEmail = email.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
-  return `${baseKey}_${cleanEmail}`;
-};
 import { useState, useEffect, useCallback, useRef, Fragment, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import Map, { Marker, Popup, NavigationControl, GeolocateControl, Source, Layer } from 'react-map-gl/maplibre'
@@ -20,7 +13,7 @@ import {
   HelpCircle, Upload, Smartphone, CreditCard, PhoneCall, Sparkles, Eye, EyeOff, Lock, ShieldCheck
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
-import { syncAllGlobalKeys, pushGlobalKey } from '@/lib/sync'
+import { syncAllGlobalKeys, pushGlobalKey, getUserStorageKey, purgeUserDataForEmail } from '@/lib/sync'
 import { getStoredGeneralTerms, getStoredAdsTerms } from '@/lib/termsData'
 import { OFFICIAL_ROUTES } from '@/lib/officialRoutes'
 import type { BusPosition, BusLine, BusStop } from '@/types'
@@ -23224,31 +23217,19 @@ function MapAdBanner({
       setIsAuthChecking(false)
     })
 
-    // Seed Search History if empty
-    const existingHistory = localStorage.getItem('bu_search_history')
-    if (!existingHistory) {
-      const mockHistory = [
-        {
-          id: 'sh-1',
-          timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
-          originName: 'Obelisco, Buenos Aires',
-          destName: 'Teatro Colón, Buenos Aires',
-          originCoord: { lat: -34.6037, lng: -58.3816 },
-          destCoord: { lat: -34.5992, lng: -58.3831 }
-        },
-        {
-          id: 'sh-2',
-          timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
-          originName: 'Caminito, La Boca',
-          destName: 'La Bombonera, La Boca',
-          originCoord: { lat: -34.6393, lng: -58.3627 },
-          destCoord: { lat: -34.6353, lng: -58.3647 }
-        }
-      ]
-      localStorage.setItem('bu_search_history', JSON.stringify(mockHistory))
-      setSearchHistory(mockHistory)
+    // Load search history strictly scoped to the logged-in account email
+    const activeUserEmail = (activeUser?.email || localStorage.getItem('profile_email') || '').toLowerCase().trim()
+    const historyKey = getUserStorageKey('bu_search_history', activeUserEmail)
+    const existingUserHistory = localStorage.getItem(historyKey)
+    if (existingUserHistory) {
+      try {
+        setSearchHistory(JSON.parse(existingUserHistory))
+      } catch {
+        setSearchHistory([])
+      }
     } else {
-      setSearchHistory(JSON.parse(existingHistory))
+      localStorage.setItem(historyKey, JSON.stringify([]))
+      setSearchHistory([])
     }
 
     // Read user submitted ads from localStorage without wiping user-created campaigns
@@ -23298,11 +23279,12 @@ function MapAdBanner({
     return () => window.removeEventListener('storage', handleStorage)
   }, [])
 
-  // Log successful route searches to history
+  // Log successful route searches to history (strictly scoped per user email)
   useEffect(() => {
     if (activeTravelRoute && originInput && destInput && originCoord && destCoord) {
-      const historyKey = getUserStorageKey('bu_search_history')
-      const history = JSON.parse(localStorage.getItem(historyKey) || localStorage.getItem('bu_search_history') || '[]')
+      const activeEmail = profileEmail || localStorage.getItem('profile_email') || localStorage.getItem('tu_bus_profile_email') || ''
+      const historyKey = getUserStorageKey('bu_search_history', activeEmail)
+      const history = JSON.parse(localStorage.getItem(historyKey) || '[]')
       const exists = history.slice(0, 5).some((h: any) => h.originName === originInput && h.destName === destInput)
       if (!exists) {
         const newItem = {
@@ -23315,11 +23297,10 @@ function MapAdBanner({
         }
         const updated = [newItem, ...history]
         localStorage.setItem(historyKey, JSON.stringify(updated))
-        localStorage.setItem('bu_search_history', JSON.stringify(updated))
         setSearchHistory(updated)
       }
     }
-  }, [activeTravelRoute, originInput, destInput, originCoord, destCoord])
+  }, [activeTravelRoute, originInput, destInput, originCoord, destCoord, profileEmail])
 
   const updatePrefs = useCallback((patch: Partial<UserPrefs>) => {
     setPrefs(prev => { const next = { ...prev, ...patch }; savePrefs(next); return next })
@@ -30235,6 +30216,8 @@ function ProfilePanel({
   const handleClearHistory = () => {
     if (confirm('¿Estás seguro de que querés borrar todo tu historial de búsqueda?')) {
       setSearchHistory([])
+      const historyKey = getUserStorageKey('bu_search_history', profileEmail)
+      localStorage.setItem(historyKey, JSON.stringify([]))
       localStorage.removeItem('bu_search_history')
       localStorage.removeItem('tu_bus_search_history')
       toast.success('Historial borrado por completo')
@@ -30245,8 +30228,8 @@ function ProfilePanel({
     e.stopPropagation()
     const updated = searchHistory.filter(h => h.id !== id)
     setSearchHistory(updated)
-    localStorage.setItem('bu_search_history', JSON.stringify(updated))
-    localStorage.setItem('tu_bus_search_history', JSON.stringify(updated))
+    const historyKey = getUserStorageKey('bu_search_history', profileEmail)
+    localStorage.setItem(historyKey, JSON.stringify(updated))
     toast.success('Viaje eliminado del historial')
   }
 
@@ -30258,8 +30241,8 @@ function ProfilePanel({
       return item
     })
     setSearchHistory(updated)
-    localStorage.setItem('bu_search_history', JSON.stringify(updated))
-    localStorage.setItem('tu_bus_search_history', JSON.stringify(updated))
+    const historyKey = getUserStorageKey('bu_search_history', profileEmail)
+    localStorage.setItem(historyKey, JSON.stringify(updated))
     setEditingNameId(null)
     setNameInput('')
     toast.success('¡Nombre del viaje guardado!')

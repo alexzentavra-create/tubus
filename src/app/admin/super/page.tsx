@@ -22,7 +22,7 @@ import {
 import { format, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
-import { syncAllGlobalKeys, pushGlobalKey } from '@/lib/sync'
+import { syncAllGlobalKeys, pushGlobalKey, purgeUserDataForEmail } from '@/lib/sync'
 
 // Map style
 const CARTODB_DARK = {
@@ -1190,8 +1190,10 @@ export default function SuperAdminDashboard() {
     const filteredSuper = mockSuper.filter((u: any) => !isMatch(u))
     localStorage.setItem('mock_super_users', JSON.stringify(filteredSuper))
 
-    // 3. Clear from deleted_users & blocked_users & banned_users
+    // 3. Clear from deleted_users & blocked_users & banned_users and purge ALL user data
     if (userEmail) {
+      purgeUserDataForEmail(userEmail)
+
       const deletedUsers = JSON.parse(localStorage.getItem('deleted_users') || '[]')
       const filteredDeleted = deletedUsers.filter((e: string) => e.toLowerCase().trim() !== userEmail)
       localStorage.setItem('deleted_users', JSON.stringify(filteredDeleted))

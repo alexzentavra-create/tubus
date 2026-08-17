@@ -97,3 +97,41 @@ export async function pushGlobalKey(key: string, data: any): Promise<void> {
     console.error(`[GlobalSync] Push error for key ${key}:`, e)
   }
 }
+
+export function getUserStorageKey(baseKey: string, emailOverride?: string): string {
+  if (typeof window === 'undefined') return baseKey
+  const email = emailOverride || localStorage.getItem('tu_bus_profile_email') || localStorage.getItem('profile_email') || ''
+  if (!email) return baseKey
+  const cleanEmail = email.trim().toLowerCase().replace(/[^a-z0-9]/g, '_')
+  return `${baseKey}_${cleanEmail}`
+}
+
+export function purgeUserDataForEmail(email: string): void {
+  if (typeof window === 'undefined' || !email) return
+  const cleanEmail = email.trim().toLowerCase().replace(/[^a-z0-9]/g, '_')
+
+  const keysToRemove = [
+    `bu_search_history_${cleanEmail}`,
+    `user_points_${cleanEmail}`,
+    `user_points_history_${cleanEmail}`,
+    `bu_submitted_ads_${cleanEmail}`,
+    `bu_user_ads_${cleanEmail}`,
+    `bu_support_chat_${cleanEmail}`,
+    `tu_bus_profile_email_${cleanEmail}`,
+    `tu_bus_profile_name_${cleanEmail}`,
+    `tu_bus_profile_phone_${cleanEmail}`,
+    `tu_bus_profile_password_${cleanEmail}`
+  ]
+
+  keysToRemove.forEach(key => {
+    try {
+      localStorage.removeItem(key)
+    } catch (e) {}
+  })
+
+  // Clear legacy global history
+  try {
+    localStorage.removeItem('bu_search_history')
+    localStorage.removeItem('tu_bus_search_history')
+  } catch (e) {}
+}
