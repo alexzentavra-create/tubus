@@ -1376,60 +1376,30 @@ export default function SuperAdminDashboard() {
     const savedTodos = localStorage.getItem('mock_super_todos')
     if (savedTodos) setTodos(JSON.parse(savedTodos))
 
-    const DEFAULT_SAMPLE_ADS = [
+    const INITIAL_REAL_USER_ADS = [
       {
-        id: 'tufix-0',
-        title: '🍕 2x1 en Pizzas Guerrin - Calle Corrientes',
-        description: 'Presentá este cupón exclusivo de BienParada en la caja de Guerrin y obtené 2x1 en muzzarella gigante.',
-        imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&q=80',
-        locationName: 'Av. Corrientes 1368, Centro',
+        id: 'ad-alex-1',
+        title: 'Anuncio Publicitario Alex - 20% OFF',
+        description: 'Descuento exclusivo para pasajeros de BienParada presentando la app en el local.',
+        locationName: 'Obelisco, Av. Corrientes y 9 de Julio',
         lat: -34.6037,
         lng: -58.3816,
-        promoCode: 'GUERRIN2X1',
         status: 'approved',
         isActive: true,
-        budget: 15000,
-        placement: 'map',
-        activeHours: '12:00 - 23:00',
-        userName: 'Pizzería Guerrin',
-        userEmail: 'contacto@guerrin.com.ar',
-        createdAt: '2026-08-16T12:00:00Z'
-      },
-      {
-        id: 'tufix-1',
-        title: '☕ 30% OFF en Café Martínez',
-        description: '30% de descuento en todos los desayunos y meriendas pagando con SUBE o presentando la app BienParada.',
-        imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=600&q=80',
-        locationName: 'Av. Santa Fe 2100, Palermo',
-        lat: -34.5889,
-        lng: -58.4042,
-        promoCode: 'MARTINEZ30',
-        status: 'approved',
-        isActive: true,
-        budget: 12000,
+        isPaused: false,
+        budget: 50,
         placement: 'standard',
-        activeHours: '08:00 - 20:00',
-        userName: 'Café Martínez Corp',
-        userEmail: 'marketing@cafemartinez.com',
-        createdAt: '2026-08-16T10:00:00Z'
-      },
-      {
-        id: 'tufix-2',
-        title: '🎬 2x1 Cines Hoyts Abasto',
-        description: 'Disfrutá del mejor cine en Abasto Shopping con este cupón exclusivo 2x1 en entradas 2D y 3D.',
-        imageUrl: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&q=80',
-        locationName: 'Av. Corrientes 3247, Abasto',
-        lat: -34.6033,
-        lng: -58.4107,
-        promoCode: 'HOYTS2X1',
-        status: 'approved',
-        isActive: true,
-        budget: 25000,
-        placement: 'notification',
-        activeHours: '14:00 - 23:59',
-        userName: 'Hoyts Cines SA',
-        userEmail: 'anuncios@hoyts.com.ar',
-        createdAt: '2026-08-16T14:00:00Z'
+        selectedAdTypes: ['standard'],
+        userName: 'Alex',
+        userEmail: 'alex@gmail.com',
+        created_at: '2026-08-16T22:00:00.000Z',
+        timestamp: '16/08/2026',
+        startDate: '16/8/2026',
+        endDate: '15/9/2026',
+        activeHours: 'Las 24 hs activo',
+        stop: 'Obelisco / Av. Corrientes',
+        route: 'Línea 28',
+        targetAudience: 'Línea 28'
       }
     ]
 
@@ -1438,14 +1408,26 @@ export default function SuperAdminDashboard() {
       try {
         const parsed = JSON.parse(savedAds)
         const deletedAdIds = JSON.parse(localStorage.getItem('deleted_ad_ids') || '[]')
-        const filtered = (Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_SAMPLE_ADS).filter((a: any) => !deletedAdIds.includes(a.id) && !deletedAdIds.includes(a.title))
+        // Remove any old demo/mock ads (like tufix-0, tufix-1, tufix-2) if they were previously saved
+        const cleaned = (Array.isArray(parsed) ? parsed : []).filter((a: any) => !a.id?.startsWith('tufix-') && !a.title?.includes('Guerrin') && !a.title?.includes('Hoyts') && !a.title?.includes('Martínez'))
+        
+        // Ensure Alex's real user ad is present if missing
+        if (!cleaned.some((a: any) => a.userEmail?.toLowerCase() === 'alex@gmail.com' || a.id === 'ad-alex-1')) {
+          cleaned.push(INITIAL_REAL_USER_ADS[0])
+        }
+
+        const filtered = cleaned.filter((a: any) => !deletedAdIds.includes(a.id) && !deletedAdIds.includes(a.title))
         setAds(filtered)
+        localStorage.setItem('bu_submitted_ads', JSON.stringify(filtered))
+        localStorage.setItem('bu_user_ads', JSON.stringify(filtered))
+        localStorage.setItem('mock_super_ads', JSON.stringify(filtered))
       } catch (e) {
-        setAds(DEFAULT_SAMPLE_ADS)
+        setAds(INITIAL_REAL_USER_ADS)
+        localStorage.setItem('bu_submitted_ads', JSON.stringify(INITIAL_REAL_USER_ADS))
       }
     } else {
-      setAds(DEFAULT_SAMPLE_ADS)
-      localStorage.setItem('bu_submitted_ads', JSON.stringify(DEFAULT_SAMPLE_ADS))
+      setAds(INITIAL_REAL_USER_ADS)
+      localStorage.setItem('bu_submitted_ads', JSON.stringify(INITIAL_REAL_USER_ADS))
     }
 
     const savedChats = localStorage.getItem('mock_super_chats')

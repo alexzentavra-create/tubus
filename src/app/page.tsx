@@ -29880,7 +29880,24 @@ function ProfilePanel({
         setPointsHistory([])
       }
     }
-  }, [])
+
+    // Load ads registered by current signed-in user
+    const userAdsKey = getUserStorageKey('bu_submitted_ads', email)
+    const globalAds = JSON.parse(localStorage.getItem('bu_submitted_ads') || '[]')
+    const userAds = globalAds.filter((a: any) => 
+      a.userEmail?.toLowerCase() === email.toLowerCase() || 
+      (email.toLowerCase() === 'alex@gmail.com' && (a.id === 'ad-alex-1' || a.userName === 'Alex'))
+    )
+
+    if (userAds.length > 0) {
+      setAdSubmissions(userAds)
+    } else {
+      const perUserSaved = localStorage.getItem(userAdsKey)
+      if (perUserSaved) {
+        try { setAdSubmissions(JSON.parse(perUserSaved)) } catch (e) {}
+      }
+    }
+  }, [profileEmail])
 
   const updatePoints = (newVal: number, newHistory?: any[]) => {
     setPoints(newVal)
