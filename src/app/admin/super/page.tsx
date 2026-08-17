@@ -6091,6 +6091,68 @@ function PoisTab() {
 }
 
 
+function getAdStatusInfo(ad: any) {
+  const now = new Date()
+  const startDate = ad.startDate ? new Date(ad.startDate) : new Date(ad.createdAt || Date.now())
+  const endDate = ad.endDate ? new Date(ad.endDate) : new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+  const isPaused = ad.status === 'paused' || ad.isPaused === true || ad.isActive === false
+  const isExpired = ad.status === 'expired' || now > endDate
+  const isPending = ad.status === 'pending'
+  const isRejected = ad.status === 'rejected'
+  const isScheduled = now < startDate
+
+  let isWithinHours = true
+  if (ad.activeHours && ad.activeHours !== '24 hs' && ad.activeHours !== 'todos') {
+    try {
+      const [startStr, endStr] = ad.activeHours.split('-').map((s: string) => s.trim())
+      if (startStr && endStr) {
+        const [startH, startM] = startStr.split(':').map(Number)
+        const [endH, endM] = endStr.split(':').map(Number)
+        const currentMins = now.getHours() * 60 + now.getMinutes()
+        const startMins = startH * 60 + (startM || 0)
+        const endMins = endH * 60 + (endM || 0)
+        isWithinHours = currentMins >= startMins && currentMins <= endMins
+      }
+    } catch {}
+  }
+
+  const isLive = ad.status === 'approved' && !isPaused && !isExpired && !isScheduled && isWithinHours
+
+  let remainingMs = endDate.getTime() - now.getTime()
+  if (remainingMs < 0) remainingMs = 0
+
+  const days = Math.floor(remainingMs / (1000 * 60 * 60 * 24))
+  const hours = Math.floor((remainingMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+  const mins = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60))
+  const secs = Math.floor((remainingMs % (1000 * 60)) / 1000)
+
+  let remainingText = ''
+  if (isExpired) {
+    remainingText = 'Tiempo finalizado'
+  } else if (days > 0) {
+    remainingText = `${days}d ${hours}h ${mins}m restantes`
+  } else if (hours > 0) {
+    remainingText = `${hours}h ${mins}m ${secs}s restantes`
+  } else {
+    remainingText = `${mins}m ${secs}s restantes`
+  }
+
+  return {
+    isLive,
+    isPaused,
+    isExpired,
+    isPending,
+    isRejected,
+    isScheduled,
+    isWithinHours,
+    startDateStr: startDate.toLocaleDateString('es-AR'),
+    endDateStr: endDate.toLocaleDateString('es-AR'),
+    activeHoursStr: ad.activeHours || 'Las 24 hs activo',
+    remainingText
+  }
+}
+
 function AdsTab({
   ads,
   onApprove,
@@ -6180,7 +6242,10 @@ function AdsTab({
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
         {filteredAds.map(ad => {
-          const isInactive = ad.status === 'approved' && !ad.isActive
+          const info = getAdStatusInfo(ad)
+          const isPaused = info.isPaused || ad.status === 'paused' || ad.isPaused === true || ad.isActive === false
+          const isInactive = !info.isLive
+
           return (
             <div
               key={ad.id}
@@ -6188,7 +6253,7 @@ function AdsTab({
               onContextMenu={(e) => { e.preventDefault(); onAdContextMenu && onAdContextMenu(e, ad.id); }}
               style={{
                 background: '#121527',
-                border: isInactive ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(255,255,255,0.06)',
+                border: isPaused ? '1px solid rgba(245,158,11,0.4)' : isInactive ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(255,255,255,0.06)',
                 borderRadius: '12px',
                 padding: '20px',
                 display: 'flex',
@@ -6197,16 +6262,16 @@ function AdsTab({
                 gap: '16px',
                 cursor: 'pointer',
                 transition: 'all 200ms',
-                boxShadow: isInactive ? '0 0 15px rgba(239,68,68,0.05)' : 'none'
+                boxShadow: isPaused ? '0 0 15px rgba(245,158,11,0.08)' : isInactive ? '0 0 15px rgba(239,68,68,0.05)' : 'none'
               }}
               onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)' }}
               onMouseLeave={e => { e.currentTarget.style.transform = 'none' }}
             >
               <div>
-                {isInactive && (
-                  <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', padding: '6px 10px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-                    <AlertTriangle size={12} style={{ color: '#ef4444' }} />
-                    <span style={{ fontSize: '10px', color: '#ef4444', fontWeight: 600 }}>Campaña Desactivada / Pausada</span>
+                {isPaused && (
+                  <div style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', padding: '6px 10px', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+                    <AlertTriangle size={12} style={{ color: '#F59E0B' }} />
+                    <span style={{ fontSize: '10px', color: '#F59E0B', fontWeight: 700 }}>⏸️ Anuncio Pausado / Oculto del Mapa</span>
                   </div>
                 )}
 
@@ -6225,29 +6290,16 @@ function AdsTab({
                         💬 {ad.comments.length}
                       </span>
                     )}
-                    {ad.status === 'approved' && (
-                      <span style={{
-                        fontSize: '9px',
-                        background: ad.isActive ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
-                        color: ad.isActive ? '#10B981' : '#ef4444',
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        fontWeight: 700,
-                        textTransform: 'uppercase'
-                      }}>
-                        {ad.isActive ? 'Activo' : 'Inactivo'}
-                      </span>
-                    )}
                     <span style={{
                       fontSize: '9px',
-                      background: ad.status === 'approved' ? 'rgba(16,185,129,0.15)' : ad.status === 'pending' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
-                      color: ad.status === 'approved' ? '#10B981' : ad.status === 'pending' ? '#f59e0b' : '#ef4444',
+                      background: isPaused ? 'rgba(245,158,11,0.15)' : info.isLive ? 'rgba(16,185,129,0.15)' : ad.status === 'pending' ? 'rgba(245,158,11,0.15)' : 'rgba(239,68,68,0.15)',
+                      color: isPaused ? '#F59E0B' : info.isLive ? '#10B981' : ad.status === 'pending' ? '#f59e0b' : '#ef4444',
                       padding: '3px 8px',
                       borderRadius: '6px',
                       fontWeight: 700,
                       textTransform: 'uppercase'
                     }}>
-                      {ad.status === 'approved' ? 'Aprobado' : ad.status === 'pending' ? 'Pendiente' : 'Rechazado'}
+                      {isPaused ? 'Pausado' : info.isLive ? 'Activo en Vivo' : ad.status === 'pending' ? 'Pendiente' : 'Rechazado/Finalizado'}
                     </span>
                   </div>
                 </div>
@@ -6256,16 +6308,18 @@ function AdsTab({
                 <p style={{ fontSize: '12px', color: '#8f94a5', margin: 0, lineHeight: 1.4 }}>{ad.description || ad.desc}</p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '12px', background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-                  <div style={{ fontSize: '11px', color: '#8f94a5' }}>Paradas contratadas: <strong style={{ color: '#fff' }}>{ad.stop || (ad.selectedStops && ad.selectedStops.length > 0 ? ad.selectedStops.join(', ') : 'Todas las paradas')}</strong></div>
+                  <div style={{ fontSize: '11px', color: '#8f94a5' }}>Paradas: <strong style={{ color: '#fff' }}>{ad.stop || (ad.selectedStops && ad.selectedStops.length > 0 ? ad.selectedStops.join(', ') : 'Todas las paradas')}</strong></div>
                   <div style={{ fontSize: '11px', color: '#8f94a5' }}>Líneas: <strong style={{ color: '#fff' }}>{ad.route || ad.line || 'Todas las líneas'}</strong></div>
-                  <div style={{ fontSize: '11px', color: '#8f94a5' }}>Fechas de Vigencia: <strong style={{ color: '#3B82F6' }}>{ad.startDate || 'Hoy'} ➔ {ad.endDate || '30 Días'}</strong></div>
+                  <div style={{ fontSize: '11px', color: '#8f94a5' }}>⏰ Horario Emisión: <strong style={{ color: '#3B82F6' }}>{info.activeHoursStr}</strong></div>
+                  <div style={{ fontSize: '11px', color: '#8f94a5' }}>📅 Período: <strong style={{ color: '#3B82F6' }}>{info.startDateStr} ➔ {info.endDateStr}</strong></div>
+                  <div style={{ fontSize: '11px', color: '#8f94a5' }}>⏳ Tiempo Restante: <strong style={{ color: info.isExpired ? '#EF4444' : '#10B981', fontFamily: 'DM Mono' }}>{info.remainingText}</strong></div>
                   
                   <div style={{ display: 'flex', gap: '12px', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed rgba(255,255,255,0.06)' }}>
                     <div style={{ fontSize: '11px', color: '#60A5FA', fontWeight: 600 }}>
-                      👁️ Vistas (Showed): <strong style={{ color: '#fff' }}>{ad.views || ad.viewsCount || 0}</strong>
+                      👁️ Vistas: <strong style={{ color: '#fff' }}>{ad.views || ad.viewsCount || 0}</strong>
                     </div>
                     <div style={{ fontSize: '11px', color: '#10B981', fontWeight: 600 }}>
-                      🎟️ Canjeados (Used): <strong style={{ color: '#fff' }}>{ad.used || ad.usedCount || 0}</strong>
+                      🎟️ Canjeados: <strong style={{ color: '#fff' }}>{ad.used || ad.usedCount || 0}</strong>
                     </div>
                   </div>
                 </div>
@@ -6321,14 +6375,14 @@ function AdsTab({
                       </button>
                     </>
                   )}
-                  {ad.status === 'approved' && (
+                  {(ad.status === 'approved' || ad.status === 'paused' || ad.isPaused || isPaused) && (
                     <button
                       onClick={(e) => { e.stopPropagation(); onToggleActive(ad.id); }}
                       style={{
                         padding: '6px 12px',
-                        background: ad.isActive ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)',
-                        color: ad.isActive ? '#ef4444' : '#10B981',
-                        border: `1px solid ${ad.isActive ? 'rgba(239,68,68,0.25)' : 'rgba(16,185,129,0.25)'}`,
+                        background: isPaused ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+                        color: isPaused ? '#10B981' : '#F59E0B',
+                        border: `1px solid ${isPaused ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'}`,
                         borderRadius: '6px',
                         fontSize: '11px',
                         fontWeight: 700,
@@ -6336,7 +6390,7 @@ function AdsTab({
                         transition: 'all 150ms'
                       }}
                     >
-                      {ad.isActive ? 'Desactivar' : 'Activar'}
+                      {isPaused ? '▶️ Reanudar' : '⏸️ Pausar'}
                     </button>
                   )}
                   <button

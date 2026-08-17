@@ -29198,6 +29198,68 @@ const userSubmitted = (JSON.parse(localStorage.getItem('bu_submitted_ads') || '[
 }
 
 
+function getAdStatusInfo(ad: any) {
+  const now = new Date()
+  const startDate = ad.startDate ? new Date(ad.startDate) : new Date(ad.createdAt || Date.now())
+  const endDate = ad.endDate ? new Date(ad.endDate) : new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+  const isPaused = ad.status === 'paused' || ad.isPaused === true
+  const isExpired = ad.status === 'expired' || now > endDate
+  const isPending = ad.status === 'pending'
+  const isRejected = ad.status === 'rejected'
+  const isScheduled = now < startDate
+
+  let isWithinHours = true
+  if (ad.activeHours && ad.activeHours !== '24 hs' && ad.activeHours !== 'todos') {
+    try {
+      const [startStr, endStr] = ad.activeHours.split('-').map((s: string) => s.trim())
+      if (startStr && endStr) {
+        const [startH, startM] = startStr.split(':').map(Number)
+        const [endH, endM] = endStr.split(':').map(Number)
+        const currentMins = now.getHours() * 60 + now.getMinutes()
+        const startMins = startH * 60 + (startM || 0)
+        const endMins = endH * 60 + (endM || 0)
+        isWithinHours = currentMins >= startMins && currentMins <= endMins
+      }
+    } catch {}
+  }
+
+  const isLive = ad.status === 'approved' && !isPaused && !isExpired && !isScheduled && isWithinHours
+
+  let remainingMs = endDate.getTime() - now.getTime()
+  if (remainingMs < 0) remainingMs = 0
+
+  const days = Math.floor(remainingMs / (1000 * 60 * 60 * 24))
+  const hours = Math.floor((remainingMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
+  const mins = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60))
+  const secs = Math.floor((remainingMs % (1000 * 60)) / 1000)
+
+  let remainingText = ''
+  if (isExpired) {
+    remainingText = 'Tiempo finalizado'
+  } else if (days > 0) {
+    remainingText = `${days}d ${hours}h ${mins}m restantes`
+  } else if (hours > 0) {
+    remainingText = `${hours}h ${mins}m ${secs}s restantes`
+  } else {
+    remainingText = `${mins}m ${secs}s restantes`
+  }
+
+  return {
+    isLive,
+    isPaused,
+    isExpired,
+    isPending,
+    isRejected,
+    isScheduled,
+    isWithinHours,
+    startDateStr: startDate.toLocaleDateString('es-AR'),
+    endDateStr: endDate.toLocaleDateString('es-AR'),
+    activeHoursStr: ad.activeHours || 'Las 24 hs activo',
+    remainingText
+  }
+}
+
 // Card for Saved Ads & Coupons in Favoritos Tab
 function FavAdCard({
   ad,
@@ -29210,16 +29272,17 @@ function FavAdCard({
   onRemove: () => void
   onSelectLocation?: (lat: number, lng: number, title: string, address?: string) => void
 }) {
-  // Generate a unique user-bound code that cannot be copied or shared
   const baseCode = ad.promoCode || 'BIENPARADA-OFF';
   const nameSlug = (userName || 'PASAJERO').replace(/\s+/g, '').toUpperCase().slice(0, 4);
   const idSlug = (ad.id || '99').slice(-3);
   const userUniqueCode = `${baseCode}-${nameSlug}${idSlug}`;
 
+  const info = getAdStatusInfo(ad);
+
   return (
     <div style={{
       background: 'rgba(255,255,255,0.03)',
-      border: '1px solid rgba(255,255,255,0.08)',
+      border: info.isPaused ? '1.5px solid rgba(245,158,11,0.4)' : info.isExpired ? '1.5px solid rgba(239,68,68,0.4)' : '1px solid rgba(255,255,255,0.08)',
       borderRadius: '12px',
       padding: '12px',
       marginBottom: '8px',
@@ -29250,6 +29313,31 @@ function FavAdCard({
           ✕
         </button>
       </div>
+
+      {/* Inactive / Paused / Expired Warning Notification Box */}
+      {(info.isPaused || info.isExpired || !info.isLive) && (
+        <div style={{
+          background: info.isPaused ? 'rgba(245, 158, 11, 0.12)' : info.isExpired ? 'rgba(239, 68, 68, 0.12)' : 'rgba(59, 130, 246, 0.12)',
+          border: info.isPaused ? '1px solid rgba(245, 158, 11, 0.3)' : info.isExpired ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(59, 130, 246, 0.3)',
+          borderRadius: '8px',
+          padding: '8px 10px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          fontSize: '11px',
+          color: info.isPaused ? '#FBBF24' : info.isExpired ? '#F87171' : '#60A5FA',
+          fontWeight: 700
+        }}>
+          <AlertTriangle size={14} style={{ flexShrink: 0 }} />
+          <span>
+            {info.isPaused
+              ? '⚠️ Este anuncio ha sido pausado por el anunciante y no está activo actualmente.'
+              : info.isExpired
+              ? '🔴 Este anuncio ha alcanzado su tiempo de finalización y ya no está vigente.'
+              : '⏳ Este anuncio está fuera de su horario de emisión configurado.'}
+          </span>
+        </div>
+      )}
 
       {/* Uncopyable & Unique Promo Code Box */}
       <div style={{
@@ -31591,85 +31679,113 @@ function ProfilePanel({
                       )}
 
                       <div style={{ padding: '12px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px', gap: '8px' }}>
-                          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>{ad.title}</div>
-                          <span style={{
-                            fontSize: '9px',
-                            fontWeight: 700,
-                            padding: '2px 6px',
-                            borderRadius: '999px',
-                            textTransform: 'uppercase',
-                            background: ad.status === 'approved' ? 'rgba(16,185,129,0.15)' : ad.status === 'rejected' ? 'rgba(239,68,68,0.15)' : ad.status === 'expired' ? 'rgba(108,117,125,0.15)' : 'rgba(245,158,11,0.15)',
-                            color: ad.status === 'approved' ? '#34D399' : ad.status === 'rejected' ? '#F87171' : ad.status === 'expired' ? '#94A3B8' : '#FBBF24',
-                            border: `1px solid ${ad.status === 'approved' ? 'rgba(16,185,129,0.3)' : ad.status === 'rejected' ? 'rgba(239,68,68,0.3)' : ad.status === 'expired' ? 'rgba(108,117,125,0.3)' : 'rgba(245,158,11,0.3)'}`
-                          }}>
-                            {ad.status === 'approved' ? 'Aprobado' : ad.status === 'rejected' ? 'Rechazado' : ad.status === 'expired' ? 'Finalizado' : 'Pendiente'}
-                          </span>
-                        </div>
-
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', lineHeight: '1.3' }}>{ad.description}</div>
-
-                        {/* Selected Ad Types Badges */}
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '8px' }}>
-                          {(ad.selectedAdTypes || ad.placements || [ad.placement]).map((type: string, tIdx: number) => {
-                            if (type === 'standard' || type === 'portada' || type === 'bottom') {
-                              return <span key={tIdx} style={{ fontSize: '9px', background: 'rgba(16, 185, 129, 0.12)', color: '#10B981', padding: '2px 6px', borderRadius: '6px', fontWeight: 700 }}>📺 Banner Estándar</span>;
-                            }
-                            if (type === 'map' || type === 'mapa') {
-                              return <span key={tIdx} style={{ fontSize: '9px', background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', padding: '2px 6px', borderRadius: '6px', fontWeight: 700 }}>📍 Marcador en Mapa (+$20 ARS)</span>;
-                            }
-                            if (type === 'notification' || type === 'notificaciones') {
-                              return <span key={tIdx} style={{ fontSize: '9px', background: 'rgba(245, 158, 11, 0.12)', color: '#F59E0B', padding: '2px 6px', borderRadius: '6px', fontWeight: 700 }}>🔔 Push 300m (+$100 ARS)</span>;
-                            }
-                            return null;
-                          })}
-                        </div>
-
-                        {/* Real-time Countdown Timer Clock */}
                         {(() => {
-                          const now = new Date();
-                          const start = ad.startDate ? new Date(ad.startDate) : new Date();
-                          const end = ad.endDate ? new Date(ad.endDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                          const info = getAdStatusInfo(ad)
+                          const badgeColor = info.isPaused ? '#F59E0B' : ad.status === 'approved' && info.isLive ? '#34D399' : ad.status === 'rejected' ? '#F87171' : info.isExpired ? '#94A3B8' : '#FBBF24'
+                          const badgeBg = info.isPaused ? 'rgba(245,158,11,0.15)' : ad.status === 'approved' && info.isLive ? 'rgba(16,185,129,0.15)' : ad.status === 'rejected' ? 'rgba(239,68,68,0.15)' : info.isExpired ? 'rgba(108,117,125,0.15)' : 'rgba(245,158,11,0.15)'
+                          const badgeLabel = info.isPaused ? 'Pausado' : ad.status === 'approved' && info.isLive ? 'Activo en vivo' : ad.status === 'rejected' ? 'Rechazado' : info.isExpired ? 'Finalizado' : 'Pendiente'
 
-                          if (ad.status === 'approved') {
-                            if (now < start) {
-                              const diffMs = start.getTime() - now.getTime();
-                              const hours = Math.floor(diffMs / (1000 * 60 * 60));
-                              const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                              return (
-                                <div style={{ fontSize: '10px', background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '6px 10px', borderRadius: '8px', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <span>⏳ Programado:</span>
-                                  <span>inicia en {hours}h {mins}m</span>
-                                </div>
-                              );
-                            } else if (now > end) {
-                              return (
-                                <div style={{ fontSize: '10px', background: 'rgba(148, 163, 184, 0.12)', color: '#94A3B8', border: '1px solid rgba(148, 163, 184, 0.3)', padding: '6px 10px', borderRadius: '8px', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <span>⏹️ Finalizado</span>
-                                </div>
-                              );
-                            } else {
-                              const diffMs = end.getTime() - now.getTime();
-                              const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-                              const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                              const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                              const secs = Math.floor((diffMs % (1000 * 60)) / 1000);
-                              const timerStr = days > 0 ? `${days}d ${hours}h ${mins}m ${secs}s` : `${hours}h ${mins}m ${secs}s`;
-                              return (
-                                <div style={{ fontSize: '10px', background: 'rgba(16, 185, 129, 0.12)', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '6px 10px', borderRadius: '8px', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <span>🟢 En emisión:</span>
-                                  <span style={{ fontFamily: 'DM Mono' }}>{timerStr} restantes</span>
-                                </div>
-                              );
-                            }
-                          } else if (ad.status === 'pending') {
-                            return (
-                              <div style={{ fontSize: '10px', background: 'rgba(245, 158, 11, 0.12)', color: '#F59E0B', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '6px 10px', borderRadius: '8px', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span>🟡 En revisión de moderación</span>
+                          return (
+                            <>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px', gap: '8px' }}>
+                                <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>{ad.title}</div>
+                                <span style={{
+                                  fontSize: '9px',
+                                  fontWeight: 700,
+                                  padding: '2px 6px',
+                                  borderRadius: '999px',
+                                  textTransform: 'uppercase',
+                                  background: badgeBg,
+                                  color: badgeColor,
+                                  border: `1px solid ${badgeColor}44`
+                                }}>
+                                  {badgeLabel}
+                                </span>
                               </div>
-                            );
-                          }
-                          return null;
+
+                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', lineHeight: '1.3' }}>{ad.description || ad.desc}</div>
+
+                              {/* Selected Ad Types Badges */}
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '8px' }}>
+                                {(ad.selectedAdTypes || ad.placements || [ad.placement]).map((type: string, tIdx: number) => {
+                                  if (type === 'standard' || type === 'portada' || type === 'bottom') {
+                                    return <span key={tIdx} style={{ fontSize: '9px', background: 'rgba(16, 185, 129, 0.12)', color: '#10B981', padding: '2px 6px', borderRadius: '6px', fontWeight: 700 }}>📺 Banner Estándar</span>;
+                                  }
+                                  if (type === 'map' || type === 'mapa') {
+                                    return <span key={tIdx} style={{ fontSize: '9px', background: 'rgba(59, 130, 246, 0.12)', color: '#3B82F6', padding: '2px 6px', borderRadius: '6px', fontWeight: 700 }}>📍 Marcador en Mapa (+$20 ARS)</span>;
+                                  }
+                                  if (type === 'notification' || type === 'notificaciones') {
+                                    return <span key={tIdx} style={{ fontSize: '9px', background: 'rgba(245, 158, 11, 0.12)', color: '#F59E0B', padding: '2px 6px', borderRadius: '6px', fontWeight: 700 }}>🔔 Push 300m (+$100 ARS)</span>;
+                                  }
+                                  return null;
+                                })}
+                              </div>
+
+                              {/* Detailed Schedule & Time Metrics */}
+                              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px', padding: '8px 10px', marginBottom: '8px', display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '10px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
+                                  <span>📅 Período contratado:</span>
+                                  <strong style={{ color: 'var(--text-primary)' }}>{info.startDateStr} al {info.endDateStr}</strong>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
+                                  <span>⏰ Horario de emisión:</span>
+                                  <strong style={{ color: '#3B82F6' }}>{info.activeHoursStr}</strong>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
+                                  <span>⏳ Tiempo restante:</span>
+                                  <strong style={{ color: info.isExpired ? '#EF4444' : '#10B981', fontFamily: 'DM Mono' }}>{info.remainingText}</strong>
+                                </div>
+                              </div>
+
+                              {/* Pause / Resume Controls & Renewal Actions */}
+                              <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                                {(ad.status === 'approved' || ad.status === 'paused' || ad.isPaused) && !info.isExpired && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updated = adSubmissions.map((item: any) => {
+                                        if (item.id === ad.id || item.title === ad.title) {
+                                          const nextPaused = !(item.isPaused || item.status === 'paused')
+                                          return {
+                                            ...item,
+                                            isPaused: nextPaused,
+                                            status: nextPaused ? 'paused' : 'approved'
+                                          }
+                                        }
+                                        return item
+                                      })
+                                      setAdSubmissions(updated)
+                                      localStorage.setItem('bu_submitted_ads', JSON.stringify(updated))
+                                      pushGlobalKey('bu_submitted_ads', updated)
+                                      const isNowPaused = ad.status !== 'paused' && !ad.isPaused
+                                      if (isNowPaused) {
+                                        toast.error('⏸️ Anuncio pausado. Ocultado del mapa y banners.')
+                                      } else {
+                                        toast.success('▶️ Anuncio reanudado. Ya está visible en tiempo real.')
+                                      }
+                                    }}
+                                    style={{
+                                      flex: 1,
+                                      padding: '8px 10px',
+                                      borderRadius: '8px',
+                                      border: ad.status === 'paused' || ad.isPaused ? '1px solid #10B981' : '1px solid #F59E0B',
+                                      background: ad.status === 'paused' || ad.isPaused ? 'rgba(16,185,129,0.12)' : 'rgba(245,158,11,0.12)',
+                                      color: ad.status === 'paused' || ad.isPaused ? '#10B981' : '#F59E0B',
+                                      fontSize: '11px',
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '6px'
+                                    }}
+                                  >
+                                    {ad.status === 'paused' || ad.isPaused ? '▶️ Reanudar Anuncio' : '⏸️ Pausar Anuncio'}
+                                  </button>
+                                )}
+                              </div>
+                            </>
+                          )
                         })()}
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.03)', paddingTop: '8px', marginTop: '4px' }}>
