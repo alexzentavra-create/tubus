@@ -1376,18 +1376,76 @@ export default function SuperAdminDashboard() {
     const savedTodos = localStorage.getItem('mock_super_todos')
     if (savedTodos) setTodos(JSON.parse(savedTodos))
 
+    const DEFAULT_SAMPLE_ADS = [
+      {
+        id: 'tufix-0',
+        title: '🍕 2x1 en Pizzas Guerrin - Calle Corrientes',
+        description: 'Presentá este cupón exclusivo de BienParada en la caja de Guerrin y obtené 2x1 en muzzarella gigante.',
+        imageUrl: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&q=80',
+        locationName: 'Av. Corrientes 1368, Centro',
+        lat: -34.6037,
+        lng: -58.3816,
+        promoCode: 'GUERRIN2X1',
+        status: 'approved',
+        isActive: true,
+        budget: 15000,
+        placement: 'map',
+        activeHours: '12:00 - 23:00',
+        userName: 'Pizzería Guerrin',
+        userEmail: 'contacto@guerrin.com.ar',
+        createdAt: '2026-08-16T12:00:00Z'
+      },
+      {
+        id: 'tufix-1',
+        title: '☕ 30% OFF en Café Martínez',
+        description: '30% de descuento en todos los desayunos y meriendas pagando con SUBE o presentando la app BienParada.',
+        imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=600&q=80',
+        locationName: 'Av. Santa Fe 2100, Palermo',
+        lat: -34.5889,
+        lng: -58.4042,
+        promoCode: 'MARTINEZ30',
+        status: 'approved',
+        isActive: true,
+        budget: 12000,
+        placement: 'standard',
+        activeHours: '08:00 - 20:00',
+        userName: 'Café Martínez Corp',
+        userEmail: 'marketing@cafemartinez.com',
+        createdAt: '2026-08-16T10:00:00Z'
+      },
+      {
+        id: 'tufix-2',
+        title: '🎬 2x1 Cines Hoyts Abasto',
+        description: 'Disfrutá del mejor cine en Abasto Shopping con este cupón exclusivo 2x1 en entradas 2D y 3D.',
+        imageUrl: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&q=80',
+        locationName: 'Av. Corrientes 3247, Abasto',
+        lat: -34.6033,
+        lng: -58.4107,
+        promoCode: 'HOYTS2X1',
+        status: 'approved',
+        isActive: true,
+        budget: 25000,
+        placement: 'notification',
+        activeHours: '14:00 - 23:59',
+        userName: 'Hoyts Cines SA',
+        userEmail: 'anuncios@hoyts.com.ar',
+        createdAt: '2026-08-16T14:00:00Z'
+      }
+    ]
+
     const savedAds = localStorage.getItem('bu_submitted_ads') || localStorage.getItem('bu_user_ads') || localStorage.getItem('mock_super_ads')
     if (savedAds) {
       try {
         const parsed = JSON.parse(savedAds)
         const deletedAdIds = JSON.parse(localStorage.getItem('deleted_ad_ids') || '[]')
-        const filtered = (Array.isArray(parsed) ? parsed : []).filter((a: any) => !deletedAdIds.includes(a.id) && !deletedAdIds.includes(a.title))
+        const filtered = (Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_SAMPLE_ADS).filter((a: any) => !deletedAdIds.includes(a.id) && !deletedAdIds.includes(a.title))
         setAds(filtered)
       } catch (e) {
-        setAds([])
+        setAds(DEFAULT_SAMPLE_ADS)
       }
     } else {
-      setAds([])
+      setAds(DEFAULT_SAMPLE_ADS)
+      localStorage.setItem('bu_submitted_ads', JSON.stringify(DEFAULT_SAMPLE_ADS))
     }
 
     const savedChats = localStorage.getItem('mock_super_chats')
@@ -1426,6 +1484,8 @@ export default function SuperAdminDashboard() {
     localStorage.setItem('mock_super_ads', JSON.stringify(filtered))
     localStorage.setItem('tu_bus_ads', JSON.stringify(filtered))
     localStorage.setItem('mock_ads', JSON.stringify(filtered))
+    pushGlobalKey('bu_submitted_ads', filtered)
+    try { window.dispatchEvent(new Event('storage')) } catch (e) {}
   }
 
   const saveChats = (newChats: any[]) => {
@@ -6173,6 +6233,7 @@ function AdsTab({
   const [selectedAd, setSelectedAd] = useState<any | null>(null)
   const [selectedUser, setSelectedUser] = useState<any | null>(null)
   const [deleteAdTarget, setDeleteAdTarget] = useState<{ id: string; name: string } | null>(null)
+  const [statusFilter, setStatusFilter] = useState<string>('all')
   const [placementFilter, setPlacementFilter] = useState<string>('all')
 
   // Station Multi-Ad Inspection Modal State
@@ -6198,36 +6259,92 @@ function AdsTab({
     }
   }
 
-  // Filter ads by placement category sub-tabs if selected
+  // Count ad statuses
+  const pendingCount = ads.filter(a => a.status === 'pending').length
+  const approvedCount = ads.filter(a => a.status === 'approved' && !a.isPaused && a.status !== 'paused').length
+  const pausedCount = ads.filter(a => a.status === 'paused' || a.isPaused === true).length
+  const rejectedCount = ads.filter(a => a.status === 'rejected' || a.status === 'expired').length
+
+  // Filter ads by status and placement category sub-tabs
   const filteredAds = ads.filter(a => {
-    if (placementFilter === 'top') return a.placement === 'top' || a.placement === 'map' || a.route
-    if (placementFilter === 'bottom') return a.placement === 'bottom' || a.placement === 'card'
-    if (placementFilter === 'notification') return a.placement === 'notification'
+    const info = getAdStatusInfo(a)
+    const isPaused = info.isPaused || a.status === 'paused' || a.isPaused === true
+    const isApproved = a.status === 'approved' && !isPaused && !info.isExpired
+    const isPending = a.status === 'pending'
+    const isRejected = a.status === 'rejected' || info.isExpired
+
+    if (statusFilter === 'pending' && !isPending) return false
+    if (statusFilter === 'approved' && !isApproved) return false
+    if (statusFilter === 'paused' && !isPaused) return false
+    if (statusFilter === 'rejected' && !isRejected) return false
+
+    if (placementFilter === 'top' && !(a.placement === 'top' || a.placement === 'map' || a.route || (a.selectedAdTypes && a.selectedAdTypes.includes('map')))) return false
+    if (placementFilter === 'bottom' && !(a.placement === 'bottom' || a.placement === 'standard' || a.placement === 'card' || (a.selectedAdTypes && a.selectedAdTypes.includes('standard')))) return false
+    if (placementFilter === 'notification' && !(a.placement === 'notification' || (a.selectedAdTypes && a.selectedAdTypes.includes('notification')))) return false
+
     return true
   })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div>
-        <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Panel de Anuncios y Patrocinios</h3>
-        {/* Placement Category Sub-tabs */}
-        <div style={{ display: 'flex', gap: '6px', marginTop: '10px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          <div>
+            <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0, color: '#fff' }}>Panel de Anuncios y Patrocinios</h3>
+            <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Monitoreo de anuncios registrados, moderación y control de emisión en tiempo real</p>
+          </div>
+          <span style={{ fontSize: '12px', color: '#10B981', fontFamily: 'DM Mono', fontWeight: 700, background: 'rgba(16,185,129,0.12)', padding: '4px 12px', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.25)' }}>
+            Total: {ads.length} anuncios registradas
+          </span>
+        </div>
+
+        {/* Primary Status Selector Tabs (Todos, Pendientes, Aprobados, Pausados, Rechazados) */}
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', background: 'rgba(255,255,255,0.02)', padding: '6px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
           {[
-            { id: 'all', label: 'Todos los Anuncios' },
-            { id: 'top', label: '📍 Top Banner (Mapa)' },
-            { id: 'bottom', label: '🖼️ Panel Inferior (Tarjetas)' },
-            { id: 'notification', label: '🔔 Notificaciones' }
+            { id: 'all', label: `🌟 Todos los Anuncios (${ads.length})` },
+            { id: 'pending', label: `🟡 Pendientes de Revisión (${pendingCount})` },
+            { id: 'approved', label: `🟢 Aprobados / En Emisión (${approvedCount})` },
+            { id: 'paused', label: `⏸️ Pausados (${pausedCount})` },
+            { id: 'rejected', label: `🔴 Rechazados / Expirados (${rejectedCount})` }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setStatusFilter(tab.id)}
+              style={{
+                padding: '7px 14px',
+                borderRadius: '8px',
+                border: statusFilter === tab.id ? '1px solid #10B981' : '1px solid rgba(255,255,255,0.08)',
+                background: statusFilter === tab.id ? 'rgba(16,185,129,0.18)' : 'transparent',
+                color: statusFilter === tab.id ? '#10B981' : '#8f94a5',
+                fontSize: '11px',
+                fontWeight: statusFilter === tab.id ? 800 : 600,
+                cursor: 'pointer',
+                transition: 'all 150ms'
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Secondary Placement Category Sub-tabs */}
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+          {[
+            { id: 'all', label: 'Todas las Ubicaciones' },
+            { id: 'top', label: '📍 Marcadores en Mapa' },
+            { id: 'bottom', label: '📺 Banners Estándar' },
+            { id: 'notification', label: '🔔 Push 300m' }
           ].map(tab => (
             <button
               key={tab.id}
               onClick={() => setPlacementFilter(tab.id)}
               style={{
-                padding: '6px 12px',
-                borderRadius: '8px',
-                border: placementFilter === tab.id ? '1px solid #10B981' : '1px solid rgba(255,255,255,0.1)',
-                background: placementFilter === tab.id ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.05)',
-                color: placementFilter === tab.id ? '#10B981' : '#fff',
-                fontSize: '11px',
+                padding: '5px 10px',
+                borderRadius: '6px',
+                border: placementFilter === tab.id ? '1px solid #3B82F6' : '1px solid rgba(255,255,255,0.06)',
+                background: placementFilter === tab.id ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.02)',
+                color: placementFilter === tab.id ? '#60A5FA' : '#8f94a5',
+                fontSize: '10px',
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 150ms'
@@ -6237,7 +6354,6 @@ function AdsTab({
             </button>
           ))}
         </div>
-        <p style={{ fontSize: '12px', color: '#8f94a5', margin: '4px 0 0' }}>Monitoreo de ingresos recaudados en Pesos Argentinos (ARS) y control de campañas en paradas</p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
