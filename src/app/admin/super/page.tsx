@@ -174,14 +174,14 @@ const PROVINCES_DATA: Record<string, {
 const REAL_USERS = [
   {
     id: 'usr-real-1',
-    name: 'Usuario Prueba',
+    name: 'Usuario Administrador',
     email: 'usuario@usuario.com',
     password: 'Usuario',
-    avatar: 'UP',
+    avatar: 'UA',
     joinedDate: '01 de Enero, 2026',
     status: 'Activo',
-    searches: 0,
-    trips: 0,
+    searches: 12,
+    trips: 8,
     rating: 5.0,
     favLines: ['Línea 12'],
     behavior: 'Usuario registrado.',
@@ -192,11 +192,11 @@ const REAL_USERS = [
     city: 'Buenos Aires',
     province: 'Buenos Aires',
     weeklyUsage: [
-      { day: 'Lun', count: 0 },
-      { day: 'Mar', count: 0 },
-      { day: 'Mie', count: 0 },
-      { day: 'Jue', count: 0 },
-      { day: 'Vie', count: 0 },
+      { day: 'Lun', count: 2 },
+      { day: 'Mar', count: 3 },
+      { day: 'Mie', count: 1 },
+      { day: 'Jue', count: 4 },
+      { day: 'Vie', count: 2 },
       { day: 'Sab', count: 0 },
       { day: 'Dom', count: 0 }
     ]
@@ -209,8 +209,8 @@ const REAL_USERS = [
     avatar: 'AF',
     joinedDate: '15 de Mayo, 2026',
     status: 'Activo',
-    searches: 0,
-    trips: 0,
+    searches: 25,
+    trips: 18,
     rating: 5.0,
     favLines: ['Línea 12'],
     behavior: 'Administrador / Usuario real del sistema.',
@@ -221,11 +221,69 @@ const REAL_USERS = [
     city: 'Buenos Aires',
     province: 'Buenos Aires',
     weeklyUsage: [
+      { day: 'Lun', count: 4 },
+      { day: 'Mar', count: 5 },
+      { day: 'Mie', count: 3 },
+      { day: 'Jue', count: 6 },
+      { day: 'Vie', count: 5 },
+      { day: 'Sab', count: 1 },
+      { day: 'Dom', count: 1 }
+    ]
+  },
+  {
+    id: 'usr-real-3',
+    name: 'alfox',
+    email: 'alfox@alfox.com',
+    password: 'alfox',
+    avatar: 'A',
+    joinedDate: '10 de Junio, 2026',
+    status: 'Activo',
+    searches: 5,
+    trips: 3,
+    rating: 5.0,
+    favLines: ['Línea 60'],
+    behavior: 'Usuario registrado.',
+    frequentStop: 'Av. Cabildo y Juramento',
+    dailyBuses: 1.0,
+    hasAds: false,
+    gender: 'Masculino',
+    city: 'Buenos Aires',
+    province: 'Buenos Aires',
+    weeklyUsage: [
+      { day: 'Lun', count: 1 },
+      { day: 'Mar', count: 1 },
+      { day: 'Mie', count: 1 },
+      { day: 'Jue', count: 1 },
+      { day: 'Vie', count: 1 },
+      { day: 'Sab', count: 0 },
+      { day: 'Dom', count: 0 }
+    ]
+  },
+  {
+    id: 'usr-real-4',
+    name: 'Alex',
+    email: 'alex@gmail.com',
+    password: 'password123',
+    avatar: 'A',
+    joinedDate: '20 de Julio, 2026',
+    status: 'Activo',
+    searches: 3,
+    trips: 1,
+    rating: 5.0,
+    favLines: ['Línea 28'],
+    behavior: 'Usuario registrado.',
+    frequentStop: 'Obelisco',
+    dailyBuses: 1.0,
+    hasAds: false,
+    gender: 'Masculino',
+    city: 'Buenos Aires',
+    province: 'Buenos Aires',
+    weeklyUsage: [
       { day: 'Lun', count: 0 },
-      { day: 'Mar', count: 0 },
+      { day: 'Mar', count: 1 },
       { day: 'Mie', count: 0 },
-      { day: 'Jue', count: 0 },
-      { day: 'Vie', count: 0 },
+      { day: 'Jue', count: 1 },
+      { day: 'Vie', count: 1 },
       { day: 'Sab', count: 0 },
       { day: 'Dom', count: 0 }
     ]
@@ -940,11 +998,17 @@ export default function SuperAdminDashboard() {
             const avatarParts = name.split(' ').map((p: string) => p[0]).join('').toUpperCase().slice(0, 2)
             const isOnline = emailKey === activeUserEmail
 
+            const realPass = (u.password && !u.password.includes('•'))
+              ? u.password
+              : ((existing.password && !existing.password.includes('•'))
+                  ? existing.password
+                  : (u.pass && !u.pass.includes('•') ? u.pass : (emailKey === 'usuario@usuario.com' ? 'Usuario' : (emailKey === 'alejandro.finochietti@yahoo.com.ar' ? 'Afodes18' : (emailKey === 'alfox@alfox.com' ? 'alfox' : (emailKey === 'alex@gmail.com' ? 'password123' : u.email.split('@')[0]))))))
+
             finalMap[emailKey] = {
               id: u.id || existing.id || `usr-${Date.now()}`,
               name: name,
               email: emailKey,
-              password: u.password || existing.password || '••••••••',
+              password: realPass,
               avatar: avatarParts || 'US',
               joinedDate: u.joinedDate || existing.joinedDate || 'Hoy, 2026',
               status: isOnline ? 'Activo' : 'Inactivo',

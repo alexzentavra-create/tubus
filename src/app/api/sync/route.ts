@@ -44,7 +44,7 @@ const globalMemoryStore: Record<string, any> = {
       id: 'usr_default_3',
       name: 'alfox',
       email: 'alfox@alfox.com',
-      password: 'Password123!',
+      password: 'alfox',
       phone: '+54 11 9999-8888',
       gender: 'Masculino',
       age: 28,
@@ -55,6 +55,24 @@ const globalMemoryStore: Record<string, any> = {
       trips: 3,
       rating: 4.8,
       favLines: ['60'],
+      city: 'Buenos Aires',
+      province: 'Buenos Aires'
+    },
+    {
+      id: 'usr_default_4',
+      name: 'Alex',
+      email: 'alex@gmail.com',
+      password: 'password123',
+      phone: '+54 11 7777-6666',
+      gender: 'Masculino',
+      age: 26,
+      role: 'user',
+      joinedDate: '20 de Julio, 2026',
+      status: 'Activo',
+      searches: 3,
+      trips: 1,
+      rating: 5.0,
+      favLines: ['28'],
       city: 'Buenos Aires',
       province: 'Buenos Aires'
     }
