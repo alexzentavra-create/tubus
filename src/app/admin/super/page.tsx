@@ -2737,10 +2737,14 @@ export default function SuperAdminDashboard() {
                           )}
                           <button
                             onClick={() => {
-                              const updated = ads.filter(item => item.id !== ad.id)
-                              setAds(updated)
-                              localStorage.setItem('bu_submitted_ads', JSON.stringify(updated))
-                              localStorage.setItem('mock_super_ads', JSON.stringify(updated))
+                              const deletedAdIds = JSON.parse(localStorage.getItem('deleted_ad_ids') || '[]')
+                              if (ad.id && !deletedAdIds.includes(ad.id)) deletedAdIds.push(ad.id)
+                              if (ad.title && !deletedAdIds.includes(ad.title)) deletedAdIds.push(ad.title)
+                              localStorage.setItem('deleted_ad_ids', JSON.stringify(deletedAdIds))
+                              pushGlobalKey('deleted_ad_ids', deletedAdIds)
+
+                              const updated = ads.filter(item => item.id !== ad.id && item.title !== ad.title)
+                              saveAds(updated)
                               toast.success('Anuncio eliminado')
                             }}
                             style={{ padding: '4px 8px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#8F94A5', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}
@@ -6133,10 +6137,33 @@ function PoisTab() {
 }
 
 
+function parseFlexibleDate(dateVal: any): Date {
+  if (!dateVal) return new Date()
+  if (dateVal instanceof Date && !isNaN(dateVal.getTime())) return dateVal
+  if (typeof dateVal === 'number') return new Date(dateVal)
+
+  const str = String(dateVal).trim()
+  if (str.includes('/')) {
+    const parts = str.split('/').map(p => parseInt(p, 10))
+    if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+      const day = parts[0]
+      const month = parts[1] - 1
+      let year = parts[2]
+      if (year < 100) year += 2000
+      const parsed = new Date(year, month, day)
+      if (!isNaN(parsed.getTime())) return parsed
+    }
+  }
+
+  const d = new Date(str)
+  if (!isNaN(d.getTime())) return d
+  return new Date()
+}
+
 function getAdStatusInfo(ad: any) {
   const now = new Date()
-  const startDate = ad.startDate ? new Date(ad.startDate) : new Date(ad.createdAt || Date.now())
-  const endDate = ad.endDate ? new Date(ad.endDate) : new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000)
+  const startDate = parseFlexibleDate(ad.startDate || ad.createdAt || ad.created_at)
+  const endDate = ad.endDate ? parseFlexibleDate(ad.endDate) : new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000)
 
   const isPaused = ad.status === 'paused' || ad.isPaused === true || ad.isActive === false
   const isExpired = ad.status === 'expired' || now > endDate

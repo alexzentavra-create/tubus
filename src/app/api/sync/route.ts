@@ -86,32 +86,7 @@ const globalMemoryStore: Record<string, any> = {
   bu_created_lines: [],
   active_line_admin_sessions: {},
   mock_active_sessions: [],
-  bu_submitted_ads: [
-    {
-      id: 'ad-alex-1',
-      title: 'Anuncio Publicitario Alex - 20% OFF',
-      description: 'Descuento exclusivo para pasajeros de BienParada presentando la app en el local.',
-      locationName: 'Obelisco, Av. Corrientes y 9 de Julio',
-      lat: -34.6037,
-      lng: -58.3816,
-      status: 'approved',
-      isActive: true,
-      isPaused: false,
-      budget: 50,
-      placement: 'standard',
-      selectedAdTypes: ['standard'],
-      userName: 'Alex',
-      userEmail: 'alex@gmail.com',
-      created_at: '2026-08-16T22:00:00.000Z',
-      timestamp: '16/08/2026',
-      startDate: '16/8/2026',
-      endDate: '15/9/2026',
-      activeHours: 'Las 24 hs activo',
-      stop: 'Obelisco / Av. Corrientes',
-      route: 'Línea 28',
-      targetAudience: 'Línea 28'
-    }
-  ],
+  bu_submitted_ads: [],
   bu_ad_reports: [],
   deleted_users: [],
   blocked_users: [],
@@ -119,7 +94,7 @@ const globalMemoryStore: Record<string, any> = {
   deleted_super_admins: [],
   deleted_line_admins: [],
   deleted_drivers: [],
-  deleted_ad_ids: []
+  deleted_ad_ids: ['ad-alex-1', 'Anuncio Publicitario Alex - 20% OFF']
 }
 
 export async function GET(request: NextRequest) {

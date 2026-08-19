@@ -29198,10 +29198,33 @@ const userSubmitted = (JSON.parse(localStorage.getItem('bu_submitted_ads') || '[
 }
 
 
+function parseFlexibleDate(dateVal: any): Date {
+  if (!dateVal) return new Date()
+  if (dateVal instanceof Date && !isNaN(dateVal.getTime())) return dateVal
+  if (typeof dateVal === 'number') return new Date(dateVal)
+
+  const str = String(dateVal).trim()
+  if (str.includes('/')) {
+    const parts = str.split('/').map(p => parseInt(p, 10))
+    if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+      const day = parts[0]
+      const month = parts[1] - 1
+      let year = parts[2]
+      if (year < 100) year += 2000
+      const parsed = new Date(year, month, day)
+      if (!isNaN(parsed.getTime())) return parsed
+    }
+  }
+
+  const d = new Date(str)
+  if (!isNaN(d.getTime())) return d
+  return new Date()
+}
+
 function getAdStatusInfo(ad: any) {
   const now = new Date()
-  const startDate = ad.startDate ? new Date(ad.startDate) : new Date(ad.createdAt || Date.now())
-  const endDate = ad.endDate ? new Date(ad.endDate) : new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000)
+  const startDate = parseFlexibleDate(ad.startDate || ad.createdAt || ad.created_at)
+  const endDate = ad.endDate ? parseFlexibleDate(ad.endDate) : new Date(startDate.getTime() + 30 * 24 * 60 * 60 * 1000)
 
   const isPaused = ad.status === 'paused' || ad.isPaused === true
   const isExpired = ad.status === 'expired' || now > endDate
@@ -29881,21 +29904,29 @@ function ProfilePanel({
       }
     }
 
-    // Load ads registered by current signed-in user
-    const userAdsKey = getUserStorageKey('bu_submitted_ads', email)
-    const globalAds = JSON.parse(localStorage.getItem('bu_submitted_ads') || '[]')
-    const userAds = globalAds.filter((a: any) => 
-      a.userEmail?.toLowerCase() === email.toLowerCase() || 
-      (email.toLowerCase() === 'alex@gmail.com' && (a.id === 'ad-alex-1' || a.userName === 'Alex'))
-    )
-
-    if (userAds.length > 0) {
+    // Load ads registered by current signed-in user, strictly excluding deleted ads
+    const loadUserAds = () => {
+      const deletedAdIds = JSON.parse(localStorage.getItem('deleted_ad_ids') || '[]')
+      const globalAds = JSON.parse(localStorage.getItem('bu_submitted_ads') || '[]')
+      const userAds = globalAds.filter((a: any) => 
+        !deletedAdIds.includes(a.id) &&
+        !deletedAdIds.includes(a.title) &&
+        a.userEmail?.toLowerCase() === email.toLowerCase()
+      )
       setAdSubmissions(userAds)
-    } else {
-      const perUserSaved = localStorage.getItem(userAdsKey)
-      if (perUserSaved) {
-        try { setAdSubmissions(JSON.parse(perUserSaved)) } catch (e) {}
-      }
+      const userAdsKey = getUserStorageKey('bu_submitted_ads', email)
+      localStorage.setItem(userAdsKey, JSON.stringify(userAds))
+    }
+
+    loadUserAds()
+
+    window.addEventListener('storage', loadUserAds)
+    window.addEventListener('ads_updated', loadUserAds)
+    window.addEventListener('global_sync_completed', loadUserAds)
+    return () => {
+      window.removeEventListener('storage', loadUserAds)
+      window.removeEventListener('ads_updated', loadUserAds)
+      window.removeEventListener('global_sync_completed', loadUserAds)
     }
   }, [profileEmail])
 
@@ -31568,23 +31599,6 @@ function ProfilePanel({
                     </div>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <input
-                        type="url"
-                        value={adImg}
-                        onChange={e => setAdImg(e.target.value)}
-                        placeholder="https://link-a-tu-imagen.jpg (URL opcional)"
-                        style={{
-                          width: '100%', padding: '10px 12px', borderRadius: '10px',
-                          background: prefs.darkMap ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
-                          border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
-                          color: 'var(--text-primary)', fontSize: '13px', outline: 'none', transition: 'border-color 0.2s'
-                        }}
-                      />
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                        <span style={{ height: '1px', flex: 1, background: 'rgba(255,255,255,0.08)' }}></span>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '10px', textTransform: 'uppercase', fontWeight: 600 }}>o bien</span>
-                        <span style={{ height: '1px', flex: 1, background: 'rgba(255,255,255,0.08)' }}></span>
-                      </div>
                       <button
                         type="button"
                         onClick={() => adFileInputRef.current?.click()}
@@ -31807,7 +31821,6 @@ function ProfilePanel({
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--text-muted)', borderTop: '1px solid rgba(255,255,255,0.03)', paddingTop: '8px', marginTop: '4px' }}>
                           <span>Presupuesto: <strong style={{ color: 'var(--text-secondary)', fontFamily: 'DM Mono' }}>${ad.budget}/mes</strong></span>
-                          <a href={ad.targetUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#3B82F6', textDecoration: 'none', fontWeight: 600 }}>Ver link ↗</a>
                         </div>
 
                         {ad.adminComment && (
