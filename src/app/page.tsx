@@ -23,6 +23,7 @@ import {
 import ReportModal from '@/components/user/ReportModal'
 import LineSelector, { Tab as LineSelectorTab } from '@/components/user/LineSelector'
 import NearbyStops from '@/components/user/NearbyStops'
+import { CARTODB_DARK, CARTODB_LIGHT, CARTODB_POSITRON } from '@/lib/mapStyles'
 
 const BA = { longitude: -58.4173, latitude: -34.6037 }
 const PART1 = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTAwMTIzM29hMW5nYnB1eXcifQ'
@@ -20995,84 +20996,8 @@ const getTouristStopImage = (stopId: string) => {
   const filename = mapping[stopId]
   return filename ? `/images/tourist/${filename}` : null
 }
+// Map styles CARTODB_DARK, CARTODB_LIGHT, CARTODB_POSITRON are imported from @/lib/mapStyles
 
-const CARTODB_DARK = {
-  version: 8,
-  sources: {
-    "cartodb-dark-tiles": {
-      type: "raster",
-      tiles: [
-        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png"
-      ],
-      tileSize: 256,
-      attribution: "© OpenStreetMap contributors, © CartoDB"
-    }
-  },
-  layers: [
-    {
-      id: "cartodb-dark-layer",
-      type: "raster",
-      source: "cartodb-dark-tiles",
-      minzoom: 0,
-      maxzoom: 20
-    }
-  ]
-}
-
-const CARTODB_LIGHT = {
-  version: 8,
-  sources: {
-    "cartodb-light-tiles": {
-      type: "raster",
-      tiles: [
-        "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
-        "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
-        "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
-        "https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png"
-      ],
-      tileSize: 256,
-      attribution: "© OpenStreetMap contributors, © CartoDB"
-    }
-  },
-  layers: [
-    {
-      id: "cartodb-light-layer",
-      type: "raster",
-      source: "cartodb-light-tiles",
-      minzoom: 0,
-      maxzoom: 20
-    }
-  ]
-}
-
-const CARTODB_POSITRON = {
-  version: 8,
-  sources: {
-    "cartodb-positron-tiles": {
-      type: "raster",
-      tiles: [
-        "https://a.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}@2x.png",
-        "https://b.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}@2x.png",
-        "https://c.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}@2x.png",
-        "https://d.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}@2x.png"
-      ],
-      tileSize: 256,
-      attribution: "© OpenStreetMap contributors, © CartoDB"
-    }
-  },
-  layers: [
-    {
-      id: "cartodb-positron-layer",
-      type: "raster",
-      source: "cartodb-positron-tiles",
-      minzoom: 0,
-      maxzoom: 20
-    }
-  ]
-}
 
 
 

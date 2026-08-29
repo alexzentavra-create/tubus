@@ -2,6 +2,7 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
 import { syncAllGlobalKeys, pushGlobalKey } from '@/lib/sync'
+import { CARTODB_DARK } from '@/lib/mapStyles'
 
 // Helper to log line admin actions for Super Admin audit log
 function recordLineAdminAuditLog(lineParam: any, action: string, detail: string) {
@@ -5614,31 +5615,8 @@ function CalendarTab({ themeColor, activeLine, activeStats }: { themeColor: stri
   )
 }
 
-const CARTODB_DARK = {
-  version: 8,
-  sources: {
-    "cartodb-dark-tiles": {
-      type: "raster",
-      tiles: [
-        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png"
-      ],
-      tileSize: 256,
-      attribution: "© OpenStreetMap contributors, © CartoDB"
-    }
-  },
-  layers: [
-    {
-      id: "cartodb-dark-layer",
-      type: "raster",
-      source: "cartodb-dark-tiles",
-      minzoom: 0,
-      maxzoom: 20
-    }
-  ]
-}
+// CARTODB_DARK is imported from @/lib/mapStyles
+
 
 // ─── Buenos Aires Street Grid Rotation Routing ─────────────────────────────
 function rotatePoint(p: any, angleRad: number) {

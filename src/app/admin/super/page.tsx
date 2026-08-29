@@ -23,59 +23,7 @@ import { format, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import { syncAllGlobalKeys, pushGlobalKey, purgeUserDataForEmail } from '@/lib/sync'
-
-// Map style
-const CARTODB_DARK = {
-  version: 8,
-  sources: {
-    "cartodb-dark-tiles": {
-      type: "raster",
-      tiles: [
-        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png"
-      ],
-      tileSize: 256,
-      attribution: "© OpenStreetMap contributors, © CartoDB"
-    }
-  },
-  layers: [
-    {
-      id: "cartodb-dark-layer",
-      type: "raster",
-      source: "cartodb-dark-tiles",
-      minzoom: 0,
-      maxzoom: 20
-    }
-  ]
-}
-
-const CARTODB_LIGHT = {
-  version: 8,
-  sources: {
-    "cartodb-light-tiles": {
-      type: "raster",
-      tiles: [
-        "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
-        "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
-        "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
-        "https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png"
-      ],
-      tileSize: 256,
-      attribution: "© OpenStreetMap contributors, © CartoDB"
-    }
-  },
-  layers: [
-    {
-      id: "cartodb-light-layer",
-      type: "raster",
-      source: "cartodb-light-tiles",
-      minzoom: 0,
-      maxzoom: 20
-    }
-  ]
-}
+import { CARTODB_DARK, CARTODB_LIGHT } from '@/lib/mapStyles'
 
 // Visual graphs mock data
 const METRICS_BY_PERIOD = {

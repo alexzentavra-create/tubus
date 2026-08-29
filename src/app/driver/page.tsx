@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase'
 import { MOCK_LINES, getMockRoutePathForLine, getMockStopsForLine } from '@/lib/mockData'
 import toast from 'react-hot-toast'
 import { syncAllGlobalKeys, pushGlobalKey } from '@/lib/sync'
+import { CARTODB_DARK, CARTODB_LIGHT } from '@/lib/mapStyles'
 import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre'
 
 interface ActiveSession {
@@ -31,58 +32,8 @@ const MOCK_QR_TOKENS: Record<string, { busUnit: string; lineIdx: number }> = {
   'DEMO-QR-L102-07': { busUnit: '007', lineIdx: 7 },
   'DEMO-QR-L115-08': { busUnit: '008', lineIdx: 8 },
 }
+// CARTODB_DARK, CARTODB_LIGHT are imported from @/lib/mapStyles
 
-const CARTODB_DARK = {
-  version: 8,
-  sources: {
-    "cartodb-dark-tiles": {
-      type: "raster",
-      tiles: [
-        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-        "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png"
-      ],
-      tileSize: 256,
-      attribution: "© OpenStreetMap contributors, © CartoDB"
-    }
-  },
-  layers: [
-    {
-      id: "cartodb-dark-layer",
-      type: "raster",
-      source: "cartodb-dark-tiles",
-      minzoom: 0,
-      maxzoom: 20
-    }
-  ]
-}
-
-const CARTODB_LIGHT = {
-  version: 8,
-  sources: {
-    "cartodb-light-tiles": {
-      type: "raster",
-      tiles: [
-        "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
-        "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
-        "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png",
-        "https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png"
-      ],
-      tileSize: 256,
-      attribution: "© OpenStreetMap contributors, © CartoDB"
-    }
-  },
-  layers: [
-    {
-      id: "cartodb-light-layer",
-      type: "raster",
-      source: "cartodb-light-tiles",
-      minzoom: 0,
-      maxzoom: 20
-    }
-  ]
-}
 
 // Helper to offset coordinates forward along a given bearing/heading (in degrees)
 const offsetCoords = (lat: number, lng: number, heading: number, distanceMeters: number) => {
