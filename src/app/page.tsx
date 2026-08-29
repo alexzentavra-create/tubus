@@ -24,6 +24,7 @@ import ReportModal from '@/components/user/ReportModal'
 import LineSelector, { Tab as LineSelectorTab } from '@/components/user/LineSelector'
 import NearbyStops from '@/components/user/NearbyStops'
 import { CARTODB_DARK, CARTODB_LIGHT, CARTODB_POSITRON } from '@/lib/mapStyles'
+import { translate, type Language } from '@/lib/translations'
 
 const BA = { longitude: -58.4173, latitude: -34.6037 }
 const PART1 = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTAwMTIzM29hMW5nYnB1eXcifQ'
@@ -20998,9 +20999,6 @@ const getTouristStopImage = (stopId: string) => {
 }
 // Map styles CARTODB_DARK, CARTODB_LIGHT, CARTODB_POSITRON are imported from @/lib/mapStyles
 
-
-
-
 type Panel = 'map' | 'favourites' | 'settings' | 'profile'
 
 interface UserPrefs {
@@ -21010,7 +21008,7 @@ interface UserPrefs {
   notifyNearbyRadius: number
   notifyFavLines: boolean
   darkMap: boolean
-  language: 'es' | 'en'
+  language: Language
   fontSize: 'normal' | 'large'
   textScale?: number
   showPassengerCount: boolean
@@ -21041,78 +21039,6 @@ function loadPrefs(): UserPrefs {
   } catch { return DEFAULT_PREFS }
 }
 function savePrefs(p: UserPrefs) { localStorage.setItem('bienparada_user_prefs', JSON.stringify(p)) }
-
-const TRANSLATIONS: Record<string, string> = {
-  // Navigation
-  'Mapa': 'Map',
-  'Favoritos': 'Favorites',
-  'Preferencias': 'Settings',
-  'Mi Perfil': 'My Profile',
-  'Cerrar Sesión': 'Logout',
-
-  // Settings
-  'Apariencia': 'Appearance',
-  'Mapa oscuro': 'Dark Map',
-  'Idioma': 'Language',
-  'Guía interactiva': 'Interactive Guide',
-  'Tour de la Aplicación': 'App Tour',
-  'Reiniciar Tutorial': 'Restart Tutorial',
-  'Mapa y viaje': 'Map & Journey',
-  'Tránsito en tiempo real': 'Real-time Traffic',
-  'Zoom automático al tocar bus': 'Auto-zoom on Bus Tap',
-  'Mostrar cantidad de pasajeros': 'Show Passenger Count',
-  'Accesibilidad': 'Accessibility',
-  'Tamaño de texto': 'Text Size',
-  'Normal': 'Normal',
-  'Grande': 'Large',
-  'Ajustar:': 'Adjust:',
-  'Próximamente': 'Coming Soon',
-  'Historial de viajes': 'Travel History',
-  'Alertas de demora por línea': 'Delay alerts by line',
-  'Compartir ubicación': 'Share location',
-
-  // Favorites
-  'Líneas favoritas': 'Favorite Lines',
-  'No tenés líneas favoritas agregadas.': "You don't have any favorite lines added.",
-  'Paradas favoritas': 'Favorite Stops',
-  'No tenés paradas favoritas agregadas.': "You don't have any favorite stops added.",
-  'Viajes programados': 'Scheduled Trips',
-  'No tenés viajes programados.': "You don't have any scheduled trips.",
-  'Buses Favoritos': 'Favorite Buses',
-  'Choferes Favoritos': 'Favorite Drivers',
-  'Configuración de Avisos': 'Notification Settings',
-  'Aviso cuando un bus favorito está cerca': 'Notify when a favorite bus is nearby',
-  'Aviso cuando hay un bus cercano': 'Notify when a bus is nearby',
-  'Radio:': 'Radius:',
-  'Filtrar avisos por cantidad de pasajeros': 'Filter notifications by passenger count',
-
-  // Profile
-  'Detalles de la cuenta': 'Account Details',
-  'Nombre': 'Name',
-  'Teléfono': 'Phone',
-  'Correo': 'Email',
-  'Editar Perfil': 'Edit Profile',
-  'Guardar cambios': 'Save Changes',
-  'Cancelar': 'Cancel',
-  'Tus Anuncios': 'Your Ads',
-  'Enviar nuevo anuncio': 'Submit New Ad',
-  'Mis puntos de fidelidad': 'My Loyalty Points',
-  'Chat de soporte con la línea': 'Support Chat',
-
-  // Drawer & Search
-  'Buscar líneas o paradas...': 'Search lines or stops...',
-  'Ingresá origen': 'Enter origin',
-  'Ingresá destino': 'Enter destination',
-  'Buscar recorrido': 'Find route',
-  'Líneas de colectivo': 'Bus Lines',
-  'Paradas cercanas': 'Nearby Stops',
-  'Buses en servicio': 'Active Buses',
-  'Ya subí al colectivo': 'I am on the bus',
-  'Bajar del colectivo': 'Get off the bus',
-  'Colectivo actual': 'Current Bus',
-  'Buses simulados': 'Simulated Buses',
-  'O INGRESAR MANUALMENTE:': 'OR ENTER MANUALLY:',
-}
 
 const TUFIX_ADS: any[] = []
 
@@ -24148,7 +24074,7 @@ function MapAdBanner({
         {/* Title: TU VIAJE / YOUR TRIP */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
           <span style={{ fontSize: '14px', fontWeight: 900, color: 'var(--text-primary)', fontFamily: 'DM Sans', letterSpacing: '-0.02em', textTransform: 'uppercase' }}>
-            TU VIAJE (YOUR TRIP)
+            {translate('TU VIAJE', prefs.language)}
           </span>
           {selectedLines.length > 0 && (
             <button
@@ -24160,7 +24086,7 @@ function MapAdBanner({
               }}
               style={{ background: 'none', border: 'none', color: '#EF4444', fontSize: '11px', cursor: 'pointer', fontWeight: 700 }}
             >
-              Limpiar
+              {translate('Limpiar', prefs.language)}
             </button>
           )}
         </div>
@@ -24205,7 +24131,7 @@ function MapAdBanner({
                   setOriginInput(e.target.value)
                   fetchAutocomplete(e.target.value, true)
                 }}
-                placeholder="Origen (¿Dónde te encontrás?)"
+                placeholder={translate('Origen (¿Dónde te encontrás?)', prefs.language)}
                 style={{
                   width: '100%', padding: '8px 12px', borderRadius: '10px',
                   background: '#FFFFFF',
@@ -24282,7 +24208,7 @@ function MapAdBanner({
                   borderRadius: '8px', padding: '8px 10px', fontSize: '12px', cursor: 'pointer', flexShrink: 0,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', width: '38px', height: '33px'
                 }}
-                title="Confirmar origen"
+                title={translate('Confirmar origen', prefs.language)}
               >
                 <CheckCircle2 size={16} />
               </button>
@@ -24294,7 +24220,7 @@ function MapAdBanner({
                   borderRadius: '8px', padding: '8px 10px', fontSize: '12px', cursor: 'pointer', flexShrink: 0
                 }}
               >
-                Pin
+                {translate('Pin', prefs.language)}
               </button>
             )}
           </div>
@@ -24317,7 +24243,7 @@ function MapAdBanner({
                   setDestInput(e.target.value)
                   fetchAutocomplete(e.target.value, false)
                 }}
-                placeholder="Destino (¿A dónde vamos?)"
+                placeholder={translate('Destino (¿A dónde vamos?)', prefs.language)}
                 style={{
                   width: '100%', padding: '8px 12px', borderRadius: '10px',
                   background: '#FFFFFF',
@@ -24394,7 +24320,7 @@ function MapAdBanner({
                   borderRadius: '8px', padding: '8px 10px', fontSize: '12px', cursor: 'pointer', flexShrink: 0,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', width: '38px', height: '33px'
                 }}
-                title="Confirmar destino"
+                title={translate('Confirmar destino', prefs.language)}
               >
                 <CheckCircle2 size={16} />
               </button>
@@ -24406,7 +24332,7 @@ function MapAdBanner({
                   borderRadius: '8px', padding: '8px 10px', fontSize: '12px', cursor: 'pointer', flexShrink: 0
                 }}
               >
-                Pin
+                {translate('Pin', prefs.language)}
               </button>
             )}
           </div>
@@ -24452,7 +24378,7 @@ function MapAdBanner({
                   cursor: 'pointer', transition: 'all 150ms', flexShrink: 0
                 }}
               >
-                {m.label}
+                {translate(m.label, prefs.language)}
               </button>
             )
           })}
@@ -25108,7 +25034,7 @@ function MapAdBanner({
           {NAV_ITEMS.map(item => {
             const Icon = item.icon
             const active = activePanel === item.id
-            const translatedLabel = prefs.language === 'en' ? (TRANSLATIONS[item.label] || item.label) : item.label
+            const translatedLabel = translate(item.label, prefs.language)
             return (
               <button
                 key={item.id}
@@ -25141,7 +25067,7 @@ function MapAdBanner({
         <div style={{ padding: '8px 8px 20px', borderTop: '1px solid rgba(184,200,224,0.07)' }}>
           <button
             onClick={handleLogout}
-            title={collapsed ? 'Cerrar sesión' : undefined}
+            title={collapsed ? translate('Cerrar Sesión', prefs.language) : undefined}
             style={{
               width: '100%', display: 'flex', alignItems: 'center',
               gap: collapsed ? 0 : '10px',
@@ -25153,7 +25079,7 @@ function MapAdBanner({
             }}
           >
             <LogOut size={16} style={{ color: '#FF4D6A', flexShrink: 0 }} />
-            {!collapsed && <span style={{ color: '#FF4D6A', fontSize: '13px', fontWeight: 500, whiteSpace: 'nowrap' }}>Cerrar sesión</span>}
+            {!collapsed && <span style={{ color: '#FF4D6A', fontSize: '13px', fontWeight: 500, whiteSpace: 'nowrap' }}>{translate('Cerrar Sesión', prefs.language)}</span>}
           </button>
         </div>
       </div>
@@ -27805,6 +27731,7 @@ function MapAdBanner({
               lines={allLines}
               selectedLines={selectedLines}
               darkMap={prefs.darkMap}
+              language={prefs.language}
               onSelect={lines => {
                 setSelectedLines(lines)
               }}
@@ -28549,7 +28476,7 @@ const userSubmitted = (JSON.parse(localStorage.getItem('bu_submitted_ads') || '[
                       transition: 'color 0.2s'
                     }}
                   >
-                    {item.label}
+                    {translate(item.label, prefs.language)}
                   </span>
                 </button>
               )
@@ -29357,18 +29284,20 @@ function FavouritesPanel({
   const favBuses = prefs.favBuses || []
   const favDrivers = prefs.favDrivers || []
 
+  const t = (text: string) => translate(text, prefs.language)
+
   return (
     <div>
-      <PanelTitle>Favoritos</PanelTitle>
+      <PanelTitle>{t('Favoritos')}</PanelTitle>
 
-      <SectionHeader icon={<Bus size={13} />} title="Líneas guardadas" />
-      {favLines.length === 0 ? <EmptyHint text="Tocá ★ en el mapa para guardar una línea" /> : favLines.map(line => (
+      <SectionHeader icon={<Bus size={13} />} title={t('Líneas guardadas')} />
+      {favLines.length === 0 ? <EmptyHint text={t('Tocá ★ en el mapa para guardar una línea')} /> : favLines.map(line => (
         <FavLineCard key={line.id} line={line} onSelect={() => onSelectLine(line)} onRemove={() => onUpdatePrefs({ favBusLines: prefs.favBusLines.filter(id => id !== line.id) })} />
       ))}
 
-      <SectionHeader icon={<Route size={13} />} title="Recorridos guardados" style={{ marginTop: '20px' }} />
+      <SectionHeader icon={<Route size={13} />} title={t('Recorridos guardados')} style={{ marginTop: '20px' }} />
       {!(prefs.savedTrips) || prefs.savedTrips.length === 0 ? (
-        <EmptyHint text="Tocá 'Guardar recorrido' en la tarjeta de ruta para guardarlo" />
+        <EmptyHint text={t("Tocá 'Guardar recorrido' en la tarjeta de ruta para guardarlo")} />
       ) : (
         prefs.savedTrips.map(trip => (
           <FavTripCard
@@ -29380,14 +29309,14 @@ function FavouritesPanel({
         ))
       )}
 
-      <SectionHeader icon={<MapPin size={13} />} title="Paradas guardadas" style={{ marginTop: '20px' }} />
-      {favStops.length === 0 ? <EmptyHint text="Tocá una parada en el mapa para guardarla" /> : favStops.map(stop => (
+      <SectionHeader icon={<MapPin size={13} />} title={t('Paradas guardadas')} style={{ marginTop: '20px' }} />
+      {favStops.length === 0 ? <EmptyHint text={t('Tocá una parada en el mapa para guardarla')} /> : favStops.map(stop => (
         <FavStopCard key={stop.id} stop={stop} onRemove={() => onUpdatePrefs({ favStops: prefs.favStops.filter(id => id !== stop.id) })} />
       ))}
 
-      <SectionHeader icon={<Bus size={13} />} title="Colectivos guardados" style={{ marginTop: '20px' }} />
+      <SectionHeader icon={<Bus size={13} />} title={t('Colectivos guardados')} style={{ marginTop: '20px' }} />
       {favBuses.length === 0 ? (
-        <EmptyHint text="Tocá 'Colectivo' en el popup del mapa para guardar un interno" />
+        <EmptyHint text={t("Tocá 'Colectivo' en el popup del mapa para guardar un interno")} />
       ) : (
         favBuses.map(busUnit => (
           <FavBusCard
@@ -29400,9 +29329,9 @@ function FavouritesPanel({
         ))
       )}
 
-      <SectionHeader icon={<User size={13} />} title="Choferes guardados" style={{ marginTop: '20px' }} />
+      <SectionHeader icon={<User size={13} />} title={t('Choferes guardados')} style={{ marginTop: '20px' }} />
       {favDrivers.length === 0 ? (
-        <EmptyHint text="Tocá 'Chofer' en el popup del mapa para guardar un chofer" />
+        <EmptyHint text={t("Tocá 'Chofer' en el popup del mapa para guardar un chofer")} />
       ) : (
         favDrivers.map(driverName => (
           <FavDriverCard
@@ -29415,7 +29344,7 @@ function FavouritesPanel({
         ))
       )}
 
-      <SectionHeader icon={<Megaphone size={13} />} title="Anuncios y Descuentos Guardados" style={{ marginTop: '20px' }} />
+      <SectionHeader icon={<Megaphone size={13} />} title={t('Anuncios y Descuentos Guardados')} style={{ marginTop: '20px' }} />
       {(() => {
         let savedIds: string[] = [];
         try {
@@ -29442,7 +29371,7 @@ function FavouritesPanel({
         const savedAdsList = allAds.filter(ad => savedIds.includes(ad.id));
 
         if (savedAdsList.length === 0) {
-          return <EmptyHint text="Tocá '⭐ Guardar en Favoritos' en cualquier anuncio para guardar sus cupones de descuento" />;
+          return <EmptyHint text={t('No tenés anuncios guardados.')} />;
         }
 
         return savedAdsList.map(ad => (
@@ -29464,21 +29393,21 @@ function FavouritesPanel({
         ));
       })()}
 
-      <SectionHeader icon={<Bell size={13} />} title="Notificaciones" style={{ marginTop: '20px' }} />
+      <SectionHeader icon={<Bell size={13} />} title={t('Configuración de Avisos')} style={{ marginTop: '20px' }} />
       <GlassCard>
-        <ToggleRow label="Aviso cuando un bus favorito está cerca" value={prefs.notifyFavLines} onChange={v => onUpdatePrefs({ notifyFavLines: v })} />
+        <ToggleRow label={t('Aviso cuando un bus favorito está cerca')} value={prefs.notifyFavLines} onChange={v => onUpdatePrefs({ notifyFavLines: v })} />
         <Divider />
-        <ToggleRow label="Aviso cuando hay un bus cercano" value={prefs.notifyNearbyBus} onChange={v => onUpdatePrefs({ notifyNearbyBus: v })} />
+        <ToggleRow label={t('Aviso cuando hay un bus cercano')} value={prefs.notifyNearbyBus} onChange={v => onUpdatePrefs({ notifyNearbyBus: v })} />
         {prefs.notifyNearbyBus && (
           <div style={{ padding: '8px 16px 12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ color: 'var(--text-muted)', fontSize: '12px', flex: 1 }}>Radio: {prefs.notifyNearbyRadius} km</span>
+            <span style={{ color: 'var(--text-muted)', fontSize: '12px', flex: 1 }}>{t('Radio:')} {prefs.notifyNearbyRadius} km</span>
             <input type="range" min="0.2" max="2" step="0.1" value={prefs.notifyNearbyRadius}
               onChange={e => onUpdatePrefs({ notifyNearbyRadius: parseFloat(e.target.value) })}
               style={{ width: '120px', accentColor: 'var(--platinum)' }} />
           </div>
         )}
         <Divider />
-        <ToggleRow label="Filtrar avisos por cantidad de pasajeros" value={prefs.filterByPassengers || false} onChange={v => onUpdatePrefs({ filterByPassengers: v })} />
+        <ToggleRow label={t('Filtrar avisos por cantidad de pasajeros')} value={prefs.filterByPassengers || false} onChange={v => onUpdatePrefs({ filterByPassengers: v })} />
         {prefs.filterByPassengers && (
           <div style={{ padding: '8px 16px 12px', display: 'flex', alignItems: 'center', gap: '12px', borderTop: '1px solid rgba(184, 200, 224, 0.05)' }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '12px', flex: 1 }}>Avisar solo si tiene menos de:</span>
@@ -29529,10 +29458,7 @@ function SettingsPanel({
   onToggleTraffic: (val: boolean) => void
   isMobile: boolean
 }) {
-  const t = (text: string) => {
-    if (prefs.language !== 'en') return text
-    return TRANSLATIONS[text] || text
-  }
+  const t = (text: string) => translate(text, prefs.language)
 
   return (
     <div>
@@ -29545,8 +29471,24 @@ function SettingsPanel({
         <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>{t('Idioma')}</span>
           <div style={{ display: 'flex', gap: '4px' }}>
-            {(['es', 'en'] as const).map(lang => (
-              <button key={lang} onClick={() => onUpdatePrefs({ language: lang })} style={{ padding: '5px 12px', borderRadius: '8px', border: '1px solid rgba(184,200,224,0.15)', background: prefs.language === lang ? 'rgba(184,200,224,0.15)' : 'transparent', color: prefs.language === lang ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: '12px', cursor: 'pointer', textTransform: 'uppercase' }}>{lang}</button>
+            {(['es', 'en', 'pt'] as const).map(lang => (
+              <button
+                key={lang}
+                onClick={() => onUpdatePrefs({ language: lang })}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(184,200,224,0.15)',
+                  background: prefs.language === lang ? 'rgba(184,200,224,0.15)' : 'transparent',
+                  color: prefs.language === lang ? 'var(--text-primary)' : 'var(--text-muted)',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  textTransform: 'uppercase',
+                  fontWeight: prefs.language === lang ? 700 : 400
+                }}
+              >
+                {lang}
+              </button>
             ))}
           </div>
         </div>
@@ -29666,7 +29608,7 @@ function SettingsPanel({
                 <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t(item.title)}</span>
                   <span style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '999px', background: 'rgba(184,200,224,0.06)', color: 'var(--text-muted)', border: '1px solid rgba(184,200,224,0.1)' }}>
-                    {item.badge || (prefs.language === 'en' ? 'soon' : 'pronto')}
+                    {item.badge ? t(item.badge) : t('pronto')}
                   </span>
                 </div>
                 {i < arr.length - 1 && <Divider />}
@@ -29746,6 +29688,7 @@ function ProfilePanel({
   allLines: any[]
   solveRoutes: (origin: { lat: number; lng: number }, dest: { lat: number; lng: number }) => any[]
 }) {
+  const t = (text: string) => translate(text, prefs?.language || 'es')
   const [activeTab, setActiveTab] = useState<'profile' | 'history' | 'ads' | 'support' | 'points'>('profile')
   const [localName, setLocalName] = useState(profileName)
   const [localPhone, setLocalPhone] = useState(profilePhone)
@@ -30498,35 +30441,35 @@ function ProfilePanel({
           style={{ flex: 1, padding: '8px 4px', borderRadius: '8px', border: 'none', background: activeTab === 'profile' ? 'rgba(255,255,255,0.08)' : 'transparent', color: activeTab === 'profile' ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', cursor: 'pointer', transition: 'all 200ms' }}
         >
           <User size={15} style={{ color: activeTab === 'profile' ? '#10B981' : 'inherit' }} />
-          <span>Perfil</span>
+          <span>{t('Mi Cuenta')}</span>
         </button>
         <button
           onClick={() => setActiveTab('history')}
           style={{ flex: 1, padding: '8px 4px', borderRadius: '8px', border: 'none', background: activeTab === 'history' ? 'rgba(255,255,255,0.08)' : 'transparent', color: activeTab === 'history' ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', cursor: 'pointer', transition: 'all 200ms' }}
         >
           <Clock size={15} style={{ color: activeTab === 'history' ? '#3B82F6' : 'inherit' }} />
-          <span>Historial</span>
+          <span>{t('Historial')}</span>
         </button>
         <button
           onClick={() => setActiveTab('ads')}
           style={{ flex: 1, padding: '8px 4px', borderRadius: '8px', border: 'none', background: activeTab === 'ads' ? 'rgba(255,255,255,0.08)' : 'transparent', color: activeTab === 'ads' ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', cursor: 'pointer', transition: 'all 200ms' }}
         >
           <Megaphone size={15} style={{ color: activeTab === 'ads' ? '#F59E0B' : 'inherit' }} />
-          <span>Anuncios</span>
+          <span>{t('Anuncios')}</span>
         </button>
         <button
           onClick={() => setActiveTab('points')}
           style={{ flex: 1, padding: '8px 4px', borderRadius: '8px', border: 'none', background: activeTab === 'points' ? 'rgba(255,255,255,0.08)' : 'transparent', color: activeTab === 'points' ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', cursor: 'pointer', transition: 'all 200ms' }}
         >
           <Award size={15} style={{ color: activeTab === 'points' ? '#10B981' : 'inherit' }} />
-          <span>Puntos</span>
+          <span>{t('Puntos')}</span>
         </button>
         <button
           onClick={() => setActiveTab('support')}
           style={{ flex: 1, padding: '8px 4px', borderRadius: '8px', border: 'none', background: activeTab === 'support' ? 'rgba(255,255,255,0.08)' : 'transparent', color: activeTab === 'support' ? 'var(--text-primary)' : 'var(--text-muted)', fontSize: '11px', fontWeight: 600, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', cursor: 'pointer', transition: 'all 200ms' }}
         >
           <MessageSquare size={15} style={{ color: activeTab === 'support' ? '#EC4899' : 'inherit' }} />
-          <span>Soporte</span>
+          <span>{t('Soporte')}</span>
         </button>
       </div>
 
@@ -30534,7 +30477,7 @@ function ProfilePanel({
         {/* ── PROFILE TAB ── */}
         {activeTab === 'profile' && (
           <div>
-            <PanelTitle>Configuración de Perfil</PanelTitle>
+            <PanelTitle>{t('Configuración de Perfil')}</PanelTitle>
             
             {/* Custom Profile Picture Upload */}
             <div style={{ textAlign: 'center', marginBottom: '20px' }}>
@@ -30558,7 +30501,7 @@ function ProfilePanel({
                   <User size={36} style={{ color: '#10B981' }} />
                 )}
               </div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>Foto de perfil del pasajero</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px' }}>{t('Foto de perfil del pasajero')}</div>
               <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
                 <button
                   type="button"
@@ -30575,7 +30518,7 @@ function ProfilePanel({
                     transition: 'all 150ms'
                   }}
                 >
-                  Subir Foto
+                  {t('Subir Foto')}
                 </button>
                 {localAvatar && (localAvatar.startsWith('data:image/') || localAvatar.startsWith('http') || localAvatar.startsWith('/')) && (
                   <button

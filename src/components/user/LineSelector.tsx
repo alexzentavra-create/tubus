@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { Search, X, Bus, Check, Route, MapPin, Navigation } from 'lucide-react'
 import type { BusLine, BusStop } from '@/types'
 import { MOCK_LINES } from '@/lib/mockData'
+import { translate, type Language } from '@/lib/translations'
 
 interface Props {
   lines: BusLine[]
@@ -11,6 +12,7 @@ interface Props {
   onSelect: (lines: BusLine[]) => void
   onClose: () => void
   darkMap: boolean
+  language?: Language
 
   // Travel planner states and handlers from page.tsx:
   originInput: string
@@ -62,7 +64,8 @@ export default function LineSelector({
   setTravelPlannerOpen,
   setViewState,
   tab,
-  setTab
+  setTab,
+  language = 'es'
 }: Props) {
   const allLines = lines.length > 0 ? lines : MOCK_LINES
   const [localSelectedLines, setLocalSelectedLines] = useState<BusLine[]>(selectedLines)
@@ -79,11 +82,6 @@ export default function LineSelector({
   const handleLocate = () => {
     setLocating(true)
     setLocError(null)
-    if (!navigator.geolocation) {
-      setLocError('GPS no disponible en este dispositivo.')
-      setLocating(false)
-      return
-    }
     navigator.geolocation.getCurrentPosition(
       () => {
         const shuffled = allLines.filter(l => !l.is_tourist).sort(() => Math.random() - 0.5).slice(0, 4)
@@ -99,9 +97,9 @@ export default function LineSelector({
   }
 
   const tabs: { id: Tab; label: string; icon: typeof Bus }[] = [
-    { id: 'line',   label: 'Por línea',    icon: Bus },
-    { id: 'route',  label: 'Recorrido',    icon: Route },
-    { id: 'nearby', label: 'Cerca mío',    icon: MapPin },
+    { id: 'line',   label: translate('Por línea', language),    icon: Bus },
+    { id: 'route',  label: translate('Recorrido', language),    icon: Route },
+    { id: 'nearby', label: translate('Cerca mío', language),    icon: MapPin },
   ]
 
   return (
@@ -120,7 +118,7 @@ export default function LineSelector({
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 20px 0', flexShrink: 0 }}>
           <h3 className="font-display" style={{ color: 'var(--text-primary)', fontWeight: 700, fontSize: '17px', letterSpacing: '-0.01em' }}>
-            {tab === 'line' ? 'Elegí una línea' : tab === 'route' ? 'Planificar Recorrido' : 'Paradas Cercanas'}
+            {tab === 'line' ? translate('Líneas de colectivo', language) : tab === 'route' ? translate('Buscar recorrido', language) : translate('Paradas cercanas', language)}
           </h3>
           <button onClick={onClose} style={{ width: '32px', height: '32px', borderRadius: '50%', background: darkMap ? 'rgba(184,200,224,0.06)' : 'rgba(0,0,0,0.03)', border: darkMap ? '1px solid rgba(184,200,224,0.1)' : '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
             <X size={14} style={{ color: 'var(--text-secondary)' }} />
