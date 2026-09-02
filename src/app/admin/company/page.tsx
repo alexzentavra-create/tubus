@@ -1,8 +1,8 @@
-
 'use client'
 import { useState, useEffect, useMemo } from 'react'
 import { syncAllGlobalKeys, pushGlobalKey } from '@/lib/sync'
 import { CARTODB_DARK } from '@/lib/mapStyles'
+import SessionConcurrencyGuard from '@/components/SessionConcurrencyGuard'
 
 // Helper to log line admin actions for Super Admin audit log
 function recordLineAdminAuditLog(lineParam: any, action: string, detail: string) {
@@ -1339,7 +1339,56 @@ export default function CompanyDashboard() {
   }
 
   const downloadQR = (qr: any) => {
-    toast.success('QR descargado (función disponible en producción)')
+    try {
+      const canvas = document.createElement('canvas')
+      canvas.width = 400
+      canvas.height = 460
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return
+
+      ctx.fillStyle = '#FFFFFF'
+      ctx.fillRect(0, 0, 400, 460)
+
+      ctx.fillStyle = '#0F172A'
+      ctx.font = 'bold 20px system-ui, -apple-system, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText(`BienParada — Línea ${activeLine?.line_number || '12'}`, 200, 42)
+
+      ctx.fillStyle = '#64748B'
+      ctx.font = '600 14px system-ui, -apple-system, sans-serif'
+      ctx.fillText(`Unidad Interno: ${qr.bus_unit || '001'}`, 200, 68)
+
+      const qrImg = new Image()
+      qrImg.crossOrigin = 'anonymous'
+      qrImg.onload = () => {
+        ctx.drawImage(qrImg, 50, 85, 300, 300)
+        ctx.fillStyle = '#0F172A'
+        ctx.font = 'bold 11px monospace'
+        ctx.fillText(qr.qr_token || 'TOKEN-QR', 200, 415)
+
+        const dataUrl = canvas.toDataURL('image/png')
+        const link = document.createElement('a')
+        link.download = `QR-Linea${activeLine?.line_number || '12'}-Interno${qr.bus_unit || '001'}.png`
+        link.href = dataUrl
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        toast.success(`Código QR de Unidad ${qr.bus_unit} descargado en PNG.`)
+      }
+      qrImg.onerror = () => {
+        const dataUrl = canvas.toDataURL('image/png')
+        const link = document.createElement('a')
+        link.download = `QR-Linea${activeLine?.line_number || '12'}-Interno${qr.bus_unit || '001'}.png`
+        link.href = dataUrl
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        toast.success(`Código QR de Unidad ${qr.bus_unit} descargado.`)
+      }
+      qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qr.qr_token || `LINEA-${activeLine?.line_number}-UNIT-${qr.bus_unit}`)}`
+    } catch (e) {
+      toast.error('Error al generar la descarga del QR.')
+    }
   }
 
   const handleAddDriver = () => {
@@ -1582,6 +1631,7 @@ export default function CompanyDashboard() {
       flexDirection: 'column',
       fontFamily: 'DM Sans, sans-serif',
     }}>
+      <SessionConcurrencyGuard userEmail={(activeLine as any)?.email || `linea${activeLine?.line_number || '12'}@bienparada.ar`} />
       {/* Horizontal Header */}
       <header style={{
         background: '#121527',
@@ -2749,194 +2799,80 @@ export default function CompanyDashboard() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <h3 style={{ fontSize: '16px', fontWeight: 600, color: '#fff', margin: 0 }}>Colectivos Inactivos</h3>
-                  <span style={{ fontSize: '11px', color: '#8f94a5', marginTop: '2px' }}>Programación de salida</span>
+                  <span style={{ fontSize: '11px', color: '#8f94a5', marginTop: '2px' }}>Unidades actualmente en terminal / fuera de servicio</span>
                 </div>
-                <button
-                  onClick={() => setShowAddInactiveBus(!showAddInactiveBus)}
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '50%',
-                    background: themeColor,
-                    border: 'none',
-                    color: '#fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 200ms',
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.opacity = '0.9'}
-                  onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
-                >
-                  <Plus size={16} />
-                </button>
               </div>
 
-              {showAddInactiveBus && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#1b1d2e', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ display: 'block', fontSize: '9px', color: '#8f94a5', marginBottom: '4px' }}>Nº de Interno</label>
-                      <input
-                        type="text"
-                        placeholder="ej. 308"
-                        value={newInactiveBusUnit}
-                        onChange={(e) => setNewInactiveBusUnit(e.target.value)}
-                        style={{
-                          width: '100%',
-                          background: 'rgba(255,255,255,0.03)',
-                          border: '1px solid rgba(255,255,255,0.1)',
-                          borderRadius: '4px',
-                          color: '#fff',
-                          fontSize: '12px',
-                          padding: '4px 8px',
-                          outline: 'none',
-                        }}
-                      />
-                    </div>
-                    <div style={{ width: '80px' }}>
-                      <label style={{ display: 'block', fontSize: '9px', color: '#8f94a5', marginBottom: '4px' }}>Minutos</label>
-                      <input
-                        type="number"
-                        value={newInactiveBusTimer}
-                        onChange={(e) => setNewInactiveBusTimer(e.target.value)}
-                        style={{
-                          width: '100%',
-                          background: 'rgba(255,255,255,0.03)',
-                          border: '1px solid rgba(255,255,255,0.1)',
-                          borderRadius: '4px',
-                          color: '#fff',
-                          fontSize: '12px',
-                          padding: '4px 8px',
-                          outline: 'none',
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <button
-                    onClick={addInactiveBus}
-                    style={{
-                      background: themeColor,
-                      border: 'none',
-                      borderRadius: '6px',
-                      padding: '6px',
-                      color: '#fff',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      width: '100%',
-                    }}
-                  >
-                    Programar Salida
-                  </button>
-                </div>
-              )}
-
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '300px', overflowY: 'auto' }}>
-                {inactiveBuses.map((bus) => (
-                  <div
-                    key={bus.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: 'rgba(255,255,255,0.02)',
-                      border: '1px solid rgba(255, 255, 255, 0.04)',
-                      transition: 'all 200ms',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Bus size={14} style={{ color: '#8f94a5' }} />
-                      </div>
-                      <div>
-                        <div style={{ color: '#fff', fontSize: '13px', fontWeight: 600 }}>
-                          Unidad {bus.unit}
-                        </div>
-                        <div style={{ fontSize: '10px', color: bus.is_active ? themeColor : '#8f94a5', marginTop: '2px', fontWeight: bus.is_active ? 600 : 'normal' }}>
-                          {bus.is_active ? 'Activo / Sin chofer' : 'Inactivo / En terminal'}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      {/* Timer box */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <button
-                          onClick={() => adjustInactiveBusTimer(bus.id, -5)}
-                          style={{
-                            width: '20px',
-                            height: '20px',
-                            borderRadius: '4px',
-                            background: 'rgba(255,255,255,0.04)',
-                            border: '1px solid rgba(255,255,255,0.08)',
-                            color: '#8f94a5',
-                            fontSize: '11px',
-                            fontWeight: 'bold',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                          title="Restar 5 minutos"
-                        >
-                          -
-                        </button>
-                        <div
-                          onClick={() => promptEditTimer(bus.id, bus.minutesRemaining)}
-                          style={{
-                            padding: '4px 8px',
-                            borderRadius: '6px',
-                            background: bus.minutesRemaining <= 15 ? 'rgba(239,68,68,0.15)' : 'rgba(245,158,11,0.15)',
-                            border: `1px solid ${bus.minutesRemaining <= 15 ? '#ef4444' : '#f59e0b'}`,
-                            color: bus.minutesRemaining <= 15 ? '#f87171' : '#fbbf24',
-                            fontSize: '11.5px',
-                            fontFamily: 'DM Mono',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            textAlign: 'center',
-                            minWidth: '55px',
-                          }}
-                          title="Hacer clic para editar tiempo"
-                        >
-                          {bus.minutesRemaining}m
-                        </div>
-                        <button
-                          onClick={() => adjustInactiveBusTimer(bus.id, 5)}
-                          style={{
-                            width: '20px',
-                            height: '20px',
-                            borderRadius: '4px',
-                            background: 'rgba(255,255,255,0.04)',
-                            border: '1px solid rgba(255,255,255,0.08)',
-                            color: '#8f94a5',
-                            fontSize: '11px',
-                            fontWeight: 'bold',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                          title="Sumar 5 minutos"
-                        >
-                          +
-                        </button>
-                      </div>
-
-                      {/* Trash bin */}
-                      <Trash2
-                        size={13}
-                        onClick={() => deleteInactiveBus(bus.id)}
-                        style={{ cursor: 'pointer', color: '#8f94a5', transition: 'color 150ms' }}
-                        onMouseEnter={(e) => e.currentTarget.style.color = '#ff4d6a'}
-                        onMouseLeave={(e) => e.currentTarget.style.color = '#8f94a5'}
-                      />
-                    </div>
+                {inactiveBuses.length === 0 ? (
+                  <div style={{ padding: '16px', textAlign: 'center', color: '#8f94a5', fontSize: '12px' }}>
+                    No hay colectivos inactivos. Todas las unidades están en servicio.
                   </div>
-                ))}
+                ) : (
+                  inactiveBuses.map((bus) => (
+                    <div
+                      key={bus.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        background: 'rgba(255,255,255,0.02)',
+                        border: '1px solid rgba(255, 255, 255, 0.04)',
+                        transition: 'all 200ms',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Bus size={14} style={{ color: '#8f94a5' }} />
+                        </div>
+                        <div>
+                          <div style={{ color: '#fff', fontSize: '13px', fontWeight: 600 }}>
+                            Unidad {bus.unit}
+                          </div>
+                          <div style={{ fontSize: '10px', color: bus.is_active ? themeColor : '#8f94a5', marginTop: '2px', fontWeight: bus.is_active ? 600 : 'normal' }}>
+                            {bus.is_active ? 'Activo en ruta' : 'Inactivo / En terminal'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {/* Status Toggle on QR action */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = inactiveBuses.map(b => b.id === bus.id ? { ...b, is_active: !b.is_active } : b)
+                            setInactiveBuses(updated)
+                            localStorage.setItem('bu_inactive_buses', JSON.stringify(updated))
+                            toast.success(`Unidad ${bus.unit} ${!bus.is_active ? 'puesta en servicio' : 'pasada a inactivo'}`)
+                          }}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            background: bus.is_active ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                            border: `1px solid ${bus.is_active ? '#10b981' : '#f59e0b'}`,
+                            color: bus.is_active ? '#10b981' : '#f59e0b',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {bus.is_active ? 'Activo' : 'Poner Activo'}
+                        </button>
+
+                        {/* Trash bin */}
+                        <Trash2
+                          size={13}
+                          onClick={() => deleteInactiveBus(bus.id)}
+                          style={{ cursor: 'pointer', color: '#8f94a5', transition: 'color 150ms' }}
+                          onMouseEnter={(e) => e.currentTarget.style.color = '#ff4d6a'}
+                          onMouseLeave={(e) => e.currentTarget.style.color = '#8f94a5'}
+                        />
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -4079,38 +4015,57 @@ function CompanyDrivers({ drivers, activeSessions = [], driverWarnings = {}, onD
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, driverId: string) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const rawFiles = e.target.files
+    if (!rawFiles || rawFiles.length === 0) return
 
-    const sizeStr = file.size > 1024 * 1024 
-      ? `${(file.size / (1024 * 1024)).toFixed(1)} MB` 
-      : `${(file.size / 1024).toFixed(0)} KB`
+    const driver = drivers.find(d => d.id === driverId)
+    const currentFiles = driver?.files || []
+    const availableSlots = 10 - currentFiles.length
 
-    const reader = new FileReader()
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string
-      const updated = drivers.map(d => {
-        if (d.id === driverId) {
-          const files = d.files || []
-          return {
-            ...d,
-            files: [
-              ...files,
-              {
-                name: file.name,
-                type: file.type || 'application/octet-stream',
-                size: sizeStr,
-                data: dataUrl
-              }
-            ]
-          }
-        }
-        return d
-      })
-      onUpdateDrivers(updated)
-      toast.success(`Archivo "${file.name}" subido con éxito`)
+    if (availableSlots <= 0) {
+      toast.error('Límite alcanzado: máximo 10 archivos por chofer.')
+      return
     }
-    reader.readAsDataURL(file)
+
+    const filesToUpload = Array.from(rawFiles).slice(0, availableSlots)
+    if (rawFiles.length > availableSlots) {
+      toast.error(`Solo se pueden agregar ${availableSlots} archivo(s) más. Límite máximo de 10.`)
+    }
+
+    let loadedCount = 0
+    const newFileEntries: any[] = []
+
+    filesToUpload.forEach((file) => {
+      const sizeStr = file.size > 1024 * 1024 
+        ? `${(file.size / (1024 * 1024)).toFixed(1)} MB` 
+        : `${(file.size / 1024).toFixed(0)} KB`
+
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string
+        newFileEntries.push({
+          name: file.name,
+          type: file.type || 'application/octet-stream',
+          size: sizeStr,
+          data: dataUrl
+        })
+        loadedCount++
+        if (loadedCount === filesToUpload.length) {
+          const updated = drivers.map(d => {
+            if (d.id === driverId) {
+              return {
+                ...d,
+                files: [...(d.files || []), ...newFileEntries].slice(0, 10)
+              }
+            }
+            return d
+          })
+          onUpdateDrivers(updated)
+          toast.success(`${loadedCount} archivo(s) subido(s) con éxito`)
+        }
+      }
+      reader.readAsDataURL(file)
+    })
   }
 
   const handleRemoveFile = (driverId: string, fileIdx: number) => {
@@ -4397,9 +4352,10 @@ function CompanyDrivers({ drivers, activeSessions = [], driverWarnings = {}, onD
                           id={`file-upload-${d.id}`}
                           style={{ display: 'none' }}
                           accept=".zip,.pdf,.doc,.docx,image/*"
+                          multiple
                           onChange={(e) => handleFileUpload(e, d.id)}
                         />
-                        <span style={{ color: '#8f94a5', fontSize: '11px' }}>Soporta PDF, Word, ZIP e imágenes.</span>
+                        <span style={{ color: '#8f94a5', fontSize: '11px' }}>Soporta fotos e imágenes (hasta 10 por chofer).</span>
                       </div>
 
                       {(d.files || []).length === 0 ? (
@@ -4482,6 +4438,83 @@ function CompanyDrivers({ drivers, activeSessions = [], driverWarnings = {}, onD
                         </div>
                       ))}
                     </div>
+
+                    {/* Carnet de Conducir Expiration Date & Alarm Box */}
+                    {(() => {
+                      const expDateStr = d.licenseExpirationDate || '2026-10-15'
+                      const expDate = new Date(expDateStr)
+                      const today = new Date()
+                      const diffTime = expDate.getTime() - today.getTime()
+                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+                      const isExpiringSoon = diffDays <= 60 && diffDays > 0
+                      const isExpired = diffDays <= 0
+
+                      return (
+                        <div style={{
+                          marginTop: '16px',
+                          padding: '12px 16px',
+                          borderRadius: '10px',
+                          background: isExpired ? 'rgba(239, 68, 68, 0.12)' : (isExpiringSoon ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255, 255, 255, 0.02)'),
+                          border: `1px solid ${isExpired ? '#EF4444' : (isExpiringSoon ? '#F59E0B' : 'rgba(255, 255, 255, 0.08)')}`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          flexWrap: 'wrap',
+                          gap: '10px'
+                        }}>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '14px' }}>🪪</span>
+                              <span style={{ fontSize: '12px', fontWeight: 700, color: isExpired ? '#EF4444' : (isExpiringSoon ? '#F59E0B' : '#FFFFFF') }}>
+                                Vencimiento de Carnet de Conducir
+                              </span>
+                              {(isExpiringSoon || isExpired) && (
+                                <span style={{
+                                  fontSize: '10px',
+                                  fontWeight: 800,
+                                  background: isExpired ? '#EF4444' : '#F59E0B',
+                                  color: '#000',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  textTransform: 'uppercase'
+                                }}>
+                                  {isExpired ? '¡Vencido!' : `¡Alerta! Vence en ${diffDays} días`}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '11px', color: '#8F94A5', marginTop: '4px' }}>
+                              {isExpired
+                                ? 'El carnet está vencido. El chofer no puede operar unidades.'
+                                : (isExpiringSoon
+                                    ? `Atención: Quedan menos de 2 meses (${diffDays} días) para su renovación obligatoria.`
+                                    : 'Licencia profesional al día.')}
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <input
+                              type="date"
+                              value={expDateStr}
+                              onChange={(e) => {
+                                const newDate = e.target.value
+                                const updated = drivers.map(item => item.id === d.id ? { ...item, licenseExpirationDate: newDate } : item)
+                                onUpdateDrivers(updated)
+                                toast.success(`Fecha de vencimiento de carnet actualizada para ${d.name}`)
+                              }}
+                              style={{
+                                background: 'rgba(255,255,255,0.05)',
+                                border: '1px solid rgba(255,255,255,0.15)',
+                                borderRadius: '6px',
+                                padding: '6px 10px',
+                                color: '#FFFFFF',
+                                fontSize: '12px',
+                                outline: 'none'
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )
+                    })()}
 
                     {/* Action bar: Notes + Delete */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
@@ -7032,28 +7065,6 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
                 </div>
               )}
 
-              {/* Reset to Original Route path */}
-              <button
-                onClick={() => {
-                  const loadedPath = getMockRoutePathForLine(activeLine, direction)
-                  setRoutePath(loadedPath)
-                  toast.success("Mostrando recorrido original")
-                }}
-                style={{
-                  width: '100%',
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  background: 'rgba(255,255,255,0.02)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  color: '#a3a6b8',
-                  fontSize: '11px',
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  marginTop: '4px'
-                }}
-              >
-                🔄 Ver Recorrido Original
-              </button>
             </div>
           )}
         </div>

@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bus, Mail, Lock, Eye, EyeOff, ArrowRight, User, BarChart2, Calendar, Phone } from 'lucide-react'
+import { Bus, Mail, Lock, Eye, EyeOff, ArrowRight, User, BarChart2, Calendar, Phone, Gift } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { getStoredGeneralTerms } from '@/lib/termsData'
 import toast from 'react-hot-toast'
@@ -361,7 +361,7 @@ export default function LoginPage() {
     return () => window.removeEventListener('storage', syncTerms)
   }, [])
   const [city, setCity] = useState('buenos_aires')
-  const [form, setForm] = useState({ email:'', password:'', name:'', phone:'', gender:'Masculino', age:'', weeklyTrips:'' })
+  const [form, setForm] = useState({ email:'', password:'', name:'', phone:'', gender:'Masculino', age:'', weeklyTrips:'', referralCode:'' })
   const [bannedEmail, setBannedEmail] = useState<string | null>(null)
   const [showAppealForm, setShowAppealForm] = useState(false)
   const [appealReason, setAppealReason] = useState('')
@@ -661,23 +661,8 @@ export default function LoginPage() {
               ? foundUser.password
               : (form.password || 'password')
 
-            const userToStore = { ...foundUser, password: realPass }
-            localStorage.setItem('active_user', JSON.stringify(userToStore))
-            localStorage.setItem('profile_email', foundUser.email)
-            localStorage.setItem('tu_bus_profile_email', foundUser.email)
-            localStorage.setItem('profile_name', foundUser.name)
-            localStorage.setItem('tu_bus_profile_name', foundUser.name)
-            if (foundUser.phone) {
-              localStorage.setItem('profile_phone', foundUser.phone)
-              localStorage.setItem('tu_bus_profile_phone', foundUser.phone)
-            }
-            if (foundUser.gender) {
-              localStorage.setItem('profile_gender', foundUser.gender)
-              localStorage.setItem('tu_bus_profile_gender', foundUser.gender)
-            }
-            localStorage.setItem('tu_bus_profile_password', realPass)
-
             if (foundUser.role === 'driver') {
+              localStorage.removeItem('active_user')
               localStorage.setItem('mock_driver_identity', JSON.stringify({
                 name: foundUser.name,
                 email: foundUser.email,
@@ -686,10 +671,34 @@ export default function LoginPage() {
               }))
               window.location.href = '/driver'
             } else if (foundUser.role === 'company_admin' || foundUser.role === 'admin') {
+              localStorage.removeItem('active_user')
+              localStorage.setItem('mock_company_identity', JSON.stringify({
+                name: foundUser.name,
+                email: foundUser.email,
+                role: 'company_admin'
+              }))
               window.location.href = '/admin/company'
             } else if (foundUser.role === 'superadmin') {
+              localStorage.removeItem('active_user')
+              sessionStorage.setItem('super_admin_identity', foundUser.name || 'Alejandro')
+              localStorage.setItem('super_admin_identity', foundUser.name || 'Alejandro')
               window.location.href = '/admin/super'
             } else {
+              const userToStore = { ...foundUser, password: realPass }
+              localStorage.setItem('active_user', JSON.stringify(userToStore))
+              localStorage.setItem('profile_email', foundUser.email)
+              localStorage.setItem('tu_bus_profile_email', foundUser.email)
+              localStorage.setItem('profile_name', foundUser.name)
+              localStorage.setItem('tu_bus_profile_name', foundUser.name)
+              if (foundUser.phone) {
+                localStorage.setItem('profile_phone', foundUser.phone)
+                localStorage.setItem('tu_bus_profile_phone', foundUser.phone)
+              }
+              if (foundUser.gender) {
+                localStorage.setItem('profile_gender', foundUser.gender)
+                localStorage.setItem('tu_bus_profile_gender', foundUser.gender)
+              }
+              localStorage.setItem('tu_bus_profile_password', realPass)
               window.location.href = `/?city=${city}`
             }
             setLoading(false)
@@ -885,13 +894,50 @@ export default function LoginPage() {
           const cleanAdsKey = getUserStorageKey('bu_submitted_ads', newUserData.email)
 
           localStorage.setItem(cleanHistoryKey, JSON.stringify([]))
-          localStorage.setItem(cleanPointsKey, '0')
-          localStorage.setItem(cleanPointsHistKey, JSON.stringify([]))
           localStorage.setItem(cleanAdsKey, JSON.stringify([]))
+
+          // Referral reward logic
+          const refCodeGiven = (form.referralCode || '').trim().toUpperCase()
+          if (refCodeGiven) {
+            // Credit new user with 10 points
+            localStorage.setItem(cleanPointsKey, '10')
+            localStorage.setItem(cleanPointsHistKey, JSON.stringify([
+              { id: `ref-${Date.now()}`, type: 'referral', desc: 'Bono de bienvenida por código de referido', points: 10, date: 'Hoy' }
+            ]))
+
+            // Credit referrer with 10 points
+            try {
+              const allReg = JSON.parse(localStorage.getItem('bu_registered_users') || '[]')
+              const referrer = allReg.find((u: any) => {
+                const uSlug = ((u.email || u.name || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6))
+                return uSlug === refCodeGiven || (u.refCode && u.refCode.toUpperCase() === refCodeGiven)
+              })
+              if (referrer) {
+                const refPtsKey = getUserStorageKey('user_points', referrer.email)
+                const refHistKey = getUserStorageKey('user_points_history', referrer.email)
+                const curPts = parseInt(localStorage.getItem(refPtsKey) || '0') || 0
+                const curHist = JSON.parse(localStorage.getItem(refHistKey) || '[]')
+                localStorage.setItem(refPtsKey, (curPts + 10).toString())
+                curHist.unshift({
+                  id: `ref-${Date.now()}`,
+                  type: 'referral',
+                  desc: `Recompensa por invitar a ${newUserData.name}`,
+                  points: 10,
+                  date: 'Hoy'
+                })
+                localStorage.setItem(refHistKey, JSON.stringify(curHist))
+              }
+            } catch (err) {}
+            toast.success('¡Registro exitoso! Ganaste 10 puntos de bienvenida por tu código de referido.', { duration: 5000 })
+          } else {
+            localStorage.setItem(cleanPointsKey, '0')
+            localStorage.setItem(cleanPointsHistKey, JSON.stringify([]))
+            toast.success('¡Cuenta registrada con éxito! Ya podés ingresar.')
+          }
         } catch (e) {
           console.error(e)
+          toast.success('¡Cuenta registrada con éxito! Ya podés ingresar.')
         }
-        toast.success('¡Cuenta registrada con éxito! Ya podés ingresar.')
         setMode('login')
       } else {
         const { data, error } = await supabase.auth.signUp({
@@ -1007,6 +1053,13 @@ export default function LoginPage() {
                       <option value="Femenino" style={{background:'#0a0e14',color:'#fff'}}>Femenino</option>
                     </select>
                   </div>
+                  <Input
+                    type="text"
+                    placeholder="Código de Referido (opcional, ej: BIEN10)"
+                    value={form.referralCode}
+                    onChange={set('referralCode')}
+                    right={<Gift size={15} color="#EF4444"/>}
+                  />
                 </>)}
 
                 <div style={{display:'flex',flexDirection:'column',gap:'4px',margin:'2px 0 4px'}}>

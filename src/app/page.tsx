@@ -10,7 +10,7 @@ import {
   Navigation as NavIcon, LayoutDashboard, Menu,
   Locate, Plus, Minus, Sun, Route, Activity, Clock,
   Megaphone, MessageSquare, PlusCircle, CheckCircle2, MessageCircle, Edit2, Award,
-  HelpCircle, Upload, Smartphone, CreditCard, PhoneCall, Sparkles, Eye, EyeOff, Lock, ShieldCheck
+  HelpCircle, Upload, Smartphone, CreditCard, PhoneCall, Sparkles, Eye, EyeOff, Lock, ShieldCheck, Copy
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { syncAllGlobalKeys, pushGlobalKey, getUserStorageKey, purgeUserDataForEmail } from '@/lib/sync'
@@ -25,6 +25,7 @@ import LineSelector, { Tab as LineSelectorTab } from '@/components/user/LineSele
 import NearbyStops from '@/components/user/NearbyStops'
 import { CARTODB_DARK, CARTODB_LIGHT, CARTODB_POSITRON } from '@/lib/mapStyles'
 import { translate, type Language } from '@/lib/translations'
+import SessionConcurrencyGuard from '@/components/SessionConcurrencyGuard'
 
 const BA = { longitude: -58.4173, latitude: -34.6037 }
 const PART1 = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTAwMTIzM29hMW5nYnB1eXcifQ'
@@ -34,29 +35,34 @@ const TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || `${PART1}.${PART2}`
 // Global Reverse Geocoding Helper accessible by all components
 const fetchAddressGlobal = async (lat: number, lng: number, callback: (addr: string) => void) => {
   try {
-    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=es`
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'BienParada Business Ad Location' }
-    })
+    const res = await fetch(`/api/geocode?lat=${lat}&lng=${lng}`)
     if (res.ok) {
       const data = await res.json()
       if (data && data.address) {
-        const road = data.address.road || data.address.pedestrian || data.address.suburb || ''
-        const houseNumber = data.address.house_number || ''
-        if (road) {
-          callback(houseNumber ? `${road} ${houseNumber}` : road)
-          return
-        }
-      }
-      if (data && data.display_name) {
-        callback(data.display_name.split(',').slice(0, 2).join(','))
+        callback(data.address)
         return
       }
     }
   } catch (e) {
-    console.error('Error fetching reverse geocode:', e)
+    console.error('Error fetching internal reverse geocode:', e)
   }
-  callback(`Esquina: ${lat.toFixed(4)}, ${lng.toFixed(4)}`)
+
+  // Direct fallback
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=es`
+    const res = await fetch(url, { headers: { 'User-Agent': 'BienParadaApp/2.0' } })
+    if (res.ok) {
+      const data = await res.json()
+      const road = data.address?.road || data.address?.pedestrian || ''
+      const houseNumber = data.address?.house_number || ''
+      if (road) {
+        callback(houseNumber ? `${road} ${houseNumber}` : road)
+        return
+      }
+    }
+  } catch (e) {}
+
+  callback(`Intersección: ${lat.toFixed(4)}, ${lng.toFixed(4)}`)
 }
 
 // Inject Bus Turístico Amarillo
@@ -21018,6 +21024,7 @@ interface UserPrefs {
   filterByPassengers?: boolean
   maxPassengers?: number
   savedTrips?: any[]
+  showSavedAdsOnMap?: boolean
 }
 
 const DEFAULT_PREFS: UserPrefs = {
@@ -21028,6 +21035,7 @@ const DEFAULT_PREFS: UserPrefs = {
   favBuses: [], favDrivers: [],
   filterByPassengers: false,
   maxPassengers: 10,
+  showSavedAdsOnMap: true,
   savedTrips: []
 }
 
@@ -21861,7 +21869,7 @@ function MapAdBanner({
   const [showWelcome, setShowWelcome]       = useState(false)
 
   // Uber Travel Assistant & Map Modes State
-  const [activeMode, setActiveMode]               = useState<'normal' | 'tourist' | 'clubbing' | 'shopping' | 'restaurants'>('normal')
+  const [activeMode, setActiveMode]               = useState<'normal' | 'tourist' | 'clubbing' | 'shopping' | 'restaurants' | 'tango'>('normal')
   const [selectedCity, setSelectedCity] = useState<'buenos_aires' | 'santa_cruz'>('buenos_aires')
   const [touristYellowSelected, setTouristYellowSelected] = useState(false)
   const [touristRedSelected, setTouristRedSelected] = useState(false)
@@ -21989,6 +21997,7 @@ function MapAdBanner({
   const [adPickedCoord, setAdPickedCoord]         = useState<{ lat: number; lng: number } | null>(null)
   const [adPickedAddress, setAdPickedAddress]     = useState<string>('')
   const [showActiveAdsDirectoryModal, setShowActiveAdsDirectoryModal] = useState<boolean>(false)
+  const [activeDirectoryCategory, setActiveDirectoryCategory] = useState<string>('Todas')
   const [selectedDirectoryLineFilter, setSelectedDirectoryLineFilter] = useState<string>('all')
   const [selectedDirectoryPromoFilter, setSelectedDirectoryPromoFilter] = useState<string>('all')
   const [directorySearchQuery, setDirectorySearchQuery] = useState<string>('')
@@ -22936,9 +22945,9 @@ function MapAdBanner({
     return recommendations.sort((a, b) => a.walkDistance - b.walkDistance).slice(0, 3)
   }
 
-  // OpenStreetMap Nominatim Live Autocomplete API
+  // Live Autocomplete API via internal geocoding service
   const fetchAutocomplete = async (text: string, isOrigin: boolean) => {
-    if (text.length < 3) {
+    if (text.length < 2) {
       if (isOrigin) setOriginResults([])
       else setDestResults([])
       return
@@ -22955,29 +22964,25 @@ function MapAdBanner({
       isPreset: true
     }))
 
-    let osmResults: any[] = []
+    let geoResults: any[] = []
     try {
-      const viewbox = cityKey === 'santa_cruz'
-        ? '-63.2950,-17.8920,-63.0720,-17.7010'
-        : '-58.5315,-34.7056,-58.3351,-34.5265'
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(text)}&format=json&accept-language=es&limit=5&viewbox=${viewbox}&bounded=1`
-      const res = await fetch(url, {
-        headers: { 'User-Agent': 'BienParada Travel Planner App' }
-      })
+      const res = await fetch(`/api/geocode?q=${encodeURIComponent(text)}`)
       if (res.ok) {
         const data = await res.json()
-        osmResults = data.map((item: any) => ({
-          name: item.display_name.split(',').slice(0, 3).join(','),
-          lat: parseFloat(item.lat),
-          lng: parseFloat(item.lon),
-          isPreset: false
-        }))
+        if (data && data.results) {
+          geoResults = data.results.map((item: any) => ({
+            name: item.title,
+            lat: item.lat,
+            lng: item.lng,
+            isPreset: false
+          }))
+        }
       }
     } catch (e) {
-      console.error('Error fetching Nominatim search:', e)
+      console.error('Error fetching internal geocode:', e)
     }
 
-    const combined = [...localFiltered, ...osmResults].slice(0, 6)
+    const combined = [...localFiltered, ...geoResults].slice(0, 7)
     if (isOrigin) setOriginResults(combined)
     else setDestResults(combined)
   }
@@ -23051,6 +23056,20 @@ function MapAdBanner({
       if (!loggedInUser) {
         // Unauthenticated visitor -> Redirect to login menu immediately!
         window.location.href = '/login'
+        return
+      }
+
+      // Enforce strict single-role routing: never create or show passenger interface for admins or drivers
+      if (loggedInUser.role === 'superadmin') {
+        window.location.href = '/admin/super'
+        return
+      }
+      if (loggedInUser.role === 'company_admin' || loggedInUser.role === 'admin' || loggedInUser.role === 'company') {
+        window.location.href = '/admin/company'
+        return
+      }
+      if (loggedInUser.role === 'driver') {
+        window.location.href = '/driver'
         return
       }
 
@@ -24076,13 +24095,18 @@ function MapAdBanner({
           <span style={{ fontSize: '14px', fontWeight: 900, color: 'var(--text-primary)', fontFamily: 'DM Sans', letterSpacing: '-0.02em', textTransform: 'uppercase' }}>
             {translate('TU VIAJE', prefs.language)}
           </span>
-          {selectedLines.length > 0 && (
+          {(selectedLines.length > 0 || originInput || destInput || activeTravelRoute) && (
             <button
               onClick={() => {
                 setSelectedLines([])
                 setActiveTravelRoute(null)
                 setTrackedBusId(null)
                 setSolvedRoutes([])
+                setOriginCoord(null)
+                setDestCoord(null)
+                setOriginInput('')
+                setDestInput('')
+                setShowLineSelector(false)
               }}
               style={{ background: 'none', border: 'none', color: '#EF4444', fontSize: '11px', cursor: 'pointer', fontWeight: 700 }}
             >
@@ -24346,7 +24370,8 @@ function MapAdBanner({
             { id: 'tourist', label: 'Turismo' },
             { id: 'clubbing', label: 'Bares' },
             { id: 'restaurants', label: 'Restaurantes y Comidas' },
-            { id: 'shopping', label: 'Compras' }
+            { id: 'shopping', label: 'Compras' },
+            { id: 'tango', label: 'Shows de Tango' }
           ] as const).map(m => {
             const active = activeMode === m.id
             return (
@@ -24773,25 +24798,38 @@ function MapAdBanner({
                     )}
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                        {currentAd.title}
-                      </span>
-                      <span style={{ fontSize: '9px', color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                        {currentAd.description || currentAd.desc}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => setShowActiveAdsDirectoryModal(true)}
-                      style={{
-                        padding: '5px 12px', background: '#10B981', color: 'white', border: 'none', borderRadius: '6px',
-                        fontSize: '10px', fontWeight: 700, cursor: 'pointer', transition: 'all 200ms', flexShrink: 0, marginLeft: '8px'
-                      }}
-                    >
-                      Ver más
-                    </button>
+                  <div style={{ display: 'flex', flexDirection: 'column', marginTop: '4px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                      {currentAd.title}
+                    </span>
+                    <span style={{ fontSize: '9px', color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                      {currentAd.description || currentAd.desc}
+                    </span>
                   </div>
+
+                  {/* Independent full-width button below the ad from left to right */}
+                  <button
+                    onClick={() => setShowActiveAdsDirectoryModal(true)}
+                    style={{
+                      width: '100%',
+                      marginTop: '6px',
+                      padding: '8px 12px',
+                      background: 'rgba(16, 185, 129, 0.12)',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      color: '#10B981',
+                      borderRadius: '8px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      transition: 'all 200ms',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    Ver más anuncios
+                  </button>
                 </>
               )
             })()}
@@ -24853,6 +24891,7 @@ function MapAdBanner({
       alignItems: 'center',
       position: 'relative'
     }}>
+      <SessionConcurrencyGuard userEmail={profileEmail} />
       {/* Ambient background glow for phone mockup */}
       {!physicalMobile && forceMobilePreview && (
         <div style={{
@@ -25366,6 +25405,9 @@ function MapAdBanner({
               } else if (place.type === 'shopping') {
                 markerBg = '#10B981';
                 markerIcon = '🛍️';
+              } else if (place.type === 'tango') {
+                markerBg = '#EC4899';
+                markerIcon = '💃';
               }
 
               return (
@@ -25623,59 +25665,96 @@ function MapAdBanner({
           )}
 
           {/* Interactive Map POI Markers for Option 2 Ads (Marcador en Mapa) */}
-          {adSubmissions.filter((ad: any) => {
-            if (ad.status !== 'approved' && ad.status) return false
-            const types = ad.selectedAdTypes || ad.placements || [ad.placement]
-            return types.includes('map') || types.includes('mapa') || ad.placement === 'map'
-          }).map((ad: any, idx: number) => {
-            const coord = ad.businessCoord || { lat: -34.6037, lng: -58.4173 }
-            return (
-              <Marker key={`ad_map_pin_${ad.id || idx}`} longitude={coord.lng} latitude={coord.lat} anchor="bottom">
-                <div
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setSelectedBottomAdDetail(ad)
-                  }}
-                  style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', transition: 'transform 0.2s', zIndex: 100 }}
-                  className="hover:scale-110"
-                >
-                  <div style={{
-                    background: 'linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%)',
-                    color: '#FFF',
-                    fontSize: '10px',
-                    fontWeight: 800,
-                    padding: '4px 8px',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 14px rgba(37, 99, 235, 0.5)',
-                    border: '1.5px solid #FFFFFF',
-                    marginBottom: '4px',
-                    whiteSpace: 'nowrap',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}>
-                    <span>📍 {ad.title}</span>
-                    <span style={{ fontSize: '8px', background: '#10B981', color: '#FFF', padding: '1px 5px', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 900 }}>PROMO</span>
+          {(() => {
+            let savedFavAdIds: string[] = []
+            try {
+              savedFavAdIds = JSON.parse(localStorage.getItem('bu_fav_ads') || '[]')
+            } catch {}
+
+            const seenIds = new Set<string>()
+            const visibleAds = adSubmissions.filter((ad: any) => {
+              if (ad.status === 'paused' || ad.isPaused) return false
+              if (ad.status === 'rejected' || ad.status === 'expired') return false
+
+              const adKey = ad.id || ad.title
+              if (seenIds.has(adKey)) return false
+              seenIds.add(adKey)
+
+              // 1. Always visible to the user who created it
+              const isCreator = (ad.userEmail && ad.userEmail === profileEmail) || (ad.userName && ad.userName === profileName)
+              if (isCreator) return true
+
+              // 2. Visible if saved in Favoritos AND toggle is enabled
+              const isSaved = savedFavAdIds.includes(ad.id) || savedFavAdIds.includes(ad.title)
+              if (isSaved && (prefs.showSavedAdsOnMap ?? true)) return true
+
+              // 3. Visible only if user selected a route or bus line that matches ad's target line or stops
+              if (selectedLines.length > 0 || activeTravelRoute) {
+                const targetText = `${ad.targetAudience || ''} ${ad.route || ''} ${ad.line || ''}`.toLowerCase()
+                const lineMatches = selectedLines.some(l => targetText.includes(l.line_number.toLowerCase()) || targetText.includes(l.name.toLowerCase()))
+                if (lineMatches) return true
+
+                if (ad.selectedStops && Array.isArray(ad.selectedStops) && ad.selectedStops.length > 0) {
+                  const stopMatches = selectedLines.some(l =>
+                    ad.selectedStops.some((st: string) => st.toLowerCase().includes(l.line_number.toLowerCase()))
+                  )
+                  if (stopMatches) return true
+                }
+              }
+
+              return false
+            })
+
+            return visibleAds.map((ad: any, idx: number) => {
+              const coord = ad.businessCoord || { lat: -34.6037, lng: -58.4173 }
+              return (
+                <Marker key={`ad_map_pin_${ad.id || idx}`} longitude={coord.lng} latitude={coord.lat} anchor="bottom">
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setSelectedBottomAdDetail(ad)
+                    }}
+                    style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', transition: 'transform 0.2s', zIndex: 100 }}
+                    className="hover:scale-110"
+                  >
+                    <div style={{
+                      background: 'linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%)',
+                      color: '#FFF',
+                      fontSize: '10px',
+                      fontWeight: 800,
+                      padding: '4px 8px',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 14px rgba(37, 99, 235, 0.5)',
+                      border: '1.5px solid #FFFFFF',
+                      marginBottom: '4px',
+                      whiteSpace: 'nowrap',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
+                    }}>
+                      <span>📍 {ad.title}</span>
+                      <span style={{ fontSize: '8px', background: '#10B981', color: '#FFF', padding: '1px 5px', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 900 }}>PROMO</span>
+                    </div>
+                    <div style={{
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '50%',
+                      background: '#2563EB',
+                      border: '2px solid #FFFFFF',
+                      boxShadow: '0 0 14px rgba(37, 99, 235, 0.8)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#FFFFFF',
+                      fontSize: '12px'
+                    }}>
+                      📣
+                    </div>
                   </div>
-                  <div style={{
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '50%',
-                    background: '#2563EB',
-                    border: '2px solid #FFFFFF',
-                    boxShadow: '0 0 14px rgba(37, 99, 235, 0.8)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#FFFFFF',
-                    fontSize: '12px'
-                  }}>
-                    📣
-                  </div>
-                </div>
-              </Marker>
-            )
-          })}
+                </Marker>
+              )
+            })
+          })()}
 
           {/* Ad Location Dropped Pin Marker */}
           {adLocationMarker && (
@@ -26664,10 +26743,10 @@ function MapAdBanner({
                       setSelectedLines([])
                       setTempLinesSelection([])
                       setEnRutaMinimized(false)
-                      setShowLineSelector(true)
-                      setLineSelectorTab('route')
+                      setShowLineSelector(false)
+                      setLineSelectorTab('line')
                       setDrawerState('half')
-                      toast.success("Búsqueda de recorrido reiniciada")
+                      toast.success("Búsqueda finalizada")
                     }}
                     style={{
                       background: 'rgba(239,68,68,0.12)', border: 'none', color: '#EF4444', fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '6px', cursor: 'pointer'
@@ -27498,6 +27577,7 @@ function MapAdBanner({
                       setActivePanel('map')
                     }}
                     onSelectTrip={trip => {
+                      setActivePanel('map')
                       setOriginCoord({ lat: trip.originStop.latitude, lng: trip.originStop.longitude })
                       setDestCoord({ lat: trip.destStop.latitude, lng: trip.destStop.longitude })
                       setOriginInput(trip.originName)
@@ -27513,10 +27593,12 @@ function MapAdBanner({
                       const line = allLines.find(l => l.id === trip.line_id)
                       if (line) setSelectedLines([line])
                       
-                      fitCoordinates(
-                        { lat: trip.originStop.latitude, lng: trip.originStop.longitude },
-                        { lat: trip.destStop.latitude, lng: trip.destStop.longitude }
-                      )
+                      setTimeout(() => {
+                        fitCoordinates(
+                          { lat: trip.originStop.latitude, lng: trip.originStop.longitude },
+                          { lat: trip.destStop.latitude, lng: trip.destStop.longitude }
+                        )
+                      }, 100)
                       setDrawerState('half')
                     }}
                     onSelectLocation={(lat, lng, title) => {
@@ -27526,6 +27608,8 @@ function MapAdBanner({
                       setViewState((v: any) => ({ ...v, latitude: lat, longitude: lng, zoom: 15 }));
                       toast.success(`📍 Marcador de ${title} agregado al mapa`);
                     }}
+                    onOpenAdDetail={ad => setSelectedBottomAdDetail(ad)}
+                    adSubmissions={adSubmissions}
                   />
                 )}
                 {activePanel === 'settings' && (
@@ -28198,41 +28282,68 @@ function MapAdBanner({
                 <div style={{ padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                   {/* Category Chips */}
                   <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', scrollbarWidth: 'none', paddingBottom: '2px' }}>
-                    {['Todas', 'Servicios', 'Gastronomía', 'Descuentos', 'En Ruta'].map((cat, idx) => (
-                      <span
-                        key={cat}
-                        style={{
-                          fontSize: '11px', fontWeight: 700, padding: '4px 10px', borderRadius: '20px',
-                          background: idx === 0 ? '#10B981' : (prefs.darkMap ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
-                          color: idx === 0 ? 'white' : 'var(--text-secondary)',
-                          cursor: 'pointer', whiteSpace: 'nowrap'
-                        }}
-                      >
-                        {cat}
-                      </span>
-                    ))}
+                    {['Todas', 'Servicios', 'Gastronomía', 'Descuentos', 'En Ruta'].map((cat) => {
+                      const isSelected = activeDirectoryCategory === cat;
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setActiveDirectoryCategory(cat)}
+                          style={{
+                            fontSize: '11px', fontWeight: 700, padding: '5px 12px', borderRadius: '20px',
+                            background: isSelected ? '#10B981' : (prefs.darkMap ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'),
+                            color: isSelected ? 'white' : 'var(--text-secondary)',
+                            border: isSelected ? '1px solid #10B981' : '1px solid rgba(255,255,255,0.08)',
+                            cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 150ms'
+                          }}
+                        >
+                          {cat}
+                        </button>
+                      );
+                    })}
                   </div>
 
                   {/* Ads List */}
                   {(() => {
                     // Combine default TUFIX ads + user submitted ads
                     const deletedAdIds = JSON.parse(localStorage.getItem('deleted_ad_ids') || '[]')
-const userSubmitted = (JSON.parse(localStorage.getItem('bu_submitted_ads') || '[]')).filter((a: any) => !deletedAdIds.includes(a.id) && !deletedAdIds.includes(a.title))
+                    const userSubmitted = (JSON.parse(localStorage.getItem('bu_submitted_ads') || '[]'))
+                      .filter((a: any) => !deletedAdIds.includes(a.id) && !deletedAdIds.includes(a.title) && a.status !== 'paused')
                     const tufixList = TUFIX_ADS.map((ad, idx) => ({
                       id: 'tufix-' + idx,
                       title: ad.title,
                       description: ad.desc,
                       imageUrl: ad.image,
                       promoCode: 'TUFIX-' + (2026 + idx * 15),
+                      category: idx === 0 ? 'Gastronomía' : idx === 1 ? 'Servicios' : 'Descuentos',
                       businessAddress: idx === 0 ? 'Av. Santa Fe 2100, Palermo' : idx === 1 ? 'Av. Corrientes 1380, Centro' : 'Av. Cabildo 1800, Belgrano',
                       businessCoord: idx === 0 ? { lat: -34.5889, lng: -58.4042 } : idx === 1 ? { lat: -34.6037, lng: -58.4173 } : { lat: -34.5621, lng: -58.4561 }
                     }))
 
                     const combinedAds = [...tufixList, ...userSubmitted]
+                    const filteredAds = combinedAds.filter((ad: any) => {
+                      if (activeDirectoryCategory === 'Todas') return true;
+                      if (activeDirectoryCategory === 'En Ruta') {
+                        if (selectedLines.length === 0 && !activeTravelRoute) return true;
+                        const routeText = (ad.route || ad.targetAudience || ad.line || '').toLowerCase();
+                        return selectedLines.some(l => routeText.includes(l.line_number.toLowerCase()));
+                      }
+                      const txt = `${ad.title} ${ad.description || ad.desc || ''} ${ad.category || ''}`.toLowerCase();
+                      if (activeDirectoryCategory === 'Servicios') {
+                        return txt.includes('servicio') || txt.includes('taller') || txt.includes('peluquer') || txt.includes('clinica') || txt.includes('seguro');
+                      }
+                      if (activeDirectoryCategory === 'Gastronomía') {
+                        return txt.includes('gastro') || txt.includes('comida') || txt.includes('restauran') || txt.includes('bar') || txt.includes('cafe') || txt.includes('pizza') || txt.includes('burger');
+                      }
+                      if (activeDirectoryCategory === 'Descuentos') {
+                        return txt.includes('descuento') || txt.includes('promo') || txt.includes('off') || txt.includes('%') || !!ad.promoCode;
+                      }
+                      return true;
+                    });
 
                     return (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {combinedAds.map((ad: any, idx: number) => (
+                        {filteredAds.map((ad: any, idx: number) => (
                           <div
                             key={ad.id || idx}
                             onClick={() => {
@@ -29131,7 +29242,8 @@ function getAdStatusInfo(ad: any) {
     startDateStr: startDate.toLocaleDateString('es-AR'),
     endDateStr: endDate.toLocaleDateString('es-AR'),
     activeHoursStr: ad.activeHours || 'Las 24 hs activo',
-    remainingText
+    remainingText,
+    daysLeft: days
   }
 }
 
@@ -29140,11 +29252,13 @@ function FavAdCard({
   ad,
   userName,
   onRemove,
+  onOpenDetail,
   onSelectLocation
 }: {
   ad: any
   userName?: string
   onRemove: () => void
+  onOpenDetail?: () => void
   onSelectLocation?: (lat: number, lng: number, title: string, address?: string) => void
 }) {
   const baseCode = ad.promoCode || 'BIENPARADA-OFF';
@@ -29155,16 +29269,21 @@ function FavAdCard({
   const info = getAdStatusInfo(ad);
 
   return (
-    <div style={{
-      background: 'rgba(255,255,255,0.03)',
-      border: info.isPaused ? '1.5px solid rgba(245,158,11,0.4)' : info.isExpired ? '1.5px solid rgba(239,68,68,0.4)' : '1px solid rgba(255,255,255,0.08)',
-      borderRadius: '12px',
-      padding: '12px',
-      marginBottom: '8px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '10px'
-    }}>
+    <div
+      onClick={() => onOpenDetail && onOpenDetail()}
+      style={{
+        background: 'rgba(255,255,255,0.03)',
+        border: info.isPaused ? '1.5px solid rgba(245,158,11,0.4)' : info.isExpired ? '1.5px solid rgba(239,68,68,0.4)' : '1px solid rgba(255,255,255,0.08)',
+        borderRadius: '12px',
+        padding: '12px',
+        marginBottom: '8px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+        cursor: onOpenDetail ? 'pointer' : 'default',
+        transition: 'all 150ms'
+      }}
+    >
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <img
           src={ad.imageUrl || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80'}
@@ -29181,12 +29300,34 @@ function FavAdCard({
           </div>
         </div>
         <button
-          onClick={onRemove}
+          onClick={(e) => {
+            e.stopPropagation()
+            onRemove()
+          }}
           style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', fontSize: '12px', padding: '4px', fontWeight: 600 }}
           title="Quitar de favoritos"
         >
           ✕
         </button>
+      </div>
+
+      {/* Validity Dates & Days Remaining Badge */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '6px 10px',
+        borderRadius: '6px',
+        background: 'rgba(59, 130, 246, 0.08)',
+        border: '1px solid rgba(59, 130, 246, 0.2)',
+        fontSize: '10.5px'
+      }}>
+        <span style={{ color: 'var(--text-muted)' }}>
+          📅 Vigencia: <strong style={{ color: 'var(--text-primary)' }}>{ad.endDate || '30 Días'}</strong>
+        </span>
+        <span style={{ color: '#3B82F6', fontWeight: 700 }}>
+          ⏳ Quedan {info.daysLeft ?? 30} días
+        </span>
       </div>
 
       {/* Inactive / Paused / Expired Warning Notification Box */}
@@ -29267,7 +29408,7 @@ function FavAdCard({
 
 // ─── Favourites Panel ─────────────────────────────────────────────────────────
 function FavouritesPanel({
-  prefs, lines, buses, adSubmissions = [], onSelectLine, onUpdatePrefs, onSelectBus, onSelectTrip, onSelectLocation, isMobile
+  prefs, lines, buses, adSubmissions = [], onSelectLine, onUpdatePrefs, onSelectBus, onSelectTrip, onSelectLocation, onOpenAdDetail, isMobile
 }: {
   prefs: UserPrefs; lines: BusLine[]; buses: BusPosition[]; adSubmissions?: any[]
   onSelectLine: (l: BusLine) => void
@@ -29275,6 +29416,7 @@ function FavouritesPanel({
   onSelectBus: (b: BusPosition) => void
   onSelectTrip: (t: any) => void
   onSelectLocation?: (lat: number, lng: number, title: string) => void
+  onOpenAdDetail?: (ad: any) => void
   isMobile: boolean
 }) {
   const favLines = lines.filter(l => prefs.favBusLines.includes(l.id))
@@ -29345,6 +29487,35 @@ function FavouritesPanel({
       )}
 
       <SectionHeader icon={<Megaphone size={13} />} title={t('Anuncios y Descuentos Guardados')} style={{ marginTop: '20px' }} />
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '8px 12px',
+        marginBottom: '10px',
+        borderRadius: '10px',
+        background: prefs.darkMap ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+        border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)'
+      }}>
+        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Mostrar anuncios guardados en el mapa:</span>
+        <button
+          type="button"
+          onClick={() => onUpdatePrefs({ showSavedAdsOnMap: !(prefs.showSavedAdsOnMap ?? true) })}
+          style={{
+            padding: '5px 12px',
+            borderRadius: '20px',
+            border: 'none',
+            background: (prefs.showSavedAdsOnMap ?? true) ? '#10B981' : 'rgba(255,255,255,0.1)',
+            color: (prefs.showSavedAdsOnMap ?? true) ? '#FFFFFF' : 'var(--text-muted)',
+            fontSize: '10.5px',
+            fontWeight: 700,
+            cursor: 'pointer',
+            transition: 'all 150ms'
+          }}
+        >
+          {(prefs.showSavedAdsOnMap ?? true) ? '✓ Visibles en mapa' : '✕ Ocultos del mapa'}
+        </button>
+      </div>
       {(() => {
         let savedIds: string[] = [];
         try {
@@ -29365,7 +29536,8 @@ function FavouritesPanel({
 
         const allAds = [
           ...userSubmittedAds,
-          ...adSubmissions
+          ...adSubmissions,
+          ...tufixFavAds
         ];
 
         const savedAdsList = allAds.filter(ad => savedIds.includes(ad.id));
@@ -29378,6 +29550,7 @@ function FavouritesPanel({
           <FavAdCard
             key={ad.id}
             ad={ad}
+            onOpenDetail={() => onOpenAdDetail && onOpenAdDetail(ad)}
             onRemove={() => {
               const updated = savedIds.filter(id => id !== ad.id);
               localStorage.setItem('bu_fav_ads', JSON.stringify(updated));
@@ -29911,17 +30084,18 @@ function ProfilePanel({
     }
 
     try {
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(val + ', Argentina')}&format=json&accept-language=es&limit=5`
-      const res = await fetch(url, { headers: { 'User-Agent': 'BienParada Business Ad Location' } })
+      const res = await fetch(`/api/geocode?q=${encodeURIComponent(val)}`)
       if (res.ok) {
         const data = await res.json()
-        const mapped = data.map((item: any) => ({
-          title: item.display_name.split(',').slice(0, 3).join(','),
-          lat: parseFloat(item.lat),
-          lng: parseFloat(item.lon)
-        }))
-        setAdAddressSuggestions(mapped)
-        setShowAdAddressSuggestions(true)
+        if (data && data.results) {
+          const mapped = data.results.map((item: any) => ({
+            title: item.title,
+            lat: item.lat,
+            lng: item.lng
+          }))
+          setAdAddressSuggestions(mapped)
+          setShowAdAddressSuggestions(true)
+        }
       }
     } catch (e) {
       console.error('Error fetching ad address suggestions:', e)
@@ -30274,35 +30448,24 @@ function ProfilePanel({
     setActivePanel('map')
   }
 
-  const handleAdSubmit = (e: React.FormEvent) => {
+  const handleAdSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!adTitle.trim() || !adDesc.trim()) {
-      alert('Por favor completá los campos requeridos (Título y Descripción).')
-      return
-    }
-    if (adSelectedStops.length === 0) {
-      alert('Por favor seleccioná 1 o 2 paradas de la línea para tu campaña.')
-      return
-    }
-    if (adSelectedStops.length > 2) {
-      alert('Podés seleccionar como máximo 2 paradas para tu campaña.')
+      toast.error('Por favor completá los campos requeridos (Título y Descripción).')
       return
     }
     if (!adTermsAccepted) {
-      alert('Debés aceptar los términos y condiciones de contenido publicitario para continuar.')
+      toast.error('Debés aceptar los términos y reglas de publicación para continuar.')
       return
     }
 
-    const baseBudgetNum = Math.max(10, Number(adBudget) || 50);
-    const extraMapCost = selectedAdTypes.includes('map') ? 20 : 0;
-    const extraNotifCost = selectedAdTypes.includes('notification') ? 100 : 0;
-    const totalCalculatedCost = baseBudgetNum + extraMapCost + extraNotifCost;
+    const baseBudgetNum = Math.max(10, Number(adBudget) || 500);
 
     const newAd = {
-      id: Date.now().toString(),
-      title: adTitle,
-      description: adDesc,
-      desc: adDesc,
+      id: `ad-${Date.now()}`,
+      title: adTitle.trim(),
+      description: adDesc.trim(),
+      desc: adDesc.trim(),
       businessAddress: adPickedAddress || 'Av. Corrientes 1380, CABA',
       businessCoord: adPickedCoord || { lat: -34.6037, lng: -58.4173 },
       placement: selectedAdTypes[0] || 'standard',
@@ -30311,20 +30474,19 @@ function ProfilePanel({
       promoCode: 'BIENPARADA-' + Math.floor(1000 + Math.random() * 9000),
       imageUrl: adUploadedImg || adImg || 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&q=80',
       baseBudget: baseBudgetNum,
-      extraCost: extraMapCost + extraNotifCost,
-      budget: totalCalculatedCost,
-      totalCost: totalCalculatedCost,
+      budget: baseBudgetNum,
+      totalCost: baseBudgetNum,
       startDate: adStartDate || 'Hoy',
       endDate: adEndDate || 'En 30 días',
       duration: `${adStartDate || 'Hoy'} - ${adEndDate || '30 Días'}`,
       autoDebit: adAutoDebit,
       status: 'pending',
-      isActive: true,
-      userName: profileName || 'Anunciante Corporativo',
-      userEmail: profileEmail || 'ads@bienparada.com.ar',
+      isActive: false, // Becomes active when approved or paid
+      userName: profileName || 'Anunciante',
+      userEmail: profileEmail || 'anunciante@bienparada.com.ar',
       created_at: new Date().toISOString(),
       timestamp: 'Hoy',
-      adminComment: 'Aguardando revisión del equipo de moderación y aprobación de pago.',
+      adminComment: 'Aguardando revisión y aprobación del Super Administrador.',
       targetAudience,
       influenceRadius,
       selectedAdSchedule: selectedAdSchedules.join(','),
@@ -30333,21 +30495,59 @@ function ProfilePanel({
       stop: adSelectedStops && adSelectedStops.length > 0 ? adSelectedStops.join(', ') : 'Todas las paradas',
       route: adSelectedLines && adSelectedLines.length > 0 ? adSelectedLines.join(', ') : 'Todas las líneas',
       line: adSelectedLines && adSelectedLines.length > 0 ? adSelectedLines.join(', ') : 'Todas las líneas',
-      adScheduleDetails: selectedAdSchedules.reduce((acc, id) => {
-        acc[id] = {
-          splits: adScheduleDetails[id]?.splits || 1,
-          startTimes: adScheduleDetails[id]?.startTimes || [0],
-          days: adScheduleDetails[id]?.days || ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'],
-          frequency: adScheduleDetails[id]?.frequency || 0,
-          placements: adScheduleDetails[id]?.placements || []
-        };
-        return acc;
-      }, {} as Record<string, AdScheduleDetail>)
     };
 
-    setPendingAd(newAd);
-    setPaymentAmount(totalCalculatedCost);
-    setShowMercadoPagoModal(true);
+    // Save ad locally and sync with Super Admin immediately
+    const updatedSubmissions = [newAd, ...adSubmissions.filter(a => a.id !== newAd.id)];
+    setAdSubmissions(updatedSubmissions);
+    try {
+      localStorage.setItem('bu_submitted_ads', JSON.stringify(updatedSubmissions));
+      localStorage.setItem('bu_user_ads', JSON.stringify(updatedSubmissions));
+      // Sync to universal super admin ads
+      const superAds = JSON.parse(localStorage.getItem('mock_super_ads') || '[]');
+      localStorage.setItem('mock_super_ads', JSON.stringify([newAd, ...superAds.filter((a: any) => a.id !== newAd.id)]));
+    } catch (e) {}
+
+    toast.success('¡Anuncio guardado con éxito! Redirigiendo a Mercado Pago...', { icon: '🎉', duration: 4000 });
+
+    // Reset Form to blank / defaults
+    setAdTitle('');
+    setAdDesc('');
+    setAdBudget('500');
+    setAdUploadedImg(null);
+    setAdPickedAddress('');
+    setAdPickedCoord(null);
+    setSelectedAdTypes(['standard']);
+    setAdSelectedStops([]);
+    setAdTermsAccepted(false);
+
+    // Call Mercado Pago Preference API
+    setAdSubmitting(true);
+    try {
+      const res = await fetch('/api/mercadopago/preference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newAd.title,
+          amount: baseBudgetNum,
+          adId: newAd.id,
+          userEmail: newAd.userEmail,
+          returnUrl: typeof window !== 'undefined' ? window.location.origin : ''
+        })
+      });
+
+      if (res.ok) {
+        const mpData = await res.json();
+        if (mpData && mpData.initPoint) {
+          window.location.href = mpData.initPoint;
+          return;
+        }
+      }
+    } catch (err) {
+      console.error('Error connecting to Mercado Pago:', err);
+    } finally {
+      setAdSubmitting(false);
+    }
   }
 
   const handleSendMessage = (e: React.FormEvent) => {
@@ -31368,82 +31568,98 @@ function ProfilePanel({
                   </div>
                 </div>
 
-                {/* Real-Time Pricing Math Breakdown Card */}
-                <div style={{
-                  marginBottom: '14px',
-                  padding: '12px 14px',
-                  borderRadius: '12px',
-                  background: prefs.darkMap ? 'rgba(16, 185, 129, 0.06)' : 'rgba(16, 185, 129, 0.05)',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>
-                    <span>Inversión Base (Presupuesto):</span>
-                    <span style={{ fontFamily: 'DM Mono', fontWeight: 700, color: 'var(--text-primary)' }}>$ {(Number(adBudget) || 50).toLocaleString('es-AR')} ARS</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: 'var(--text-muted)' }}>
-                    <span>1ª Opción (Banner Estándar):</span>
-                    <span style={{ fontWeight: 600, color: '#10B981' }}>+$0 ARS</span>
-                  </div>
-                  {selectedAdTypes.includes('map') && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#3B82F6' }}>
-                      <span>2ª Opción (Marcador en Mapa):</span>
-                      <span style={{ fontFamily: 'DM Mono', fontWeight: 700 }}>+$20 ARS</span>
-                    </div>
-                  )}
-                  {selectedAdTypes.includes('notification') && (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#F59E0B' }}>
-                      <span>3ª Opción (Push Notificación 300m):</span>
-                      <span style={{ fontFamily: 'DM Mono', fontWeight: 700 }}>+$100 ARS</span>
-                    </div>
-                  )}
-                  <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '4px 0' }} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>Total Inversión a Pagar:</span>
-                    <span style={{ fontSize: '18px', fontWeight: 900, color: '#10B981', fontFamily: 'DM Mono' }}>
-                      $ {((Number(adBudget) || 50) + (selectedAdTypes.includes('map') ? 20 : 0) + (selectedAdTypes.includes('notification') ? 100 : 0)).toLocaleString('es-AR')} ARS
-                    </span>
-                  </div>
-                </div>
-
-                {/* Estimate Runtime Display */}
+                {/* Real-Time Pricing Math Breakdown Card (Negative Rate Deductions per Option) */}
                 {(() => {
-                  const budgetNum = Number(adBudget) || 0
-                  if (budgetNum <= 0) return null
-                  const totalMinutes = adCostPerMinute > 0 ? budgetNum / adCostPerMinute : 0
-                  const totalHours = totalMinutes / 60
-                  const totalDays = totalHours / 24
+                  const budgetNum = Math.max(10, Number(adBudget) || 500);
+                  const hasMap = selectedAdTypes.includes('map');
+                  const hasNotif = selectedAdTypes.includes('notification');
+                  const ratePerMin = 5 + (hasMap ? 20 : 0) + (hasNotif ? 100 : 0);
+                  const totalMinutes = ratePerMin > 0 ? Math.round(budgetNum / ratePerMin) : 0;
+                  const totalHours = (totalMinutes / 60).toFixed(1);
+                  const totalDays = (totalMinutes / (60 * 24)).toFixed(1);
 
-                  let durationText = ''
-                  if (totalDays >= 1) {
-                    durationText = `${totalDays.toFixed(1)} días (${totalHours.toFixed(0)} horas)`
-                  } else if (totalHours >= 1) {
-                    durationText = `${totalHours.toFixed(1)} horas (${totalMinutes.toFixed(0)} minutos)`
+                  let durationText = '';
+                  if (Number(totalDays) >= 1) {
+                    durationText = `${totalDays} días (${totalHours} horas)`;
+                  } else if (Number(totalHours) >= 1) {
+                    durationText = `${totalHours} horas (${totalMinutes} minutos)`;
                   } else {
-                    durationText = `${totalMinutes.toFixed(0)} minutos`
+                    durationText = `${totalMinutes} minutos`;
                   }
 
                   return (
                     <div style={{
-                      marginBottom: '12px',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      background: 'rgba(16, 185, 129, 0.08)',
-                      border: '1px solid rgba(16, 185, 129, 0.2)',
-                      fontSize: '11px',
-                      color: prefs.darkMap ? '#a7f3d0' : '#065f46'
+                      marginBottom: '14px',
+                      padding: '12px 14px',
+                      borderRadius: '12px',
+                      background: prefs.darkMap ? 'rgba(16, 185, 129, 0.06)' : 'rgba(16, 185, 129, 0.05)',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px'
                     }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                        <span style={{ fontWeight: 600 }}>Exhibición diaria estimada:</span>
-                        <span style={{ fontWeight: 800 }}>{durationText}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>
+                        <span>Presupuesto a Invertir:</span>
+                        <span style={{ fontFamily: 'DM Mono', fontWeight: 700, color: 'var(--text-primary)' }}>$ {budgetNum.toLocaleString('es-AR')} ARS</span>
                       </div>
-                      <div style={{ fontSize: '9px', color: 'var(--text-muted)' }}>
-                        Costo de <strong>${adCostPerMinute} por minuto</strong> (configurado por administración).
+
+                      {/* Option 1: Standard Banner */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: 'var(--text-muted)' }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ fontWeight: 700, color: '#10B981' }}>1ª Opción:</span> Banner Estándar (Base)
+                        </span>
+                        <span style={{ fontWeight: 700, color: '#10B981', fontFamily: 'DM Mono' }}>$0/min (incluido)</span>
+                      </div>
+
+                      {/* Option 2: Map marker */}
+                      {hasMap && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#3B82F6' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontWeight: 700 }}>2ª Opción:</span> Marcador en Mapa
+                            <button
+                              type="button"
+                              onClick={() => handleToggleAdTypeSync('map')}
+                              title="Quitar opción 2"
+                              style={{ background: 'rgba(239,68,68,0.12)', border: 'none', color: '#EF4444', borderRadius: '50%', width: '16px', height: '16px', fontSize: '10px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              ✕
+                            </button>
+                          </span>
+                          <span style={{ fontFamily: 'DM Mono', fontWeight: 700, color: '#EF4444' }}>-20 ARS/min (reduce tiempo)</span>
+                        </div>
+                      )}
+
+                      {/* Option 3: Push Notification */}
+                      {hasNotif && (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#F59E0B' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontWeight: 700 }}>3ª Opción:</span> Push Notif (300m)
+                            <button
+                              type="button"
+                              onClick={() => handleToggleAdTypeSync('notification')}
+                              title="Quitar opción 3"
+                              style={{ background: 'rgba(239,68,68,0.12)', border: 'none', color: '#EF4444', borderRadius: '50%', width: '16px', height: '16px', fontSize: '10px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              ✕
+                            </button>
+                          </span>
+                          <span style={{ fontFamily: 'DM Mono', fontWeight: 700, color: '#EF4444' }}>-100 ARS/min (reduce tiempo)</span>
+                        </div>
+                      )}
+
+                      <div style={{ height: '1px', background: 'rgba(255,255,255,0.1)', margin: '2px 0' }} />
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-primary)', display: 'block' }}>Total Inversión a Pagar:</span>
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Exhibición estimada: <strong>{durationText}</strong></span>
+                        </div>
+                        <span style={{ fontSize: '18px', fontWeight: 900, color: '#10B981', fontFamily: 'DM Mono' }}>
+                          $ {budgetNum.toLocaleString('es-AR')} ARS
+                        </span>
                       </div>
                     </div>
-                  )
+                  );
                 })()}
 
                 {/* URL de Imagen / Upload file */}
@@ -31549,7 +31765,7 @@ function ProfilePanel({
                     boxShadow: '0 2px 4px rgba(0,158,227,0.2)', transition: 'transform 0.1s, opacity 0.2s'
                   }}
                 >
-                  {adSubmitting ? 'Cargando campaña...' : 'Pagar anuncio y enviar para revisión'}
+                  {adSubmitting ? 'Conectando con Mercado Pago...' : 'Enviar para revisión y pagar'}
                 </button>
               </form>
             </GlassCard>
@@ -31916,60 +32132,106 @@ function ProfilePanel({
               <div style={{ fontSize: '11px', marginTop: '8px', opacity: 0.9, lineHeight: '1.4' }}>
                 100 pts equivalen a aproximadamente $120.000 ARS en saldo publicitario.
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const el = document.getElementById('rewards-section');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
+                style={{
+                  marginTop: '12px',
+                  padding: '8px 14px',
+                  background: 'rgba(255,255,255,0.2)',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  borderRadius: '8px',
+                  color: '#FFFFFF',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                🎁 Ver premios disponibles
+              </button>
             </div>
 
-            {/* Referral Link Card */}
+            {/* Gana puntos por invitar amigos Card - Highlighted in RED with red outline */}
             <div style={{
-              background: prefs.darkMap ? 'rgba(30, 41, 59, 0.4)' : '#FFFFFF',
-              border: prefs.darkMap ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.08)',
-              borderRadius: '14px',
-              padding: '16px',
+              background: 'rgba(239, 68, 68, 0.08)',
+              border: '2px solid #EF4444',
+              borderRadius: '16px',
+              padding: '16px 18px',
               display: 'flex',
               flexDirection: 'column',
-              gap: '10px'
+              gap: '12px',
+              boxShadow: '0 4px 16px rgba(239, 68, 68, 0.15)'
             }}>
-              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>Tu Enlace de Referidos</span>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input
-                  type="text"
-                  readOnly
-                  value={`https://bienparada.com.ar/join?ref=${(localName || 'usuario').toLowerCase().replace(/\s+/g, '-')}`}
-                  style={{
-                    flex: 1,
-                    background: prefs.darkMap ? 'rgba(15,23,42,0.6)' : '#F1F5F9',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: '8px',
-                    padding: '8px 12px',
-                    color: 'var(--text-primary)',
-                    fontSize: '11px',
-                    fontFamily: 'DM Mono',
-                    outline: 'none'
-                  }}
-                />
-                <button
-                  onClick={() => {
-                    const link = `https://bienparada.com.ar/join?ref=${(localName || 'usuario').toLowerCase().replace(/\s+/g, '-')}`;
-                    navigator.clipboard.writeText(link);
-                    toast.success('¡Enlace de referidos copiado al portapapeles!');
-                  }}
-                  style={{
-                    padding: '8px 14px',
-                    background: 'var(--accent-color)',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  Copiar
-                </button>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '18px' }}>🎁</span>
+                  <span style={{ fontSize: '13px', fontWeight: 800, color: '#EF4444' }}>
+                    ¡Gana puntos por invitar amigos!
+                  </span>
+                </div>
+                <span style={{ fontSize: '11px', fontWeight: 800, background: '#EF4444', color: '#FFF', padding: '2px 8px', borderRadius: '12px' }}>
+                  +10 PTS CADA UNO
+                </span>
+              </div>
+              <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                Comparte tu código personal. Cuando un amigo se registre usando tu código o enlace, <strong>ambos recibirán 10 puntos</strong> inmediatamente para canjear por premios y publicidad.
+              </p>
+
+              {/* Code display and copy buttons */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 14px',
+                borderRadius: '10px',
+                background: prefs.darkMap ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.8)',
+                border: '1px dashed #EF4444'
+              }}>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: '9px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 700 }}>Tu Código Único:</span>
+                  <span style={{ fontSize: '16px', fontWeight: 900, color: '#EF4444', fontFamily: 'DM Mono', letterSpacing: '0.05em' }}>
+                    {((localEmail || localName || 'usuario').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6)) || 'BIEN10'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const code = ((localEmail || localName || 'usuario').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6)) || 'BIEN10';
+                      const link = `${typeof window !== 'undefined' ? window.location.origin : 'https://bienparada.com.ar'}/login?ref=${code}`;
+                      navigator.clipboard.writeText(link);
+                      toast.success('¡Enlace con código copiado! Compártelo con tus amigos para ganar 10 pts cada uno.');
+                    }}
+                    style={{
+                      padding: '8px 14px',
+                      background: '#EF4444',
+                      color: '#FFF',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 2px 6px rgba(239, 68, 68, 0.3)'
+                    }}
+                  >
+                    <Copy size={13} />
+                    Copiar Código
+                  </button>
+                </div>
               </div>
             </div>
 
             {/* Rewards Redemption Table */}
-            <div>
+            <div id="rewards-section">
               <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', display: 'block', marginBottom: '10px' }}>Canjear Puntos por Publicidad</span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {[

@@ -23,6 +23,7 @@ import { format, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
 import { syncAllGlobalKeys, pushGlobalKey, purgeUserDataForEmail } from '@/lib/sync'
+import SessionConcurrencyGuard from '@/components/SessionConcurrencyGuard'
 import { CARTODB_DARK, CARTODB_LIGHT } from '@/lib/mapStyles'
 
 // Visual graphs mock data
@@ -333,6 +334,7 @@ export default function SuperAdminDashboard() {
   const [adminColors, setAdminColors] = useState<Record<string, string>>({})
   const [showColorPickerFor, setShowColorPickerFor] = useState<string | null>(null)
   const [hoveredAdminId, setHoveredAdminId] = useState<string | null>(null)
+  const [onlineAdminsMap, setOnlineAdminsMap] = useState<Record<string, number>>({})
 
   const ADMIN_COLOR_PALETTE = ['#EF4444', '#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EC4899', '#06B6D4', '#6366F1']
 
@@ -377,7 +379,30 @@ export default function SuperAdminDashboard() {
     const savedChat = JSON.parse(localStorage.getItem('bu_super_admin_internal_chat') || '[]')
     setChatMessages(savedChat)
 
+    // Online Presence Heartbeat
+    const pingPresence = () => {
+      try {
+        const curId = sessionStorage.getItem('super_admin_identity') || localStorage.getItem('super_admin_identity') || 'Alejandro'
+        const currentPresence = JSON.parse(localStorage.getItem('bu_super_admin_presence_map') || '{}')
+        currentPresence[curId] = Date.now()
+        const now = Date.now()
+        Object.keys(currentPresence).forEach(k => {
+          if (now - currentPresence[k] > 45000) delete currentPresence[k]
+        })
+        localStorage.setItem('bu_super_admin_presence_map', JSON.stringify(currentPresence))
+        setOnlineAdminsMap({ ...currentPresence })
+      } catch (e) {}
+    }
+
+    pingPresence()
+    const presenceInterval = setInterval(pingPresence, 6000)
+
     const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'bu_super_admin_presence_map' && e.newValue) {
+        try {
+          setOnlineAdminsMap(JSON.parse(e.newValue))
+        } catch (err) {}
+      }
       if (e.key === 'bu_super_admin_internal_chat' && e.newValue) {
         setChatMessages(JSON.parse(e.newValue))
       }
@@ -396,7 +421,10 @@ export default function SuperAdminDashboard() {
       }
     }
     window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
+    return () => {
+      clearInterval(presenceInterval)
+      window.removeEventListener('storage', handleStorageChange)
+    }
   }, [])
 
   const logActivity = (action: string) => {
@@ -530,8 +558,8 @@ export default function SuperAdminDashboard() {
   // Super Admin Accounts Management State
   const [superAdminAccounts, setSuperAdminAccounts] = useState<any[]>(() => {
     const defaultAdmins = [
-      { id: 'sa-1', name: 'Super Admin', email: 'admin@admin.com', password: 'Admin', role: 'Super Admin Principal', avatar: 'SA', status: 'Activo', lastLogin: 'Hoy 09:30 hs' },
-      { id: 'sa-2', name: 'Nestor Admin', email: 'nestoradmin@nestoradmin.com', password: 'NestorAdmin123!', role: 'Super Admin Completo', avatar: 'NA', status: 'Activo', lastLogin: 'Hoy 10:00 hs' }
+      { id: 'sa-1', name: 'Alejandro', email: 'alejandro.finochietti@yahoo.com.ar', password: 'Admin', role: 'Super Admin Principal', avatar: 'A', status: 'Activo', lastLogin: 'Hoy 09:30 hs' },
+      { id: 'sa-2', name: 'Nestor', email: 'nestoradmin@nestoradmin.com', password: 'NestorAdmin123!', role: 'Super Admin Completo', avatar: 'N', status: 'Activo', lastLogin: 'Hoy 10:00 hs' }
     ]
     try {
       const stored = localStorage.getItem('bu_super_admins')
@@ -3639,6 +3667,7 @@ export default function SuperAdminDashboard() {
           fill: #475569 !important;
         }
       `}</style>
+      <SessionConcurrencyGuard userEmail={adminIdentity ? `${adminIdentity.toLowerCase()}@bienparada.ar` : 'superadmin@bienparada.ar'} />
       {/* Horizontal Header */}
       <header className="super-header" style={{
         background: '#121527',
@@ -3674,7 +3703,11 @@ export default function SuperAdminDashboard() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
             {/* Online Registered Super Admins Avatar Circles */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
-              {superAdminAccounts.filter((a: any) => a.status === 'Activo').map((admin: any, idx: number) => {
+              {superAdminAccounts.map((admin: any, idx: number) => {
+                const isOnline = Boolean(
+                  (onlineAdminsMap[admin.name] && (Date.now() - onlineAdminsMap[admin.name] < 45000)) ||
+                  (adminIdentity === admin.name)
+                )
                 const initial = admin.name.trim().charAt(0).toUpperCase() || 'A'
                 const storedColor = adminColors[admin.id] || (typeof window !== 'undefined' ? localStorage.getItem(`admin_color_${admin.id}`) : null)
                 const currentColor = storedColor || ADMIN_COLOR_PALETTE[idx % ADMIN_COLOR_PALETTE.length]
@@ -3703,15 +3736,30 @@ export default function SuperAdminDashboard() {
                         fontWeight: 900,
                         fontSize: '13px',
                         cursor: 'pointer',
-                        border: '2px solid #0F172A',
-                        boxShadow: `0 0 10px ${currentColor}80`,
+                        border: isOnline ? '2px solid #10B981' : '2px solid rgba(255,255,255,0.2)',
+                        boxShadow: isOnline ? `0 0 12px ${currentColor}CC, 0 0 6px #10B981` : 'none',
+                        opacity: isOnline ? 1 : 0.4,
                         transition: 'all 200ms ease',
                         transform: isHovered || isPickerOpen ? 'scale(1.1)' : 'scale(1)'
                       }}
-                      title={`${admin.name} (${admin.role}) - En línea (Clic para personalizar color)`}
+                      title={`${admin.name} (${admin.role}) - ${isOnline ? 'En línea' : 'Desconectado'} (Clic para personalizar color)`}
                     >
                       {initial}
                     </div>
+
+                    {/* Online / Offline Dot Indicator */}
+                    <span style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      right: 0,
+                      width: '9px',
+                      height: '9px',
+                      borderRadius: '50%',
+                      background: isOnline ? '#10B981' : '#64748B',
+                      border: '2px solid #0F172A',
+                      boxShadow: isOnline ? '0 0 6px #10B981' : 'none',
+                      pointerEvents: 'none'
+                    }} />
 
                     {/* Tooltip on Hover showing full name */}
                     {isHovered && !isPickerOpen && (
@@ -9583,7 +9631,22 @@ function TermsAndConditionsManagerTab({
 function SuperAdminInternalChatModal({ onClose }: { onClose: () => void }) {
   const [messages, setMessages] = useState<any[]>([])
   const [inputText, setInputText] = useState('')
-  const [senderName, setSenderName] = useState('Super Admin 1')
+  const [adminNames, setAdminNames] = useState<string[]>(() => {
+    try {
+      const stored = localStorage.getItem('bu_super_admin_names')
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      }
+    } catch (e) {}
+    return ['Alejandro', 'Nestor']
+  })
+  const [newAdminNameInput, setNewAdminNameInput] = useState('')
+  const [senderName, setSenderName] = useState(() => {
+    if (typeof window === 'undefined') return 'Alejandro'
+    const storedId = sessionStorage.getItem('super_admin_identity') || localStorage.getItem('super_admin_identity')
+    return storedId === 'Nestor' ? 'Nestor' : 'Alejandro'
+  })
 
   const loadMessages = () => {
     try {
@@ -9592,8 +9655,8 @@ function SuperAdminInternalChatModal({ onClose }: { onClose: () => void }) {
         setMessages(JSON.parse(stored))
       } else {
         const initial = [
-          { id: '1', sender: 'Super Admin - Alejandro', text: 'Canal de chat interno habilitado para el equipo de Super Admins.', time: '09:00', role: 'Super Admin' },
-          { id: '2', sender: 'Super Admin 2', text: 'Excelente. Todas las líneas activas sincronizadas en tiempo real.', time: '09:05', role: 'Super Admin' }
+          { id: '1', sender: 'Alejandro', text: 'Canal de chat interno habilitado para el equipo de Super Admins.', time: '09:00', role: 'Super Admin' },
+          { id: '2', sender: 'Nestor', text: 'Excelente. Todas las líneas activas sincronizadas en tiempo real.', time: '09:05', role: 'Super Admin' }
         ]
         setMessages(initial)
         localStorage.setItem('mock_super_admin_internal_chat', JSON.stringify(initial))
@@ -9662,7 +9725,7 @@ function SuperAdminInternalChatModal({ onClose }: { onClose: () => void }) {
               💬 Chat Interno entre Super Admins
             </h3>
             <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#8f94a5' }}>
-              Canal privado de comunicación en tiempo real entre los Administradores de la Plataforma
+              Canal privado de comunicación en tiempo real entre Alejandro y Néstor
             </p>
           </div>
           <button
@@ -9687,11 +9750,60 @@ function SuperAdminInternalChatModal({ onClose }: { onClose: () => void }) {
               fontSize: '11px', fontWeight: 600, borderRadius: '6px', padding: '4px 8px', outline: 'none', cursor: 'pointer'
             }}
           >
-            <option value="Super Admin - Alejandro">Super Admin - Alejandro</option>
-            <option value="Super Admin 1">Super Admin 1</option>
-            <option value="Super Admin 2">Super Admin 2</option>
-            <option value="Soporte Técnico SA">Soporte Técnico SA</option>
+            {adminNames.map(name => (
+              <option key={name} value={name}>{name}</option>
+            ))}
           </select>
+        </div>
+
+        {/* Add New Participant Box */}
+        <div style={{ padding: '8px 20px', background: 'rgba(0,0,0,0.3)', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <input
+            type="text"
+            placeholder="Agregar nuevo nombre para el chat..."
+            value={newAdminNameInput}
+            onChange={e => setNewAdminNameInput(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                if (!newAdminNameInput.trim()) return
+                const n = newAdminNameInput.trim()
+                if (!adminNames.includes(n)) {
+                  const updated = [...adminNames, n]
+                  setAdminNames(updated)
+                  localStorage.setItem('bu_super_admin_names', JSON.stringify(updated))
+                  setSenderName(n)
+                  toast.success(`"${n}" añadido al chat`)
+                }
+                setNewAdminNameInput('')
+              }
+            }}
+            style={{
+              flex: 1, padding: '6px 10px', background: '#181b2e', border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '6px', color: '#fff', fontSize: '11px', outline: 'none'
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              if (!newAdminNameInput.trim()) return
+              const n = newAdminNameInput.trim()
+              if (!adminNames.includes(n)) {
+                const updated = [...adminNames, n]
+                setAdminNames(updated)
+                localStorage.setItem('bu_super_admin_names', JSON.stringify(updated))
+                setSenderName(n)
+                toast.success(`"${n}" añadido al chat`)
+              }
+              setNewAdminNameInput('')
+            }}
+            style={{
+              padding: '6px 12px', background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.4)',
+              borderRadius: '6px', color: '#60A5FA', fontSize: '11px', fontWeight: 700, cursor: 'pointer'
+            }}
+          >
+            + Agregar
+          </button>
         </div>
 
         {/* Messages Body */}

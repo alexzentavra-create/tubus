@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 import { syncAllGlobalKeys, pushGlobalKey } from '@/lib/sync'
 import { CARTODB_DARK, CARTODB_LIGHT } from '@/lib/mapStyles'
 import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre'
+import SessionConcurrencyGuard from '@/components/SessionConcurrencyGuard'
 
 interface ActiveSession {
   sessionId: string
@@ -1238,6 +1239,7 @@ export default function DriverPage() {
 
   return (
     <div style={{ display: 'flex', width: '100vw', height: '100vh', flexDirection: isMobile ? 'column' : 'row', overflow: 'hidden', background: 'var(--void)', color: 'var(--text-primary)', fontFamily: 'DM Sans,sans-serif' }}>
+      <SessionConcurrencyGuard userEmail={driverId || 'driver@bienparada.ar'} />
       
       {/* ═══════════════════════════════════════════════════════════════
           LEFT CONTROL PANEL

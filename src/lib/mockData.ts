@@ -388,7 +388,7 @@ export interface MockPlace {
   description: string
   rating: number
   city: 'buenos_aires' | 'santa_cruz'
-  type: 'tourist' | 'clubbing' | 'shopping'
+  type: 'tourist' | 'clubbing' | 'shopping' | 'tango' | 'restaurants'
   imageUrl?: string
 }
 
@@ -430,5 +430,11 @@ export const MOCK_PLACES: MockPlace[] = [
   // Tourist Attractions (Santa Cruz)
   { id: 't-6', name: 'Plaza 24 de Septiembre', lat: -17.7834, lng: -63.1819, rating: 4.7, city: 'santa_cruz', type: 'tourist', description: 'Plaza de armas histórica rodeada de cafés y la Catedral Metropolitana.' },
   { id: 't-7', name: 'Catedral Metropolitana', lat: -17.7840, lng: -63.1820, rating: 4.8, city: 'santa_cruz', type: 'tourist', description: 'Majestuosa catedral de ladrillo visto con vista panorámica desde el mirador.' },
-  { id: 't-8', name: 'Biocentro Güembé', lat: -17.7810, lng: -63.2450, rating: 4.8, city: 'santa_cruz', type: 'tourist', description: 'Gran parque ecológico con mariposario, piscinas naturales y lagunas.' }
+  // Shows de Tango (Buenos Aires)
+  { id: 'tg-1', name: 'Señor Tango', lat: -34.6468, lng: -58.3752, rating: 4.8, city: 'buenos_aires', type: 'tango', description: 'El espectáculo de tango más grande de Buenos Aires con despliegue teatral y orquesta en vivo en Barracas.' },
+  { id: 'tg-2', name: 'El Viejo Almacén', lat: -34.6190, lng: -58.3710, rating: 4.7, city: 'buenos_aires', type: 'tango', description: 'Esquina emblemática de San Telmo fundada por Edmundo Rivero, pura tradición de tango y cena show.' },
+  { id: 'tg-3', name: 'Tango Porteño', lat: -34.6031, lng: -58.3835, rating: 4.9, city: 'buenos_aires', type: 'tango', description: 'Ubicado a metros del Obelisco en un majestuoso cine teatro de la época dorada del tango.' },
+  { id: 'tg-4', name: 'La Ventana Barrio de Tango', lat: -34.6135, lng: -58.3715, rating: 4.8, city: 'buenos_aires', type: 'tango', description: 'Casona histórica restaurada en el corazón de San Telmo con shows de tango tradicional y folclore.' },
+  { id: 'tg-5', name: 'Madero Tango', lat: -34.6178, lng: -58.3619, rating: 4.6, city: 'buenos_aires', type: 'tango', description: 'Espectacular show moderno con vista panorámica al dique de Puerto Madero.' },
+  { id: 'tg-6', name: 'Café Tortoni (La Bodega)', lat: -34.6089, lng: -58.3787, rating: 4.8, city: 'buenos_aires', type: 'tango', description: 'Intérpretes y cuartetos en vivo en el subsuelo histórico del café más clásico de la ciudad.' }
 ]
