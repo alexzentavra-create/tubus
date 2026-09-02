@@ -32268,8 +32268,11 @@ function ProfilePanel({
                               { id: `h-${Date.now()}`, type: 'ad_post', desc: `Canje: ${reward.title}`, points: -reward.cost, date: 'Hoy' },
                               ...pointsHistory
                             ];
-                            updatePoints(points - reward.cost, newHistory);
-                            toast.success(`¡Canje exitoso! Código generado: BIENPARADA-REF-${reward.cost}-${Math.floor(1000 + Math.random() * 9000)}`);
+                            const couponCode = `BIENPARADA-REF-${reward.cost}-${Math.floor(1000 + Math.random() * 9000)}`;
+                            const userCoupons = JSON.parse(localStorage.getItem('bu_user_active_coupons') || '[]');
+                            userCoupons.unshift({ code: couponCode, title: reward.title, discount: reward.cost, date: 'Hoy' });
+                            localStorage.setItem('bu_user_active_coupons', JSON.stringify(userCoupons));
+                            toast.success(`¡Canje exitoso! Cupón guardado: ${couponCode}`);
                           }}
                           style={{
                             padding: '4px 10px',

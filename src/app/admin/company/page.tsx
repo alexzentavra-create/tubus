@@ -1719,10 +1719,16 @@ export default function CompanyDashboard() {
       document.body.removeChild(link)
       toast.success("Archivo Excel (.csv) descargado correctamente.")
     } else {
-      toast.loading("Subiendo planilla a Google Spreadsheets...", { duration: 1500 })
-      setTimeout(() => {
-        toast.success("¡Planilla exportada a Google Spreadsheets correctamente!")
-      }, 1500)
+      const blob = new Blob([outputContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement("a")
+      link.setAttribute("href", url)
+      link.setAttribute("download", `BienParada_GoogleSheets_Linea_${activeLine.line_number}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.open('https://sheets.new', '_blank')
+      toast.success("Planilla descargada y Google Sheets abierto en una nueva pestaña para su importación.")
     }
 
     setShowExportModal(false)
