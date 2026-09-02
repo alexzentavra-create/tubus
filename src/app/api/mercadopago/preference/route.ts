@@ -1,6 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+// Rate limiter for payment preference creation
+const mpIpLimits = new Map<string, { count: number; resetAt: number }>()
+
+function checkMpRateLimit(ip: string, limit = 20, windowMs = 60000): boolean {
+  const now = Date.now()
+  const record = mpIpLimits.get(ip)
+  if (!record || now > record.resetAt) {
+    mpIpLimits.set(ip, { count: 1, resetAt: now + windowMs })
+    return true
+  }
+  if (record.count >= limit) return false
+  record.count++
+  return true
+}
+
 export async function POST(request: NextRequest) {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1'
+  if (!checkMpRateLimit(ip)) {
+    return NextResponse.json({ error: 'Demasiadas solicitudes. Por favor, espere un minuto.' }, { status: 429 })
+  }
+
   try {
     const body = await request.json()
     const { title, amount, adId, userEmail, returnUrl } = body

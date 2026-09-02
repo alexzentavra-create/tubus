@@ -15,12 +15,18 @@ export async function middleware(request: NextRequest) {
     pathname === '/manifest.json' ||
     pathname === '/favicon.ico'
   ) {
-    return NextResponse.next()
+    // Return early for static files, but still attach security headers
   }
 
-  // All page routes (/admin/super, /admin/company, /driver, /) perform client-side and Supabase auth checks
-  // inside their respective page components cleanly without triggering Vercel Edge 403 errors.
-  return NextResponse.next()
+  // Attach standard cybersecurity headers
+  const response = NextResponse.next()
+  response.headers.set('X-Frame-Options', 'SAMEORIGIN')
+  response.headers.set('X-Content-Type-Options', 'nosniff')
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  response.headers.set('X-XSS-Protection', '1; mode=block')
+  response.headers.set('Permissions-Policy', 'camera=(self), geolocation=(self), microphone=()')
+
+  return response
 }
 
 export const config = {

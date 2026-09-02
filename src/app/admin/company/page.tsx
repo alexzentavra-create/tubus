@@ -104,6 +104,130 @@ function PasswordRow({ password, themeColor }: { password: string; themeColor: s
   )
 }
 
+// Driver Credentials Editor component
+function DriverCredentialsEditor({ driver, onSave, themeColor }: { driver: any; onSave: (updatedEmail: string, updatedPass: string) => void; themeColor: string }) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [emailVal, setEmailVal] = useState(driver.email || `${driver.name?.toLowerCase().replace(/\s+/g, '.') || 'chofer'}@bienparada.ar`)
+  const [passVal, setPassVal] = useState(driver.password || 'Bienparada')
+  const [showPass, setShowPass] = useState(false)
+
+  const handleSave = () => {
+    if (!emailVal.trim() || !passVal.trim()) {
+      toast.error('El email y la contraseña no pueden estar vacíos.')
+      return
+    }
+    onSave(emailVal.trim(), passVal.trim())
+    setIsEditing(false)
+  }
+
+  return (
+    <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: '8px', paddingTop: '10px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+        <span style={{ color: '#8f94a5', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          Credenciales de Acceso
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            if (isEditing) handleSave()
+            else setIsEditing(true)
+          }}
+          style={{
+            background: isEditing ? themeColor : 'rgba(255,255,255,0.05)',
+            border: `1px solid ${isEditing ? themeColor : 'rgba(255,255,255,0.12)'}`,
+            borderRadius: '4px',
+            color: '#fff',
+            fontSize: '10px',
+            fontWeight: 600,
+            padding: '2px 8px',
+            cursor: 'pointer'
+          }}
+        >
+          {isEditing ? 'Guardar' : 'Editar'}
+        </button>
+      </div>
+
+      {isEditing ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '10px', color: '#8f94a5', marginBottom: '2px' }}>Email de acceso:</label>
+            <input
+              type="email"
+              value={emailVal}
+              onChange={(e) => setEmailVal(e.target.value)}
+              style={{
+                width: '100%',
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                borderRadius: '6px',
+                padding: '4px 8px',
+                color: '#fff',
+                fontSize: '12px',
+                fontFamily: 'DM Mono'
+              }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '10px', color: '#8f94a5', marginBottom: '2px' }}>Contraseña:</label>
+            <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+              <input
+                type={showPass ? 'text' : 'password'}
+                value={passVal}
+                onChange={(e) => setPassVal(e.target.value)}
+                style={{
+                  flex: 1,
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  borderRadius: '6px',
+                  padding: '4px 8px',
+                  color: '#fff',
+                  fontSize: '12px',
+                  fontFamily: 'DM Mono'
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPass(!showPass)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#8f94a5',
+                  cursor: 'pointer',
+                  padding: '4px'
+                }}
+              >
+                {showPass ? '🙈' : '👁️'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ color: '#8f94a5', fontSize: '12px' }}>Email:</span>
+            <span style={{ color: '#60A5FA', fontWeight: 500, fontFamily: 'DM Mono', fontSize: '12px' }}>{emailVal}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ color: '#8f94a5', fontSize: '12px' }}>Contraseña:</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ color: '#e2e8f0', fontWeight: 500, fontFamily: 'DM Mono', fontSize: '12px' }}>
+                {showPass ? passVal : '••••••••'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowPass(!showPass)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: showPass ? themeColor : '#64748b', padding: '2px' }}
+              >
+                {showPass ? '🙈' : '👁️'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 import { QRCodeDisplay } from '@/components/common/QRCodeDisplay'
 
 function QRDisplay({ token, busUnit }: { token: string; busUnit: string }) {
@@ -4247,29 +4371,35 @@ function CompanyDrivers({ drivers, activeSessions = [], driverWarnings = {}, onD
                               <span style={{ color: '#fff', fontWeight: 500, fontFamily: 'DM Mono' }}>{d.legajo}</span>
                             </div>
 
-                            {/* Credentials row — read from mock_users */}
-                            {(() => {
-                              const driverEmail = d.email || ''
-                              let creds: { email: string; password: string } | null = null
-                              try {
-                                const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
-                                const found = mockUsers.find((u: any) => u.email?.toLowerCase() === driverEmail.toLowerCase() || u.name === d.name)
-                                if (found) creds = { email: found.email, password: found.password }
-                              } catch (e) {}
-                              if (!creds) return null
-                              return (
-                                <>
-                                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: '6px', paddingTop: '10px' }}>
-                                    <span style={{ color: '#8f94a5', fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Credenciales de Acceso</span>
-                                  </div>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ color: '#8f94a5' }}>Email:</span>
-                                    <span style={{ color: '#60A5FA', fontWeight: 500, fontFamily: 'DM Mono', fontSize: '12px' }}>{creds.email}</span>
-                                  </div>
-                                  <PasswordRow password={creds.password} themeColor={themeColor} />
-                                </>
-                              )
-                            })()}
+                            {/* Driver Credentials Row & Interactive Editor */}
+                            <DriverCredentialsEditor
+                              driver={d}
+                              themeColor={themeColor}
+                              onSave={(newEmail, newPass) => {
+                                const updated = drivers.map(item => item.id === d.id ? { ...item, email: newEmail, password: newPass } : item)
+                                onUpdateDrivers(updated)
+
+                                try {
+                                  const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
+                                  const idx = mockUsers.findIndex((u: any) => u.email?.toLowerCase() === d.email?.toLowerCase() || u.name === d.name)
+                                  if (idx >= 0) {
+                                    mockUsers[idx] = { ...mockUsers[idx], email: newEmail, password: newPass }
+                                  } else {
+                                    mockUsers.push({ name: d.name, email: newEmail, password: newPass, role: 'driver', lineNumber: d.lineNumber || '12' })
+                                  }
+                                  localStorage.setItem('mock_users', JSON.stringify(mockUsers))
+
+                                  const regUsers = JSON.parse(localStorage.getItem('bu_registered_users') || '[]')
+                                  const rIdx = regUsers.findIndex((u: any) => u.email?.toLowerCase() === d.email?.toLowerCase() || u.name === d.name)
+                                  if (rIdx >= 0) {
+                                    regUsers[rIdx] = { ...regUsers[rIdx], email: newEmail, password: newPass }
+                                    localStorage.setItem('bu_registered_users', JSON.stringify(regUsers))
+                                  }
+                                  pushGlobalKey('mock_users', mockUsers).catch(() => {})
+                                } catch (e) {}
+                                toast.success(`Credenciales de ${d.name} actualizadas correctamente.`)
+                              }}
+                            />
                           </div>
                         </div>
                       </div>

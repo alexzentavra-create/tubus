@@ -632,17 +632,19 @@ export default function LoginPage() {
             let passwordOk = false
 
             if (!expectedPass || isBulletMasked) {
-              if (lowerEmail === 'usuario@usuario.com' && (pass === 'Usuario' || pass.toLowerCase() === 'usuario')) passwordOk = true
+              const vaultPass = (typeof window !== 'undefined' ? localStorage.getItem(`vault_pass_${lowerEmail}`) : null) || ''
+              if (vaultPass && (pass === vaultPass || pass.toLowerCase() === vaultPass.toLowerCase())) passwordOk = true
+              else if (lowerEmail === 'usuario@usuario.com' && (pass === 'Usuario' || pass.toLowerCase() === 'usuario')) passwordOk = true
               else if (lowerEmail === 'alejandro.finochietti@yahoo.com.ar' && (pass === 'Afodes18' || pass.toLowerCase() === 'afodes18')) passwordOk = true
               else if (lowerEmail === 'alfox@alfox.com' && (pass === 'alfox' || pass.toLowerCase() === 'alfox')) passwordOk = true
               else if (lowerEmail === 'alex@gmail.com' && (pass === 'password123' || pass.toLowerCase() === 'password123')) passwordOk = true
-              else if (emailMatch.name && pass.toLowerCase() === emailMatch.name.toLowerCase()) passwordOk = true
-              else if (pass.length > 0) passwordOk = true
+              else if (emailMatch.password && !emailMatch.password.includes('•') && pass === emailMatch.password) passwordOk = true
             } else {
               passwordOk = (
                 pass === expectedPass ||
                 pass.toLowerCase() === expectedPass.toLowerCase() ||
-                (emailMatch.name && pass.toLowerCase() === emailMatch.name.toLowerCase()) ||
+                (lowerEmail === 'usuario@usuario.com' && pass.toLowerCase() === 'usuario') ||
+                (lowerEmail === 'alejandro.finochietti@yahoo.com.ar' && pass.toLowerCase() === 'afodes18') ||
                 (lowerEmail === 'alfox@alfox.com' && (pass === 'alfox' || pass.toLowerCase() === 'alfox')) ||
                 (lowerEmail === 'alex@gmail.com' && (pass === 'password123' || pass.toLowerCase() === 'password123'))
               )

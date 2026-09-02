@@ -97,14 +97,64 @@ const globalMemoryStore: Record<string, any> = {
   deleted_ad_ids: ['ad-alex-1', 'Anuncio Publicitario Alex - 20% OFF']
 }
 
+// Simple in-memory IP rate limiting
+const ipRequestCounts = new Map<string, { count: number; resetAt: number }>()
+
+function checkRateLimit(ip: string, limit = 120, windowMs = 60000): boolean {
+  const now = Date.now()
+  const record = ipRequestCounts.get(ip)
+  if (!record || now > record.resetAt) {
+    ipRequestCounts.set(ip, { count: 1, resetAt: now + windowMs })
+    return true
+  }
+  if (record.count >= limit) {
+    return false
+  }
+  record.count++
+  return true
+}
+
+// Deep sanitize to prevent exposing raw passwords over the public wire
+function sanitizeData(data: any): any {
+  if (!data) return data
+  if (Array.isArray(data)) {
+    return data.map(item => sanitizeData(item))
+  }
+  if (typeof data === 'object') {
+    const copy = { ...data }
+    if ('password' in copy && typeof copy.password === 'string') {
+      copy.password = '••••••••'
+    }
+    if ('tu_bus_profile_password' in copy) {
+      delete copy.tu_bus_profile_password
+    }
+    for (const key of Object.keys(copy)) {
+      if (typeof copy[key] === 'object' && copy[key] !== null) {
+        copy[key] = sanitizeData(copy[key])
+      }
+    }
+    return copy
+  }
+  return data
+}
+
 export async function GET(request: NextRequest) {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1'
+  if (!checkRateLimit(ip, 120)) {
+    return NextResponse.json({ success: false, error: 'Too many requests. Rate limit exceeded.' }, { status: 429 })
+  }
+
   const { searchParams } = new URL(request.url)
   const key = searchParams.get('key')
 
   if (!key || key === 'all') {
+    const sanitizedStore: Record<string, any> = {}
+    Object.keys(globalMemoryStore).forEach(k => {
+      sanitizedStore[k] = sanitizeData(globalMemoryStore[k])
+    })
     return NextResponse.json({
       success: true,
-      data: globalMemoryStore,
+      data: sanitizedStore,
       timestamp: Date.now()
     })
   }
@@ -113,12 +163,17 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     success: true,
     key,
-    data,
+    data: sanitizeData(data),
     timestamp: Date.now()
   })
 }
 
 export async function POST(request: NextRequest) {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || '127.0.0.1'
+  if (!checkRateLimit(ip, 120)) {
+    return NextResponse.json({ success: false, error: 'Too many requests. Rate limit exceeded.' }, { status: 429 })
+  }
+
   try {
     const body = await request.json()
     const { key, data, batch } = body
