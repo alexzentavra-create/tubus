@@ -265,8 +265,10 @@ export default function CompanyDashboard() {
 
     runSync()
     const syncInterval = setInterval(() => {
-      syncAllGlobalKeys().catch(() => {})
-    }, 5000)
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        syncAllGlobalKeys().catch(() => {})
+      }
+    }, 30000)
 
     return () => clearInterval(syncInterval)
   }, [])

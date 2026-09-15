@@ -23025,11 +23025,20 @@ function MapAdBanner({
     
     setSelectedLines([])
 
-    // Run global cross-device synchronization on mount and set polling interval
+    // Run global cross-device synchronization on mount and when tab becomes active
     syncAllGlobalKeys().catch(() => {})
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        syncAllGlobalKeys(true).catch(() => {})
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
     const globalSyncInterval = setInterval(() => {
-      syncAllGlobalKeys().catch(() => {})
-    }, 5000)
+      if (document.visibilityState === 'visible') {
+        syncAllGlobalKeys().catch(() => {})
+      }
+    }, 30000)
 
     // Validate User Auth state (localStorage active_user OR Supabase user session)
     const activeUserStr = typeof window !== 'undefined' ? localStorage.getItem('active_user') : null
@@ -23123,6 +23132,12 @@ function MapAdBanner({
       setChatMessages(mockChat)
     } else {
       setChatMessages(JSON.parse(existingChat))
+    }
+    return () => {
+      clearInterval(globalSyncInterval)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('storage', handleActiveSessionsChange)
+      window.removeEventListener('mock_active_sessions_updated', handleActiveSessionsChange)
     }
   }, [])
 

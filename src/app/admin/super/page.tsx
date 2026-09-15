@@ -1074,7 +1074,11 @@ export default function SuperAdminDashboard() {
     }
 
     runFullSync()
-    const syncInterval = setInterval(runFullSync, 4000)
+    const syncInterval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        runFullSync()
+      }
+    }, 30000)
     window.addEventListener('storage', syncUsersFromStorage)
     return () => {
       clearInterval(syncInterval)

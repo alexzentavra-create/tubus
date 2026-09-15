@@ -23,31 +23,48 @@ const SYNC_KEYS = [
   'deleted_ad_ids'
 ]
 
-export async function syncAllGlobalKeys(): Promise<Record<string, any>> {
+let hasPushedInitialBatch = false
+let lastSyncTimestamp = 0
+
+export async function syncAllGlobalKeys(force = false): Promise<Record<string, any>> {
   if (typeof window === 'undefined') return {}
 
-  try {
-    // 1. Gather local data for initial batch push if server is empty
-    const localBatch: Record<string, any> = {}
-    SYNC_KEYS.forEach(key => {
-      const raw = localStorage.getItem(key)
-      if (raw) {
-        try {
-          localBatch[key] = JSON.parse(raw)
-        } catch (e) {}
-      }
-    })
+  // 1. Skip sync if the browser tab is hidden/backgrounded
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+    return {}
+  }
 
-    // 2. Push local state to server first so local items are merged
-    if (Object.keys(localBatch).length > 0) {
-      await fetch('/api/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ batch: localBatch })
-      }).catch(() => {})
+  // 2. Throttle calls so multiple components don't spam the API simultaneously (min 15s between syncs unless forced)
+  const now = Date.now()
+  if (!force && now - lastSyncTimestamp < 15_000) {
+    return {}
+  }
+  lastSyncTimestamp = now
+
+  try {
+    // 3. Gather and push local data ONLY on the first run to initialize server state
+    if (!hasPushedInitialBatch) {
+      const localBatch: Record<string, any> = {}
+      SYNC_KEYS.forEach(key => {
+        const raw = localStorage.getItem(key)
+        if (raw) {
+          try {
+            localBatch[key] = JSON.parse(raw)
+          } catch (e) {}
+        }
+      })
+
+      if (Object.keys(localBatch).length > 0) {
+        await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ batch: localBatch })
+        }).catch(() => {})
+      }
+      hasPushedInitialBatch = true
     }
 
-    // 3. Fetch canonical global state from server
+    // 4. Fetch canonical global state from server
     const res = await fetch('/api/sync?key=all', { cache: 'no-store' })
     if (!res.ok) return {}
 

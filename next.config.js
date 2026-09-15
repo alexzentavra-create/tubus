@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // NOTE: Do NOT add output: 'standalone' — breaks @netlify/plugin-nextjs
   reactStrictMode: true,
 
   experimental: {
