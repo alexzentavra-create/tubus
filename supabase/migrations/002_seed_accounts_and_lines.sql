@@ -170,24 +170,50 @@ BEGIN
       '', '', '', ''
     );
 
-    -- Insert into auth.identities
-    INSERT INTO auth.identities (
-      id,
-      user_id,
-      identity_data,
-      provider,
-      last_sign_in_at,
-      created_at,
-      updated_at
-    ) VALUES (
-      v_user_id::text,
-      v_user_id,
-      json_build_object('sub', v_user_id::text, 'email', lower(trim(p_email)))::jsonb,
-      'email',
-      NOW(),
-      NOW(),
-      NOW()
-    ) ON CONFLICT (provider, id) DO NOTHING;
+    -- Insert into auth.identities safely
+    BEGIN
+      INSERT INTO auth.identities (
+        id,
+        user_id,
+        identity_data,
+        provider,
+        provider_id,
+        last_sign_in_at,
+        created_at,
+        updated_at
+      ) VALUES (
+        v_user_id,
+        v_user_id,
+        json_build_object('sub', v_user_id::text, 'email', lower(trim(p_email)))::jsonb,
+        'email',
+        lower(trim(p_email)),
+        NOW(),
+        NOW(),
+        NOW()
+      );
+    EXCEPTION WHEN OTHERS THEN
+      BEGIN
+        INSERT INTO auth.identities (
+          id,
+          user_id,
+          identity_data,
+          provider,
+          last_sign_in_at,
+          created_at,
+          updated_at
+        ) VALUES (
+          v_user_id,
+          v_user_id,
+          json_build_object('sub', v_user_id::text, 'email', lower(trim(p_email)))::jsonb,
+          'email',
+          NOW(),
+          NOW(),
+          NOW()
+        );
+      EXCEPTION WHEN OTHERS THEN
+        NULL;
+      END;
+    END;
 
   ELSE
     -- Update password and metadata for existing user
@@ -304,6 +330,7 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.driver_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.bus_lines ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bus_stops ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.bus_positions ENABLE ROW LEVEL SECURITY;
 
 -- Allow public read of bus lines, stops, and positions
@@ -311,6 +338,9 @@ DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'public_bus_lines_read') THEN
     CREATE POLICY public_bus_lines_read ON public.bus_lines FOR SELECT USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'public_bus_stops_read') THEN
+    CREATE POLICY public_bus_stops_read ON public.bus_stops FOR SELECT USING (true);
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'public_bus_positions_read') THEN
     CREATE POLICY public_bus_positions_read ON public.bus_positions FOR SELECT USING (true);
