@@ -376,19 +376,19 @@ ALTER TABLE public.bus_positions ENABLE ROW LEVEL SECURITY;
 -- Allow public read of bus lines, stops, and positions
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'public_bus_lines_read') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'bus_lines' AND policyname = 'public_bus_lines_read') THEN
     CREATE POLICY public_bus_lines_read ON public.bus_lines FOR SELECT USING (true);
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'public_bus_stops_read') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'bus_stops' AND policyname = 'public_bus_stops_read') THEN
     CREATE POLICY public_bus_stops_read ON public.bus_stops FOR SELECT USING (true);
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'public_bus_positions_read') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'bus_positions' AND policyname = 'public_bus_positions_read') THEN
     CREATE POLICY public_bus_positions_read ON public.bus_positions FOR SELECT USING (true);
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'public_profiles_read') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'profiles' AND policyname = 'public_profiles_read') THEN
     CREATE POLICY public_profiles_read ON public.profiles FOR SELECT USING (true);
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'driver_positions_insert') THEN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'bus_positions' AND policyname = 'driver_positions_insert') THEN
     CREATE POLICY driver_positions_insert ON public.bus_positions FOR ALL USING (true);
   END IF;
 END $$;
