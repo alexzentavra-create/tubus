@@ -867,7 +867,7 @@ export default function CompanyDashboard() {
     // Create new inactive QR code / bus
     const qrData = {
       id: `qr-${Date.now()}`,
-      qr_token: `DEMO-QR-L${activeLine.line_number}-${newInactiveBusUnit}`,
+      qr_token: `QR-L${activeLine.line_number}-${newInactiveBusUnit}`,
       bus_unit: fullUnit,
       is_active: false, // starts inactive
       company_id: companyId,
@@ -1393,7 +1393,7 @@ export default function CompanyDashboard() {
         company_id: company.id,
         line_id: activeLine.id,
         bus_unit: newBusUnit.trim(),
-        qr_token: `DEMO-QR-L${activeLine.line_number}-${newBusUnit.trim()}-${Math.floor(Math.random() * 1000)}`,
+        qr_token: `QR-L${activeLine.line_number}-${newBusUnit.trim()}-${Math.floor(Math.random() * 1000)}`,
         is_active: true,
         created_at: new Date().toISOString(),
         has_ac: newBusHasAC,
@@ -2960,8 +2960,18 @@ export default function CompanyDashboard() {
                           <div style={{ color: '#fff', fontSize: '13px', fontWeight: 600 }}>
                             Unidad {bus.unit}
                           </div>
-                          <div style={{ fontSize: '10px', color: bus.is_active ? themeColor : '#8f94a5', marginTop: '2px', fontWeight: bus.is_active ? 600 : 'normal' }}>
-                            {bus.is_active ? 'Activo en ruta' : 'Inactivo / En terminal'}
+                          <div style={{
+                            fontSize: '10px',
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            marginTop: '3px',
+                            display: 'inline-block',
+                            fontWeight: 700,
+                            background: bus.is_active ? 'rgba(16, 185, 129, 0.15)' : '#DC2626',
+                            border: bus.is_active ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid #DC2626',
+                            color: bus.is_active ? '#10b981' : '#FFFFFF',
+                          }}>
+                            {bus.is_active ? '✓ Activo en ruta' : '✕ Inactivo / En terminal'}
                           </div>
                         </div>
                       </div>
@@ -2979,15 +2989,15 @@ export default function CompanyDashboard() {
                           style={{
                             padding: '4px 10px',
                             borderRadius: '6px',
-                            background: bus.is_active ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                            border: `1px solid ${bus.is_active ? '#10b981' : '#f59e0b'}`,
-                            color: bus.is_active ? '#10b981' : '#f59e0b',
+                            background: bus.is_active ? 'rgba(16, 185, 129, 0.15)' : '#DC2626',
+                            border: `1px solid ${bus.is_active ? '#10b981' : '#DC2626'}`,
+                            color: bus.is_active ? '#10b981' : '#FFFFFF',
                             fontSize: '11px',
-                            fontWeight: 600,
+                            fontWeight: 700,
                             cursor: 'pointer'
                           }}
                         >
-                          {bus.is_active ? 'Activo' : 'Poner Activo'}
+                          {bus.is_active ? '✓ Activo' : '✕ Inactivo'}
                         </button>
 
                         {/* Trash bin */}
@@ -4962,8 +4972,18 @@ function QRTab({qrCodes,newBusUnit,setNewBusUnit,newBusHasAC,setNewBusHasAC,newB
                 </button>
               </div>
               <div style={{marginTop:'8px',display:'flex',alignItems:'center',gap:'6px'}}>
-                <div style={{width:'6px',height:'6px',borderRadius:'50%',background:qr.is_active?'#22D3A0':'#FF4D6A'}}/>
-                <span style={{color:qr.is_active?'#22D3A0':'#FF4D6A',fontSize:'10px',fontFamily:'DM Mono',fontWeight:600}}>{qr.is_active?'Activo':'Inactivo'}</span>
+                <span style={{
+                  fontSize: '9px',
+                  fontFamily: 'DM Mono',
+                  fontWeight: 700,
+                  padding: '2px 8px',
+                  borderRadius: '6px',
+                  background: qr.is_active ? 'rgba(34, 211, 160, 0.15)' : '#DC2626',
+                  color: qr.is_active ? '#22D3A0' : '#FFFFFF',
+                  border: qr.is_active ? '1px solid rgba(34, 211, 160, 0.3)' : '1px solid #DC2626',
+                }}>
+                  {qr.is_active ? '✓ Activo' : '✕ Inactivo'}
+                </span>
               </div>
             </div>
           ))}

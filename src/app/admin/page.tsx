@@ -62,6 +62,14 @@ export default function AdminPanel() {
     supabase.auth.getUser().then(async({data:{user}})=>{
       if(!user){window.location.href='/login';return}
       const{data:p}=await supabase.from('profiles').select('role').eq('id',user.id).single()
+      if (p?.role === 'superadmin') {
+        window.location.href = '/admin/super'
+        return
+      }
+      if (p?.role === 'company_admin' || p?.role === 'company') {
+        window.location.href = '/admin/company'
+        return
+      }
       if(p?.role!=='admin'){window.location.href='/';return}
     })
     supabase.from('bus_lines').select('*').then(({data})=>{ if(data){setLines(data);setSel(data[0])}; setLoading(false) })

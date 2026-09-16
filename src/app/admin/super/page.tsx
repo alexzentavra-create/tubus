@@ -1943,12 +1943,13 @@ export default function SuperAdminDashboard() {
                               <span style={{
                                 fontSize: '8px',
                                 fontWeight: 700,
-                                color: u.status === 'Bloqueado' ? '#F59E0B' : (u.status === 'Activo' ? '#10B981' : '#ef4444'),
-                                background: u.status === 'Bloqueado' ? 'rgba(245,158,11,0.15)' : (u.status === 'Activo' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)'),
+                                color: u.status === 'Bloqueado' ? '#F59E0B' : (u.status === 'Activo' ? '#10B981' : '#FFFFFF'),
+                                background: u.status === 'Bloqueado' ? 'rgba(245,158,11,0.15)' : (u.status === 'Activo' ? 'rgba(16,185,129,0.15)' : '#DC2626'),
+                                border: u.status === 'Bloqueado' ? '1px solid rgba(245,158,11,0.3)' : (u.status === 'Activo' ? '1px solid rgba(16,185,129,0.3)' : '1px solid #DC2626'),
                                 padding: '1px 6px',
                                 borderRadius: '8px'
                               }}>
-                                {u.status}
+                                {u.status === 'Bloqueado' ? '🔒 Bloqueado' : (u.status === 'Activo' ? '✓ Activo' : '✕ Inactivo')}
                               </span>
                               <button
                                 onClick={(e) => {
@@ -2034,8 +2035,18 @@ export default function SuperAdminDashboard() {
                     <div style={{ fontSize: '15px', fontWeight: 700, color: '#fff' }}>{selectedUser.name}</div>
                     <div style={{ fontSize: '11px', color: '#8f94a5', marginTop: '2px' }}>Unido el: {selectedUser.joinedDate}</div>
                   </div>
-                  <span style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 700, color: selectedUser.status === 'Activo' ? '#10B981' : '#ef4444', background: selectedUser.status === 'Activo' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', padding: '3px 10px', borderRadius: '12px', textTransform: 'uppercase' }}>
-                    {selectedUser.status}
+                  <span style={{
+                    marginLeft: 'auto',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    color: selectedUser.status === 'Bloqueado' ? '#F59E0B' : (selectedUser.status === 'Activo' ? '#10B981' : '#FFFFFF'),
+                    background: selectedUser.status === 'Bloqueado' ? 'rgba(245,158,11,0.15)' : (selectedUser.status === 'Activo' ? 'rgba(16,185,129,0.15)' : '#DC2626'),
+                    border: selectedUser.status === 'Bloqueado' ? '1px solid rgba(245,158,11,0.3)' : (selectedUser.status === 'Activo' ? '1px solid rgba(16,185,129,0.3)' : '1px solid #DC2626'),
+                    padding: '3px 10px',
+                    borderRadius: '12px',
+                    textTransform: 'uppercase'
+                  }}>
+                    {selectedUser.status === 'Bloqueado' ? '🔒 Bloqueado' : (selectedUser.status === 'Activo' ? '✓ Activo' : '✕ Inactivo')}
                   </span>
                 </div>
 
@@ -2837,8 +2848,16 @@ export default function SuperAdminDashboard() {
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                           <span style={{ fontSize: '13px', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.name}</span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontSize: '8px', fontWeight: 700, color: a.status === 'Activo' ? '#10B981' : '#ef4444', background: a.status === 'Activo' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', padding: '2px 6px', borderRadius: '8px' }}>
-                              {a.status}
+                            <span style={{
+                              fontSize: '8px',
+                              fontWeight: 700,
+                              color: a.status === 'Activo' ? '#10B981' : '#FFFFFF',
+                              background: a.status === 'Activo' ? 'rgba(16,185,129,0.15)' : '#DC2626',
+                              border: a.status === 'Activo' ? '1px solid rgba(16,185,129,0.3)' : '1px solid #DC2626',
+                              padding: '2px 6px',
+                              borderRadius: '8px'
+                            }}>
+                              {a.status === 'Activo' ? '✓ Activo' : '✕ Inactivo'}
                             </span>
                             <button
                               onClick={(e) => {
@@ -2900,8 +2919,18 @@ export default function SuperAdminDashboard() {
                     <div style={{ fontSize: '16px', fontWeight: 800, color: '#fff' }}>{selectedAdmin.name}</div>
                     <div style={{ fontSize: '11px', color: '#8f94a5', marginTop: '2px' }}>{selectedAdmin.companyName}</div>
                   </div>
-                  <span style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 700, color: selectedAdmin.status === 'Activo' ? '#10B981' : '#ef4444', background: selectedAdmin.status === 'Activo' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', padding: '4px 12px', borderRadius: '12px', textTransform: 'uppercase' }}>
-                    {selectedAdmin.status}
+                  <span style={{
+                    marginLeft: 'auto',
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    color: selectedAdmin.status === 'Activo' ? '#10B981' : '#FFFFFF',
+                    background: selectedAdmin.status === 'Activo' ? 'rgba(16,185,129,0.15)' : '#DC2626',
+                    border: selectedAdmin.status === 'Activo' ? '1px solid rgba(16,185,129,0.3)' : '1px solid #DC2626',
+                    padding: '4px 12px',
+                    borderRadius: '12px',
+                    textTransform: 'uppercase'
+                  }}>
+                    {selectedAdmin.status === 'Activo' ? '✓ Activo' : '✕ Inactivo'}
                   </span>
                 </div>
 
@@ -5193,11 +5222,11 @@ function DriversTab() {
       if (storedQRs.length === 0) {
         // Initialize default real QR codes for Line 0 & Line 12 if none exist
         const initialQRs = [
-          { id: 'qr-001', line_number: '0', line_id: 'line-0', line_name: 'Línea 0', bus_unit: '001', qr_token: 'DEMO-QR-L0-000', is_active: true },
-          { id: 'qr-002', line_number: '0', line_id: 'line-0', line_name: 'Línea 0', bus_unit: '002', qr_token: 'DEMO-QR-L0-002', is_active: true },
-          { id: 'qr-1201', line_number: '12', line_id: 'line-12', line_name: 'Línea 12', bus_unit: '1201', qr_token: 'DEMO-QR-L12-001', is_active: true },
-          { id: 'qr-1202', line_number: '12', line_id: 'line-12', line_name: 'Línea 12', bus_unit: '1202', qr_token: 'DEMO-QR-L12-002', is_active: true },
-          { id: 'qr-1203', line_number: '12', line_id: 'line-12', line_name: 'Línea 12', bus_unit: '1203', qr_token: 'DEMO-QR-L12-003', is_active: true }
+          { id: 'qr-001', line_number: '0', line_id: 'line-0', line_name: 'Línea 0', bus_unit: '001', qr_token: 'QR-L0-001', is_active: true },
+          { id: 'qr-002', line_number: '0', line_id: 'line-0', line_name: 'Línea 0', bus_unit: '002', qr_token: 'QR-L0-002', is_active: true },
+          { id: 'qr-1201', line_number: '12', line_id: 'line-12', line_name: 'Línea 12', bus_unit: '1201', qr_token: 'QR-L12-1201', is_active: true },
+          { id: 'qr-1202', line_number: '12', line_id: 'line-12', line_name: 'Línea 12', bus_unit: '1202', qr_token: 'QR-L12-1202', is_active: true },
+          { id: 'qr-1203', line_number: '12', line_id: 'line-12', line_name: 'Línea 12', bus_unit: '1203', qr_token: 'QR-L12-1203', is_active: true }
         ]
         localStorage.setItem('mock_bus_qr_codes', JSON.stringify(initialQRs))
         setQrCodes(initialQRs)
@@ -5479,7 +5508,7 @@ function DriversTab() {
                   marginTop: '4px',
                   fontWeight: 600
                 }}>
-                  {qr.qr_token || `DEMO-QR-L${qr.line_number}-${qr.bus_unit}`}
+                  {qr.qr_token || `QR-L${qr.line_number}-${qr.bus_unit}`}
                 </div>
               </div>
             )
@@ -5545,7 +5574,7 @@ function DriversTab() {
                 wordBreak: 'break-all',
                 fontWeight: 600
               }}>
-                {selectedQr.qr_token || `DEMO-QR-L${selectedQr.line_number}-${selectedQr.bus_unit}`}
+                {selectedQr.qr_token || `QR-L${selectedQr.line_number}-${selectedQr.bus_unit}`}
               </div>
             </div>
           </div>

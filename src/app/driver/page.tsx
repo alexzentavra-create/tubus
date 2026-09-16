@@ -1020,12 +1020,12 @@ export default function DriverPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#121527', border: '1px solid rgba(255, 255, 255, 0.04)', borderRadius: '8px', padding: '12px', marginBottom: '20px' }}>
           <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#1b1d2e', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
             <span style={{ color: '#fff', fontWeight: 700, fontSize: '14px', fontFamily: 'Syne,sans-serif' }}>
-              {driverName ? driverName.split(' ').map(n => n[0]).join('') : 'CD'}
+              {driverName ? driverName.split(' ').map(n => n[0]).join('') : 'CH'}
             </span>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ color: '#fff', fontWeight: 600, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{driverName || 'Chofer Demo'}</div>
-            <div style={{ color: '#a3a6b8', fontSize: '11px', fontFamily: 'DM Mono', marginTop: '1px' }}>ID: {driverId ? driverId.slice(0, 12) : 'mock-driver'}</div>
+            <div style={{ color: '#fff', fontWeight: 600, fontSize: '14px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{driverName || 'Chofer'}</div>
+            <div style={{ color: '#a3a6b8', fontSize: '11px', fontFamily: 'DM Mono', marginTop: '1px' }}>ID: {driverId ? driverId.slice(0, 12) : 'driver'}</div>
             {(driverLineNumber || (session && session.lineNumber)) && (
               <div style={{ color: accentColor, fontSize: '10px', fontFamily: 'DM Mono', fontWeight: 600, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <Bus size={10} /> LÍNEA {session ? session.lineNumber : driverLineNumber}
