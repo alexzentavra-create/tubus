@@ -22,7 +22,7 @@ import {
 import { format, subDays } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
-import { syncAllGlobalKeys, pushGlobalKey, purgeUserDataForEmail } from '@/lib/sync'
+import { syncAllGlobalKeys, pushGlobalKey, purgeUserDataForEmail, getValidActiveUser, clearActiveSession } from '@/lib/sync'
 import SessionConcurrencyGuard from '@/components/SessionConcurrencyGuard'
 import { CARTODB_DARK, CARTODB_LIGHT } from '@/lib/mapStyles'
 
@@ -300,15 +300,12 @@ interface Todo {
 export default function SuperAdminDashboard() {
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const activeUserStr = localStorage.getItem('active_user') || localStorage.getItem('active_super_admin')
-    let activeUser: any = null
-    try {
-      activeUser = activeUserStr ? JSON.parse(activeUserStr) : null
-    } catch (e) {}
+    const activeUser = getValidActiveUser()
 
     if (!activeUser || (activeUser.role !== 'superadmin' && activeUser.role !== 'Super Admin Principal')) {
-      toast.error('Acceso denegado. Iniciá sesión con tu cuenta de Super Administrador.')
-      window.location.href = '/login'
+      clearActiveSession()
+      toast.error('Tu sesión ha expirado o no tienes permisos de Super Administrador. Por favor, iniciá sesión.')
+      window.location.href = '/login?expired=1'
       return
     }
 

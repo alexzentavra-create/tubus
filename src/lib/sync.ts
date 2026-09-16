@@ -152,3 +152,50 @@ export function purgeUserDataForEmail(email: string): void {
     localStorage.removeItem('tu_bus_search_history')
   } catch (e) {}
 }
+
+export const SESSION_MAX_AGE_MS = 40 * 60 * 60 * 1000 // 40 hours
+
+export function stampActiveSession(user: any): any {
+  if (!user || typeof user !== 'object') return user
+  const now = Date.now()
+  return {
+    ...user,
+    session_created_at: user.session_created_at || now,
+    session_last_active: now
+  }
+}
+
+export function clearActiveSession(): void {
+  if (typeof window === 'undefined') return
+  localStorage.removeItem('active_user')
+  localStorage.removeItem('active_super_admin')
+  localStorage.removeItem('active_company_line')
+  localStorage.removeItem('mock_driver_identity')
+}
+
+export function getValidActiveUser(): any | null {
+  if (typeof window === 'undefined') return null
+  const raw = localStorage.getItem('active_user')
+  if (!raw) return null
+
+  try {
+    const user = JSON.parse(raw)
+    const now = Date.now()
+    const lastActive = Number(user.session_last_active || user.session_created_at || 0)
+
+    // Expire if session is older than 40 hours or missing timestamp
+    if (!lastActive || (now - lastActive > SESSION_MAX_AGE_MS)) {
+      clearActiveSession()
+      return null
+    }
+
+    // Refresh last active timestamp on ongoing usage
+    user.session_last_active = now
+    localStorage.setItem('active_user', JSON.stringify(user))
+    return user
+  } catch (e) {
+    clearActiveSession()
+    return null
+  }
+}
+

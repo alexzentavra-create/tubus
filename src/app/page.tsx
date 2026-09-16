@@ -13,7 +13,7 @@ import {
   HelpCircle, Upload, Smartphone, CreditCard, PhoneCall, Sparkles, Eye, EyeOff, Lock, ShieldCheck, Copy
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
-import { syncAllGlobalKeys, pushGlobalKey, getUserStorageKey, purgeUserDataForEmail } from '@/lib/sync'
+import { syncAllGlobalKeys, pushGlobalKey, getUserStorageKey, purgeUserDataForEmail, getValidActiveUser, stampActiveSession, clearActiveSession } from '@/lib/sync'
 import { getStoredGeneralTerms, getStoredAdsTerms } from '@/lib/termsData'
 import { OFFICIAL_ROUTES } from '@/lib/officialRoutes'
 import type { BusPosition, BusLine, BusStop } from '@/types'
@@ -23040,31 +23040,28 @@ function MapAdBanner({
       }
     }, 30000)
 
-    // Validate User Auth state (localStorage active_user OR Supabase user session)
-    const activeUserStr = typeof window !== 'undefined' ? localStorage.getItem('active_user') : null
-    let activeUser: any = null
-    try {
-      activeUser = activeUserStr ? JSON.parse(activeUserStr) : null
-    } catch (e) {}
+    // Validate User Auth state with 40-hour session expiration check
+    const activeUser = getValidActiveUser()
 
     supabase.auth.getUser().then(({ data: { user: sbUser } }) => {
       let loggedInUser = activeUser
 
       if (!loggedInUser && sbUser) {
-        loggedInUser = {
+        loggedInUser = stampActiveSession({
           name: sbUser.user_metadata?.full_name || sbUser.email?.split('@')[0] || 'Usuario',
           email: sbUser.email,
           avatar: sbUser.user_metadata?.avatar_url || 'avatar1',
           role: 'user'
-        }
+        })
         localStorage.setItem('active_user', JSON.stringify(loggedInUser))
         localStorage.setItem('profile_email', sbUser.email || '')
         localStorage.setItem('tu_bus_profile_email', sbUser.email || '')
       }
 
       if (!loggedInUser) {
-        // Unauthenticated visitor -> Redirect to login menu immediately!
-        window.location.href = '/login'
+        // Unauthenticated or expired (>40 hrs) session -> Redirect to login menu immediately!
+        clearActiveSession()
+        window.location.href = '/login?expired=1'
         return
       }
 

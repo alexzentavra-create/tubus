@@ -5,7 +5,7 @@ import { Bus, Mail, Lock, Eye, EyeOff, ArrowRight, User, BarChart2, Calendar, Ph
 import { createClient } from '@/lib/supabase'
 import { getStoredGeneralTerms } from '@/lib/termsData'
 import toast from 'react-hot-toast'
-import { syncAllGlobalKeys, pushGlobalKey, getUserStorageKey, purgeUserDataForEmail } from '@/lib/sync'
+import { syncAllGlobalKeys, pushGlobalKey, getUserStorageKey, purgeUserDataForEmail, stampActiveSession } from '@/lib/sync'
 
 type Mode = 'login' | 'register'
 
@@ -358,6 +358,11 @@ export default function LoginPage() {
     syncAllGlobalKeys().catch(() => {})
     const syncTerms = () => setGeneralTermsText(getStoredGeneralTerms())
     window.addEventListener('storage', syncTerms)
+
+    if (typeof window !== 'undefined' && window.location.search.includes('expired=1')) {
+      toast.error('Tu sesión ha expirado después de 40 horas sin usar la app. Por favor, iniciá sesión nuevamente.', { duration: 6000, id: 'session-expired' })
+    }
+
     return () => window.removeEventListener('storage', syncTerms)
   }, [])
   const [city, setCity] = useState('buenos_aires')
@@ -459,8 +464,9 @@ export default function LoginPage() {
               saRole: matchedSuperAdmin.role || 'Super Admin Completo',
               avatar: initials || 'SA'
             }
-            localStorage.setItem('active_user', JSON.stringify(activeSaPayload))
-            localStorage.setItem('active_super_admin', JSON.stringify(activeSaPayload))
+            const stampedSa = stampActiveSession(activeSaPayload)
+            localStorage.setItem('active_user', JSON.stringify(stampedSa))
+            localStorage.setItem('active_super_admin', JSON.stringify(stampedSa))
             window.location.href = '/admin/super'
             return
           } else {
@@ -532,13 +538,13 @@ export default function LoginPage() {
 
           if (isLinePassValid) {
             localStorage.setItem('active_company_line', lineAdminMatchNum)
-            localStorage.setItem('active_user', JSON.stringify({
+            localStorage.setItem('active_user', JSON.stringify(stampActiveSession({
               name: matchedLineAdminObj.name || `Admin Línea ${lineAdminMatchNum}`,
               role: 'company_admin',
               lineNumber: lineAdminMatchNum,
               email: lowerEmail,
               password: expectedLinePass
-            }))
+            })))
 
             const loginTimeStr = `Hoy ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} hs`
             const activeSessions = JSON.parse(localStorage.getItem('active_line_admin_sessions') || '{}')
@@ -601,7 +607,7 @@ export default function LoginPage() {
               role: 'driver',
               lineNumber: driverAccount.lineNumber
             }
-            localStorage.setItem('active_user', JSON.stringify(userObj))
+            localStorage.setItem('active_user', JSON.stringify(stampActiveSession(userObj)))
             localStorage.setItem('mock_driver_identity', JSON.stringify({
               name: driverAccount.name,
               email: lowerEmail,
@@ -686,7 +692,7 @@ export default function LoginPage() {
               localStorage.setItem('super_admin_identity', foundUser.name || 'Alejandro')
               window.location.href = '/admin/super'
             } else {
-              const userToStore = { ...foundUser, password: realPass }
+              const userToStore = stampActiveSession({ ...foundUser, password: realPass })
               localStorage.setItem('active_user', JSON.stringify(userToStore))
               localStorage.setItem('profile_email', foundUser.email)
               localStorage.setItem('tu_bus_profile_email', foundUser.email)
@@ -713,12 +719,12 @@ export default function LoginPage() {
         // Baseline passenger accounts
         if (lowerEmail === 'usuario@usuario.com' || lowerEmail === 'usuario@usuario') {
           if (pass === 'Usuario' || pass.toLowerCase() === 'usuario') {
-            localStorage.setItem('active_user', JSON.stringify({
+            localStorage.setItem('active_user', JSON.stringify(stampActiveSession({
               name: 'Usuario Administrador',
               email: 'usuario@usuario.com',
               password: 'Usuario',
               role: 'user'
-            }))
+            })))
             window.location.href = `/?city=${city}`
             return
           } else {
@@ -730,12 +736,12 @@ export default function LoginPage() {
 
         if (lowerEmail === 'alejandro.finochietti@yahoo.com.ar' || lowerEmail.includes('alejandro.finochietti')) {
           if (pass === 'Afodes18' || pass.toLowerCase() === 'afodes18' || pass === 'password123') {
-            localStorage.setItem('active_user', JSON.stringify({
+            localStorage.setItem('active_user', JSON.stringify(stampActiveSession({
               name: 'Alejandro Finochietti',
               email: 'alejandro.finochietti@yahoo.com.ar',
               password: 'Afodes18',
               role: 'user'
-            }))
+            })))
             window.location.href = `/?city=${city}`
             return
           } else {
@@ -747,12 +753,12 @@ export default function LoginPage() {
 
         if (lowerEmail === 'alfox@alfox.com' || lowerEmail === 'alfox') {
           if (pass === 'alfox' || pass.toLowerCase() === 'alfox') {
-            localStorage.setItem('active_user', JSON.stringify({
+            localStorage.setItem('active_user', JSON.stringify(stampActiveSession({
               name: 'alfox',
               email: 'alfox@alfox.com',
               password: 'alfox',
               role: 'user'
-            }))
+            })))
             window.location.href = `/?city=${city}`
             return
           } else {
@@ -764,12 +770,12 @@ export default function LoginPage() {
 
         if (lowerEmail === 'alex@gmail.com' || lowerEmail === 'alex') {
           if (pass === 'password123' || pass.toLowerCase() === 'password123') {
-            localStorage.setItem('active_user', JSON.stringify({
+            localStorage.setItem('active_user', JSON.stringify(stampActiveSession({
               name: 'Alex',
               email: 'alex@gmail.com',
               password: 'password123',
               role: 'user'
-            }))
+            })))
             window.location.href = `/?city=${city}`
             return
           } else {
@@ -874,7 +880,7 @@ export default function LoginPage() {
           await pushGlobalKey('blocked_users', blockedList)
 
           // 3. Set active_user & explicit profile localStorage keys for this exact user
-          localStorage.setItem('active_user', JSON.stringify(newUserData))
+          localStorage.setItem('active_user', JSON.stringify(stampActiveSession(newUserData)))
           localStorage.setItem('profile_name', newUserData.name)
           localStorage.setItem('tu_bus_profile_name', newUserData.name)
           localStorage.setItem('profile_email', newUserData.email)

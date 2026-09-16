@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
-import { syncAllGlobalKeys, pushGlobalKey } from '@/lib/sync'
+import { syncAllGlobalKeys, pushGlobalKey, getValidActiveUser, clearActiveSession } from '@/lib/sync'
 import { CARTODB_DARK } from '@/lib/mapStyles'
 import SessionConcurrencyGuard from '@/components/SessionConcurrencyGuard'
 
@@ -241,15 +241,12 @@ export default function CompanyDashboard() {
     const runSync = async () => {
       await syncAllGlobalKeys().catch(() => {})
 
-      const activeUserStr = localStorage.getItem('active_user')
-      let activeUser: any = null
-      try {
-        activeUser = activeUserStr ? JSON.parse(activeUserStr) : null
-      } catch (e) {}
+      const activeUser = getValidActiveUser()
 
       if (!activeUser || (activeUser.role !== 'company_admin' && activeUser.role !== 'admin')) {
-        toast.error('Acceso denegado. Iniciá sesión con tu cuenta de Administrador de Línea.')
-        window.location.href = '/login'
+        clearActiveSession()
+        toast.error('Tu sesión ha expirado o no tienes permisos de Administrador de Línea.')
+        window.location.href = '/login?expired=1'
         return
       }
 
