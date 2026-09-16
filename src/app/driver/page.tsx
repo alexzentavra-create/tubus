@@ -21,18 +21,6 @@ interface ActiveSession {
   companyName: string
 }
 
-// ─── Mock QR tokens (one per line) ───────────────────────────────────────────
-const MOCK_QR_TOKENS: Record<string, { busUnit: string; lineIdx: number }> = {
-  'DEMO-QR-L0-000': { busUnit: '000', lineIdx: 0 },
-  'DEMO-QR-L12-001': { busUnit: '001', lineIdx: 1 },
-  'DEMO-QR-L24-002': { busUnit: '002', lineIdx: 2 },
-  'DEMO-QR-L37-003': { busUnit: '003', lineIdx: 3 },
-  'DEMO-QR-L55-004': { busUnit: '004', lineIdx: 4 },
-  'DEMO-QR-L71-005': { busUnit: '005', lineIdx: 5 },
-  'DEMO-QR-L88-006': { busUnit: '006', lineIdx: 6 },
-  'DEMO-QR-L102-07': { busUnit: '007', lineIdx: 7 },
-  'DEMO-QR-L115-08': { busUnit: '008', lineIdx: 8 },
-}
 // CARTODB_DARK, CARTODB_LIGHT are imported from @/lib/mapStyles
 
 
@@ -306,8 +294,8 @@ export default function DriverPage() {
   const watchIdRef  = useRef<number | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const lastPosRef  = useRef<GeolocationPosition | null>(null)
+  const lastTransmittedPosRef = useRef<{ lat: number; lng: number; heading: number; time: number } | null>(null)
   const startRef    = useRef<Date | null>(null)
-  const simIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const [mounted, setMounted]           = useState(false)
   const [routeUpdateTick, setRouteUpdateTick] = useState(0)
@@ -572,24 +560,43 @@ export default function DriverPage() {
         }
       } catch (e) {}
 
-      // 2. Real mode: push live GPS stream to Supabase bus_positions
-      try {
-        await supabase.from('bus_positions').upsert({
-          driver_id: uid, line_id: lid, bus_unit: unit,
-          latitude: lat, longitude: lng,
-          heading, speed_kmh: spd,
-          status,
-          passenger_count: initPass,
-          timestamp: ts,
-        }, { onConflict: 'driver_id' })
-      } catch (e) {
-        console.error('Error broadcasting GPS to Supabase bus_positions:', e)
+      // 2. Real mode: 3G/4G Cellular Data Saver
+      // Broadcast over network to Supabase bus_positions ONLY if:
+      // - First transmission, OR
+      // - Bus has moved >= 8 meters, OR
+      // - Heading changed >= 15 degrees, OR
+      // - Heartbeat timeout reached (25 seconds) to maintain online status
+      const last = lastTransmittedPosRef.current
+      const now = Date.now()
+      let shouldTransmit = false
+
+      if (!last) {
+        shouldTransmit = true
+      } else {
+        const distMeters = Math.hypot((lat - last.lat) * 111000, (lng - last.lng) * 111000 * Math.cos(lat * Math.PI / 180))
+        const headingDiff = Math.abs(heading - last.heading)
+        const timeElapsed = now - last.time
+        if (distMeters >= 8 || headingDiff >= 15 || timeElapsed >= 25000) {
+          shouldTransmit = true
+        }
       }
 
-      try {
-        await supabase.from('driver_sessions').update({ total_passengers: initPass }).eq('id', sid)
-      } catch (e) {}
-    }, 3000) // every 3 s for smoother tracking
+      if (shouldTransmit) {
+        lastTransmittedPosRef.current = { lat, lng, heading, time: now }
+        try {
+          await supabase.from('bus_positions').upsert({
+            driver_id: uid, line_id: lid, bus_unit: unit,
+            latitude: lat, longitude: lng,
+            heading, speed_kmh: spd,
+            status,
+            passenger_count: initPass,
+            timestamp: ts,
+          }, { onConflict: 'driver_id' })
+        } catch (e) {
+          console.error('Error broadcasting GPS to Supabase bus_positions:', e)
+        }
+      }
+    }, 3000)
   }, [])
 
   useEffect(() => {
@@ -605,211 +612,53 @@ export default function DriverPage() {
     }, { onConflict: 'driver_id' })
   }, [passengers])
 
-  // ─── Simulation movement loop ───────────────────────────────────────────────
+  // ─── Real GPS stop arrival & punctuality control ───────────────────────────
   useEffect(() => {
-    if (!session || !isOnline || !session.sessionId.startsWith('mock-') || session.lineNumber === '0') {
-      if (simIntervalRef.current) { clearInterval(simIntervalRef.current); simIntervalRef.current = null }
-      return
-    }
-
+    if (!session || !isOnline || !pos) return
     const mockLine = MOCK_LINES.find(l => l.id === session.lineId)
     if (!mockLine) return
+    const stops = getMockStopsForLine(mockLine)
+    const expectedStop = stops[nextStopIndexRef.current]
+    if (!expectedStop) return
 
-    const path = getMockRoutePathForLine(mockLine)
-    if (!path || path.length === 0) return
+    const dLat = (pos.lat - expectedStop.latitude) * 111
+    const dLng = (pos.lng - expectedStop.longitude) * 111 * Math.cos(pos.lat * Math.PI / 180)
+    const distMeters = Math.hypot(dLat, dLng) * 1000
 
-    let currentIndex = 0
-    let progress = 0
-    let pauseCounter = 0
-    let currentSpeed = 0
-    let lastStoppedStopId = ''
+    if (distMeters < 35) {
+      const now = new Date()
+      const nowStr = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      const timeframes = JSON.parse(localStorage.getItem(`stops_timeframes_${session.lineNumber}`) || '{}')
+      const tf = timeframes[expectedStop.id] || { start: '06:00', end: '23:30' }
+      const currentMin = now.getHours() * 60 + now.getMinutes()
+      const timeToMin = (t: string) => {
+        const [h, m] = t.split(':').map(Number)
+        return (h || 0) * 60 + (m || 0)
+      }
+      const startMin = timeToMin(tf.start)
+      const endMin = timeToMin(tf.end)
 
-    // Set initial position
-    setPos({ lat: path[0].lat, lng: path[0].lng, speed: 0, heading: 0 })
+      let status = 'A tiempo'
+      if (currentMin > endMin) status = 'Demorado'
+      else if (currentMin < startMin) status = 'Adelantado'
 
-    simIntervalRef.current = setInterval(() => {
-      const stops = getMockStopsForLine(mockLine)
-      const currentPoint = path[currentIndex]
-      const nextIdx = (currentIndex + 1) % path.length
-      const nextPoint = path[nextIdx]
-
-      // Interpolated position for current tick
-      const currentLat = currentPoint.lat + (nextPoint.lat - currentPoint.lat) * progress
-      const currentLng = currentPoint.lng + (nextPoint.lng - currentPoint.lng) * progress
-
-      // Find closest stop based on interpolated position
-      let minDistToStop = Infinity
-      let targetStop = stops[0]
-      stops.forEach(stop => {
-        const dist = Math.hypot(stop.longitude - currentLng, stop.latitude - currentLat)
-        if (dist < minDistToStop) {
-          minDistToStop = dist
-          targetStop = stop
-        }
-      })
-
-      // Check if we should trigger a stop pause
-      if (minDistToStop < 0.00018 && targetStop.id !== lastStoppedStopId && pauseCounter === 0) {
-        lastStoppedStopId = targetStop.id
-        pauseCounter = 80 // pause for 4 seconds (80 ticks of 50ms)
-        currentSpeed = 0
-
-        // Control de Puntualidad: Log crossing event if it matches the current expected stop
-        try {
-          const expectedStop = stops[nextStopIndexRef.current]
-          if (expectedStop && targetStop.id === expectedStop.id) {
-            const now = new Date()
-            const nowStr = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-            
-            // Calculate delay status by checking current stopsTimeframes from localStorage
-            const timeframes = JSON.parse(localStorage.getItem(`stops_timeframes_${session.lineNumber}`) || '{}')
-            const tf = timeframes[targetStop.id] || { start: '06:00', end: '23:30' }
-            const currentMin = now.getHours() * 60 + now.getMinutes()
-            
-            const timeToMin = (t: string) => {
-              const [h, m] = t.split(':').map(Number)
-              return h * 60 + m
-            }
-            
-            const startMin = timeToMin(tf.start)
-            const endMin = timeToMin(tf.end)
-            
-            let status = 'A tiempo'
-            if (currentMin > endMin) status = 'Demorado'
-            else if (currentMin < startMin) status = 'Adelantado'
-            
-            const newLog = {
-              stopId: targetStop.id,
-              stopName: targetStop.name,
-              arrivalTime: nowStr,
-              status
-            }
-            
-            const logsKey = `driver_passage_logs_${session.lineNumber}_${session.busUnit}`
-            const logs = JSON.parse(localStorage.getItem(logsKey) || '[]')
-            if (!logs.some((l: any) => l.stopId === targetStop.id)) {
-              logs.push(newLog)
-              localStorage.setItem(logsKey, JSON.stringify(logs))
-            }
-            
-            setLastCrossedStop({ name: targetStop.name, time: nowStr, status })
-            setNextStopIndex(nextStopIndexRef.current + 1)
-          }
-        } catch (e) {
-          console.error('Error logging passage:', e)
-        }
-        
-        // Snap simulation progress to the stop's path location to prevent jump upon resuming
-        if (typeof (targetStop as any).pathIndex === 'number') {
-          currentIndex = (targetStop as any).pathIndex
-        } else {
-          let closestIdx = currentIndex
-          let minDist = Infinity
-          path.forEach((pt, idx) => {
-            const dist = Math.hypot(pt.lng - targetStop.longitude, pt.lat - targetStop.latitude)
-            if (dist < minDist) {
-              minDist = dist
-              closestIdx = idx
-            }
-          })
-          currentIndex = closestIdx
-        }
-        progress = 0
-        
-        const on = Math.floor(Math.random() * 6) + 1
-        setPassengers(p => {
-          const off = Math.min(p, Math.floor(Math.random() * 4) + 1)
-          setBoardingStatus({ on, off, stopName: targetStop.name })
-          return Math.max(2, Math.min(55, p + on - off))
-        })
-        setTimeout(() => setBoardingStatus(null), 3000)
-        
-        // Snap position exactly to targetStop coordinates so it overlaps perfectly on map!
-        setPos({
-          lat: targetStop.latitude,
-          lng: targetStop.longitude,
-          speed: 0,
-          heading: pos?.heading ?? 0
-        })
-        return
+      const newLog = {
+        stopId: expectedStop.id,
+        stopName: expectedStop.name,
+        arrivalTime: nowStr,
+        status
       }
 
-      if (pauseCounter > 0) {
-        pauseCounter--
-      } else {
-        // Calculate heading difference ahead (turns)
-        let maxTurnDiff = 0
-        const lookahead = 6
-        for (let i = 1; i <= lookahead; i++) {
-          const pA = path[(currentIndex + i - 1) % path.length]
-          const pB = path[(currentIndex + i) % path.length]
-          const pC = path[(currentIndex + i + 1) % path.length]
-          const h1 = ((Math.atan2(pB.lng - pA.lng, pB.lat - pA.lat) * 180) / Math.PI + 360) % 360
-          const h2 = ((Math.atan2(pC.lng - pB.lng, pC.lat - pB.lat) * 180) / Math.PI + 360) % 360
-          let diff = Math.abs(h1 - h2)
-          if (diff > 180) diff = 360 - diff
-          if (diff > maxTurnDiff) maxTurnDiff = diff
-        }
-
-        // Determine target speed from turns (urban speeds with traffic)
-        let targetSpeed = 22 // base straight stretch speed (raised from 18)
-        
-        // Add dynamic traffic fluctuation (fluctuate by +/- 3 km/h every 12s)
-        const trafficFactor = Math.sin(Date.now() / 12000) * 3
-        targetSpeed = targetSpeed + trafficFactor
-
-        if (maxTurnDiff > 45) {
-          targetSpeed = 12 // sharp turn (raised from 6)
-        } else if (maxTurnDiff > 25) {
-          targetSpeed = 15 // moderate turn (raised from 9)
-        } else if (maxTurnDiff > 10) {
-          targetSpeed = 18 // gentle turn (raised from 12)
-        }
-
-        // Decelerate if approaching a stop
-        if (minDistToStop < 0.0008) {
-          const stopSpeed = Math.max(10, 22 * (minDistToStop / 0.0008)) // stop approach limit (minimum 10 km/h before snapping)
-          targetSpeed = Math.min(targetSpeed, stopSpeed)
-        }
-
-        // Smoothly interpolate speed (accelFactor: 0.075 for quick start, 0.035 for natural deceleration)
-        const accelFactor = (targetSpeed > currentSpeed) ? 0.075 : 0.035
-        currentSpeed = currentSpeed + (targetSpeed - currentSpeed) * accelFactor
-
-        // Calculate segment length in km
-        const lat1 = currentPoint.lat * Math.PI / 180
-        const lat2 = nextPoint.lat * Math.PI / 180
-        const dLatRad = lat2 - lat1
-        const dLngRad = (nextPoint.lng - currentPoint.lng) * Math.PI / 180
-        const s = Math.sin(dLatRad / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLngRad / 2) ** 2
-        const segmentKm = 6371 * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s))
-
-        // Advance progress
-        const step = segmentKm > 0 ? ((currentSpeed / 3600) * 0.05) / segmentKm : 1
-        progress = progress + step
-
-        if (progress >= 1) {
-          currentIndex = (currentIndex + 1) % path.length
-          progress = 0
-        }
-
-        const dy = nextPoint.lat - currentPoint.lat
-        const dx = nextPoint.lng - currentPoint.lng
-        const angle = ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360
-
-        setPos({
-          lat: currentLat,
-          lng: currentLng,
-          speed: Math.round(currentSpeed),
-          heading: angle
-        })
+      const logsKey = `driver_passage_logs_${session.lineNumber}_${session.busUnit}`
+      const logs = JSON.parse(localStorage.getItem(logsKey) || '[]')
+      if (!logs.some((l: any) => l.stopId === expectedStop.id)) {
+        logs.push(newLog)
+        localStorage.setItem(logsKey, JSON.stringify(logs))
+        setLastCrossedStop({ name: expectedStop.name, time: nowStr, status })
+        setNextStopIndex(nextStopIndexRef.current + 1)
       }
-    }, 50)
-
-    return () => {
-      if (simIntervalRef.current) { clearInterval(simIntervalRef.current); simIntervalRef.current = null }
     }
-  }, [session, isOnline])
+  }, [pos, session, isOnline])
 
   // Center map on driver position and handle 3D camera toggling
   useEffect(() => {
@@ -896,169 +745,36 @@ export default function DriverPage() {
     if (!qrToken.trim() || !driverId) return
     setScanning(true)
 
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
-    if (url.includes('placeholder.supabase.co')) {
-      const match = MOCK_QR_TOKENS[qrToken.trim()]
+    const { data: qr, error } = await supabase
+      .from('bus_qr_codes')
+      .select('*, bus_companies!company_id(company_name), bus_lines!line_id(line_number,name)')
+      .eq('qr_token', qrToken.trim())
+      .single()
+    let matchedQr: any = !error && qr ? qr : null
+
+    // Fallback to local admin-created QRs if table not synced yet
+    if (!matchedQr) {
       const localQRs = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]') : []
       const localMatch = localQRs.find((q: any) => q.qr_token === qrToken.trim())
-
-      if (match || localMatch) {
-        if (localMatch && !localMatch.is_active) {
-          const warning = {
-            id: `warning-${Date.now()}`,
-            qrId: localMatch.id,
-            qrToken: localMatch.qr_token,
-            busUnit: localMatch.bus_unit,
-            driverName: driverName || 'Chofer Demo',
-            timestamp: new Date().toISOString(),
-            message: `Intento de escaneo inactivo: Chofer ${driverName || 'Demo'} intentó ingresar en la Unidad ${localMatch.bus_unit}.`
-          }
-          try {
-            const prev = JSON.parse(localStorage.getItem('mock_qr_warnings') || '[]')
-            localStorage.setItem('mock_qr_warnings', JSON.stringify([...prev, warning]))
-          } catch (e) {
-            console.error(e)
-          }
-          toast.error('El código QR se encuentra inactivo. Se envió una advertencia al administrador.')
-          setScanning(false)
-          return
+      if (localMatch) {
+        matchedQr = {
+          id: localMatch.id || `qr-${Date.now()}`,
+          qr_token: localMatch.qr_token,
+          bus_unit: localMatch.bus_unit,
+          line_id: localMatch.line_id,
+          company_id: localMatch.company_id || 'comp-1',
+          is_active: localMatch.is_active !== false,
+          bus_lines: { line_number: localMatch.line_number || '0', name: localMatch.line_name || 'Línea' },
+          bus_companies: { company_name: localMatch.company_name || 'Empresa' }
         }
-
-        let busUnit = ''
-        let lineId = ''
-        let lineName = ''
-        let lineNumber = ''
-        let companyName = ''
-        let companyId = 'comp-1'
-        
-        if (match) {
-          const mockLine = MOCK_LINES[match.lineIdx % MOCK_LINES.length]
-          busUnit = match.busUnit
-          lineId = mockLine.id
-          lineName = mockLine.name
-          lineNumber = mockLine.line_number
-          companyName = mockLine.company
-        } else {
-          const mockLine = MOCK_LINES.find(l => l.id === localMatch.line_id) || MOCK_LINES[0]
-          busUnit = localMatch.bus_unit
-          lineId = localMatch.line_id
-          lineName = mockLine.name
-          lineNumber = mockLine.line_number
-          companyName = mockLine.company
-          companyId = localMatch.company_id
-        }
-
-        // Validate that driver scans a QR code belonging to their assigned line
-        if (driverLineNumber && driverLineNumber !== lineNumber) {
-          toast.error(`Acceso denegado: Perteneces a la Línea ${driverLineNumber}. No podés escanear unidades de la Línea ${lineNumber}.`)
-          setScanning(false)
-          return
-        }
-
-        const sess: ActiveSession = {
-          sessionId: `mock-session-${Date.now()}`,
-          driverId: driverId || 'mock-driver',
-          driverName: driverName || 'Chofer Demo',
-          busUnit: busUnit,
-          lineId: lineId,
-          lineName: lineName,
-          lineNumber: lineNumber,
-          companyName: companyName,
-        }
-        localStorage.removeItem(`driver_passage_logs_${sess.lineNumber}_${sess.busUnit}`)
-        setNextStopIndex(0)
-        setLastCrossedStop(null)
-        setSession(sess)
-        setPassengers(0)
-        setIsOnline(true)
-        setShowScanner(false)
-        setQrToken('')
-        setScanning(false)
-
-        // Save session to localStorage so admin page can retrieve it
-        const activeSessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
-        // Filter out any older session for this driver to avoid duplicates
-        const updatedSessions = activeSessions.filter((s: any) => s.profiles?.name !== sess.driverName)
-        updatedSessions.push({
-          id: sess.sessionId,
-          bus_unit: sess.busUnit,
-          line_id: sess.lineId,
-          line_number: sess.lineNumber,
-          qr_code: qrToken.trim(),
-          started_at: new Date().toISOString(),
-          total_passengers: 0,
-          profiles: { name: sess.driverName },
-          company_id: companyId
-        })
-        localStorage.setItem('mock_active_sessions', JSON.stringify(updatedSessions))
-        if (typeof window !== 'undefined') { window.dispatchEvent(new Event('storage')); window.dispatchEvent(new Event('mock_active_sessions_updated')); }
-
-        const path = getMockRoutePathForLine(MOCK_LINES.find(l => l.id === lineId) || MOCK_LINES[0])
-        if (path && path.length > 0) {
-          setPos({ lat: path[0].lat, lng: path[0].lng, speed: 0, heading: 0 })
-          setViewState(v => ({ ...v, latitude: path[0].lat, longitude: path[0].lng, zoom: 14 }))
-        }
-        toast.success(`¡Turno iniciado! Unidad ${sess.busUnit} · Línea ${lineNumber}`)
-      } else {
-        toast.error('QR inválido o inactivo en modo simulación')
-        setScanning(false)
       }
+    }
+
+    if (!matchedQr) {
+      toast.error('Código QR inválido o no encontrado.')
+      setScanning(false)
       return
     }
-
-    let matchedQr: any = null
-    try {
-      const { data: qr, error } = await supabase
-        .from('bus_qr_codes')
-        .select('*, bus_companies!company_id(company_name), bus_lines!line_id(line_number,name)')
-        .eq('qr_token', qrToken.trim())
-        .single()
-      if (!error && qr) matchedQr = qr
-    } catch (e) {}
-
-    // Fallback to local or demo QR tokens if not found in Supabase
-    if (!matchedQr) {
-      const match = MOCK_QR_TOKENS[qrToken.trim()]
-      const localQRs = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]') : []
-      const localMatch = localQRs.find((q: any) => q.qr_token === qrToken.trim())
-
-      if (match || localMatch) {
-        let busUnit = ''
-        let lineId = ''
-        let lineName = ''
-        let lineNumber = ''
-        let companyName = ''
-        
-        if (match) {
-          const mockLine = MOCK_LINES[match.lineIdx % MOCK_LINES.length]
-          busUnit = match.busUnit
-          lineId = mockLine.id
-          lineName = mockLine.name
-          lineNumber = mockLine.line_number
-          companyName = mockLine.company
-        } else {
-          const mockLine = MOCK_LINES.find(l => l.id === localMatch.line_id) || MOCK_LINES[0]
-          busUnit = localMatch.bus_unit
-          lineId = localMatch.line_id
-          lineName = mockLine.name
-          lineNumber = mockLine.line_number
-          companyName = mockLine.company
-        }
-
-        matchedQr = {
-          id: `qr-${Date.now()}`,
-          qr_token: qrToken.trim(),
-          bus_unit: busUnit,
-          line_id: lineId,
-          company_id: 'comp-1',
-          is_active: true,
-          bus_lines: { line_number: lineNumber, name: lineName },
-          bus_companies: { company_name: companyName }
-        }
-      }
-    }
-
-    if (!matchedQr) { toast.error('Código QR inválido'); setScanning(false); return }
 
     // Validate that driver scans a QR code belonging to their assigned line
     const qrLineNumber = (matchedQr.bus_lines as any)?.line_number
@@ -1069,7 +785,7 @@ export default function DriverPage() {
     }
 
     if (!matchedQr.is_active) {
-      toast.error('El código QR se encuentra inactivo.')
+      toast.error('El código QR se encuentra inactivo. Contactá a tu administración.')
       setScanning(false)
       return
     }
@@ -1082,16 +798,23 @@ export default function DriverPage() {
     let sessionId = `sess-${Date.now()}`
     try {
       const { data: newS } = await supabase.from('driver_sessions').insert({
-        driver_id: driverId, qr_code_id: matchedQr.id.startsWith('qr-') ? null : matchedQr.id, company_id: matchedQr.company_id === 'comp-1' ? null : matchedQr.company_id,
-        line_id: matchedQr.line_id.startsWith('line-') ? null : matchedQr.line_id, bus_unit: matchedQr.bus_unit, is_active: true,
+        driver_id: driverId,
+        qr_code_id: matchedQr.id.startsWith('qr-') ? null : matchedQr.id,
+        company_id: matchedQr.company_id === 'comp-1' ? null : matchedQr.company_id,
+        line_id: matchedQr.line_id.startsWith('line-') ? null : matchedQr.line_id,
+        bus_unit: matchedQr.bus_unit,
+        is_active: true,
         started_at: new Date().toISOString(),
       }).select().single()
       if (newS?.id) sessionId = newS.id
     } catch (e) {}
 
     const sess: ActiveSession = {
-      sessionId, driverId, driverName,
-      busUnit: matchedQr.bus_unit, lineId: matchedQr.line_id,
+      sessionId,
+      driverId,
+      driverName,
+      busUnit: matchedQr.bus_unit,
+      lineId: matchedQr.line_id,
       lineName:    (matchedQr.bus_lines as any)?.name || '—',
       lineNumber:  (matchedQr.bus_lines as any)?.line_number || '—',
       companyName: (matchedQr.bus_companies as any)?.company_name || '—',
@@ -1106,57 +829,10 @@ export default function DriverPage() {
     toast.success(`¡Turno iniciado! Unidad ${matchedQr.bus_unit}`)
   }
 
-  // ── Mock/simulate scan ─────────────────────────────────────────────────────
-  const handleSimulateScan = () => {
-    const mockLine = MOCK_LINES.find(l => l.line_number === '12') || MOCK_LINES[0]
-    const sess: ActiveSession = {
-      sessionId: `mock-session-${Date.now()}`,
-      driverId: driverId || 'mock-driver',
-      driverName: driverName || 'Chofer Demo',
-      busUnit: `12${String(Math.floor(Math.random() * 9) + 1).padStart(2, '0')}`,
-      lineId: mockLine.id,
-      lineName: mockLine.name,
-      lineNumber: mockLine.line_number,
-      companyName: mockLine.company,
-    }
-    localStorage.removeItem(`driver_passage_logs_${mockLine.line_number}_${sess.busUnit}`)
-    
-    // Save session to localStorage so admin page can retrieve it
-    const activeSessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
-    const updatedSessions = activeSessions.filter((s: any) => s.profiles?.name !== sess.driverName)
-    updatedSessions.push({
-      id: sess.sessionId,
-      bus_unit: sess.busUnit,
-      line_id: sess.lineId,
-      line_number: sess.lineNumber,
-      qr_code: 'DEMO-QR-L12-001',
-      started_at: new Date().toISOString(),
-      total_passengers: 12,
-      profiles: { name: sess.driverName },
-      company_id: 'comp-1'
-    })
-    localStorage.setItem('mock_active_sessions', JSON.stringify(updatedSessions))
-    if (typeof window !== 'undefined') { window.dispatchEvent(new Event('storage')); window.dispatchEvent(new Event('mock_active_sessions_updated')); }
-
-    setNextStopIndex(0)
-    setLastCrossedStop(null)
-    setSession(sess)
-    setPassengers(12)
-    setIsOnline(true)
-    setShowScanner(false)
-    setQrToken('')
-    const path = getMockRoutePathForLine(mockLine)
-    if (path && path.length > 0) {
-      setPos({ lat: path[0].lat, lng: path[0].lng, speed: 0, heading: 0 })
-      setViewState(v => ({ ...v, latitude: path[0].lat, longitude: path[0].lng, zoom: 16, pitch: 20, bearing: 0 }))
-    }
-    toast.success(`[SIMULACIÓN] Unidad ${sess.busUnit} · Línea ${mockLine.line_number}`)
-  }
-
   const endShift = useCallback(async () => {
     if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current)
     if (intervalRef.current) clearInterval(intervalRef.current)
-    if (simIntervalRef.current) clearInterval(simIntervalRef.current)
+    lastTransmittedPosRef.current = null
     
     // Clean up local mock session
     if (typeof window !== 'undefined') {
@@ -1241,7 +917,6 @@ export default function DriverPage() {
 
   useEffect(() => { if (showNotes) loadDriverNotes() }, [showNotes])
 
-  const isMock = session?.sessionId.startsWith('mock-') || (!session && typeof window !== 'undefined')
   const mockLine = useMemo(() => {
     if (session) {
       return MOCK_LINES.find(l => l.id === session.lineId) || null
@@ -1391,37 +1066,15 @@ export default function DriverPage() {
             </p>
 
             {/* Main scan button + simulate side-by-side */}
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
               <button
                 onClick={() => setShowScanner(true)}
                 className="btn-platinum action-btn"
-                style={{ flex: 1 }}
+                style={{ width: '100%' }}
               >
                 <QrCode size={15} /> Escanear QR
               </button>
-
-              {driverLineNumber !== '0' && (
-                <button
-                  onClick={handleSimulateScan}
-                  title="Simular escaneo (demo)"
-                  className="action-btn"
-                  style={{
-                    width: '44px', height: '44px', borderRadius: '12px', flexShrink: 0,
-                    background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.3)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', transition: 'all 200ms',
-                  }}
-                >
-                  <Zap size={18} style={{ color: 'var(--near)' }} />
-                </button>
-              )}
             </div>
-
-            {driverLineNumber !== '0' && (
-              <p style={{ color: 'var(--text-muted)', fontSize: '10px', fontFamily: 'DM Mono', marginTop: '12px', letterSpacing: '0.04em' }}>
-                El ⚡ simula un escaneo para previsualizar el panel
-              </p>
-            )}
           </motion.div>
         )}
 
@@ -1439,22 +1092,6 @@ export default function DriverPage() {
                     Ingresar código QR
                   </h3>
                 </div>
-                {driverLineNumber !== '0' && (
-                  <button
-                    onClick={handleSimulateScan}
-                    title="Simular escaneo (demo)"
-                    className="action-btn"
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: '5px',
-                      padding: '5px 10px', borderRadius: '8px',
-                      background: 'rgba(240,180,41,0.1)', border: '1px solid rgba(240,180,41,0.25)',
-                      cursor: 'pointer', transition: 'all 200ms',
-                    }}
-                  >
-                    <Zap size={13} style={{ color: 'var(--near)' }} />
-                    <span style={{ fontSize: '10px', fontFamily: 'DM Mono', fontWeight: 600, color: 'var(--near)' }}>SIMULAR</span>
-                  </button>
-                )}
               </div>
 
               {/* Viewfinder */}
@@ -1476,7 +1113,7 @@ export default function DriverPage() {
               <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '10px' }}>Pegá el token del QR:</p>
               <input
                 className="input-dark"
-                placeholder="Token QR (ej: DEMO-QR-L12-001)"
+                placeholder="Token QR (ej: QR-L12-001)"
                 value={qrToken}
                 onChange={e => setQrToken(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleQRScan()}
@@ -1500,16 +1137,6 @@ export default function DriverPage() {
         {/* Active Session Content */}
         {session && (
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-            
-            {/* Simulation mode warning */}
-            {isMock && session?.lineNumber !== '0' && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px', borderRadius: 'var(--r-md)', background: 'rgba(240,180,41,0.07)', border: '1px solid rgba(240,180,41,0.2)', marginBottom: '12px' }}>
-                <Zap size={13} style={{ color: 'var(--near)', flexShrink: 0 }} />
-                <span style={{ color: 'var(--near)', fontSize: '11px', fontFamily: 'DM Mono', fontWeight: 600 }}>
-                  MODO SIMULACIÓN — trayecto automático activo
-                </span>
-              </div>
-            )}
 
             {/* Session Info card */}
             <div className="platinum-card" style={{ borderRadius: 'var(--r-lg)', padding: '16px', marginBottom: '14px', borderLeft: `4px solid ${accentColor}` }}>
@@ -1835,16 +1462,16 @@ export default function DriverPage() {
               </div>
             </div>
 
-            {/* GPS active coordinates */}
+            {/* GPS active coordinates & Data Saver Status */}
             {pos && (
               <div style={{ background: 'rgba(6,8,16,0.6)', border: '1px solid rgba(184,200,224,0.07)', borderRadius: 'var(--r-md)', padding: '12px 14px', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: isMock ? 'var(--near)' : 'var(--go)', flexShrink: 0, animation: 'pulseNeon 2s ease-in-out infinite' }} />
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--go)', flexShrink: 0, animation: 'pulseNeon 2s ease-in-out infinite' }} />
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '10px', fontFamily: 'DM Mono', color: 'var(--text-muted)', letterSpacing: '0.06em', marginBottom: '2px' }}>
-                    {isMock ? 'GPS SIMULADO · coordenadas de ruta' : 'GPS ACTIVO · visible para pasajeros'}
+                  <div style={{ fontSize: '10px', fontFamily: 'DM Mono', color: 'var(--go)', letterSpacing: '0.06em', marginBottom: '2px', fontWeight: 600 }}>
+                    GPS EN VIVO · Ahorro de datos 3G/4G activo
                   </div>
                   <div style={{ fontSize: '11px', fontFamily: 'DM Mono', color: 'var(--text-secondary)' }}>
-                    {pos.lat.toFixed(5)}, {pos.lng.toFixed(5)}
+                    {pos.lat.toFixed(5)}, {pos.lng.toFixed(5)} · {pos.speed} km/h
                   </div>
                 </div>
               </div>

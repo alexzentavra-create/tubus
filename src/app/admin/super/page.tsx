@@ -8,7 +8,7 @@ import {
   Share2, Printer, Plus, Trash2, ChevronDown, CheckCircle2,
   Circle, Flag, Info, Megaphone, MessageSquare, Eye, EyeOff,
   BookOpen, Globe, Award, ListChecks, Key, Filter, History as HistoryIcon, ShieldCheck, Lock,
-  Settings, UserPlus, KeyRound, Shield, Save, Edit3, ShieldAlert, Ban, UserX
+  Settings, UserPlus, KeyRound, Shield, Save, Edit3, ShieldAlert, Ban, UserX, Copy
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { getStoredGeneralTerms, getStoredAdsTerms, getStoredGeneralVersion, getStoredAdsVersion, saveStoredGeneralTerms, saveStoredAdsTerms, getStoredTermsHistory, deleteTermsHistoryEntry, TermsHistoryEntry } from '@/lib/termsData'
@@ -602,6 +602,7 @@ export default function SuperAdminDashboard() {
   const [newPasswordInput, setNewPasswordInput] = useState('')
   const [confirmPasswordInput, setConfirmPasswordInput] = useState('')
   const [deletingSuperAdmin, setDeletingSuperAdmin] = useState<any | null>(null)
+  const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({})
 
   const handleToggleBlockSuperAdmin = (adminId: string, email: string) => {
     const emailLower = email.toLowerCase()
@@ -3093,19 +3094,48 @@ export default function SuperAdminDashboard() {
                 <Shield size={20} style={{ color: '#10B981' }} />
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#FFFFFF' }}>Super Administradores Registrados</h3>
               </div>
-              <span style={{ fontSize: '11px', color: '#10B981', fontFamily: 'DM Mono', fontWeight: 700, background: 'rgba(16,185,129,0.1)', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(16,185,129,0.2)' }}>
-                {superAdminAccounts.length} Activos
-              </span>
+              {(() => {
+                const activeUserEmail = (typeof window !== 'undefined' ? (JSON.parse(localStorage.getItem('active_user') || '{}')?.email || localStorage.getItem('profile_email') || '') : '').toLowerCase().trim()
+                const activeSuperAdminsCount = superAdminAccounts.filter((admin: any) => {
+                  if (admin.status === 'Bloqueado') return false
+                  return Boolean(
+                    (onlineAdminsMap[admin.name] && (Date.now() - onlineAdminsMap[admin.name] < 45000)) ||
+                    (onlineAdminsMap[admin.email] && (Date.now() - onlineAdminsMap[admin.email] < 45000)) ||
+                    (adminIdentity && admin.name && adminIdentity.trim().toLowerCase() === admin.name.trim().toLowerCase()) ||
+                    (activeUserEmail && admin.email && activeUserEmail === admin.email.trim().toLowerCase())
+                  )
+                }).length
+                const inactiveSuperAdminsCount = superAdminAccounts.length - activeSuperAdminsCount
+
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '11px', color: '#10B981', fontFamily: 'DM Mono', fontWeight: 700, background: 'rgba(16,185,129,0.15)', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(16,185,129,0.3)' }}>
+                      {activeSuperAdminsCount} Activo{activeSuperAdminsCount === 1 ? '' : 's'}
+                    </span>
+                    <span style={{ fontSize: '11px', color: '#EF4444', fontFamily: 'DM Mono', fontWeight: 700, background: 'rgba(239,68,68,0.15)', padding: '3px 8px', borderRadius: '6px', border: '1px solid rgba(239,68,68,0.3)' }}>
+                      {inactiveSuperAdminsCount} Inactivo{inactiveSuperAdminsCount === 1 ? '' : 's'}
+                    </span>
+                  </div>
+                )
+              })()}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {superAdminAccounts.map((admin: any) => {
                 const isBlocked = admin.status === 'Bloqueado'
+                const activeUserEmail = (typeof window !== 'undefined' ? (JSON.parse(localStorage.getItem('active_user') || '{}')?.email || localStorage.getItem('profile_email') || '') : '').toLowerCase().trim()
+                const isOnline = !isBlocked && Boolean(
+                  (onlineAdminsMap[admin.name] && (Date.now() - onlineAdminsMap[admin.name] < 45000)) ||
+                  (onlineAdminsMap[admin.email] && (Date.now() - onlineAdminsMap[admin.email] < 45000)) ||
+                  (adminIdentity && admin.name && adminIdentity.trim().toLowerCase() === admin.name.trim().toLowerCase()) ||
+                  (activeUserEmail && admin.email && activeUserEmail === admin.email.trim().toLowerCase())
+                )
+
                 return (
                   <div key={admin.id} style={{ background: '#1B1D2E', border: '1px solid ' + (isBlocked ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255,255,255,0.08)'), borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: isBlocked ? 'linear-gradient(135deg, #EF4444, #991B1B)' : 'linear-gradient(135deg, #3B82F6, #1D4ED8)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '14px' }}>
+                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: isBlocked ? 'linear-gradient(135deg, #EF4444, #991B1B)' : (isOnline ? 'linear-gradient(135deg, #10B981, #059669)' : 'linear-gradient(135deg, #3B82F6, #1D4ED8)'), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '14px' }}>
                           {admin.avatar || 'SA'}
                         </div>
                         <div>
@@ -3114,12 +3144,78 @@ export default function SuperAdminDashboard() {
                             <span style={{ fontSize: '10px', background: 'rgba(59,130,246,0.15)', color: '#3B82F6', border: '1px solid rgba(59,130,246,0.3)', padding: '1px 6px', borderRadius: '999px', fontWeight: 700 }}>
                               {admin.role}
                             </span>
-                            <span style={{ fontSize: '10px', background: isBlocked ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.15)', color: isBlocked ? '#EF4444' : '#10B981', border: '1px solid ' + (isBlocked ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)'), padding: '1px 6px', borderRadius: '999px', fontWeight: 700 }}>
-                              {isBlocked ? '🔒 Bloqueado' : '✓ Activo'}
+                            <span style={{
+                              fontSize: '10px',
+                              background: isBlocked ? '#DC2626' : (isOnline ? '#10B981' : '#DC2626'),
+                              color: '#FFFFFF',
+                              border: '1px solid ' + (isBlocked ? '#B91C1C' : (isOnline ? '#059669' : '#B91C1C')),
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              fontWeight: 800,
+                              letterSpacing: '0.3px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              boxShadow: isOnline ? '0 0 8px rgba(16,185,129,0.3)' : '0 0 8px rgba(220,38,38,0.3)'
+                            }}>
+                              {isBlocked ? '🔒 Bloqueado' : (isOnline ? '✓ Activo' : '✕ Inactivo')}
                             </span>
                           </div>
                           <div style={{ fontSize: '12px', color: '#8F94A5', marginTop: '2px', fontFamily: 'DM Mono' }}>
                             {admin.email}
+                          </div>
+                          {/* Password view & copy toggle */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                            <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>Contraseña:</span>
+                            <span style={{
+                              fontSize: '12px',
+                              fontFamily: 'DM Mono, monospace',
+                              color: revealedPasswords[admin.id] ? '#F59E0B' : '#94A3B8',
+                              fontWeight: 700,
+                              background: 'rgba(255,255,255,0.05)',
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              border: '1px solid rgba(255,255,255,0.08)'
+                            }}>
+                              {revealedPasswords[admin.id] ? (admin.password || 'Admin') : '••••••••'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setRevealedPasswords(prev => ({ ...prev, [admin.id]: !prev[admin.id] }))}
+                              title={revealedPasswords[admin.id] ? "Ocultar contraseña" : "Ver contraseña"}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: revealedPasswords[admin.id] ? '#F59E0B' : '#94A3B8',
+                                cursor: 'pointer',
+                                padding: '2px',
+                                display: 'flex',
+                                alignItems: 'center'
+                              }}
+                            >
+                              {revealedPasswords[admin.id] ? <EyeOff size={14} /> : <Eye size={14} />}
+                            </button>
+                            {revealedPasswords[admin.id] && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(admin.password || 'Admin')
+                                  toast.success('Contraseña copiada al portapapeles')
+                                }}
+                                title="Copiar contraseña"
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: '#3B82F6',
+                                  cursor: 'pointer',
+                                  padding: '2px',
+                                  display: 'flex',
+                                  alignItems: 'center'
+                                }}
+                              >
+                                <Copy size={13} />
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
