@@ -20,8 +20,23 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Ensure profiles check constraint permits all roles even if the table already existed
-ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+-- Dynamically drop all old check constraints on public.profiles regardless of their auto-generated names
+DO $$
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN (
+        SELECT c.conname
+        FROM pg_constraint c
+        JOIN pg_class t ON t.oid = c.conrelid
+        JOIN pg_namespace n ON n.oid = t.relnamespace
+        WHERE t.relname = 'profiles' 
+          AND n.nspname = 'public' 
+          AND c.contype = 'c'
+    ) LOOP
+        EXECUTE 'ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS ' || quote_ident(r.conname);
+    END LOOP;
+END $$;
 
 -- Normalize any legacy rows with non-standard roles
 UPDATE public.profiles
