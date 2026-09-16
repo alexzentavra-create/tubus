@@ -23025,6 +23025,96 @@ function MapAdBanner({
     
     setSelectedLines([])
 
+    // ── Supabase Realtime Live GPS Stream for Passenger Map ──
+    let gpsChannel: any = null
+    try {
+      ;(async () => {
+        try {
+          const { data: activePositions } = await supabase
+            .from('bus_positions')
+            .select('*')
+            .neq('status', 'offline')
+            .gte('timestamp', new Date(Date.now() - 5 * 60 * 1000).toISOString())
+          if (activePositions && activePositions.length > 0) {
+            const raw = localStorage.getItem('mock_active_sessions')
+            const sessions = raw ? JSON.parse(raw) : []
+            activePositions.forEach((row: any) => {
+              const idx = sessions.findIndex((s: any) => s.driverId === row.driver_id || s.driver_id === row.driver_id || s.bus_unit === row.bus_unit)
+              const sessData = {
+                id: row.id,
+                driver_id: row.driver_id,
+                driverId: row.driver_id,
+                line_id: row.line_id,
+                bus_unit: row.bus_unit,
+                latitude: Number(row.latitude),
+                longitude: Number(row.longitude),
+                heading: Number(row.heading || 0),
+                speed_kmh: Number(row.speed_kmh || 0),
+                status: row.status || 'moving',
+                passenger_count: Number(row.passenger_count || 0),
+                timestamp: row.timestamp
+              }
+              if (idx >= 0) sessions[idx] = { ...sessions[idx], ...sessData }
+              else sessions.push(sessData)
+            })
+            localStorage.setItem('mock_active_sessions', JSON.stringify(sessions))
+            window.dispatchEvent(new Event('mock_active_sessions_updated'))
+          }
+        } catch (e) {}
+      })()
+
+      gpsChannel = supabase
+        .channel('realtime_bus_positions_passenger_map')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'bus_positions' },
+          (payload: any) => {
+            const row = payload.new
+            if (!row || !row.latitude || !row.longitude) return
+            try {
+              const raw = localStorage.getItem('mock_active_sessions')
+              const sessions = raw ? JSON.parse(raw) : []
+              const idx = sessions.findIndex((s: any) => s.driverId === row.driver_id || s.driver_id === row.driver_id || s.bus_unit === row.bus_unit)
+              
+              if (row.status === 'offline') {
+                if (idx >= 0) {
+                  sessions.splice(idx, 1)
+                  localStorage.setItem('mock_active_sessions', JSON.stringify(sessions))
+                  window.dispatchEvent(new Event('mock_active_sessions_updated'))
+                }
+                return
+              }
+
+              const sessData = {
+                id: row.id,
+                driver_id: row.driver_id,
+                driverId: row.driver_id,
+                line_id: row.line_id,
+                bus_unit: row.bus_unit,
+                latitude: Number(row.latitude),
+                longitude: Number(row.longitude),
+                heading: Number(row.heading || 0),
+                speed_kmh: Number(row.speed_kmh || 0),
+                status: row.status || 'moving',
+                passenger_count: Number(row.passenger_count || 0),
+                timestamp: row.timestamp || new Date().toISOString()
+              }
+
+              if (idx >= 0) {
+                sessions[idx] = { ...sessions[idx], ...sessData }
+              } else {
+                sessions.push(sessData)
+              }
+              localStorage.setItem('mock_active_sessions', JSON.stringify(sessions))
+              window.dispatchEvent(new Event('mock_active_sessions_updated'))
+            } catch (e) {}
+          }
+        )
+        .subscribe()
+    } catch (e) {
+      console.error('Realtime bus subscription error:', e)
+    }
+
     // Run global cross-device synchronization on mount and when tab becomes active
     syncAllGlobalKeys().catch(() => {})
     const handleVisibilityChange = () => {
@@ -23135,6 +23225,9 @@ function MapAdBanner({
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('storage', handleActiveSessionsChange)
       window.removeEventListener('mock_active_sessions_updated', handleActiveSessionsChange)
+      if (gpsChannel) {
+        try { supabase.removeChannel(gpsChannel) } catch (e) {}
+      }
     }
   }, [])
 

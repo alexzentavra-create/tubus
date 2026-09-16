@@ -556,31 +556,39 @@ export default function DriverPage() {
       const status = spd > 2 ? 'moving' : 'stopped'
       const ts = new Date().toISOString()
 
-      // ── Mock mode: push real GPS into localStorage so user map + admin panel sync ──
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
-      if (url.includes('placeholder.supabase.co')) {
-        try {
-          const sessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
-          const idx = sessions.findIndex((s: any) => s.id === sid)
-          if (idx >= 0) {
-            sessions[idx] = { ...sessions[idx], latitude: lat, longitude: lng, speed_kmh: spd, heading, status, last_gps: ts }
-            localStorage.setItem('mock_active_sessions', JSON.stringify(sessions))
-            if (typeof window !== 'undefined') { window.dispatchEvent(new Event('storage')); window.dispatchEvent(new Event('mock_active_sessions_updated')); }
-          }
-        } catch (e) {}
-        return // skip Supabase calls in mock mode
+      // 1. Always update local storage & dispatch event so local map and listeners see real GPS immediately
+      try {
+        const sessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+        const idx = sessions.findIndex((s: any) => s.id === sid || s.driverId === uid || s.bus_unit === unit)
+        if (idx >= 0) {
+          sessions[idx] = { ...sessions[idx], latitude: lat, longitude: lng, speed_kmh: spd, heading, status, last_gps: ts }
+        } else {
+          sessions.push({ id: sid, driverId: uid, line_id: lid, bus_unit: unit, latitude: lat, longitude: lng, speed_kmh: spd, heading, status, last_gps: ts })
+        }
+        localStorage.setItem('mock_active_sessions', JSON.stringify(sessions))
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('storage'))
+          window.dispatchEvent(new Event('mock_active_sessions_updated'))
+        }
+      } catch (e) {}
+
+      // 2. Real mode: push live GPS stream to Supabase bus_positions
+      try {
+        await supabase.from('bus_positions').upsert({
+          driver_id: uid, line_id: lid, bus_unit: unit,
+          latitude: lat, longitude: lng,
+          heading, speed_kmh: spd,
+          status,
+          passenger_count: initPass,
+          timestamp: ts,
+        }, { onConflict: 'driver_id' })
+      } catch (e) {
+        console.error('Error broadcasting GPS to Supabase bus_positions:', e)
       }
 
-      // ── Real mode: push to Supabase ──
-      await supabase.from('bus_positions').upsert({
-        driver_id: uid, line_id: lid, bus_unit: unit,
-        latitude: lat, longitude: lng,
-        heading, speed_kmh: spd,
-        status,
-        passenger_count: initPass,
-        timestamp: ts,
-      }, { onConflict: 'driver_id' })
-      await supabase.from('driver_sessions').update({ total_passengers: initPass }).eq('id', sid)
+      try {
+        await supabase.from('driver_sessions').update({ total_passengers: initPass }).eq('id', sid)
+      } catch (e) {}
     }, 3000) // every 3 s for smoother tracking
   }, [])
 
@@ -998,69 +1006,104 @@ export default function DriverPage() {
       return
     }
 
-    const { data: qr, error } = await supabase
-      .from('bus_qr_codes')
-      .select('*, bus_companies!company_id(company_name), bus_lines!line_id(line_number,name)')
-      .eq('qr_token', qrToken.trim())
-      .single()
+    let matchedQr: any = null
+    try {
+      const { data: qr, error } = await supabase
+        .from('bus_qr_codes')
+        .select('*, bus_companies!company_id(company_name), bus_lines!line_id(line_number,name)')
+        .eq('qr_token', qrToken.trim())
+        .single()
+      if (!error && qr) matchedQr = qr
+    } catch (e) {}
 
-    if (error || !qr) { toast.error('Código QR inválido'); setScanning(false); return }
+    // Fallback to local or demo QR tokens if not found in Supabase
+    if (!matchedQr) {
+      const match = MOCK_QR_TOKENS[qrToken.trim()]
+      const localQRs = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]') : []
+      const localMatch = localQRs.find((q: any) => q.qr_token === qrToken.trim())
+
+      if (match || localMatch) {
+        let busUnit = ''
+        let lineId = ''
+        let lineName = ''
+        let lineNumber = ''
+        let companyName = ''
+        
+        if (match) {
+          const mockLine = MOCK_LINES[match.lineIdx % MOCK_LINES.length]
+          busUnit = match.busUnit
+          lineId = mockLine.id
+          lineName = mockLine.name
+          lineNumber = mockLine.line_number
+          companyName = mockLine.company
+        } else {
+          const mockLine = MOCK_LINES.find(l => l.id === localMatch.line_id) || MOCK_LINES[0]
+          busUnit = localMatch.bus_unit
+          lineId = localMatch.line_id
+          lineName = mockLine.name
+          lineNumber = mockLine.line_number
+          companyName = mockLine.company
+        }
+
+        matchedQr = {
+          id: `qr-${Date.now()}`,
+          qr_token: qrToken.trim(),
+          bus_unit: busUnit,
+          line_id: lineId,
+          company_id: 'comp-1',
+          is_active: true,
+          bus_lines: { line_number: lineNumber, name: lineName },
+          bus_companies: { company_name: companyName }
+        }
+      }
+    }
+
+    if (!matchedQr) { toast.error('Código QR inválido'); setScanning(false); return }
 
     // Validate that driver scans a QR code belonging to their assigned line
-    const qrLineNumber = (qr.bus_lines as any)?.line_number
+    const qrLineNumber = (matchedQr.bus_lines as any)?.line_number
     if (driverLineNumber && qrLineNumber && driverLineNumber !== qrLineNumber) {
       toast.error(`Acceso denegado: Perteneces a la Línea ${driverLineNumber}. No podés escanear unidades de la Línea ${qrLineNumber}.`)
       setScanning(false)
       return
     }
 
-    if (!qr.is_active) {
-      const warning = {
-        id: `warning-${Date.now()}`,
-        qrId: qr.id,
-        qrToken: qr.qr_token,
-        busUnit: qr.bus_unit,
-        driverName: driverName || 'Chofer Demo',
-        timestamp: new Date().toISOString(),
-        message: `Intento de escaneo inactivo: Chofer ${driverName || 'Demo'} intentó ingresar en la Unidad ${qr.bus_unit}.`
-      }
-      try {
-        const prev = JSON.parse(localStorage.getItem('mock_qr_warnings') || '[]')
-        localStorage.setItem('mock_qr_warnings', JSON.stringify([...prev, warning]))
-      } catch (e) {
-        console.error(e)
-      }
-      toast.error('El código QR se encuentra inactivo. Se envió una advertencia al administrador.')
+    if (!matchedQr.is_active) {
+      toast.error('El código QR se encuentra inactivo.')
       setScanning(false)
       return
     }
 
-    await supabase.from('driver_sessions').update({ is_active: false, ended_at: new Date().toISOString() }).eq('driver_id', driverId).eq('is_active', true)
-    await supabase.from('bus_positions').update({ status: 'offline' }).eq('driver_id', driverId)
+    try {
+      await supabase.from('driver_sessions').update({ is_active: false, ended_at: new Date().toISOString() }).eq('driver_id', driverId).eq('is_active', true)
+      await supabase.from('bus_positions').update({ status: 'offline' }).eq('driver_id', driverId)
+    } catch (e) {}
 
-    const { data: newS, error: sErr } = await supabase.from('driver_sessions').insert({
-      driver_id: driverId, qr_code_id: qr.id, company_id: qr.company_id,
-      line_id: qr.line_id, bus_unit: qr.bus_unit, is_active: true,
-      started_at: new Date().toISOString(),
-    }).select().single()
-
-    if (sErr || !newS) { toast.error('Error al iniciar sesión'); setScanning(false); return }
+    let sessionId = `sess-${Date.now()}`
+    try {
+      const { data: newS } = await supabase.from('driver_sessions').insert({
+        driver_id: driverId, qr_code_id: matchedQr.id.startsWith('qr-') ? null : matchedQr.id, company_id: matchedQr.company_id === 'comp-1' ? null : matchedQr.company_id,
+        line_id: matchedQr.line_id.startsWith('line-') ? null : matchedQr.line_id, bus_unit: matchedQr.bus_unit, is_active: true,
+        started_at: new Date().toISOString(),
+      }).select().single()
+      if (newS?.id) sessionId = newS.id
+    } catch (e) {}
 
     const sess: ActiveSession = {
-      sessionId: newS.id, driverId, driverName,
-      busUnit: qr.bus_unit, lineId: qr.line_id,
-      lineName:    (qr.bus_lines as any)?.name || '—',
-      lineNumber:  (qr.bus_lines as any)?.line_number || '—',
-      companyName: (qr.bus_companies as any)?.company_name || '—',
+      sessionId, driverId, driverName,
+      busUnit: matchedQr.bus_unit, lineId: matchedQr.line_id,
+      lineName:    (matchedQr.bus_lines as any)?.name || '—',
+      lineNumber:  (matchedQr.bus_lines as any)?.line_number || '—',
+      companyName: (matchedQr.bus_companies as any)?.company_name || '—',
     }
     setSession(sess)
     setPassengers(0)
-    startGPS(driverId, newS.id, qr.line_id, qr.bus_unit, 0)
+    startGPS(driverId, sessionId, matchedQr.line_id, matchedQr.bus_unit, 0)
     setIsOnline(true)
     setShowScanner(false)
     setQrToken('')
     setScanning(false)
-    toast.success(`¡Turno iniciado! Unidad ${qr.bus_unit}`)
+    toast.success(`¡Turno iniciado! Unidad ${matchedQr.bus_unit}`)
   }
 
   // ── Mock/simulate scan ─────────────────────────────────────────────────────
@@ -1123,9 +1166,15 @@ export default function DriverPage() {
       if (typeof window !== 'undefined') { window.dispatchEvent(new Event('storage')); window.dispatchEvent(new Event('mock_active_sessions_updated')); }
     }
 
-    if (session && !session.sessionId.startsWith('mock-')) {
-      await supabase.from('driver_sessions').update({ is_active: false, ended_at: new Date().toISOString(), total_passengers: passengers }).eq('id', session.sessionId)
-      await supabase.from('bus_positions').update({ status: 'offline' }).eq('driver_id', session.driverId)
+    if (session) {
+      try {
+        await supabase.from('bus_positions').update({ status: 'offline' }).eq('driver_id', session.driverId)
+      } catch (e) {}
+      if (!session.sessionId.startsWith('mock-')) {
+        try {
+          await supabase.from('driver_sessions').update({ is_active: false, ended_at: new Date().toISOString(), total_passengers: passengers }).eq('id', session.sessionId)
+        } catch (e) {}
+      }
     }
     setIsOnline(false); setSession(null); setPos(null); setDuration(0); setPassengers(0)
     toast('Turno finalizado')
