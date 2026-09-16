@@ -22,6 +22,18 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 
 -- Ensure profiles check constraint permits all roles even if the table already existed
 ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+
+-- Normalize any legacy rows with non-standard roles
+UPDATE public.profiles
+SET role = CASE
+  WHEN role IN ('chofer', 'conductor') THEN 'driver'
+  WHEN role IN ('passenger', 'pasajero') THEN 'user'
+  WHEN role IN ('super_admin') THEN 'superadmin'
+  WHEN role IN ('line_admin', 'empresa') THEN 'company_admin'
+  WHEN role IN ('user', 'driver', 'company_admin', 'admin', 'superadmin') THEN role
+  ELSE 'user'
+END;
+
 ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check
   CHECK (role IN ('user', 'driver', 'company_admin', 'admin', 'superadmin'));
 
