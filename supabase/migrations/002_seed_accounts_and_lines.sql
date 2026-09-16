@@ -20,6 +20,11 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Ensure profiles check constraint permits all roles even if the table already existed
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check
+  CHECK (role IN ('user', 'driver', 'company_admin', 'admin', 'superadmin'));
+
 CREATE TABLE IF NOT EXISTS public.user_profiles (
   id                  UUID PRIMARY KEY REFERENCES public.profiles(id) ON DELETE CASCADE,
   age                 INT DEFAULT 25,
@@ -259,19 +264,27 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  v_role TEXT;
 BEGIN
+  v_role := COALESCE(NEW.raw_user_meta_data->>'role', 'user');
+  IF v_role NOT IN ('user', 'driver', 'company_admin', 'admin', 'superadmin') THEN
+    v_role := 'user';
+  END IF;
+
   INSERT INTO public.profiles (id, email, name, role)
   VALUES (
     NEW.id,
     NEW.email,
     COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
-    COALESCE(NEW.raw_user_meta_data->>'role', 'user')
+    v_role
   )
   ON CONFLICT (id) DO UPDATE
   SET email = EXCLUDED.email,
-      name = COALESCE(EXCLUDED.name, public.profiles.name);
+      name = COALESCE(EXCLUDED.name, public.profiles.name),
+      role = EXCLUDED.role;
 
-  IF COALESCE(NEW.raw_user_meta_data->>'role', 'user') = 'user' THEN
+  IF v_role = 'user' THEN
     INSERT INTO public.user_profiles (id, age, weekly_trips)
     VALUES (NEW.id, 25, 0)
     ON CONFLICT (id) DO NOTHING;
