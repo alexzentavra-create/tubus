@@ -386,37 +386,33 @@ export default function LoginPage() {
 
     if (mode === 'login') {
       let email = form.email
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+      const lowerEmail = email.trim().toLowerCase()
+      const pass = form.password.trim()  // keep original casing for password comparison
+      const passLower = pass.toLowerCase() // used only for legacy hardcoded accounts
+      const bannedList = JSON.parse(localStorage.getItem('banned_users') || '[]')
+      if (bannedList.includes(lowerEmail)) {
+        setBannedEmail(lowerEmail)
+        setLoading(false)
+        return
+      }
 
-      // Mock login bypass ONLY when running without database credentials (placeholder Supabase URL)
-      if (url.includes('placeholder.supabase.co')) {
-        const lowerEmail = email.trim().toLowerCase()
-        const pass = form.password.trim()  // keep original casing for password comparison
-        const passLower = pass.toLowerCase() // used only for legacy hardcoded accounts
-        const bannedList = JSON.parse(localStorage.getItem('banned_users') || '[]')
-        if (bannedList.includes(lowerEmail)) {
-          setBannedEmail(lowerEmail)
-          setLoading(false)
-          return
-        }
+      localStorage.setItem('selected_city', city)
 
-        localStorage.setItem('selected_city', city)
+      // Check if email is in blocked users list
+      const blockedUsers = JSON.parse(localStorage.getItem('blocked_users') || '[]').map((e: string) => e.toLowerCase().trim())
+      if (blockedUsers.includes(lowerEmail)) {
+        toast.error('Su cuenta ha sido bloqueada debido a una violación de los términos y condiciones o comportamiento inapropiado del usuario.')
+        setLoading(false)
+        return
+      }
 
-        // Check if email is in blocked users list
-        const blockedUsers = JSON.parse(localStorage.getItem('blocked_users') || '[]').map((e: string) => e.toLowerCase().trim())
-        if (blockedUsers.includes(lowerEmail)) {
-          toast.error('Su cuenta ha sido bloqueada debido a una violación de los términos y condiciones o comportamiento inapropiado del usuario.')
-          setLoading(false)
-          return
-        }
-
-        // Check if Super Admin was deleted
-        const deletedSuperAdmins = JSON.parse(localStorage.getItem('deleted_super_admins') || '[]').map((e: string) => e.toLowerCase())
-        if (deletedSuperAdmins.includes(lowerEmail)) {
-          toast.error('⚠️ Acceso denegado: Esta cuenta de Super Administrador ha sido eliminada por la administración.')
-          setLoading(false)
-          return
-        }
+      // Check if Super Admin was deleted
+      const deletedSuperAdmins = JSON.parse(localStorage.getItem('deleted_super_admins') || '[]').map((e: string) => e.toLowerCase())
+      if (deletedSuperAdmins.includes(lowerEmail)) {
+        toast.error('⚠️ Acceso denegado: Esta cuenta de Super Administrador ha sido eliminada por la administración.')
+        setLoading(false)
+        return
+      }
 
         // 1. Dynamic Check for All Registered Super Admin Accounts (bu_super_admins)
         const storedSuperAdminsStr = localStorage.getItem('bu_super_admins') || '[]'
@@ -467,6 +463,11 @@ export default function LoginPage() {
             const stampedSa = stampActiveSession(activeSaPayload)
             localStorage.setItem('active_user', JSON.stringify(stampedSa))
             localStorage.setItem('active_super_admin', JSON.stringify(stampedSa))
+            localStorage.setItem('super_admin_identity', matchedSuperAdmin.name || 'Super Admin')
+            sessionStorage.setItem('super_admin_identity', matchedSuperAdmin.name || 'Super Admin')
+            try {
+              supabase.auth.signInWithPassword({ email: matchedSuperAdmin.email, password: form.password }).catch(() => {})
+            } catch (e) {}
             window.location.href = '/admin/super'
             return
           } else {
@@ -538,13 +539,15 @@ export default function LoginPage() {
 
           if (isLinePassValid) {
             localStorage.setItem('active_company_line', lineAdminMatchNum)
-            localStorage.setItem('active_user', JSON.stringify(stampActiveSession({
+            const stampedLineUser = stampActiveSession({
               name: matchedLineAdminObj.name || `Admin Línea ${lineAdminMatchNum}`,
               role: 'company_admin',
               lineNumber: lineAdminMatchNum,
               email: lowerEmail,
               password: expectedLinePass
-            })))
+            })
+            localStorage.setItem('active_user', JSON.stringify(stampedLineUser))
+            localStorage.setItem('mock_company_identity', JSON.stringify(stampedLineUser))
 
             const loginTimeStr = `Hoy ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} hs`
             const activeSessions = JSON.parse(localStorage.getItem('active_line_admin_sessions') || '{}')
@@ -568,6 +571,10 @@ export default function LoginPage() {
             })
             localStorage.setItem('line_admin_audit_logs', JSON.stringify(auditLogs))
             window.dispatchEvent(new Event('line_admins_updated'))
+
+            try {
+              supabase.auth.signInWithPassword({ email: lowerEmail, password: form.password }).catch(() => {})
+            } catch (e) {}
 
             window.location.href = '/admin/company'
             return
@@ -785,184 +792,239 @@ export default function LoginPage() {
           }
         }
 
-        // Unrecognized account — HALT with error message
-        toast.error('Este correo electrónico no está registrado aún.')
-        setLoading(false)
-        return
+      // 5. Account not matched in local registries — attempt Supabase Auth
+      try {
+        // Username login (e.g. Linea12) — resolve to email in two steps
+        if (!email.includes('@')) {
+          const { data: company, error: cErr } = await supabase
+            .from('bus_companies')
+            .select('profile_id')
+            .ilike('username', email.trim())
+            .single()
+          if (!cErr && company?.profile_id) {
+            const { data: prof, error: pErr } = await supabase
+              .from('profiles')
+              .select('email')
+              .eq('id', company.profile_id)
+              .single()
+            if (!pErr && prof?.email) {
+              email = prof.email
+            }
+          }
+        }
+
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email,
+          password: form.password
+        })
+
+        if (!authError && authData?.user) {
+          const { data: p } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', authData.user.id)
+            .single()
+
+          localStorage.setItem('selected_city', city)
+          const role = (p?.role || 'user').toLowerCase()
+          if (role === 'superadmin') {
+            const saPayload = stampActiveSession({
+              id: authData.user.id,
+              name: p?.name || 'Super Admin',
+              email: authData.user.email || email,
+              role: 'superadmin',
+              saRole: 'Super Admin Principal',
+              avatar: 'SA'
+            })
+            localStorage.setItem('active_user', JSON.stringify(saPayload))
+            localStorage.setItem('active_super_admin', JSON.stringify(saPayload))
+            localStorage.setItem('super_admin_identity', saPayload.name)
+            sessionStorage.setItem('super_admin_identity', saPayload.name)
+            window.location.href = '/admin/super'
+            return
+          } else if (role === 'company_admin' || role === 'company' || role === 'admin') {
+            const lineNum = p?.line_number || '12'
+            const compPayload = stampActiveSession({
+              id: authData.user.id,
+              name: p?.name || `Admin Línea ${lineNum}`,
+              email: authData.user.email || email,
+              role: 'company_admin',
+              lineNumber: lineNum
+            })
+            localStorage.setItem('active_user', JSON.stringify(compPayload))
+            localStorage.setItem('mock_company_identity', JSON.stringify(compPayload))
+            localStorage.setItem('active_company_line', lineNum)
+            window.location.href = '/admin/company'
+            return
+          } else if (role === 'driver') {
+            const drvPayload = stampActiveSession({
+              id: authData.user.id,
+              name: p?.name || 'Chofer',
+              email: authData.user.email || email,
+              role: 'driver'
+            })
+            localStorage.setItem('active_user', JSON.stringify(drvPayload))
+            localStorage.setItem('mock_driver_identity', JSON.stringify(drvPayload))
+            window.location.href = '/driver'
+            return
+          } else {
+            const usrPayload = stampActiveSession({
+              id: authData.user.id,
+              name: p?.name || 'Usuario',
+              email: authData.user.email || email,
+              role: 'user'
+            })
+            localStorage.setItem('active_user', JSON.stringify(usrPayload))
+            localStorage.setItem('profile_email', usrPayload.email)
+            localStorage.setItem('tu_bus_profile_email', usrPayload.email)
+            localStorage.setItem('profile_name', usrPayload.name)
+            localStorage.setItem('tu_bus_profile_name', usrPayload.name)
+            window.location.href = `/?city=${city}`
+            return
+          }
+        }
+      } catch (sbErr) {
+        console.warn('Supabase auth fallback error:', sbErr)
       }
 
-      // Username login (e.g. Linea12) — resolve to email in two steps
-      if (!email.includes('@')) {
-        const { data: company, error: cErr } = await supabase
-          .from('bus_companies')
-          .select('profile_id')
-          .ilike('username', email.trim())
-          .single()
-        if (cErr || !company) { toast.error('Usuario no encontrado'); setLoading(false); return }
-
-        const { data: prof, error: pErr } = await supabase
-          .from('profiles')
-          .select('email')
-          .eq('id', company.profile_id)
-          .single()
-        if (pErr || !prof) { toast.error('Error al obtener cuenta'); setLoading(false); return }
-        email = prof.email
-      }
-
-      const lowerEmail = email.trim().toLowerCase()
-      const bannedList = JSON.parse(localStorage.getItem('banned_users') || '[]')
-      if (bannedList.includes(lowerEmail)) {
-        setBannedEmail(lowerEmail)
-        setLoading(false)
-        return
-      }
-
-      const { error } = await supabase.auth.signInWithPassword({ email, password: form.password })
-      if (error) { toast.error('Credenciales incorrectas'); setLoading(false); return }
-
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { setLoading(false); return }
-      const { data: p } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-      
-      localStorage.setItem('selected_city', city)
-
-      if (p?.role === 'superadmin') window.location.href = '/admin/super'
-      else if (p?.role === 'company') window.location.href = '/admin/company'
-      else if (p?.role === 'driver') window.location.href = '/driver'
-      else window.location.href = `/?city=${city}`
+      toast.error('Credenciales incorrectas o usuario no registrado.')
+      setLoading(false)
+      return
 
     } else {
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
-      if (url.includes('placeholder.supabase.co')) {
-        try {
-          const userId = 'usr_' + Date.now()
-          const newUserData = {
-            id: userId,
-            name: form.name.trim(),
-            email: form.email.trim().toLowerCase(),
-            password: form.password.trim(),
-            phone: form.phone.trim() || '+54 11 5555-5555',
-            gender: form.gender || 'Masculino',
-            age: parseInt(form.age) || 25,
-            role: 'user',
-            joinedDate: new Date().toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' }),
-            status: 'Activo',
-            searches: 0,
-            trips: 0,
-            rating: 5.0,
-            favLines: [],
-            behavior: 'Usuario registrado en la plataforma.',
-            city: city || 'Buenos Aires',
-            province: 'Buenos Aires'
-          }
+      // Mode: register
+      try {
+        const userId = 'usr_' + Date.now()
+        const newUserData = {
+          id: userId,
+          name: form.name.trim(),
+          email: form.email.trim().toLowerCase(),
+          password: form.password.trim(),
+          phone: form.phone.trim() || '+54 11 5555-5555',
+          gender: form.gender || 'Masculino',
+          age: parseInt(form.age) || 25,
+          role: 'user',
+          joinedDate: new Date().toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' }),
+          status: 'Activo',
+          searches: 0,
+          trips: 0,
+          rating: 5.0,
+          favLines: [],
+          behavior: 'Usuario registrado en la plataforma.',
+          city: city || 'Buenos Aires',
+          province: 'Buenos Aires'
+        }
 
-          // 1. Save to mock_users
-          const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
-          const filteredMock = mockUsers.filter((u: any) => u.email?.toLowerCase() !== newUserData.email)
-          filteredMock.push(newUserData)
-          localStorage.setItem('mock_users', JSON.stringify(filteredMock))
-          await pushGlobalKey('mock_users', filteredMock)
+        // 1. Save to mock_users
+        const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
+        const filteredMock = mockUsers.filter((u: any) => u.email?.toLowerCase() !== newUserData.email)
+        filteredMock.push(newUserData)
+        localStorage.setItem('mock_users', JSON.stringify(filteredMock))
+        await pushGlobalKey('mock_users', filteredMock)
 
-          // 2. Save to bu_registered_users
-          const registeredUsers = JSON.parse(localStorage.getItem('bu_registered_users') || '[]')
-          const filteredReg = registeredUsers.filter((u: any) => u.email?.toLowerCase() !== newUserData.email)
-          filteredReg.push(newUserData)
-          localStorage.setItem('bu_registered_users', JSON.stringify(filteredReg))
-          await pushGlobalKey('bu_registered_users', filteredReg)
+        // 2. Save to bu_registered_users
+        const registeredUsers = JSON.parse(localStorage.getItem('bu_registered_users') || '[]')
+        const filteredReg = registeredUsers.filter((u: any) => u.email?.toLowerCase() !== newUserData.email)
+        filteredReg.push(newUserData)
+        localStorage.setItem('bu_registered_users', JSON.stringify(filteredReg))
+        await pushGlobalKey('bu_registered_users', filteredReg)
 
-          // Clean from deleted_users & blocked_users on new registration
-          const deletedList = JSON.parse(localStorage.getItem('deleted_users') || '[]').filter((e: string) => e.toLowerCase() !== newUserData.email)
-          localStorage.setItem('deleted_users', JSON.stringify(deletedList))
-          await pushGlobalKey('deleted_users', deletedList)
+        // Clean from deleted_users & blocked_users on new registration
+        const deletedList = JSON.parse(localStorage.getItem('deleted_users') || '[]').filter((e: string) => e.toLowerCase() !== newUserData.email)
+        localStorage.setItem('deleted_users', JSON.stringify(deletedList))
+        await pushGlobalKey('deleted_users', deletedList)
 
-          const blockedList = JSON.parse(localStorage.getItem('blocked_users') || '[]').filter((e: string) => e.toLowerCase() !== newUserData.email)
-          localStorage.setItem('blocked_users', JSON.stringify(blockedList))
-          await pushGlobalKey('blocked_users', blockedList)
+        const blockedList = JSON.parse(localStorage.getItem('blocked_users') || '[]').filter((e: string) => e.toLowerCase() !== newUserData.email)
+        localStorage.setItem('blocked_users', JSON.stringify(blockedList))
+        await pushGlobalKey('blocked_users', blockedList)
 
-          // 3. Set active_user & explicit profile localStorage keys for this exact user
-          localStorage.setItem('active_user', JSON.stringify(stampActiveSession(newUserData)))
-          localStorage.setItem('profile_name', newUserData.name)
-          localStorage.setItem('tu_bus_profile_name', newUserData.name)
-          localStorage.setItem('profile_email', newUserData.email)
-          localStorage.setItem('tu_bus_profile_email', newUserData.email)
-          localStorage.setItem('profile_phone', newUserData.phone)
-          localStorage.setItem('tu_bus_profile_phone', newUserData.phone)
-          localStorage.setItem('profile_gender', newUserData.gender)
-          localStorage.setItem('tu_bus_profile_gender', newUserData.gender)
-          if (newUserData.password) {
-            localStorage.setItem('tu_bus_profile_password', newUserData.password)
-          }
+        // 3. Set active_user & explicit profile localStorage keys for this exact user
+        localStorage.setItem('active_user', JSON.stringify(stampActiveSession(newUserData)))
+        localStorage.setItem('profile_name', newUserData.name)
+        localStorage.setItem('tu_bus_profile_name', newUserData.name)
+        localStorage.setItem('profile_email', newUserData.email)
+        localStorage.setItem('tu_bus_profile_email', newUserData.email)
+        localStorage.setItem('profile_phone', newUserData.phone)
+        localStorage.setItem('tu_bus_profile_phone', newUserData.phone)
+        localStorage.setItem('profile_gender', newUserData.gender)
+        localStorage.setItem('tu_bus_profile_gender', newUserData.gender)
+        if (newUserData.password) {
+          localStorage.setItem('tu_bus_profile_password', newUserData.password)
+        }
 
-          // 4. Purge any previous data for this email and initialize clean 0 state for new account
-          purgeUserDataForEmail(newUserData.email)
+        // 4. Purge any previous data for this email and initialize clean 0 state for new account
+        purgeUserDataForEmail(newUserData.email)
 
-          const cleanHistoryKey = getUserStorageKey('bu_search_history', newUserData.email)
-          const cleanPointsKey = getUserStorageKey('user_points', newUserData.email)
-          const cleanPointsHistKey = getUserStorageKey('user_points_history', newUserData.email)
-          const cleanAdsKey = getUserStorageKey('bu_submitted_ads', newUserData.email)
+        const cleanHistoryKey = getUserStorageKey('bu_search_history', newUserData.email)
+        const cleanPointsKey = getUserStorageKey('user_points', newUserData.email)
+        const cleanPointsHistKey = getUserStorageKey('user_points_history', newUserData.email)
+        const cleanAdsKey = getUserStorageKey('bu_submitted_ads', newUserData.email)
 
-          localStorage.setItem(cleanHistoryKey, JSON.stringify([]))
-          localStorage.setItem(cleanAdsKey, JSON.stringify([]))
+        localStorage.setItem(cleanHistoryKey, JSON.stringify([]))
+        localStorage.setItem(cleanAdsKey, JSON.stringify([]))
 
-          // Referral reward logic
-          const refCodeGiven = (form.referralCode || '').trim().toUpperCase()
-          if (refCodeGiven) {
-            // Credit new user with 10 points
-            localStorage.setItem(cleanPointsKey, '10')
-            localStorage.setItem(cleanPointsHistKey, JSON.stringify([
-              { id: `ref-${Date.now()}`, type: 'referral', desc: 'Bono de bienvenida por código de referido', points: 10, date: 'Hoy' }
-            ]))
+        // Referral reward logic
+        const refCodeGiven = (form.referralCode || '').trim().toUpperCase()
+        if (refCodeGiven) {
+          // Credit new user with 10 points
+          localStorage.setItem(cleanPointsKey, '10')
+          localStorage.setItem(cleanPointsHistKey, JSON.stringify([
+            { id: `ref-${Date.now()}`, type: 'referral', desc: 'Bono de bienvenida por código de referido', points: 10, date: 'Hoy' }
+          ]))
 
-            // Credit referrer with 10 points
-            try {
-              const allReg = JSON.parse(localStorage.getItem('bu_registered_users') || '[]')
-              const referrer = allReg.find((u: any) => {
-                const uSlug = ((u.email || u.name || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6))
-                return uSlug === refCodeGiven || (u.refCode && u.refCode.toUpperCase() === refCodeGiven)
+          // Credit referrer with 10 points
+          try {
+            const allReg = JSON.parse(localStorage.getItem('bu_registered_users') || '[]')
+            const referrer = allReg.find((u: any) => {
+              const uSlug = ((u.email || u.name || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6))
+              return uSlug === refCodeGiven || (u.refCode && u.refCode.toUpperCase() === refCodeGiven)
+            })
+            if (referrer) {
+              const refPtsKey = getUserStorageKey('user_points', referrer.email)
+              const refHistKey = getUserStorageKey('user_points_history', referrer.email)
+              const curPts = parseInt(localStorage.getItem(refPtsKey) || '0') || 0
+              const curHist = JSON.parse(localStorage.getItem(refHistKey) || '[]')
+              localStorage.setItem(refPtsKey, (curPts + 10).toString())
+              curHist.unshift({
+                id: `ref-${Date.now()}`,
+                type: 'referral',
+                desc: `Recompensa por invitar a ${newUserData.name}`,
+                points: 10,
+                date: 'Hoy'
               })
-              if (referrer) {
-                const refPtsKey = getUserStorageKey('user_points', referrer.email)
-                const refHistKey = getUserStorageKey('user_points_history', referrer.email)
-                const curPts = parseInt(localStorage.getItem(refPtsKey) || '0') || 0
-                const curHist = JSON.parse(localStorage.getItem(refHistKey) || '[]')
-                localStorage.setItem(refPtsKey, (curPts + 10).toString())
-                curHist.unshift({
-                  id: `ref-${Date.now()}`,
-                  type: 'referral',
-                  desc: `Recompensa por invitar a ${newUserData.name}`,
-                  points: 10,
-                  date: 'Hoy'
-                })
-                localStorage.setItem(refHistKey, JSON.stringify(curHist))
-              }
-            } catch (err) {}
-            toast.success('¡Registro exitoso! Ganaste 10 puntos de bienvenida por tu código de referido.', { duration: 5000 })
-          } else {
-            localStorage.setItem(cleanPointsKey, '0')
-            localStorage.setItem(cleanPointsHistKey, JSON.stringify([]))
-            toast.success('¡Cuenta registrada con éxito! Ya podés ingresar.')
-          }
-        } catch (e) {
-          console.error(e)
+              localStorage.setItem(refHistKey, JSON.stringify(curHist))
+            }
+          } catch (err) {}
+          toast.success('¡Registro exitoso! Ganaste 10 puntos de bienvenida por tu código de referido.', { duration: 5000 })
+        } else {
+          localStorage.setItem(cleanPointsKey, '0')
+          localStorage.setItem(cleanPointsHistKey, JSON.stringify([]))
           toast.success('¡Cuenta registrada con éxito! Ya podés ingresar.')
         }
-        setMode('login')
-      } else {
-        const { data, error } = await supabase.auth.signUp({
-          email: form.email, password: form.password,
-          options: { data: { name: form.name, role: 'user' } },
-        })
-        if (error) { toast.error(error.message); setLoading(false); return }
-        if (data.user) {
-          await supabase.from('user_profiles').insert({
-            id: data.user.id,
-            age: parseInt(form.age) || 0,
-            weekly_trips: parseInt(form.weeklyTrips) || 0,
+
+        // Non-blocking sync to Supabase auth
+        try {
+          const { data: sbData, error: sbErr } = await supabase.auth.signUp({
+            email: newUserData.email,
+            password: newUserData.password,
+            options: { data: { name: newUserData.name, role: 'user' } }
           })
+          if (!sbErr && sbData?.user) {
+            await supabase.from('profiles').upsert({
+              id: sbData.user.id,
+              email: newUserData.email,
+              name: newUserData.name,
+              role: 'user'
+            })
+          }
+        } catch (sbEx) {
+          console.warn('Supabase non-blocking signup:', sbEx)
         }
-        toast.success('¡Cuenta creada! Revisá tu email para confirmar.')
-        setMode('login')
+      } catch (e) {
+        console.error(e)
+        toast.success('¡Cuenta registrada con éxito! Ya podés ingresar.')
       }
+      setMode('login')
     }
     setLoading(false)
   }
