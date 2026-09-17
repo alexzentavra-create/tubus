@@ -387,8 +387,7 @@ export default function LoginPage() {
     if (mode === 'login') {
       let email = form.email
       const lowerEmail = email.trim().toLowerCase()
-      const pass = form.password.trim()  // keep original casing for password comparison
-      const passLower = pass.toLowerCase() // used only for legacy hardcoded accounts
+      const pass = form.password.trim()  // strict case-sensitive password
       const bannedList = JSON.parse(localStorage.getItem('banned_users') || '[]')
       if (bannedList.includes(lowerEmail)) {
         setBannedEmail(lowerEmail)
@@ -442,12 +441,7 @@ export default function LoginPage() {
           }
 
           const expectedSaPass = matchedSuperAdmin.password || 'Admin'
-          const isSaPassValid = (
-            pass === expectedSaPass ||
-            pass.toLowerCase() === expectedSaPass.toLowerCase() ||
-            (lowerEmail === 'admin@admin.com' && (pass === 'Admin' || pass.toLowerCase() === 'admin')) ||
-            (lowerEmail === 'nestoradmin@nestoradmin.com' && (pass === 'NestorAdmin123!' || pass.toLowerCase() === 'nestoradmin123!' || pass === 'nestoradmin' || pass === 'Admin'))
-          )
+          const isSaPassValid = (pass === expectedSaPass)
 
           if (isSaPassValid) {
             const initials = (matchedSuperAdmin.name || 'SA').trim().split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
@@ -531,10 +525,7 @@ export default function LoginPage() {
           const expectedLinePass = matchedLineAdminObj.password || 'Bienparada'
           const isLinePassValid = (
             pass === expectedLinePass ||
-            pass.toLowerCase() === expectedLinePass.toLowerCase() ||
-            pass === 'Bienparada' ||
-            pass.toLowerCase() === 'bienparada' ||
-            pass === 'linea12pass'
+            (expectedLinePass === 'Bienparada' && pass === 'linea12pass' && lineAdminMatchNum === '12')
           )
 
           if (isLinePassValid) {
@@ -606,7 +597,8 @@ export default function LoginPage() {
         }
 
         if (driverAccount) {
-          if (pass === 'Bienparada' || pass === driverAccount.defaultPass || pass.toLowerCase() === 'bienparada' || pass === 'Nestor123!') {
+          const expectedDriverPass = driverAccount.defaultPass || 'Bienparada'
+          if (pass === expectedDriverPass || (lowerEmail.includes('nestor') && pass === 'Nestor123!')) {
             const userObj = {
               name: driverAccount.name,
               email: lowerEmail,
@@ -646,21 +638,14 @@ export default function LoginPage() {
 
             if (!expectedPass || isBulletMasked) {
               const vaultPass = (typeof window !== 'undefined' ? localStorage.getItem(`vault_pass_${lowerEmail}`) : null) || ''
-              if (vaultPass && (pass === vaultPass || pass.toLowerCase() === vaultPass.toLowerCase())) passwordOk = true
-              else if (lowerEmail === 'usuario@usuario.com' && (pass === 'Usuario' || pass.toLowerCase() === 'usuario')) passwordOk = true
-              else if (lowerEmail === 'alejandro.finochietti@yahoo.com.ar' && (pass === 'Afodes18' || pass.toLowerCase() === 'afodes18')) passwordOk = true
-              else if (lowerEmail === 'alfox@alfox.com' && (pass === 'alfox' || pass.toLowerCase() === 'alfox')) passwordOk = true
-              else if (lowerEmail === 'alex@gmail.com' && (pass === 'password123' || pass.toLowerCase() === 'password123')) passwordOk = true
+              if (vaultPass && pass === vaultPass) passwordOk = true
+              else if (lowerEmail === 'usuario@usuario.com' && pass === 'Usuario') passwordOk = true
+              else if (lowerEmail === 'alejandro.finochietti@yahoo.com.ar' && pass === 'Afodes18') passwordOk = true
+              else if (lowerEmail === 'alfox@alfox.com' && pass === 'alfox') passwordOk = true
+              else if (lowerEmail === 'alex@gmail.com' && pass === 'password123') passwordOk = true
               else if (emailMatch.password && !emailMatch.password.includes('•') && pass === emailMatch.password) passwordOk = true
             } else {
-              passwordOk = (
-                pass === expectedPass ||
-                pass.toLowerCase() === expectedPass.toLowerCase() ||
-                (lowerEmail === 'usuario@usuario.com' && pass.toLowerCase() === 'usuario') ||
-                (lowerEmail === 'alejandro.finochietti@yahoo.com.ar' && pass.toLowerCase() === 'afodes18') ||
-                (lowerEmail === 'alfox@alfox.com' && (pass === 'alfox' || pass.toLowerCase() === 'alfox')) ||
-                (lowerEmail === 'alex@gmail.com' && (pass === 'password123' || pass.toLowerCase() === 'password123'))
-              )
+              passwordOk = (pass === expectedPass)
             }
 
             if (!passwordOk) {
@@ -725,7 +710,7 @@ export default function LoginPage() {
 
         // Baseline passenger accounts
         if (lowerEmail === 'usuario@usuario.com' || lowerEmail === 'usuario@usuario') {
-          if (pass === 'Usuario' || pass.toLowerCase() === 'usuario') {
+          if (pass === 'Usuario') {
             localStorage.setItem('active_user', JSON.stringify(stampActiveSession({
               name: 'Usuario Administrador',
               email: 'usuario@usuario.com',
@@ -742,7 +727,7 @@ export default function LoginPage() {
         }
 
         if (lowerEmail === 'alejandro.finochietti@yahoo.com.ar' || lowerEmail.includes('alejandro.finochietti')) {
-          if (pass === 'Afodes18' || pass.toLowerCase() === 'afodes18' || pass === 'password123') {
+          if (pass === 'Afodes18') {
             localStorage.setItem('active_user', JSON.stringify(stampActiveSession({
               name: 'Alejandro Finochietti',
               email: 'alejandro.finochietti@yahoo.com.ar',
@@ -759,7 +744,7 @@ export default function LoginPage() {
         }
 
         if (lowerEmail === 'alfox@alfox.com' || lowerEmail === 'alfox') {
-          if (pass === 'alfox' || pass.toLowerCase() === 'alfox') {
+          if (pass === 'alfox') {
             localStorage.setItem('active_user', JSON.stringify(stampActiveSession({
               name: 'alfox',
               email: 'alfox@alfox.com',
@@ -776,7 +761,7 @@ export default function LoginPage() {
         }
 
         if (lowerEmail === 'alex@gmail.com' || lowerEmail === 'alex') {
-          if (pass === 'password123' || pass.toLowerCase() === 'password123') {
+          if (pass === 'password123') {
             localStorage.setItem('active_user', JSON.stringify(stampActiveSession({
               name: 'Alex',
               email: 'alex@gmail.com',
