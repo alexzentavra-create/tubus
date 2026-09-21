@@ -547,16 +547,42 @@ export default function SuperAdminCalendarView({
           </div>
 
           {/* Days of Week Row */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', background: '#0e1122', borderBottom: '1px solid rgba(255, 255, 255, 0.06)' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+            width: '100%',
+            background: '#0e1122',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            boxSizing: 'border-box'
+          }}>
             {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map(dayName => (
-              <div key={dayName} style={{ padding: '10px', textAlign: 'center', fontSize: '12px', fontWeight: 700, color: '#8F94A5' }}>
+              <div key={dayName} style={{
+                padding: '12px 6px',
+                textAlign: 'center',
+                fontSize: '12px',
+                fontWeight: 800,
+                color: '#94A3B8',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                minWidth: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}>
                 {dayName}
               </div>
             ))}
           </div>
 
           {/* Calendar Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '1px', background: 'rgba(255, 255, 255, 0.04)' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+            gap: '1px',
+            background: 'rgba(255, 255, 255, 0.06)',
+            width: '100%',
+            boxSizing: 'border-box'
+          }}>
             {calendarDays.map((day, idx) => {
               const dayEvents = getEventsForDay(day)
               const isCurrentMonth = isSameMonth(day, currentMonth)
@@ -570,37 +596,72 @@ export default function SuperAdminCalendarView({
                     handleOpenCreateModal(day)
                   }}
                   style={{
-                    minHeight: '120px',
-                    padding: '8px',
-                    background: isCurrentDay ? 'rgba(16, 185, 129, 0.06)' : isCurrentMonth ? '#121527' : '#0a0d1a',
+                    minHeight: '125px',
+                    padding: '8px 6px',
+                    background: isCurrentDay ? 'rgba(16, 185, 129, 0.07)' : isCurrentMonth ? '#121527' : '#0a0d1a',
                     cursor: 'pointer',
                     display: 'flex',
                     flexDirection: 'column',
-                    transition: 'all 150ms'
+                    minWidth: 0,
+                    width: '100%',
+                    overflow: 'hidden',
+                    boxSizing: 'border-box',
+                    transition: 'background 150ms ease',
+                    position: 'relative'
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = isCurrentDay ? 'rgba(16, 185, 129, 0.12)' : '#181c33')}
-                  onMouseLeave={e => (e.currentTarget.style.background = isCurrentDay ? 'rgba(16, 185, 129, 0.06)' : isCurrentMonth ? '#121527' : '#0a0d1a')}
+                  onMouseEnter={e => (e.currentTarget.style.background = isCurrentDay ? 'rgba(16, 185, 129, 0.14)' : '#181c33')}
+                  onMouseLeave={e => (e.currentTarget.style.background = isCurrentDay ? 'rgba(16, 185, 129, 0.07)' : isCurrentMonth ? '#121527' : '#0a0d1a')}
                 >
                   {/* Day Number Header */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '6px',
+                    minWidth: 0,
+                    width: '100%'
+                  }}>
                     <span style={{
-                      fontSize: '12px', fontWeight: isCurrentDay ? 900 : 700,
-                      color: isCurrentDay ? '#10B981' : isCurrentMonth ? '#FFFFFF' : '#475569',
-                      width: isCurrentDay ? '24px' : 'auto', height: isCurrentDay ? '24px' : 'auto',
-                      borderRadius: isCurrentDay ? '50%' : '0', background: isCurrentDay ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      fontSize: isCurrentDay ? '12px' : '13px',
+                      fontWeight: isCurrentDay ? 900 : isCurrentMonth ? 800 : 500,
+                      color: isCurrentDay ? '#FFFFFF' : isCurrentMonth ? '#F8FAFC' : '#64748B',
+                      width: isCurrentDay ? '24px' : 'auto',
+                      height: isCurrentDay ? '24px' : 'auto',
+                      borderRadius: isCurrentDay ? '50%' : '0',
+                      background: isCurrentDay ? '#10B981' : 'transparent',
+                      boxShadow: isCurrentDay ? '0 0 10px rgba(16, 185, 129, 0.5)' : 'none',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0
                     }}>
                       {format(day, 'd')}
                     </span>
                     {dayEvents.length > 0 && (
-                      <span style={{ fontSize: '10px', color: '#8F94A5', fontWeight: 600 }}>
-                        {dayEvents.length} {dayEvents.length === 1 ? 'evento' : 'eventos'}
+                      <span style={{
+                        fontSize: '9.5px',
+                        color: '#94A3B8',
+                        fontWeight: 700,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        paddingLeft: '2px'
+                      }}>
+                        {dayEvents.length} {dayEvents.length === 1 ? 'ev.' : 'evs.'}
                       </span>
                     )}
                   </div>
 
                   {/* Day Events Pills */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, overflowY: 'hidden' }}>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                    flex: 1,
+                    minWidth: 0,
+                    width: '100%',
+                    overflow: 'hidden'
+                  }}>
                     {dayEvents.slice(0, 3).map(ev => (
                       <div
                         key={ev.id}
@@ -611,25 +672,39 @@ export default function SuperAdminCalendarView({
                         style={{
                           background: `${ev.color}22`,
                           borderLeft: `3px solid ${ev.color}`,
-                          padding: '4px 6px',
+                          padding: '3px 5px',
                           borderRadius: '4px',
-                          fontSize: '11px',
+                          fontSize: '10.5px',
                           color: '#FFFFFF',
+                          minWidth: 0,
+                          width: '100%',
+                          maxWidth: '100%',
                           overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
                           display: 'flex',
                           alignItems: 'center',
-                          gap: '4px'
+                          gap: '4px',
+                          boxSizing: 'border-box',
+                          cursor: 'pointer'
                         }}
                         title={ev.title}
                       >
                         {ev.isVirtualMeeting && <Video size={10} style={{ color: '#10B981', flexShrink: 0 }} />}
-                        <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>{ev.title}</span>
+                        <span style={{
+                          fontWeight: 600,
+                          minWidth: 0,
+                          flex: 1,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          display: 'block',
+                          lineHeight: '1.2'
+                        }}>
+                          {ev.title}
+                        </span>
                       </div>
                     ))}
                     {dayEvents.length > 3 && (
-                      <div style={{ fontSize: '10px', color: '#10B981', fontWeight: 700, paddingLeft: '4px' }}>
+                      <div style={{ fontSize: '9.5px', color: '#10B981', fontWeight: 700, paddingLeft: '2px', whiteSpace: 'nowrap' }}>
                         +{dayEvents.length - 3} más...
                       </div>
                     )}
