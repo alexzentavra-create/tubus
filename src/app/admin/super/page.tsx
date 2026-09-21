@@ -8,7 +8,8 @@ import {
   Share2, Printer, Plus, Trash2, ChevronDown, CheckCircle2,
   Circle, Flag, Info, Megaphone, MessageSquare, Eye, EyeOff,
   BookOpen, Globe, Award, ListChecks, Key, Filter, History as HistoryIcon, ShieldCheck, Lock,
-  Settings, UserPlus, KeyRound, Shield, Save, Edit3, ShieldAlert, Ban, UserX, Copy
+  Settings, UserPlus, KeyRound, Shield, Save, Edit3, ShieldAlert, Ban, UserX, Copy,
+  Video, Phone, PhoneOff
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { getStoredGeneralTerms, getStoredAdsTerms, getStoredGeneralVersion, getStoredAdsVersion, saveStoredGeneralTerms, saveStoredAdsTerms, getStoredTermsHistory, deleteTermsHistoryEntry, TermsHistoryEntry } from '@/lib/termsData'
@@ -25,6 +26,9 @@ import toast from 'react-hot-toast'
 import { syncAllGlobalKeys, pushGlobalKey, purgeUserDataForEmail, getValidActiveUser, clearActiveSession } from '@/lib/sync'
 import SessionConcurrencyGuard from '@/components/SessionConcurrencyGuard'
 import { CARTODB_DARK, CARTODB_LIGHT } from '@/lib/mapStyles'
+import SuperAdminVideoCallModal from '@/components/admin/SuperAdminVideoCallModal'
+import SuperAdminCalendarView from '@/components/admin/SuperAdminCalendarView'
+import SuperAdminCallNotification from '@/components/admin/SuperAdminCallNotification'
 
 // Visual graphs mock data
 const METRICS_BY_PERIOD = {
@@ -283,7 +287,7 @@ const MOCK_DRIVERS_STATUS = [
 // Messenger chats data
 const DEFAULT_CHATS: any[] = []
 
-type Tab = 'overview' | 'linemaps' | 'drivers' | 'company_admins' | 'ads' | 'pois' | 'chat' | 'reports' | 'provincemap' | 'todos' | 'news' | 'terms' | 'security_2fa' | 'settings'
+type Tab = 'overview' | 'linemaps' | 'drivers' | 'company_admins' | 'ads' | 'pois' | 'chat' | 'reports' | 'provincemap' | 'todos' | 'calendar' | 'news' | 'terms' | 'security_2fa' | 'settings'
 
 interface Todo {
   id: string
@@ -322,6 +326,39 @@ export default function SuperAdminDashboard() {
   }, [])
   const supabase = createClient()
   const [tab, setTab] = useState<Tab>('overview')
+
+  // Video Call & Calendar Integration State
+  const [showVideoCallModal, setShowVideoCallModal] = useState<boolean>(false)
+  const [videoCallInitialTarget, setVideoCallInitialTarget] = useState<string | undefined>(undefined)
+  const [videoCallMeetingTitle, setVideoCallMeetingTitle] = useState<string | undefined>(undefined)
+  const [isIncomingCallAccepted, setIsIncomingCallAccepted] = useState<boolean>(false)
+
+  // Calendar Notifications Center State
+  const [showNotificationsDropdown, setShowNotificationsDropdown] = useState<boolean>(false)
+  const [superAdminNotifications, setSuperAdminNotifications] = useState<any[]>([])
+
+  const loadSuperAdminNotifications = () => {
+    try {
+      const stored = localStorage.getItem('bu_super_admin_notifications')
+      if (stored) {
+        setSuperAdminNotifications(JSON.parse(stored))
+      } else {
+        setSuperAdminNotifications([])
+      }
+    } catch (e) {
+      setSuperAdminNotifications([])
+    }
+  }
+
+  useEffect(() => {
+    loadSuperAdminNotifications()
+    window.addEventListener('storage', loadSuperAdminNotifications)
+    window.addEventListener('super_admin_notifications_updated', loadSuperAdminNotifications)
+    return () => {
+      window.removeEventListener('storage', loadSuperAdminNotifications)
+      window.removeEventListener('super_admin_notifications_updated', loadSuperAdminNotifications)
+    }
+  }, [])
 
   // Super Admin Dual Identity (Alejandro / Nestor)
   const [adminIdentity, setAdminIdentity] = useState<string | null>(null)
@@ -3092,6 +3129,7 @@ export default function SuperAdminDashboard() {
     { id: 'reports', label: 'Denuncias', icon: AlertTriangle },
     { id: 'provincemap', label: 'Mapa Argentina', icon: Globe },
     { id: 'todos', label: 'Tareas', icon: ListChecks },
+    { id: 'calendar', label: 'Calendario', icon: Calendar },
     { id: 'news', label: 'Noticias', icon: BookOpen },
     { id: 'terms', label: 'Términos y Condiciones', icon: ShieldCheck },
     { id: 'security_2fa', label: 'Seguridad 2FA', icon: Lock },
@@ -3976,6 +4014,104 @@ export default function SuperAdminDashboard() {
             >
               💬 Chat entre Super Admins
             </button>
+
+            {/* Videollamada Super Admin Green Button */}
+            <button
+              onClick={() => {
+                setVideoCallInitialTarget(undefined)
+                setVideoCallMeetingTitle(undefined)
+                setIsIncomingCallAccepted(false)
+                setShowVideoCallModal(true)
+              }}
+              style={{
+                padding: '8px 14px', borderRadius: '10px',
+                background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.4)',
+                color: '#10B981', fontSize: '12px', fontWeight: 800, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: '6px',
+                transition: 'all 200ms', boxShadow: '0 0 12px rgba(16, 185, 129, 0.15)'
+              }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(16, 185, 129, 0.25)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'rgba(16, 185, 129, 0.15)'}
+              title="Iniciar videollamada con otro Super Administrador"
+            >
+              <Video size={14} /> 📞 Videollamada
+            </button>
+
+            {/* Notifications Dropdown for Calendar Tagged Events */}
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setShowNotificationsDropdown(prev => !prev)}
+                style={{
+                  position: 'relative', width: '34px', height: '34px', borderRadius: '8px',
+                  background: showNotificationsDropdown ? 'rgba(59, 130, 246, 0.25)' : '#1b1d2e',
+                  border: '1px solid rgba(255, 255, 255, 0.1)', color: '#FFF', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 150ms'
+                }}
+                title="Notificaciones de eventos y menciones"
+              >
+                <Bell size={15} style={{ color: superAdminNotifications.filter((n: any) => !n.read && (!n.recipient || n.recipient.toLowerCase().includes((adminIdentity || '').toLowerCase()))).length > 0 ? '#10B981' : '#8F94A5' }} />
+                {superAdminNotifications.filter((n: any) => !n.read && (!n.recipient || n.recipient.toLowerCase().includes((adminIdentity || '').toLowerCase()))).length > 0 && (
+                  <span style={{
+                    position: 'absolute', top: '-4px', right: '-4px', width: '16px', height: '16px',
+                    borderRadius: '50%', background: '#EF4444', color: '#FFF', fontSize: '9px', fontWeight: 900,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 8px rgba(239, 68, 68, 0.8)'
+                  }}>
+                    {superAdminNotifications.filter((n: any) => !n.read && (!n.recipient || n.recipient.toLowerCase().includes((adminIdentity || '').toLowerCase()))).length}
+                  </span>
+                )}
+              </button>
+
+              {showNotificationsDropdown && (
+                <div style={{
+                  position: 'absolute', top: '44px', right: 0, width: '320px', background: '#121527',
+                  border: '1px solid rgba(255, 255, 255, 0.12)', borderRadius: '12px', padding: '12px',
+                  boxShadow: '0 15px 40px rgba(0,0,0,0.8)', zIndex: 99999, display: 'flex', flexDirection: 'column', gap: '8px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '8px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#FFF' }}>🔔 Notificaciones y Menciones</span>
+                    {superAdminNotifications.length > 0 && (
+                      <button
+                        onClick={() => {
+                          const marked = superAdminNotifications.map((n: any) => ({ ...n, read: true }))
+                          setSuperAdminNotifications(marked)
+                          localStorage.setItem('bu_super_admin_notifications', JSON.stringify(marked))
+                        }}
+                        style={{ background: 'none', border: 'none', color: '#10B981', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}
+                      >
+                        Marcar leídas
+                      </button>
+                    )}
+                  </div>
+
+                  <div style={{ maxHeight: '240px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {superAdminNotifications.length === 0 ? (
+                      <div style={{ padding: '20px 0', textAlign: 'center', color: '#64748B', fontSize: '11px' }}>
+                        No tienes notificaciones pendientes.
+                      </div>
+                    ) : (
+                      superAdminNotifications.slice(0, 8).map((notif: any) => (
+                        <div
+                          key={notif.id}
+                          onClick={() => {
+                            setTab('calendar')
+                            setShowNotificationsDropdown(false)
+                          }}
+                          style={{
+                            background: notif.read ? '#181b2e' : 'rgba(16, 185, 129, 0.1)',
+                            borderLeft: `3px solid ${notif.read ? 'rgba(255,255,255,0.1)' : '#10B981'}`,
+                            padding: '8px 10px', borderRadius: '6px', cursor: 'pointer'
+                          }}
+                        >
+                          <div style={{ fontSize: '12px', fontWeight: 700, color: '#FFF' }}>{notif.title}</div>
+                          <div style={{ fontSize: '11px', color: '#8F94A5', marginTop: '2px' }}>{notif.detail}</div>
+                          <div style={{ fontSize: '10px', color: '#64748B', marginTop: '4px' }}>{notif.time}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           {/* Light/Dark Mode Toggle Button */}
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -4039,8 +4175,43 @@ export default function SuperAdminDashboard() {
 
       {/* Super Admin Internal Chat Modal */}
       {showSuperAdminChat && (
-        <SuperAdminInternalChatModal onClose={() => setShowSuperAdminChat(false)} />
+        <SuperAdminInternalChatModal
+          onClose={() => setShowSuperAdminChat(false)}
+          onStartCall={(target) => {
+            setVideoCallInitialTarget(target)
+            setVideoCallMeetingTitle(`Videollamada iniciada desde Chat Interno`)
+            setIsIncomingCallAccepted(false)
+            setShowVideoCallModal(true)
+          }}
+        />
       )}
+
+      {/* Super Admin Video Call Modal */}
+      {showVideoCallModal && (
+        <SuperAdminVideoCallModal
+          onClose={() => {
+            setShowVideoCallModal(false)
+            setVideoCallInitialTarget(undefined)
+            setVideoCallMeetingTitle(undefined)
+            setIsIncomingCallAccepted(false)
+          }}
+          initialTarget={videoCallInitialTarget}
+          meetingTitle={videoCallMeetingTitle}
+          currentAdminName={adminIdentity || 'Alejandro'}
+          isIncoming={isIncomingCallAccepted}
+        />
+      )}
+
+      {/* Incoming Call Notification Banner */}
+      <SuperAdminCallNotification
+        currentAdminName={adminIdentity || 'Alejandro'}
+        onAcceptCall={(caller, title) => {
+          setVideoCallInitialTarget(caller)
+          setVideoCallMeetingTitle(title || `Llamada con ${caller}`)
+          setIsIncomingCallAccepted(true)
+          setShowVideoCallModal(true)
+        }}
+      />
 
       {/* Main Horizontal Navigation */}
       <div style={{
@@ -4458,6 +4629,19 @@ export default function SuperAdminDashboard() {
               onAddTodo={addTodo}
             />
           </div>
+        )}
+
+        {/* Dedicated Collaborative Calendar Tab */}
+        {tab === 'calendar' && (
+          <SuperAdminCalendarView
+            currentAdminName={adminIdentity || 'Alejandro'}
+            onStartVirtualMeeting={(target, title) => {
+              setVideoCallInitialTarget(target)
+              setVideoCallMeetingTitle(title || 'Reunión Virtual Super Admin')
+              setIsIncomingCallAccepted(false)
+              setShowVideoCallModal(true)
+            }}
+          />
         )}
 
         {/* 8. Transport Industry News */}
@@ -9754,7 +9938,13 @@ function TermsAndConditionsManagerTab({
 }
 
 
-function SuperAdminInternalChatModal({ onClose }: { onClose: () => void }) {
+function SuperAdminInternalChatModal({
+  onClose,
+  onStartCall
+}: {
+  onClose: () => void
+  onStartCall?: (target: string) => void
+}) {
   const [messages, setMessages] = useState<any[]>([])
   const [inputText, setInputText] = useState('')
   const [adminNames, setAdminNames] = useState<string[]>(() => {
@@ -9854,15 +10044,34 @@ function SuperAdminInternalChatModal({ onClose }: { onClose: () => void }) {
               Canal privado de comunicación en tiempo real entre Alejandro y Néstor
             </p>
           </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '8px', color: '#fff',
-              fontSize: '14px', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}
-          >
-            ✕
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {onStartCall && (
+              <button
+                type="button"
+                onClick={() => {
+                  const target = adminNames.find(n => n !== senderName) || (senderName === 'Alejandro' ? 'Nestor' : 'Alejandro')
+                  onStartCall(target)
+                }}
+                style={{
+                  background: 'rgba(16, 185, 129, 0.18)', border: '1px solid #10B981', borderRadius: '8px',
+                  color: '#10B981', padding: '6px 12px', fontSize: '11px', fontWeight: 800, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 150ms'
+                }}
+                title="Iniciar videollamada con el otro Super Administrador"
+              >
+                <Video size={13} /> 📞 Videollamada
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              style={{
+                background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '8px', color: '#fff',
+                fontSize: '14px', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Sender Identity Switcher */}
