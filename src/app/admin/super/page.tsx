@@ -592,22 +592,40 @@ export default function SuperAdminDashboard() {
   // Super Admin Accounts Management State
   const [superAdminAccounts, setSuperAdminAccounts] = useState<any[]>(() => {
     const defaultAdmins = [
+      { id: 'sa-0', name: 'Super Admin', email: 'admin@admin.com', password: 'Admin', role: 'Super Admin Principal', avatar: 'SA', status: 'Activo', lastLogin: 'Hoy 09:00 hs' },
       { id: 'sa-1', name: 'Alejandro', email: 'alejandro.finochietti@yahoo.com.ar', password: 'Admin', role: 'Super Admin Principal', avatar: 'A', status: 'Activo', lastLogin: 'Hoy 09:30 hs' },
       { id: 'sa-2', name: 'Nestor', email: 'nestoradmin@nestoradmin.com', password: 'NestorAdmin123!', role: 'Super Admin Completo', avatar: 'N', status: 'Activo', lastLogin: 'Hoy 10:00 hs' }
     ]
+    if (typeof window === 'undefined') return defaultAdmins
     try {
       const stored = localStorage.getItem('bu_super_admins')
       if (stored) {
         const parsed = JSON.parse(stored)
         if (Array.isArray(parsed) && parsed.length > 0) {
+          let updated = false
           defaultAdmins.forEach(dsa => {
-            if (!parsed.some((a: any) => a.email?.toLowerCase() === dsa.email.toLowerCase())) {
+            const existing = parsed.find((a: any) => a.email?.toLowerCase() === dsa.email.toLowerCase())
+            if (!existing) {
               parsed.unshift(dsa)
+              updated = true
+            } else {
+              if (dsa.password && (existing.password === 'admin' || !existing.password)) {
+                existing.password = dsa.password
+                updated = true
+              }
+              if (existing.status !== 'Activo') {
+                existing.status = 'Activo'
+                updated = true
+              }
             }
           })
+          if (updated) {
+            localStorage.setItem('bu_super_admins', JSON.stringify(parsed))
+          }
           return parsed
         }
       }
+      localStorage.setItem('bu_super_admins', JSON.stringify(defaultAdmins))
     } catch (e) {}
     return defaultAdmins
   })

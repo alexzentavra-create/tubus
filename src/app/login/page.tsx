@@ -421,15 +421,35 @@ export default function LoginPage() {
         } catch (e) {}
 
         const defaultSuperAdmins = [
-          { id: 'sa-1', name: 'Super Admin', email: 'admin@admin.com', password: 'Admin', role: 'Super Admin Principal', status: 'Activo' },
+          { id: 'sa-0', name: 'Super Admin', email: 'admin@admin.com', password: 'Admin', role: 'Super Admin Principal', status: 'Activo' },
+          { id: 'sa-1', name: 'Alejandro', email: 'alejandro.finochietti@yahoo.com.ar', password: 'Admin', role: 'Super Admin Principal', status: 'Activo' },
           { id: 'sa-2', name: 'Nestor Admin', email: 'nestoradmin@nestoradmin.com', password: 'NestorAdmin123!', role: 'Super Admin Completo', status: 'Activo' }
         ]
 
+        let superAdminsUpdated = false
         defaultSuperAdmins.forEach(dsa => {
-          if (!registeredSuperAdmins.some((sa: any) => sa.email?.toLowerCase() === dsa.email.toLowerCase())) {
+          const existing = registeredSuperAdmins.find((sa: any) => sa.email?.toLowerCase() === dsa.email.toLowerCase())
+          if (!existing) {
             registeredSuperAdmins.unshift(dsa)
+            superAdminsUpdated = true
+          } else {
+            // Reconcile / self-heal canonical accounts if their password or status in localStorage is outdated
+            if (dsa.password && (existing.password === 'admin' || !existing.password)) {
+              existing.password = dsa.password
+              superAdminsUpdated = true
+            }
+            if (existing.status !== 'Activo') {
+              existing.status = 'Activo'
+              superAdminsUpdated = true
+            }
           }
         })
+
+        if (superAdminsUpdated) {
+          try {
+            localStorage.setItem('bu_super_admins', JSON.stringify(registeredSuperAdmins))
+          } catch (e) {}
+        }
 
         const matchedSuperAdmin = registeredSuperAdmins.find((sa: any) => sa.email?.toLowerCase() === lowerEmail)
 
@@ -440,7 +460,26 @@ export default function LoginPage() {
             return
           }
 
-          const expectedSaPass = matchedSuperAdmin.password || 'Admin'
+          let expectedSaPass = (matchedSuperAdmin.password || 'Admin').trim()
+          // Strict canonical passwords for primary super admins:
+          if (lowerEmail === 'admin@admin.com' || lowerEmail === 'alejandro.finochietti@yahoo.com.ar') {
+            expectedSaPass = 'Admin'
+            if (matchedSuperAdmin.password !== 'Admin') {
+              matchedSuperAdmin.password = 'Admin'
+              try {
+                localStorage.setItem('bu_super_admins', JSON.stringify(registeredSuperAdmins))
+              } catch (e) {}
+            }
+          } else if (lowerEmail === 'nestoradmin@nestoradmin.com') {
+            expectedSaPass = 'NestorAdmin123!'
+            if (matchedSuperAdmin.password !== 'NestorAdmin123!') {
+              matchedSuperAdmin.password = 'NestorAdmin123!'
+              try {
+                localStorage.setItem('bu_super_admins', JSON.stringify(registeredSuperAdmins))
+              } catch (e) {}
+            }
+          }
+
           const isSaPassValid = (pass === expectedSaPass)
 
           if (isSaPassValid) {
