@@ -47,12 +47,15 @@ const COLOR_PRESETS = [
 interface SuperAdminCalendarViewProps {
   currentAdminName: string
   onStartVirtualMeeting: (targetAdmin?: string, meetingTitle?: string) => void
+  theme?: 'light' | 'dark'
 }
 
 export default function SuperAdminCalendarView({
   currentAdminName,
-  onStartVirtualMeeting
+  onStartVirtualMeeting,
+  theme = 'dark'
 }: SuperAdminCalendarViewProps) {
+  const isLight = theme === 'light'
   // Calendar State
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
@@ -355,11 +358,11 @@ export default function SuperAdminCalendarView({
       case 'urgente':
         return <span style={{ background: '#EF4444', color: '#FFF', fontSize: '10px', fontWeight: 800, padding: '2px 6px', borderRadius: '6px' }}>🚨 URGENTE</span>
       case 'alta':
-        return <span style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#F87171', border: '1px solid #EF4444', fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '6px' }}>Alta</span>
+        return <span style={{ background: isLight ? 'rgba(239, 68, 68, 0.12)' : 'rgba(239, 68, 68, 0.2)', color: '#EF4444', border: '1px solid #EF4444', fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '6px' }}>Alta</span>
       case 'media':
-        return <span style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#FBBF24', border: '1px solid #F59E0B', fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '6px' }}>Media</span>
+        return <span style={{ background: isLight ? 'rgba(217, 119, 6, 0.15)' : 'rgba(245, 158, 11, 0.2)', color: isLight ? '#B45309' : '#FBBF24', border: isLight ? '1px solid #D97706' : '1px solid #F59E0B', fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '6px' }}>Media</span>
       default:
-        return <span style={{ background: 'rgba(59, 130, 246, 0.2)', color: '#60A5FA', border: '1px solid #3B82F6', fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '6px' }}>Baja</span>
+        return <span style={{ background: isLight ? 'rgba(37, 99, 235, 0.12)' : 'rgba(59, 130, 246, 0.2)', color: isLight ? '#1D4ED8' : '#60A5FA', border: isLight ? '1px solid #2563EB' : '1px solid #3B82F6', fontSize: '10px', fontWeight: 700, padding: '2px 6px', borderRadius: '6px' }}>Baja</span>
     }
   }
 
@@ -367,24 +370,39 @@ export default function SuperAdminCalendarView({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', maxWidth: '1380px', margin: '0 auto' }}>
       {/* Top Banner & Quick Controls */}
       <div style={{
-        background: '#121527', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '16px',
-        padding: '20px 24px', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '16px'
+        background: isLight ? '#FFFFFF' : '#121527',
+        border: isLight ? '1px solid #E2E8F0' : '1px solid rgba(255, 255, 255, 0.06)',
+        borderRadius: '16px',
+        padding: '20px 24px', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '16px',
+        boxShadow: isLight ? '0 1px 3px rgba(0,0,0,0.05)' : 'none'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <div style={{
-            width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, #10B981, #059669)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)'
+            width: '44px', height: '44px', borderRadius: '12px',
+            background: 'linear-gradient(135deg, #10B981, #059669)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)'
           }}>
             <CalendarIcon size={24} color="#FFFFFF" />
           </div>
           <div>
-            <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h2 style={{
+              margin: 0, fontSize: '20px', fontWeight: 800,
+              color: isLight ? '#0F172A' : '#FFFFFF',
+              display: 'flex', alignItems: 'center', gap: '8px'
+            }}>
               🗓️ Calendario Colaborativo de Super Administradores
-              <span style={{ fontSize: '11px', background: 'rgba(16,185,129,0.2)', color: '#10B981', border: '1px solid #10B981', borderRadius: '10px', padding: '2px 8px', fontWeight: 700 }}>
+              <span style={{
+                fontSize: '11px',
+                background: isLight ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.2)',
+                color: isLight ? '#059669' : '#10B981',
+                border: isLight ? '1px solid rgba(16,185,129,0.3)' : '1px solid #10B981',
+                borderRadius: '10px', padding: '2px 8px', fontWeight: 700
+              }}>
                 Sincronizado en Tiempo Real
               </span>
             </h2>
-            <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#8F94A5' }}>
+            <p style={{ margin: '4px 0 0', fontSize: '12px', color: isLight ? '#475569' : '#8F94A5' }}>
               Organizá reuniones virtuales, tareas, auditorías de líneas y coordiná con todo el equipo de Super Admins.
             </p>
           </div>
@@ -393,13 +411,19 @@ export default function SuperAdminCalendarView({
         {/* Action Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {/* View Mode Toggle */}
-          <div style={{ display: 'flex', background: '#1b1d2e', borderRadius: '8px', padding: '3px', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{
+            display: 'flex',
+            background: isLight ? '#F1F5F9' : '#1b1d2e',
+            borderRadius: '8px',
+            padding: '3px',
+            border: isLight ? '1px solid #CBD5E1' : '1px solid rgba(255,255,255,0.08)'
+          }}>
             <button
               onClick={() => setViewMode('month')}
               style={{
                 padding: '6px 12px', borderRadius: '6px', border: 'none',
                 background: viewMode === 'month' ? '#10B981' : 'transparent',
-                color: viewMode === 'month' ? '#FFF' : '#8F94A5',
+                color: viewMode === 'month' ? '#FFF' : (isLight ? '#64748B' : '#8F94A5'),
                 fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
               }}
             >
@@ -410,7 +434,7 @@ export default function SuperAdminCalendarView({
               style={{
                 padding: '6px 12px', borderRadius: '6px', border: 'none',
                 background: viewMode === 'agenda' ? '#10B981' : 'transparent',
-                color: viewMode === 'agenda' ? '#FFF' : '#8F94A5',
+                color: viewMode === 'agenda' ? '#FFF' : (isLight ? '#64748B' : '#8F94A5'),
                 fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px'
               }}
             >
@@ -433,11 +457,14 @@ export default function SuperAdminCalendarView({
 
       {/* Filter Bar */}
       <div style={{
-        background: '#121527', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '12px',
-        padding: '12px 18px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px'
+        background: isLight ? '#FFFFFF' : '#121527',
+        border: isLight ? '1px solid #E2E8F0' : '1px solid rgba(255, 255, 255, 0.06)',
+        borderRadius: '12px',
+        padding: '12px 18px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+        boxShadow: isLight ? '0 1px 3px rgba(0,0,0,0.04)' : 'none'
       }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#8F94A5', fontSize: '12px', fontWeight: 700 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: isLight ? '#475569' : '#8F94A5', fontSize: '12px', fontWeight: 700 }}>
             <Filter size={14} /> Filtros:
           </div>
 
@@ -446,8 +473,10 @@ export default function SuperAdminCalendarView({
             value={categoryFilter}
             onChange={e => setCategoryFilter(e.target.value)}
             style={{
-              background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px',
-              color: '#FFF', fontSize: '11px', fontWeight: 600, padding: '5px 10px', outline: 'none'
+              background: isLight ? '#F8FAFC' : '#1b1d2e',
+              border: isLight ? '1px solid #CBD5E1' : '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '6px',
+              color: isLight ? '#0F172A' : '#FFF', fontSize: '11px', fontWeight: 600, padding: '5px 10px', outline: 'none'
             }}
           >
             <option value="all">Todas las Categorías</option>
@@ -461,8 +490,10 @@ export default function SuperAdminCalendarView({
             value={importanceFilter}
             onChange={e => setImportanceFilter(e.target.value)}
             style={{
-              background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px',
-              color: '#FFF', fontSize: '11px', fontWeight: 600, padding: '5px 10px', outline: 'none'
+              background: isLight ? '#F8FAFC' : '#1b1d2e',
+              border: isLight ? '1px solid #CBD5E1' : '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '6px',
+              color: isLight ? '#0F172A' : '#FFF', fontSize: '11px', fontWeight: 600, padding: '5px 10px', outline: 'none'
             }}
           >
             <option value="all">Toda Importancia</option>
@@ -477,8 +508,10 @@ export default function SuperAdminCalendarView({
             value={adminFilter}
             onChange={e => setAdminFilter(e.target.value)}
             style={{
-              background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px',
-              color: '#FFF', fontSize: '11px', fontWeight: 600, padding: '5px 10px', outline: 'none'
+              background: isLight ? '#F8FAFC' : '#1b1d2e',
+              border: isLight ? '1px solid #CBD5E1' : '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '6px',
+              color: isLight ? '#0F172A' : '#FFF', fontSize: '11px', fontWeight: 600, padding: '5px 10px', outline: 'none'
             }}
           >
             <option value="all">Todos los Super Admins</option>
@@ -489,35 +522,59 @@ export default function SuperAdminCalendarView({
         </div>
 
         {/* Search */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#1b1d2e', borderRadius: '8px', padding: '5px 10px', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <Search size={13} color="#8F94A5" />
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '6px',
+          background: isLight ? '#F8FAFC' : '#1b1d2e',
+          borderRadius: '8px', padding: '5px 10px',
+          border: isLight ? '1px solid #CBD5E1' : '1px solid rgba(255,255,255,0.08)'
+        }}>
+          <Search size={13} color={isLight ? '#64748B' : '#8F94A5'} />
           <input
             type="text"
             placeholder="Buscar eventos o notas..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            style={{ background: 'transparent', border: 'none', color: '#FFF', fontSize: '11px', outline: 'none', width: '170px' }}
+            style={{
+              background: 'transparent', border: 'none',
+              color: isLight ? '#0F172A' : '#FFF',
+              fontSize: '11px', outline: 'none', width: '170px'
+            }}
           />
         </div>
       </div>
 
       {/* VIEW: MONTH VIEW */}
       {viewMode === 'month' && (
-        <div style={{ background: '#121527', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '16px', overflow: 'hidden' }}>
+        <div style={{
+          background: isLight ? '#FFFFFF' : '#121527',
+          border: isLight ? '1px solid #E2E8F0' : '1px solid rgba(255, 255, 255, 0.06)',
+          borderRadius: '16px',
+          overflow: 'hidden',
+          boxShadow: isLight ? '0 4px 6px -1px rgba(0,0,0,0.05)' : 'none'
+        }}>
           {/* Month Navigation Header */}
           <div style={{
-            padding: '16px 20px', background: '#181b2e', borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            padding: '16px 20px',
+            background: isLight ? '#F8FAFC' : '#181b2e',
+            borderBottom: isLight ? '1px solid #E2E8F0' : '1px solid rgba(255, 255, 255, 0.08)',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: '#FFFFFF', textTransform: 'capitalize' }}>
+              <h3 style={{
+                margin: 0, fontSize: '17px', fontWeight: 800,
+                color: isLight ? '#0F172A' : '#FFFFFF',
+                textTransform: 'capitalize'
+              }}>
                 {format(currentMonth, 'MMMM yyyy', { locale: es })}
               </h3>
               <button
                 onClick={() => setCurrentMonth(new Date())}
                 style={{
-                  padding: '4px 10px', borderRadius: '6px', background: 'rgba(255, 255, 255, 0.08)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)', color: '#8F94A5', fontSize: '11px', fontWeight: 700, cursor: 'pointer'
+                  padding: '4px 10px', borderRadius: '6px',
+                  background: isLight ? '#E2E8F0' : 'rgba(255, 255, 255, 0.08)',
+                  border: isLight ? '1px solid #CBD5E1' : '1px solid rgba(255, 255, 255, 0.1)',
+                  color: isLight ? '#334155' : '#8F94A5',
+                  fontSize: '11px', fontWeight: 700, cursor: 'pointer'
                 }}
               >
                 Hoy
@@ -528,8 +585,11 @@ export default function SuperAdminCalendarView({
               <button
                 onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
                 style={{
-                  width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.06)',
-                  border: 'none', color: '#FFF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  width: '32px', height: '32px', borderRadius: '8px',
+                  background: isLight ? '#E2E8F0' : 'rgba(255, 255, 255, 0.06)',
+                  border: isLight ? '1px solid #CBD5E1' : 'none',
+                  color: isLight ? '#1E293B' : '#FFF',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
                 }}
               >
                 <ChevronLeft size={16} />
@@ -537,8 +597,11 @@ export default function SuperAdminCalendarView({
               <button
                 onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
                 style={{
-                  width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.06)',
-                  border: 'none', color: '#FFF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  width: '32px', height: '32px', borderRadius: '8px',
+                  background: isLight ? '#E2E8F0' : 'rgba(255, 255, 255, 0.06)',
+                  border: isLight ? '1px solid #CBD5E1' : 'none',
+                  color: isLight ? '#1E293B' : '#FFF',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
                 }}
               >
                 <ChevronRight size={16} />
@@ -551,8 +614,8 @@ export default function SuperAdminCalendarView({
             display: 'grid',
             gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
             width: '100%',
-            background: '#0e1122',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            background: isLight ? '#F1F5F9' : '#0e1122',
+            borderBottom: isLight ? '1px solid #E2E8F0' : '1px solid rgba(255, 255, 255, 0.08)',
             boxSizing: 'border-box'
           }}>
             {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map(dayName => (
@@ -561,7 +624,7 @@ export default function SuperAdminCalendarView({
                 textAlign: 'center',
                 fontSize: '12px',
                 fontWeight: 800,
-                color: '#94A3B8',
+                color: isLight ? '#475569' : '#94A3B8',
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
                 minWidth: 0,
@@ -579,7 +642,7 @@ export default function SuperAdminCalendarView({
             display: 'grid',
             gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
             gap: '1px',
-            background: 'rgba(255, 255, 255, 0.06)',
+            background: isLight ? '#E2E8F0' : 'rgba(255, 255, 255, 0.06)',
             width: '100%',
             boxSizing: 'border-box'
           }}>
@@ -587,6 +650,16 @@ export default function SuperAdminCalendarView({
               const dayEvents = getEventsForDay(day)
               const isCurrentMonth = isSameMonth(day, currentMonth)
               const isCurrentDay = isToday(day)
+
+              const cellBg = isCurrentDay
+                ? (isLight ? 'rgba(16, 185, 129, 0.09)' : 'rgba(16, 185, 129, 0.07)')
+                : isCurrentMonth
+                  ? (isLight ? '#FFFFFF' : '#121527')
+                  : (isLight ? '#F8FAFC' : '#0a0d1a')
+
+              const cellHoverBg = isCurrentDay
+                ? (isLight ? 'rgba(16, 185, 129, 0.16)' : 'rgba(16, 185, 129, 0.14)')
+                : (isLight ? '#F1F5F9' : '#181c33')
 
               return (
                 <div
@@ -598,7 +671,7 @@ export default function SuperAdminCalendarView({
                   style={{
                     minHeight: '125px',
                     padding: '8px 6px',
-                    background: isCurrentDay ? 'rgba(16, 185, 129, 0.07)' : isCurrentMonth ? '#121527' : '#0a0d1a',
+                    background: cellBg,
                     cursor: 'pointer',
                     display: 'flex',
                     flexDirection: 'column',
@@ -609,8 +682,8 @@ export default function SuperAdminCalendarView({
                     transition: 'background 150ms ease',
                     position: 'relative'
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = isCurrentDay ? 'rgba(16, 185, 129, 0.14)' : '#181c33')}
-                  onMouseLeave={e => (e.currentTarget.style.background = isCurrentDay ? 'rgba(16, 185, 129, 0.07)' : isCurrentMonth ? '#121527' : '#0a0d1a')}
+                  onMouseEnter={e => (e.currentTarget.style.background = cellHoverBg)}
+                  onMouseLeave={e => (e.currentTarget.style.background = cellBg)}
                 >
                   {/* Day Number Header */}
                   <div style={{
@@ -624,7 +697,11 @@ export default function SuperAdminCalendarView({
                     <span style={{
                       fontSize: isCurrentDay ? '12px' : '13px',
                       fontWeight: isCurrentDay ? 900 : isCurrentMonth ? 800 : 500,
-                      color: isCurrentDay ? '#FFFFFF' : isCurrentMonth ? '#F8FAFC' : '#64748B',
+                      color: isCurrentDay
+                        ? '#FFFFFF'
+                        : isCurrentMonth
+                          ? (isLight ? '#0F172A' : '#F8FAFC')
+                          : (isLight ? '#94A3B8' : '#64748B'),
                       width: isCurrentDay ? '24px' : 'auto',
                       height: isCurrentDay ? '24px' : 'auto',
                       borderRadius: isCurrentDay ? '50%' : '0',
@@ -640,7 +717,7 @@ export default function SuperAdminCalendarView({
                     {dayEvents.length > 0 && (
                       <span style={{
                         fontSize: '9.5px',
-                        color: '#94A3B8',
+                        color: isLight ? '#64748B' : '#94A3B8',
                         fontWeight: 700,
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
@@ -670,12 +747,15 @@ export default function SuperAdminCalendarView({
                           setSelectedEventForDetail(ev)
                         }}
                         style={{
-                          background: `${ev.color}22`,
+                          background: isLight ? `${ev.color}1c` : `${ev.color}22`,
                           borderLeft: `3px solid ${ev.color}`,
+                          borderTop: isLight ? `1px solid ${ev.color}35` : 'none',
+                          borderRight: isLight ? `1px solid ${ev.color}35` : 'none',
+                          borderBottom: isLight ? `1px solid ${ev.color}35` : 'none',
                           padding: '3px 5px',
                           borderRadius: '4px',
                           fontSize: '10.5px',
-                          color: '#FFFFFF',
+                          color: isLight ? '#0F172A' : '#FFFFFF',
                           minWidth: 0,
                           width: '100%',
                           maxWidth: '100%',
@@ -690,7 +770,7 @@ export default function SuperAdminCalendarView({
                       >
                         {ev.isVirtualMeeting && <Video size={10} style={{ color: '#10B981', flexShrink: 0 }} />}
                         <span style={{
-                          fontWeight: 600,
+                          fontWeight: isLight ? 700 : 600,
                           minWidth: 0,
                           flex: 1,
                           overflow: 'hidden',
@@ -704,7 +784,7 @@ export default function SuperAdminCalendarView({
                       </div>
                     ))}
                     {dayEvents.length > 3 && (
-                      <div style={{ fontSize: '9.5px', color: '#10B981', fontWeight: 700, paddingLeft: '2px', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontSize: '9.5px', color: isLight ? '#059669' : '#10B981', fontWeight: 700, paddingLeft: '2px', whiteSpace: 'nowrap' }}>
                         +{dayEvents.length - 3} más...
                       </div>
                     )}
@@ -718,13 +798,19 @@ export default function SuperAdminCalendarView({
 
       {/* VIEW: AGENDA VIEW */}
       {viewMode === 'agenda' && (
-        <div style={{ background: '#121527', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '16px', padding: '20px' }}>
-          <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 800, color: '#FFF' }}>
+        <div style={{
+          background: isLight ? '#FFFFFF' : '#121527',
+          border: isLight ? '1px solid #E2E8F0' : '1px solid rgba(255, 255, 255, 0.06)',
+          borderRadius: '16px',
+          padding: '20px',
+          boxShadow: isLight ? '0 4px 6px -1px rgba(0,0,0,0.05)' : 'none'
+        }}>
+          <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 800, color: isLight ? '#0F172A' : '#FFF' }}>
             Próximos Eventos y Tareas ({filteredEvents.length})
           </h3>
 
           {filteredEvents.length === 0 ? (
-            <div style={{ padding: '40px', textAlign: 'center', color: '#64748B' }}>
+            <div style={{ padding: '40px', textAlign: 'center', color: isLight ? '#94A3B8' : '#64748B' }}>
               <CalendarIcon size={36} style={{ opacity: 0.4, marginBottom: '8px' }} />
               <div>No hay eventos ni tareas que coincidan con los filtros actuales.</div>
             </div>
@@ -734,7 +820,9 @@ export default function SuperAdminCalendarView({
                 <div
                   key={ev.id}
                   style={{
-                    background: '#181b2e', border: `1px solid ${ev.color}44`, borderLeft: `5px solid ${ev.color}`,
+                    background: isLight ? '#F8FAFC' : '#181b2e',
+                    border: isLight ? '1px solid #E2E8F0' : `1px solid ${ev.color}44`,
+                    borderLeft: `5px solid ${ev.color}`,
                     borderRadius: '12px', padding: '16px 20px', display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '14px'
                   }}
                 >
@@ -751,21 +839,23 @@ export default function SuperAdminCalendarView({
                       )}
                     </div>
 
-                    <h4 style={{ margin: '0 0 6px', fontSize: '16px', fontWeight: 800, color: '#FFF' }}>{ev.title}</h4>
+                    <h4 style={{ margin: '0 0 6px', fontSize: '16px', fontWeight: 800, color: isLight ? '#0F172A' : '#FFF' }}>{ev.title}</h4>
                     {ev.description && (
-                      <p style={{ margin: '0 0 10px', fontSize: '13px', color: '#CBD5E1', lineHeight: 1.4 }}>{ev.description}</p>
+                      <p style={{ margin: '0 0 10px', fontSize: '13px', color: isLight ? '#334155' : '#CBD5E1', lineHeight: 1.4 }}>{ev.description}</p>
                     )}
 
-                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '14px', fontSize: '11px', color: '#8F94A5' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '14px', fontSize: '11px', color: isLight ? '#64748B' : '#8F94A5' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Clock size={12} /> {ev.startDate} {ev.isAllDay ? '• Todo el día' : `• ${ev.startTime || ''} - ${ev.endTime || ''} hs`}
+                        <Clock size={13} color="#10B981" />
+                        {ev.startDate} {ev.endDate && ev.endDate !== ev.startDate ? `al ${ev.endDate}` : ''}
+                        {!ev.isAllDay && ev.startTime ? ` • ${ev.startTime} - ${ev.endTime || ''} hs` : ' • Todo el día'}
                       </span>
                       {ev.taggedAdmins.length > 0 && (
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#60A5FA' }}>
-                          <Users size={12} /> Etiquetados: {ev.taggedAdmins.join(', ')}
+                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', color: isLight ? '#2563EB' : '#60A5FA' }}>
+                          <Users size={13} /> {ev.taggedAdmins.join(', ')}
                         </span>
                       )}
-                      <span>Creado por: {ev.createdBy}</span>
+                      <span>Creado por: <strong>{ev.createdBy}</strong></span>
                     </div>
                   </div>
 
@@ -778,29 +868,34 @@ export default function SuperAdminCalendarView({
                           onStartVirtualMeeting(target, ev.title)
                         }}
                         style={{
-                          padding: '10px 16px', borderRadius: '10px', background: 'linear-gradient(135deg, #10B981, #059669)',
-                          border: 'none', color: '#FFF', fontWeight: 800, fontSize: '12px', cursor: 'pointer',
-                          display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 4px 14px rgba(16, 185, 129, 0.4)'
+                          padding: '8px 14px', borderRadius: '8px', background: 'linear-gradient(135deg, #10B981, #059669)',
+                          border: 'none', color: '#FFF', fontSize: '12px', fontWeight: 800, cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 10px rgba(16, 185, 129, 0.4)'
                         }}
                       >
-                        <Video size={14} /> Iniciar Reunión Virtual
+                        <Video size={13} /> Iniciar Reunión
                       </button>
                     )}
                     <button
                       onClick={() => handleOpenEditModal(ev)}
                       style={{
-                        padding: '8px 12px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.08)',
-                        border: '1px solid rgba(255, 255, 255, 0.12)', color: '#FFF', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+                        padding: '8px 12px', borderRadius: '8px',
+                        background: isLight ? '#EFF6FF' : 'rgba(59, 130, 246, 0.15)',
+                        border: isLight ? '1px solid #BFDBFE' : '1px solid rgba(59, 130, 246, 0.3)',
+                        color: isLight ? '#2563EB' : '#60A5FA',
+                        fontSize: '12px', fontWeight: 700, cursor: 'pointer',
                         display: 'flex', alignItems: 'center', gap: '4px'
                       }}
                     >
-                      <Edit3 size={13} /> Editar
+                      <Edit3 size={13} />
                     </button>
                     <button
                       onClick={() => handleDeleteEvent(ev.id)}
                       style={{
-                        padding: '8px 12px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.15)',
-                        border: '1px solid rgba(239, 68, 68, 0.3)', color: '#EF4444', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+                        padding: '8px 12px', borderRadius: '8px',
+                        background: isLight ? '#FEF2F2' : 'rgba(239, 68, 68, 0.15)',
+                        border: isLight ? '1px solid #FECACA' : '1px solid rgba(239, 68, 68, 0.3)',
+                        color: '#EF4444', fontSize: '12px', fontWeight: 700, cursor: 'pointer',
                         display: 'flex', alignItems: 'center', gap: '4px'
                       }}
                     >
@@ -817,13 +912,15 @@ export default function SuperAdminCalendarView({
       {/* DETAIL MODAL (Clicking event card from Month view) */}
       {selectedEventForDetail && (
         <div style={{
-          position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)',
+          position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
         }}>
           <div style={{
-            background: '#121527', border: `2px solid ${selectedEventForDetail.color}`, borderRadius: '16px',
+            background: isLight ? '#FFFFFF' : '#121527',
+            border: `2px solid ${selectedEventForDetail.color}`,
+            borderRadius: '16px',
             width: '100%', maxWidth: '540px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px',
-            boxShadow: '0 20px 50px rgba(0,0,0,0.7)'
+            boxShadow: isLight ? '0 20px 40px rgba(0,0,0,0.15)' : '0 20px 50px rgba(0,0,0,0.7)'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -834,30 +931,35 @@ export default function SuperAdminCalendarView({
               </div>
               <button
                 onClick={() => setSelectedEventForDetail(null)}
-                style={{ background: 'none', border: 'none', color: '#8F94A5', fontSize: '18px', cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', color: isLight ? '#64748B' : '#8F94A5', fontSize: '18px', cursor: 'pointer' }}
               >
                 ✕
               </button>
             </div>
 
-            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#FFF' }}>
+            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: isLight ? '#0F172A' : '#FFF' }}>
               {selectedEventForDetail.title}
             </h3>
 
             {selectedEventForDetail.description && (
-              <p style={{ margin: 0, fontSize: '13px', color: '#CBD5E1', lineHeight: 1.5 }}>
+              <p style={{ margin: 0, fontSize: '13px', color: isLight ? '#334155' : '#CBD5E1', lineHeight: 1.5 }}>
                 {selectedEventForDetail.description}
               </p>
             )}
 
-            <div style={{ background: '#181b2e', padding: '12px', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px', color: '#8F94A5' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#FFF' }}>
+            <div style={{
+              background: isLight ? '#F8FAFC' : '#181b2e',
+              border: isLight ? '1px solid #E2E8F0' : 'none',
+              padding: '12px', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '8px',
+              fontSize: '12px', color: isLight ? '#475569' : '#8F94A5'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: isLight ? '#0F172A' : '#FFF' }}>
                 <Clock size={14} color="#10B981" />
                 <span>Fecha: <strong>{selectedEventForDetail.startDate}</strong></span>
                 <span>• Horario: <strong>{selectedEventForDetail.isAllDay ? 'Todo el día' : `${selectedEventForDetail.startTime} a ${selectedEventForDetail.endTime} hs`}</strong></span>
               </div>
               {selectedEventForDetail.taggedAdmins.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#60A5FA' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: isLight ? '#2563EB' : '#60A5FA' }}>
                   <Users size={14} />
                   <span>Super Admins etiquetados: <strong>{selectedEventForDetail.taggedAdmins.join(', ')}</strong></span>
                 </div>
@@ -885,7 +987,12 @@ export default function SuperAdminCalendarView({
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
               <button
                 onClick={() => handleDeleteEvent(selectedEventForDetail.id)}
-                style={{ padding: '8px 14px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid #EF4444', color: '#EF4444', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+                style={{
+                  padding: '8px 14px', borderRadius: '8px',
+                  background: isLight ? '#FEF2F2' : 'rgba(239, 68, 68, 0.15)',
+                  border: isLight ? '1px solid #FECACA' : '1px solid #EF4444',
+                  color: '#EF4444', fontSize: '12px', fontWeight: 700, cursor: 'pointer'
+                }}
               >
                 Eliminar
               </button>
@@ -903,22 +1010,29 @@ export default function SuperAdminCalendarView({
       {/* CREATE / EDIT EVENT MODAL */}
       {isModalOpen && (
         <div style={{
-          position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)',
+          position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'
         }}>
           <div style={{
-            background: '#121527', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '16px',
+            background: isLight ? '#FFFFFF' : '#121527',
+            border: isLight ? '1px solid #E2E8F0' : '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '16px',
             width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', padding: '24px',
-            display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 20px 50px rgba(0,0,0,0.8)'
+            display: 'flex', flexDirection: 'column', gap: '18px',
+            boxShadow: isLight ? '0 20px 40px rgba(0,0,0,0.15)' : '0 20px 50px rgba(0,0,0,0.8)'
           }}>
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '12px' }}>
-              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: '#FFF' }}>
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              borderBottom: isLight ? '1px solid #E2E8F0' : '1px solid rgba(255, 255, 255, 0.08)',
+              paddingBottom: '12px'
+            }}>
+              <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: isLight ? '#0F172A' : '#FFF' }}>
                 {editingEventId ? '✏️ Editar Evento del Calendario' : '➕ Nuevo Evento / Tarea para Super Admins'}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                style={{ background: 'none', border: 'none', color: '#8F94A5', fontSize: '16px', cursor: 'pointer' }}
+                style={{ background: 'none', border: 'none', color: isLight ? '#64748B' : '#8F94A5', fontSize: '16px', cursor: 'pointer' }}
               >
                 ✕
               </button>
@@ -927,7 +1041,7 @@ export default function SuperAdminCalendarView({
             <form onSubmit={handleSaveEvent} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {/* Name / Title */}
               <div>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: '#FFF', display: 'block', marginBottom: '6px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: isLight ? '#1E293B' : '#FFF', display: 'block', marginBottom: '6px' }}>
                   Nombre / Título del Evento *
                 </label>
                 <input
@@ -937,15 +1051,19 @@ export default function SuperAdminCalendarView({
                   value={formTitle}
                   onChange={e => setFormTitle(e.target.value)}
                   style={{
-                    width: '100%', padding: '10px 14px', background: '#181b2e', border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px', color: '#FFF', fontSize: '13px', outline: 'none'
+                    width: '100%', padding: '10px 14px',
+                    background: isLight ? '#F8FAFC' : '#181b2e',
+                    border: isLight ? '1px solid #CBD5E1' : '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    color: isLight ? '#0F172A' : '#FFF',
+                    fontSize: '13px', outline: 'none'
                   }}
                 />
               </div>
 
               {/* Description */}
               <div>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: '#FFF', display: 'block', marginBottom: '6px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: isLight ? '#1E293B' : '#FFF', display: 'block', marginBottom: '6px' }}>
                   Descripción / Orden del Día / Notas
                 </label>
                 <textarea
@@ -954,8 +1072,12 @@ export default function SuperAdminCalendarView({
                   value={formDescription}
                   onChange={e => setFormDescription(e.target.value)}
                   style={{
-                    width: '100%', padding: '10px 14px', background: '#181b2e', border: '1px solid rgba(255, 255, 255, 0.1)',
-                    borderRadius: '8px', color: '#FFF', fontSize: '12px', outline: 'none', resize: 'vertical'
+                    width: '100%', padding: '10px 14px',
+                    background: isLight ? '#F8FAFC' : '#181b2e',
+                    border: isLight ? '1px solid #CBD5E1' : '1px solid rgba(255, 255, 255, 0.1)',
+                    borderRadius: '8px',
+                    color: isLight ? '#0F172A' : '#FFF',
+                    fontSize: '12px', outline: 'none', resize: 'vertical'
                   }}
                 />
               </div>
@@ -964,7 +1086,7 @@ export default function SuperAdminCalendarView({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                    <label style={{ fontSize: '12px', fontWeight: 700, color: '#FFF' }}>Categoría / Tipo</label>
+                    <label style={{ fontSize: '12px', fontWeight: 700, color: isLight ? '#1E293B' : '#FFF' }}>Categoría / Tipo</label>
                     <button
                       type="button"
                       onClick={() => setShowNewCategoryInput(!showNewCategoryInput)}
@@ -977,8 +1099,12 @@ export default function SuperAdminCalendarView({
                     value={formCategory}
                     onChange={e => setFormCategory(e.target.value)}
                     style={{
-                      width: '100%', padding: '10px 12px', background: '#181b2e', border: '1px solid rgba(255, 255, 255, 0.1)',
-                      borderRadius: '8px', color: '#FFF', fontSize: '12px', outline: 'none'
+                      width: '100%', padding: '10px 12px',
+                      background: isLight ? '#F8FAFC' : '#181b2e',
+                      border: isLight ? '1px solid #CBD5E1' : '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '8px',
+                      color: isLight ? '#0F172A' : '#FFF',
+                      fontSize: '12px', outline: 'none'
                     }}
                   >
                     {categories.map(c => (
@@ -994,7 +1120,13 @@ export default function SuperAdminCalendarView({
                         placeholder="Nombre de nueva categoría..."
                         value={newCategoryName}
                         onChange={e => setNewCategoryName(e.target.value)}
-                        style={{ flex: 1, padding: '6px 8px', background: '#0e1122', border: '1px solid #10B981', borderRadius: '6px', color: '#FFF', fontSize: '11px', outline: 'none' }}
+                        style={{
+                          flex: 1, padding: '6px 8px',
+                          background: isLight ? '#FFFFFF' : '#0e1122',
+                          border: '1px solid #10B981', borderRadius: '6px',
+                          color: isLight ? '#0F172A' : '#FFF',
+                          fontSize: '11px', outline: 'none'
+                        }}
                       />
                       <button
                         type="button"
@@ -1009,15 +1141,19 @@ export default function SuperAdminCalendarView({
 
                 {/* Importance */}
                 <div>
-                  <label style={{ fontSize: '12px', fontWeight: 700, color: '#FFF', display: 'block', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '12px', fontWeight: 700, color: isLight ? '#1E293B' : '#FFF', display: 'block', marginBottom: '6px' }}>
                     Nivel de Importancia
                   </label>
                   <select
                     value={formImportance}
                     onChange={e => setFormImportance(e.target.value as any)}
                     style={{
-                      width: '100%', padding: '10px 12px', background: '#181b2e', border: '1px solid rgba(255, 255, 255, 0.1)',
-                      borderRadius: '8px', color: '#FFF', fontSize: '12px', outline: 'none'
+                      width: '100%', padding: '10px 12px',
+                      background: isLight ? '#F8FAFC' : '#181b2e',
+                      border: isLight ? '1px solid #CBD5E1' : '1px solid rgba(255, 255, 255, 0.1)',
+                      borderRadius: '8px',
+                      color: isLight ? '#0F172A' : '#FFF',
+                      fontSize: '12px', outline: 'none'
                     }}
                   >
                     <option value="baja">Baja (Normal)</option>
@@ -1030,7 +1166,7 @@ export default function SuperAdminCalendarView({
 
               {/* Color Selector */}
               <div>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: '#FFF', display: 'block', marginBottom: '6px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: isLight ? '#1E293B' : '#FFF', display: 'block', marginBottom: '6px' }}>
                   Color del Evento
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -1040,7 +1176,8 @@ export default function SuperAdminCalendarView({
                       onClick={() => setFormColor(c)}
                       style={{
                         width: '26px', height: '26px', borderRadius: '50%', background: c,
-                        cursor: 'pointer', border: formColor === c ? '2.5px solid #FFFFFF' : '1px solid rgba(255,255,255,0.2)',
+                        cursor: 'pointer',
+                        border: formColor === c ? (isLight ? '2.5px solid #0F172A' : '2.5px solid #FFFFFF') : (isLight ? '1px solid rgba(0,0,0,0.15)' : '1px solid rgba(255,255,255,0.2)'),
                         transform: formColor === c ? 'scale(1.15)' : 'scale(1)', transition: 'all 150ms'
                       }}
                     />
@@ -1056,24 +1193,42 @@ export default function SuperAdminCalendarView({
               </div>
 
               {/* Dates & Times */}
-              <div style={{ background: '#181b2e', padding: '12px', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{
+                background: isLight ? '#F8FAFC' : '#181b2e',
+                border: isLight ? '1px solid #E2E8F0' : 'none',
+                padding: '12px', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '10px'
+              }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <div>
-                    <label style={{ fontSize: '11px', color: '#8F94A5', display: 'block', marginBottom: '4px' }}>Fecha Inicio</label>
+                    <label style={{ fontSize: '11px', color: isLight ? '#475569' : '#8F94A5', display: 'block', marginBottom: '4px' }}>Fecha Inicio</label>
                     <input
                       type="date"
                       value={formStartDate}
                       onChange={e => setFormStartDate(e.target.value)}
-                      style={{ width: '100%', padding: '8px', background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#FFF', fontSize: '12px' }}
+                      style={{
+                        width: '100%', padding: '8px',
+                        background: isLight ? '#FFFFFF' : '#121527',
+                        border: isLight ? '1px solid #CBD5E1' : '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '6px',
+                        color: isLight ? '#0F172A' : '#FFF',
+                        fontSize: '12px'
+                      }}
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: '11px', color: '#8F94A5', display: 'block', marginBottom: '4px' }}>Fecha Fin</label>
+                    <label style={{ fontSize: '11px', color: isLight ? '#475569' : '#8F94A5', display: 'block', marginBottom: '4px' }}>Fecha Fin</label>
                     <input
                       type="date"
                       value={formEndDate}
                       onChange={e => setFormEndDate(e.target.value)}
-                      style={{ width: '100%', padding: '8px', background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#FFF', fontSize: '12px' }}
+                      style={{
+                        width: '100%', padding: '8px',
+                        background: isLight ? '#FFFFFF' : '#121527',
+                        border: isLight ? '1px solid #CBD5E1' : '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '6px',
+                        color: isLight ? '#0F172A' : '#FFF',
+                        fontSize: '12px'
+                      }}
                     />
                   </div>
                 </div>
@@ -1086,7 +1241,7 @@ export default function SuperAdminCalendarView({
                     onChange={e => setFormIsAllDay(e.target.checked)}
                     style={{ cursor: 'pointer' }}
                   />
-                  <label htmlFor="allDayCheck" style={{ fontSize: '12px', color: '#FFF', cursor: 'pointer' }}>
+                  <label htmlFor="allDayCheck" style={{ fontSize: '12px', color: isLight ? '#1E293B' : '#FFF', cursor: 'pointer' }}>
                     Todo el día
                   </label>
                 </div>
@@ -1094,21 +1249,35 @@ export default function SuperAdminCalendarView({
                 {!formIsAllDay && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                     <div>
-                      <label style={{ fontSize: '11px', color: '#8F94A5', display: 'block', marginBottom: '4px' }}>Hora Inicio</label>
+                      <label style={{ fontSize: '11px', color: isLight ? '#475569' : '#8F94A5', display: 'block', marginBottom: '4px' }}>Hora Inicio</label>
                       <input
                         type="time"
                         value={formStartTime}
                         onChange={e => setFormStartTime(e.target.value)}
-                        style={{ width: '100%', padding: '8px', background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#FFF', fontSize: '12px' }}
+                        style={{
+                          width: '100%', padding: '8px',
+                          background: isLight ? '#FFFFFF' : '#121527',
+                          border: isLight ? '1px solid #CBD5E1' : '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '6px',
+                          color: isLight ? '#0F172A' : '#FFF',
+                          fontSize: '12px'
+                        }}
                       />
                     </div>
                     <div>
-                      <label style={{ fontSize: '11px', color: '#8F94A5', display: 'block', marginBottom: '4px' }}>Hora Fin</label>
+                      <label style={{ fontSize: '11px', color: isLight ? '#475569' : '#8F94A5', display: 'block', marginBottom: '4px' }}>Hora Fin</label>
                       <input
                         type="time"
                         value={formEndTime}
                         onChange={e => setFormEndTime(e.target.value)}
-                        style={{ width: '100%', padding: '8px', background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#FFF', fontSize: '12px' }}
+                        style={{
+                          width: '100%', padding: '8px',
+                          background: isLight ? '#FFFFFF' : '#121527',
+                          border: isLight ? '1px solid #CBD5E1' : '1px solid rgba(255,255,255,0.1)',
+                          borderRadius: '6px',
+                          color: isLight ? '#0F172A' : '#FFF',
+                          fontSize: '12px'
+                        }}
                       />
                     </div>
                   </div>
@@ -1117,7 +1286,7 @@ export default function SuperAdminCalendarView({
 
               {/* Tag other Super Admins */}
               <div>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: '#FFF', display: 'block', marginBottom: '6px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: isLight ? '#1E293B' : '#FFF', display: 'block', marginBottom: '6px' }}>
                   Etiquetar a otro Super Administrador (recibirá notificación en su perfil)
                 </label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
@@ -1135,9 +1304,14 @@ export default function SuperAdminCalendarView({
                         }}
                         style={{
                           padding: '6px 12px', borderRadius: '8px', cursor: 'pointer',
-                          background: isTagged ? 'rgba(59, 130, 246, 0.25)' : '#181b2e',
-                          border: `1px solid ${isTagged ? '#3B82F6' : 'rgba(255, 255, 255, 0.1)'}`,
-                          color: isTagged ? '#60A5FA' : '#8F94A5', fontSize: '12px', fontWeight: 600,
+                          background: isTagged
+                            ? (isLight ? '#DBEAFE' : 'rgba(59, 130, 246, 0.25)')
+                            : (isLight ? '#F1F5F9' : '#181b2e'),
+                          border: `1px solid ${isTagged ? '#3B82F6' : (isLight ? '#CBD5E1' : 'rgba(255, 255, 255, 0.1)')}`,
+                          color: isTagged
+                            ? '#2563EB'
+                            : (isLight ? '#475569' : '#8F94A5'),
+                          fontSize: '12px', fontWeight: 600,
                           display: 'flex', alignItems: 'center', gap: '6px'
                         }}
                       >
@@ -1152,7 +1326,8 @@ export default function SuperAdminCalendarView({
 
               {/* Virtual Meeting Checkbox */}
               <div style={{
-                background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)',
+                background: isLight ? 'rgba(16, 185, 129, 0.08)' : 'rgba(16, 185, 129, 0.1)',
+                border: '1px solid rgba(16, 185, 129, 0.3)',
                 padding: '12px', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '10px'
               }}>
                 <input
@@ -1166,7 +1341,7 @@ export default function SuperAdminCalendarView({
                   <label htmlFor="virtualMeetingCheck" style={{ fontSize: '13px', fontWeight: 800, color: '#10B981', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Video size={14} /> Es una reunión virtual
                   </label>
-                  <div style={{ fontSize: '11px', color: '#8F94A5', marginTop: '2px' }}>
+                  <div style={{ fontSize: '11px', color: isLight ? '#475569' : '#8F94A5', marginTop: '2px' }}>
                     Al activar esta opción, el evento mostrará un botón para iniciar automáticamente la videollamada con transcripción en vivo.
                   </div>
                 </div>
@@ -1177,7 +1352,13 @@ export default function SuperAdminCalendarView({
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  style={{ padding: '10px 16px', borderRadius: '8px', background: 'rgba(255, 255, 255, 0.06)', border: 'none', color: '#8F94A5', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}
+                  style={{
+                    padding: '10px 16px', borderRadius: '8px',
+                    background: isLight ? '#E2E8F0' : 'rgba(255, 255, 255, 0.06)',
+                    border: 'none',
+                    color: isLight ? '#334155' : '#8F94A5',
+                    fontSize: '13px', fontWeight: 600, cursor: 'pointer'
+                  }}
                 >
                   Cancelar
                 </button>

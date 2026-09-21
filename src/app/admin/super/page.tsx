@@ -3718,7 +3718,16 @@ export default function SuperAdminDashboard() {
         .light-mode [style*="background:#1b1d2e"],
         .light-mode [style*="background: '#1b1d2e'"],
         .light-mode [style*="background: rgb(27, 29, 46)"],
-        .light-mode [style*="background:rgb(27, 29, 46)"] {
+        .light-mode [style*="background:rgb(27, 29, 46)"],
+        .light-mode [style*="background: #181b2e"],
+        .light-mode [style*="background:#181b2e"],
+        .light-mode [style*="background: rgb(24, 27, 46)"],
+        .light-mode [style*="background: #0e1122"],
+        .light-mode [style*="background:#0e1122"],
+        .light-mode [style*="background: #0a0d1a"],
+        .light-mode [style*="background:#0a0d1a"],
+        .light-mode [style*="background: #181c33"],
+        .light-mode [style*="background:#181c33"] {
           background: #f8fafc !important;
           border-color: rgba(0, 0, 0, 0.08) !important;
           color: #334155 !important;
@@ -4658,6 +4667,7 @@ export default function SuperAdminDashboard() {
         {tab === 'calendar' && (
           <SuperAdminCalendarView
             currentAdminName={adminIdentity || 'Alejandro'}
+            theme={theme}
             onStartVirtualMeeting={(target, title) => {
               setVideoCallInitialTarget(target)
               setVideoCallMeetingTitle(title || 'Reunión Virtual Super Admin')
