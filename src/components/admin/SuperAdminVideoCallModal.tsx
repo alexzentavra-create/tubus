@@ -3,10 +3,11 @@
 import { useState, useEffect, useRef } from 'react'
 import {
   Video, VideoOff, Mic, MicOff, PhoneOff, Phone, ScreenShare,
-  Maximize2, Minimize2, Copy, Check, FileText, MessageSquare,
-  Users, Sparkles, Volume2, ShieldCheck, Clock
+  Copy, Check, MessageSquare, Sparkles, Volume2, ShieldCheck,
+  AlertCircle, RefreshCw, Radio
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { pushGlobalKey } from '@/lib/sync'
 
 interface TranscriptEntry {
   id: string
@@ -42,17 +43,25 @@ export default function SuperAdminVideoCallModal({
     return 'Alejandro'
   })
 
-  // Call Lifecycle: 'select' | 'ringing' | 'connected' | 'ended'
-  const [callStatus, setCallStatus] = useState<'select' | 'ringing' | 'connected' | 'ended'>(
+  // Call Lifecycle: 'select' | 'ringing' | 'connected' | 'offline' | 'ended'
+  const [callStatus, setCallStatus] = useState<'select' | 'ringing' | 'connected' | 'offline' | 'ended'>(
     isIncoming ? 'connected' : initialTarget ? 'ringing' : 'select'
   )
 
-  // Media Controls
+  // Presence map of all active Super Admins
+  const [onlinePresence, setOnlinePresence] = useState<Record<string, number>>({})
+  const [ringingSecondsLeft, setRingingSecondsLeft] = useState(14)
+  const currentCallIdRef = useRef<string>(`call-${Date.now()}`)
+
+  // Media Controls & Permissions
+  const [hasMediaPermission, setHasMediaPermission] = useState(false)
+  const [mediaMode, setMediaMode] = useState<'video_and_audio' | 'audio_only' | 'none'>('none')
   const [isMicMuted, setIsMicMuted] = useState(false)
   const [isCamOff, setIsCamOff] = useState(false)
   const [isScreenSharing, setIsScreenSharing] = useState(false)
   const [cameraError, setCameraError] = useState<string | null>(null)
   const [callDuration, setCallDuration] = useState(0)
+  const [audioVolume, setAudioVolume] = useState(0)
 
   // Transcription
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([])
@@ -65,34 +74,51 @@ export default function SuperAdminVideoCallModal({
   const localStreamRef = useRef<MediaStream | null>(null)
   const recognitionRef = useRef<any>(null)
   const ringAudioCtxRef = useRef<AudioContext | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const animFrameRef = useRef<number | null>(null)
 
-  // Load super admins from storage
+  // Load super admins and active presence
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('bu_super_admins')
-      let admins: any[] = []
-      if (stored) admins = JSON.parse(stored)
+    const updateAdminsAndPresence = () => {
+      try {
+        const stored = localStorage.getItem('bu_super_admins')
+        let admins: any[] = []
+        if (stored) admins = JSON.parse(stored)
 
-      const defaults = [
-        { id: 'sa-1', name: 'Super Admin (Alejandro)', email: 'admin@admin.com', role: 'Super Admin Principal' },
-        { id: 'sa-2', name: 'Nestor Admin', email: 'nestoradmin@nestoradmin.com', role: 'Super Admin Completo' }
-      ]
+        const defaults = [
+          { id: 'sa-0', name: 'Super Admin', email: 'admin@admin.com', role: 'Super Admin Principal' },
+          { id: 'sa-1', name: 'Alejandro', email: 'alejandro.finochietti@yahoo.com.ar', role: 'Super Admin Principal' },
+          { id: 'sa-2', name: 'Nestor Admin', email: 'nestoradmin@nestoradmin.com', role: 'Super Admin Completo' }
+        ]
 
-      defaults.forEach(d => {
-        if (!admins.some(a => a.name?.toLowerCase().includes(d.name.toLowerCase()) || a.email === d.email)) {
-          admins.unshift(d)
-        }
-      })
-      setRegisteredAdmins(admins)
-    } catch (e) {
-      setRegisteredAdmins([
-        { id: 'sa-1', name: 'Alejandro', role: 'Super Admin Principal' },
-        { id: 'sa-2', name: 'Nestor', role: 'Super Admin Completo' }
-      ])
+        defaults.forEach(d => {
+          if (!admins.some(a => (a.email && a.email.toLowerCase() === d.email.toLowerCase()) || (a.name && a.name.toLowerCase() === d.name.toLowerCase()))) {
+            admins.unshift(d)
+          }
+        })
+        setRegisteredAdmins(admins)
+
+        // Read presence map
+        const presence = JSON.parse(localStorage.getItem('bu_super_admin_presence_map') || '{}')
+        setOnlinePresence(presence)
+      } catch (e) {
+        setRegisteredAdmins([
+          { id: 'sa-1', name: 'Alejandro', role: 'Super Admin Principal' },
+          { id: 'sa-2', name: 'Nestor Admin', role: 'Super Admin Completo' }
+        ])
+      }
+    }
+
+    updateAdminsAndPresence()
+    const pInterval = setInterval(updateAdminsAndPresence, 3000)
+    window.addEventListener('storage', updateAdminsAndPresence)
+    return () => {
+      clearInterval(pInterval)
+      window.removeEventListener('storage', updateAdminsAndPresence)
     }
   }, [])
 
-  // Call timer
+  // Call duration counter
   useEffect(() => {
     let interval: any = null
     if (callStatus === 'connected') {
@@ -105,7 +131,7 @@ export default function SuperAdminVideoCallModal({
     }
   }, [callStatus])
 
-  // Start Ringing sound generator (Web Audio API)
+  // Ringtone generator using Web Audio API
   const playRingtone = () => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
@@ -122,7 +148,7 @@ export default function SuperAdminVideoCallModal({
       gain.connect(ctx.destination)
       osc.start()
 
-      // Pulse ringtone
+      // Pulse ringtone pattern
       const interval = setInterval(() => {
         if (gain && ctx.state === 'running') {
           gain.gain.setValueAtTime(0.08, ctx.currentTime)
@@ -139,57 +165,174 @@ export default function SuperAdminVideoCallModal({
     } catch (e) {}
   }
 
-  // Handle Ringing Phase & Auto-Connect
+  // Ringing Phase Logic (Strict Real Response Checking)
   useEffect(() => {
     if (callStatus === 'ringing') {
       const stopTone = playRingtone()
+      const callId = `call-${Date.now()}`
+      currentCallIdRef.current = callId
+      setRingingSecondsLeft(14)
 
       // Publish outgoing call signal so the other admin sees incoming call
       const callSignal = {
+        id: callId,
         caller: activeCaller,
         target: targetAdmin,
         meetingTitle: meetingTitle || 'Videollamada Directa Super Admin',
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        status: 'ringing'
       }
       localStorage.setItem('bu_super_admin_incoming_call', JSON.stringify(callSignal))
+      pushGlobalKey('bu_super_admin_incoming_call', callSignal)
       window.dispatchEvent(new Event('super_admin_call_signaled'))
 
-      // Connect automatically after 3 seconds for smooth peer experience
-      const timer = setTimeout(() => {
-        if (stopTone) stopTone()
-        setCallStatus('connected')
-        toast.success(`Conectado con ${targetAdmin}`)
-      }, 3200)
+      // Listen for acceptance or rejection from the target Super Admin
+      const checkResponse = () => {
+        try {
+          const respRaw = localStorage.getItem('bu_super_admin_call_response')
+          if (respRaw) {
+            const resp = JSON.parse(respRaw)
+            if (resp && resp.callId === callId) {
+              if (resp.status === 'accepted') {
+                if (stopTone) stopTone()
+                setCallStatus('connected')
+                toast.success(`¡${targetAdmin} atendió la videollamada!`)
+                return true
+              } else if (resp.status === 'rejected') {
+                if (stopTone) stopTone()
+                setCallStatus('offline')
+                toast.error(`${targetAdmin} no puede atender en este momento.`)
+                return true
+              }
+            }
+          }
+        } catch (e) {}
+        return false
+      }
+
+      // Check every 1 second
+      const pollInterval = setInterval(() => {
+        const handled = checkResponse()
+        if (handled) {
+          clearInterval(pollInterval)
+          return
+        }
+
+        setRingingSecondsLeft(prev => {
+          if (prev <= 1) {
+            // Target did not answer or is not online!
+            clearInterval(pollInterval)
+            if (stopTone) stopTone()
+            setCallStatus('offline')
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+
+      const handleResponseEvent = () => checkResponse()
+      window.addEventListener('storage', handleResponseEvent)
+      window.addEventListener('super_admin_call_responded', handleResponseEvent)
 
       return () => {
-        clearTimeout(timer)
+        clearInterval(pollInterval)
         if (stopTone) stopTone()
+        window.removeEventListener('storage', handleResponseEvent)
+        window.removeEventListener('super_admin_call_responded', handleResponseEvent)
       }
     }
   }, [callStatus, targetAdmin])
 
-  // Camera & Microphone Stream Initialization
-  useEffect(() => {
-    if (callStatus === 'connected') {
-      const startMedia = async () => {
+  // Request Real Camera & Microphone with Graceful Fallback
+  const requestMediaAccess = async (forceAudioOnly = false) => {
+    setCameraError(null)
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Navegador incompatible con getUserMedia.')
+      }
+
+      let stream: MediaStream | null = null
+
+      if (!forceAudioOnly) {
         try {
-          if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            const stream = await navigator.mediaDevices.getUserMedia({
-              video: true,
-              audio: true
-            })
-            localStreamRef.current = stream
-            if (localVideoRef.current) {
-              localVideoRef.current.srcObject = stream
-            }
-          }
-        } catch (err: any) {
-          console.warn('Webcam/Mic permission or device error:', err)
-          setCameraError('Cámara/Micrófono no disponibles o permiso denegado. Modo interactivo simulado activo.')
+          // Attempt Video + Audio first
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { width: { ideal: 640 }, height: { ideal: 480 } },
+            audio: true
+          })
+          setMediaMode('video_and_audio')
+        } catch (camErr: any) {
+          console.warn('Camera failed or not present, falling back to audio only:', camErr)
         }
       }
-      startMedia()
+
+      // If video failed or audio only requested, attempt Audio Only
+      if (!stream) {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: false
+        })
+        setMediaMode('audio_only')
+      }
+
+      localStreamRef.current = stream
+      setHasMediaPermission(true)
+      setCameraError(null)
+
+      if (localVideoRef.current && stream.getVideoTracks().length > 0) {
+        localVideoRef.current.srcObject = stream
+      }
+
+      // Connect Audio Visualizer (Live VU Meter)
+      setupAudioVisualizer(stream)
+
+      // Start Real Speech-to-Text Transcription
       startLiveTranscription()
+      toast.success(stream.getVideoTracks().length > 0 ? '🎙️ Cámara y Micrófono conectados' : '🎙️ Micrófono conectado (Modo Audio)')
+    } catch (err: any) {
+      console.warn('Webcam/Mic permission error:', err)
+      setHasMediaPermission(false)
+      setMediaMode('none')
+      setCameraError('Permiso de micrófono/cámara denegado o no disponible en este dispositivo.')
+    }
+  }
+
+  // Audio Analyzer for Real Voice Level Indicator
+  const setupAudioVisualizer = (stream: MediaStream) => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext
+      if (!AudioCtx) return
+      const ctx = new AudioCtx()
+      audioContextRef.current = ctx
+
+      const source = ctx.createMediaStreamSource(stream)
+      const analyser = ctx.createAnalyser()
+      analyser.fftSize = 64
+      source.connect(analyser)
+
+      const bufferLength = analyser.frequencyBinCount
+      const dataArray = new Uint8Array(bufferLength)
+
+      const analyzeVolume = () => {
+        if (analyser && ctx.state === 'running') {
+          analyser.getByteFrequencyData(dataArray)
+          let sum = 0
+          for (let i = 0; i < bufferLength; i++) {
+            sum += dataArray[i]
+          }
+          const avg = sum / bufferLength
+          setAudioVolume(Math.min(100, Math.round((avg / 128) * 100)))
+        }
+        animFrameRef.current = requestAnimationFrame(analyzeVolume)
+      }
+      analyzeVolume()
+    } catch (e) {}
+  }
+
+  // Camera & Microphone Stream Initialization on Call Connection
+  useEffect(() => {
+    if (callStatus === 'connected') {
+      requestMediaAccess()
     }
 
     return () => {
@@ -199,6 +342,14 @@ export default function SuperAdminVideoCallModal({
   }, [callStatus])
 
   const stopMedia = () => {
+    if (animFrameRef.current) {
+      cancelAnimationFrame(animFrameRef.current)
+      animFrameRef.current = null
+    }
+    if (audioContextRef.current) {
+      try { audioContextRef.current.close() } catch (e) {}
+      audioContextRef.current = null
+    }
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => track.stop())
       localStreamRef.current = null
@@ -241,7 +392,6 @@ export default function SuperAdminVideoCallModal({
             localVideoRef.current.srcObject = screenStream
           }
           screenStream.getVideoTracks()[0].onended = () => {
-            // Restore camera
             if (localStreamRef.current && localVideoRef.current) {
               localVideoRef.current.srcObject = localStreamRef.current
             }
@@ -299,11 +449,10 @@ export default function SuperAdminVideoCallModal({
       }
 
       recognition.onerror = (e: any) => {
-        console.warn('Speech recognition error:', e)
+        console.warn('Speech recognition status/error:', e)
       }
 
       recognition.onend = () => {
-        // Auto-restart if still connected
         if (callStatus === 'connected' && recognitionRef.current) {
           try { recognition.start() } catch (err) {}
         }
@@ -383,6 +532,13 @@ export default function SuperAdminVideoCallModal({
     return `${String(mins).padStart(2, '0')}:${String(remSecs).padStart(2, '0')}`
   }
 
+  const isTargetAdminOnline = (adminName: string) => {
+    const now = Date.now()
+    return Object.entries(onlinePresence).some(([name, timestamp]) => {
+      return name.toLowerCase().includes(adminName.toLowerCase()) && (now - timestamp < 40000)
+    })
+  }
+
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 999999, background: 'rgba(6, 8, 16, 0.88)',
@@ -390,8 +546,8 @@ export default function SuperAdminVideoCallModal({
     }}>
       <div style={{
         background: '#0e1122', border: '1px solid rgba(16, 185, 129, 0.4)', borderRadius: '20px',
-        width: '100%', maxWidth: callStatus === 'connected' ? '1100px' : '520px',
-        maxHeight: '92vh', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        width: '100%', maxWidth: callStatus === 'connected' ? '1120px' : '520px',
+        maxHeight: '94vh', display: 'flex', flexDirection: 'column', overflow: 'hidden',
         boxShadow: '0 25px 60px rgba(0, 0, 0, 0.8), 0 0 30px rgba(16, 185, 129, 0.15)',
         transition: 'all 300ms ease'
       }}>
@@ -423,7 +579,7 @@ export default function SuperAdminVideoCallModal({
                 )}
               </div>
               <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#8f94a5' }}>
-                Canal encriptado de alta fidelidad exclusivo para Super Administradores
+                Canal exclusivo para Super Administradores con transcripción en vivo
               </p>
             </div>
           </div>
@@ -456,6 +612,8 @@ export default function SuperAdminVideoCallModal({
                 {registeredAdmins.map((admin: any) => {
                   const adminDisplayName = admin.name || admin.email
                   const isSelected = targetAdmin === adminDisplayName
+                  const isOnline = isTargetAdminOnline(adminDisplayName)
+
                   return (
                     <div
                       key={admin.id || admin.email}
@@ -469,14 +627,29 @@ export default function SuperAdminVideoCallModal({
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{
-                          width: '36px', height: '36px', borderRadius: '50%', background: '#3B82F6',
-                          color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '13px'
-                        }}>
-                          {adminDisplayName.slice(0, 2).toUpperCase()}
+                        <div style={{ position: 'relative' }}>
+                          <div style={{
+                            width: '38px', height: '38px', borderRadius: '50%', background: '#3B82F6',
+                            color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '13px'
+                          }}>
+                            {adminDisplayName.slice(0, 2).toUpperCase()}
+                          </div>
+                          <span style={{
+                            position: 'absolute', bottom: '0', right: '0', width: '10px', height: '10px', borderRadius: '50%',
+                            background: isOnline ? '#10B981' : '#64748b', border: '2px solid #0e1122'
+                          }} />
                         </div>
                         <div>
-                          <div style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF' }}>{adminDisplayName}</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '14px', fontWeight: 700, color: '#FFFFFF' }}>{adminDisplayName}</span>
+                            <span style={{
+                              fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '8px',
+                              background: isOnline ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255,255,255,0.05)',
+                              color: isOnline ? '#10B981' : '#8F94A5'
+                            }}>
+                              {isOnline ? '🟢 En Línea' : '⚪ Desconectado'}
+                            </span>
+                          </div>
                           <div style={{ fontSize: '11px', color: '#8F94A5' }}>{admin.role || 'Super Admin'}</div>
                         </div>
                       </div>
@@ -525,26 +698,31 @@ export default function SuperAdminVideoCallModal({
           </div>
         )}
 
-        {/* STEP 2: Ringing Phase */}
+        {/* STEP 2: Ringing Phase (Waits for Real Answer) */}
         {callStatus === 'ringing' && (
-          <div style={{ padding: '40px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px' }}>
+          <div style={{ padding: '44px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '22px' }}>
             <div style={{ position: 'relative' }}>
               <div style={{
-                width: '90px', height: '90px', borderRadius: '50%', background: '#10B981',
+                width: '94px', height: '94px', borderRadius: '50%', background: '#10B981',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: '32px', fontWeight: 900,
-                boxShadow: '0 0 35px rgba(16, 185, 129, 0.7)'
+                boxShadow: '0 0 40px rgba(16, 185, 129, 0.7)'
               }}>
                 {targetAdmin.slice(0, 2).toUpperCase()}
               </div>
               <span style={{
-                position: 'absolute', inset: '-10px', borderRadius: '50%', border: '2px solid rgba(16, 185, 129, 0.5)',
+                position: 'absolute', inset: '-12px', borderRadius: '50%', border: '2px solid rgba(16, 185, 129, 0.5)',
                 animation: 'pulse 1.5s infinite'
               }} />
             </div>
 
             <div style={{ textAlign: 'center' }}>
-              <h4 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#FFFFFF' }}>Llamando a {targetAdmin}...</h4>
-              <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#10B981', fontWeight: 600 }}>Esperando respuesta del Super Administrador</p>
+              <h4 style={{ margin: 0, fontSize: '19px', fontWeight: 800, color: '#FFFFFF' }}>Llamando a {targetAdmin}...</h4>
+              <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#10B981', fontWeight: 600 }}>
+                Esperando que el Super Administrador atienda ({ringingSecondsLeft}s)
+              </p>
+              <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#8F94A5' }}>
+                La llamada solo conectará cuando {targetAdmin} presione &quot;Atender&quot; desde su consola.
+              </p>
             </div>
 
             <button
@@ -555,7 +733,7 @@ export default function SuperAdminVideoCallModal({
               style={{
                 padding: '10px 24px', borderRadius: '10px', background: '#EF4444',
                 border: 'none', color: '#FFF', fontWeight: 700, fontSize: '13px', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: '6px'
+                display: 'flex', alignItems: 'center', gap: '8px'
               }}
             >
               <PhoneOff size={16} /> Cancelar Llamada
@@ -563,11 +741,94 @@ export default function SuperAdminVideoCallModal({
           </div>
         )}
 
-        {/* STEP 3: Connected Video Call & Live Transcription Grid */}
+        {/* STEP 2.5: Target is Offline or Did Not Answer */}
+        {callStatus === 'offline' && (
+          <div style={{ padding: '40px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '18px', textAlign: 'center' }}>
+            <div style={{
+              width: '74px', height: '74px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.12)',
+              border: '2px solid #EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EF4444'
+            }}>
+              <PhoneOff size={34} />
+            </div>
+
+            <div>
+              <h4 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#FFFFFF' }}>
+                {targetAdmin} no se encuentra en línea
+              </h4>
+              <p style={{ margin: '8px auto 0', fontSize: '13px', color: '#8F94A5', maxWidth: '380px', lineHeight: 1.5 }}>
+                El Super Administrador no ha iniciado sesión o no se encuentra activo para atender la llamada en este momento.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>
+              <button
+                onClick={() => setCallStatus('select')}
+                style={{
+                  padding: '10px 20px', borderRadius: '10px', background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.1)', color: '#FFF', fontWeight: 700, fontSize: '13px', cursor: 'pointer'
+                }}
+              >
+                Llamar a Otro Admin
+              </button>
+              <button
+                onClick={() => setCallStatus('ringing')}
+                style={{
+                  padding: '10px 20px', borderRadius: '10px', background: 'linear-gradient(135deg, #10B981, #059669)',
+                  border: 'none', color: '#FFF', fontWeight: 800, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
+                }}
+              >
+                <RefreshCw size={14} /> Reintentar
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: Connected Video Call & Live Transcription */}
         {callStatus === 'connected' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', flex: 1, minHeight: '520px', overflow: 'hidden' }}>
-            {/* Left: Video Tiles Area */}
-            <div style={{ display: 'flex', flexDirection: 'column', background: '#070913', padding: '16px', gap: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', flex: 1, minHeight: '540px', overflow: 'hidden' }}>
+            {/* Left: Video & Audio Area */}
+            <div style={{ display: 'flex', flexDirection: 'column', background: '#070913', padding: '16px', gap: '12px' }}>
+              
+              {/* Permissions Prompt Banner if needed */}
+              {!hasMediaPermission && (
+                <div style={{
+                  background: 'rgba(59, 130, 246, 0.15)', border: '1px solid #3B82F6', borderRadius: '12px',
+                  padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <AlertCircle size={20} color="#60A5FA" />
+                    <div>
+                      <div style={{ fontSize: '13px', fontWeight: 800, color: '#FFFFFF' }}>Habilitar Cámara y Micrófono</div>
+                      <div style={{ fontSize: '11px', color: '#93C5FD' }}>
+                        Permití el acceso para que el sistema escuche y transcriba la conversación en vivo.
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => requestMediaAccess()}
+                    style={{
+                      padding: '8px 14px', borderRadius: '8px', background: '#10B981', border: 'none',
+                      color: '#FFF', fontWeight: 800, fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
+                    }}
+                  >
+                    <Mic size={14} /> Conectar Audio / Video
+                  </button>
+                </div>
+              )}
+
+              {cameraError && (
+                <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '10px 14px', borderRadius: '10px', fontSize: '12px', color: '#FCA5A5', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>ℹ️ {cameraError}</span>
+                  <button
+                    onClick={() => requestMediaAccess(true)}
+                    style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#FFF', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    Reintentar solo Micrófono
+                  </button>
+                </div>
+              )}
+
+              {/* Video Tiles */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', flex: 1 }}>
                 {/* Remote Participant Tile */}
                 <div style={{
@@ -585,7 +846,7 @@ export default function SuperAdminVideoCallModal({
                   <div style={{ marginTop: '12px', textAlign: 'center' }}>
                     <div style={{ fontSize: '15px', fontWeight: 800, color: '#FFF' }}>{targetAdmin}</div>
                     <div style={{ fontSize: '11px', color: '#10B981', display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'center', marginTop: '4px' }}>
-                      <Volume2 size={12} /> Audio conectado • Transmitiendo
+                      <Volume2 size={12} /> Audio conectado • Participante Remoto
                     </div>
                   </div>
 
@@ -594,26 +855,16 @@ export default function SuperAdminVideoCallModal({
                     position: 'absolute', bottom: '12px', left: '12px', background: 'rgba(0,0,0,0.6)',
                     backdropFilter: 'blur(6px)', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', color: '#FFF', fontWeight: 600
                   }}>
-                    {targetAdmin} (Remoto)
+                    {targetAdmin}
                   </div>
                 </div>
 
-                {/* Local Camera Tile */}
+                {/* Local Camera / Audio Tile */}
                 <div style={{
                   background: '#15182a', borderRadius: '16px', border: '1px solid rgba(16, 185, 129, 0.3)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden'
                 }}>
-                  {isCamOff ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                      <div style={{
-                        width: '74px', height: '74px', borderRadius: '50%', background: '#10B981',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: '24px', fontWeight: 800
-                      }}>
-                        {activeCaller.slice(0, 2).toUpperCase()}
-                      </div>
-                      <span style={{ fontSize: '12px', color: '#8F94A5' }}>Cámara desactivada</span>
-                    </div>
-                  ) : (
+                  {mediaMode === 'video_and_audio' && !isCamOff ? (
                     <video
                       ref={localVideoRef}
                       autoPlay
@@ -621,6 +872,31 @@ export default function SuperAdminVideoCallModal({
                       muted
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                      <div style={{
+                        width: '76px', height: '76px', borderRadius: '50%', background: '#10B981',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#FFF', fontSize: '26px', fontWeight: 800,
+                        boxShadow: audioVolume > 15 ? `0 0 ${audioVolume / 2}px #10B981` : 'none',
+                        transition: 'box-shadow 100ms ease'
+                      }}>
+                        {activeCaller.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '12px', color: hasMediaPermission ? '#10B981' : '#8F94A5', fontWeight: 700 }}>
+                          {hasMediaPermission ? '🎙️ Micrófono Activo' : 'Cámara / Micrófono Desactivado'}
+                        </span>
+                      </div>
+                      {/* Audio Level Indicator */}
+                      {hasMediaPermission && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px' }}>
+                          <span style={{ fontSize: '10px', color: '#8F94A5' }}>Voz:</span>
+                          <div style={{ width: '60px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div style={{ width: `${audioVolume}%`, height: '100%', background: audioVolume > 60 ? '#EF4444' : '#10B981', transition: 'width 80ms ease' }} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
 
                   {/* Local Badge */}
@@ -632,12 +908,6 @@ export default function SuperAdminVideoCallModal({
                   </div>
                 </div>
               </div>
-
-              {cameraError && (
-                <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '8px 12px', borderRadius: '8px', fontSize: '11px', color: '#FCA5A5' }}>
-                  ℹ️ {cameraError}
-                </div>
-              )}
 
               {/* In-Call Controls Dock */}
               <div style={{
@@ -743,10 +1013,10 @@ export default function SuperAdminVideoCallModal({
               <div style={{ flex: 1, padding: '14px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {transcript.length === 0 && !interimText ? (
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: '#64748b' }}>
-                    <Mic size={28} style={{ color: '#10B981', marginBottom: '8px', opacity: 0.6 }} />
-                    <div style={{ fontSize: '12px', fontWeight: 600, color: '#8f94a5' }}>Escuchando conversación...</div>
-                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', maxWidth: '200px' }}>
-                      Las palabras pronunciadas por los Super Admins se transcribirán aquí automáticamente en tiempo real.
+                    <Mic size={28} style={{ color: '#10B981', marginBottom: '8px', opacity: 0.8 }} />
+                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#FFFFFF' }}>Escuchando conversación...</div>
+                    <div style={{ fontSize: '11px', color: '#8F94A5', marginTop: '4px', maxWidth: '240px', lineHeight: 1.4 }}>
+                      Hablá al micrófono y tus palabras aparecerán transcritas en tiempo real palabra por palabra.
                     </div>
                   </div>
                 ) : (
@@ -778,7 +1048,7 @@ export default function SuperAdminVideoCallModal({
               {/* Status footer */}
               <div style={{ padding: '10px 14px', background: '#080a14', borderTop: '1px solid rgba(255, 255, 255, 0.06)', fontSize: '10px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981' }} />
-                Transcripción activada en Español (Argentina / Internacional)
+                Motor de Transcripción Continuo en Español (es-AR)
               </div>
             </div>
           </div>

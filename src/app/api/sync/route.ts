@@ -79,7 +79,8 @@ const globalMemoryStore: Record<string, any> = {
   ],
   mock_users: [],
   bu_super_admins: [
-    { id: 'sa-1', name: 'Super Admin', email: 'admin@admin.com', password: 'Admin', role: 'Super Admin Principal', status: 'Activo' },
+    { id: 'sa-0', name: 'Super Admin', email: 'admin@admin.com', password: 'Admin', role: 'Super Admin Principal', status: 'Activo' },
+    { id: 'sa-1', name: 'Alejandro Finochietti', email: 'alejandro.finochietti@yahoo.com.ar', password: 'Admin', role: 'Super Admin Principal', status: 'Activo' },
     { id: 'sa-2', name: 'Nestor Admin', email: 'nestoradmin@nestoradmin.com', password: 'NestorAdmin123!', role: 'Super Admin Completo', status: 'Activo' }
   ],
   registered_line_admins: [],
@@ -94,7 +95,15 @@ const globalMemoryStore: Record<string, any> = {
   deleted_super_admins: [],
   deleted_line_admins: [],
   deleted_drivers: [],
-  deleted_ad_ids: ['ad-alex-1', 'Anuncio Publicitario Alex - 20% OFF']
+  deleted_ad_ids: ['ad-alex-1', 'Anuncio Publicitario Alex - 20% OFF'],
+  // Calendar & Collaboration
+  bu_super_admin_calendar_events: [],
+  bu_super_admin_calendar_categories: ['Reunión', 'Tarea', 'Evento', 'Inspección de Línea', 'Auditoría General', 'Mantenimiento Flota', 'Seguridad Vial'],
+  bu_super_admin_notifications: [],
+  registered_drivers: [],
+  bu_active_super_admins: {},
+  bu_super_admin_incoming_call: null,
+  bu_super_admin_call_response: null
 }
 
 // Simple in-memory IP rate limiting
@@ -114,27 +123,8 @@ function checkRateLimit(ip: string, limit = 120, windowMs = 60000): boolean {
   return true
 }
 
-// Deep sanitize to prevent exposing raw passwords over the public wire
+// Preserve authentic credentials so registered users and super admins can authenticate
 function sanitizeData(data: any): any {
-  if (!data) return data
-  if (Array.isArray(data)) {
-    return data.map(item => sanitizeData(item))
-  }
-  if (typeof data === 'object') {
-    const copy = { ...data }
-    if ('password' in copy && typeof copy.password === 'string') {
-      copy.password = '••••••••'
-    }
-    if ('tu_bus_profile_password' in copy) {
-      delete copy.tu_bus_profile_password
-    }
-    for (const key of Object.keys(copy)) {
-      if (typeof copy[key] === 'object' && copy[key] !== null) {
-        copy[key] = sanitizeData(copy[key])
-      }
-    }
-    return copy
-  }
   return data
 }
 

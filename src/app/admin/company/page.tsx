@@ -1562,6 +1562,7 @@ export default function CompanyDashboard() {
         regDrivers.push(regEntry)
       }
       localStorage.setItem('registered_drivers', JSON.stringify(regDrivers))
+      pushGlobalKey('registered_drivers', regDrivers).catch(() => {})
     } catch (e) {}
 
     // Register credentials in mock_users so the driver can log in from /login
@@ -1575,6 +1576,7 @@ export default function CompanyDashboard() {
         mockUsers.push(userEntry)
       }
       localStorage.setItem('mock_users', JSON.stringify(mockUsers))
+      pushGlobalKey('mock_users', mockUsers).catch(() => {})
     } catch (e) {
       console.error('Error saving driver credentials:', e)
     }

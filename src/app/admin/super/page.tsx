@@ -425,6 +425,7 @@ export default function SuperAdminDashboard() {
         })
         localStorage.setItem('bu_super_admin_presence_map', JSON.stringify(currentPresence))
         setOnlineAdminsMap({ ...currentPresence })
+        pushGlobalKey('bu_super_admin_presence_map', currentPresence).catch(() => {})
       } catch (e) {}
     }
 
@@ -755,11 +756,13 @@ export default function SuperAdminDashboard() {
     const updatedList = [...superAdminAccounts, newAdmin]
     setSuperAdminAccounts(updatedList)
     localStorage.setItem('bu_super_admins', JSON.stringify(updatedList))
+    pushGlobalKey('bu_super_admins', updatedList).catch(() => {})
 
     // Also add to registered users/mock users if not present so they can login
     const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
     mockUsers.push({ id: newAdmin.id, name: newAdmin.name, email: newAdmin.email, password: newAdmin.password, role: 'superadmin' })
     localStorage.setItem('mock_users', JSON.stringify(mockUsers))
+    pushGlobalKey('mock_users', mockUsers).catch(() => {})
 
     setNewSaName('')
     setNewSaEmail('')
@@ -787,6 +790,7 @@ export default function SuperAdminDashboard() {
 
     setSuperAdminAccounts(updatedList)
     localStorage.setItem('bu_super_admins', JSON.stringify(updatedList))
+    pushGlobalKey('bu_super_admins', updatedList).catch(() => {})
 
     // Sync active_user if current user is changing their own password
     const activeUser = JSON.parse(localStorage.getItem('active_user') || '{}')
@@ -803,6 +807,7 @@ export default function SuperAdminDashboard() {
       return u
     })
     localStorage.setItem('mock_super_users', JSON.stringify(updatedSuperUsers))
+    pushGlobalKey('mock_super_users', updatedSuperUsers).catch(() => {})
 
     toast.success(`¡Contraseña de ${editingPasswordAdmin.name} actualizada correctamente!`)
     setEditingPasswordAdmin(null)

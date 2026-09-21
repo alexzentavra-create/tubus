@@ -10,7 +10,7 @@ import {
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isToday } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
-import { pushGlobalKey } from '@/lib/sync'
+import { pushGlobalKey, syncAllGlobalKeys } from '@/lib/sync'
 
 export interface CalendarEvent {
   id: string
@@ -168,11 +168,22 @@ export default function SuperAdminCalendarView({
 
   useEffect(() => {
     loadData()
+    // Perform initial cloud sync
+    syncAllGlobalKeys(true).then(() => loadData()).catch(() => {})
+
+    // Periodic synchronization every 4s so events added by other Super Admins show live
+    const pollInterval = setInterval(() => {
+      syncAllGlobalKeys().then(() => loadData()).catch(() => {})
+    }, 4000)
+
     const handleUpdate = () => loadData()
     window.addEventListener('storage', handleUpdate)
+    window.addEventListener('global_sync_completed', handleUpdate)
     window.addEventListener('super_admin_calendar_updated', handleUpdate)
     return () => {
+      clearInterval(pollInterval)
       window.removeEventListener('storage', handleUpdate)
+      window.removeEventListener('global_sync_completed', handleUpdate)
       window.removeEventListener('super_admin_calendar_updated', handleUpdate)
     }
   }, [])
@@ -303,6 +314,7 @@ export default function SuperAdminCalendarView({
           }
         })
         localStorage.setItem('bu_super_admin_notifications', JSON.stringify(currentNotifs))
+        await pushGlobalKey('bu_super_admin_notifications', currentNotifs)
         window.dispatchEvent(new Event('super_admin_notifications_updated'))
       } catch (err) {}
     }

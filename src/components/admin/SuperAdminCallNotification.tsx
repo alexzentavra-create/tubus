@@ -3,7 +3,10 @@
 import { useState, useEffect } from 'react'
 import { Phone, PhoneOff, Video, Volume2 } from 'lucide-react'
 
+import { pushGlobalKey } from '@/lib/sync'
+
 interface IncomingCallData {
+  id?: string
   caller: string
   target: string
   meetingTitle?: string
@@ -26,10 +29,12 @@ export default function SuperAdminCallNotification({
       const stored = localStorage.getItem('bu_super_admin_incoming_call')
       if (stored) {
         const data: IncomingCallData = JSON.parse(stored)
-        // Check if caller is someone else and call was initiated within last 45 seconds
-        const isTargetMatch = !data.target || data.target.toLowerCase().includes(currentAdminName.toLowerCase()) || data.target === 'all'
-        const isNotSelf = data.caller.toLowerCase() !== currentAdminName.toLowerCase()
-        const isFresh = Date.now() - data.timestamp < 45000
+        // Strict matching: only show if target specifically matches this active super admin
+        const targetClean = (data.target || '').trim().toLowerCase()
+        const myNameClean = (currentAdminName || '').trim().toLowerCase()
+        const isTargetMatch = targetClean === 'all' || (targetClean && (targetClean.includes(myNameClean) || myNameClean.includes(targetClean)))
+        const isNotSelf = data.caller && !data.caller.toLowerCase().includes(myNameClean) && !myNameClean.includes(data.caller.toLowerCase())
+        const isFresh = Date.now() - data.timestamp < 35000
 
         if (isTargetMatch && isNotSelf && isFresh) {
           setIncomingCall(data)
@@ -59,15 +64,33 @@ export default function SuperAdminCallNotification({
 
   if (!incomingCall) return null
 
-  const handleReject = () => {
+  const handleReject = async () => {
+    if (incomingCall) {
+      const resp = {
+        callId: incomingCall.id || 'call-latest',
+        status: 'rejected',
+        responder: currentAdminName,
+        timestamp: Date.now()
+      }
+      localStorage.setItem('bu_super_admin_call_response', JSON.stringify(resp))
+      await pushGlobalKey('bu_super_admin_call_response', resp)
+    }
     localStorage.removeItem('bu_super_admin_incoming_call')
     window.dispatchEvent(new Event('super_admin_call_ended'))
     setIncomingCall(null)
   }
 
-  const handleAccept = () => {
+  const handleAccept = async () => {
     const caller = incomingCall.caller
     const title = incomingCall.meetingTitle
+    const resp = {
+      callId: incomingCall.id || 'call-latest',
+      status: 'accepted',
+      responder: currentAdminName,
+      timestamp: Date.now()
+    }
+    localStorage.setItem('bu_super_admin_call_response', JSON.stringify(resp))
+    await pushGlobalKey('bu_super_admin_call_response', resp)
     localStorage.removeItem('bu_super_admin_incoming_call')
     window.dispatchEvent(new Event('super_admin_call_ended'))
     setIncomingCall(null)

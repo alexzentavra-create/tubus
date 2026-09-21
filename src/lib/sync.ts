@@ -20,7 +20,14 @@ const SYNC_KEYS = [
   'deleted_super_admins',
   'deleted_line_admins',
   'deleted_drivers',
-  'deleted_ad_ids'
+  'deleted_ad_ids',
+  'bu_super_admin_calendar_events',
+  'bu_super_admin_calendar_categories',
+  'bu_super_admin_notifications',
+  'registered_drivers',
+  'bu_active_super_admins',
+  'bu_super_admin_incoming_call',
+  'bu_super_admin_call_response'
 ]
 
 let hasPushedInitialBatch = false
