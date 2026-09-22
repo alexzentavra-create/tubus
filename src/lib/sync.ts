@@ -21,6 +21,7 @@ const SYNC_KEYS = [
   'deleted_line_admins',
   'deleted_drivers',
   'deleted_ad_ids',
+  'deleted_calendar_event_ids',
   'bu_super_admin_calendar_events',
   'bu_super_admin_calendar_categories',
   'bu_super_admin_notifications',
@@ -79,11 +80,55 @@ export async function syncAllGlobalKeys(force = false): Promise<Record<string, a
     if (json.success && json.data) {
       const globalData = json.data
       Object.keys(globalData).forEach(key => {
-        const val = globalData[key]
-        if (val !== undefined && val !== null) {
-          const serialized = typeof val === 'string' ? val : JSON.stringify(val)
-          const current = localStorage.getItem(key)
-          if (current !== serialized) {
+        const serverVal = globalData[key]
+        if (serverVal !== undefined && serverVal !== null) {
+          const currentRaw = localStorage.getItem(key)
+          let finalVal = serverVal
+
+          // Non-destructive merge for arrays (calendar events, registered users, super admins, etc.)
+          if (Array.isArray(serverVal)) {
+            let localArr: any[] = []
+            if (currentRaw) {
+              try {
+                localArr = JSON.parse(currentRaw)
+              } catch (e) {}
+            }
+
+            if (Array.isArray(localArr) && localArr.length > 0) {
+              if (serverVal.length === 0) {
+                // Server restarted or empty: keep local and re-seed server in background
+                finalVal = localArr
+                pushGlobalKey(key, localArr).catch(() => {})
+              } else {
+                // Merge non-destructively by item id or email
+                const map = new Map<string, any>()
+                localArr.forEach(item => {
+                  const id = item?.id || item?.email || JSON.stringify(item)
+                  map.set(id, item)
+                })
+                serverVal.forEach(item => {
+                  const id = item?.id || item?.email || JSON.stringify(item)
+                  map.set(id, item)
+                })
+                finalVal = Array.from(map.values())
+              }
+            }
+          }
+
+          // Special check for bu_super_admin_calendar_events: filter out deleted ones
+          if (key === 'bu_super_admin_calendar_events' && Array.isArray(finalVal)) {
+            let deletedIds: string[] = []
+            const rawDel = localStorage.getItem('deleted_calendar_event_ids') || JSON.stringify(globalData['deleted_calendar_event_ids'] || [])
+            try {
+              deletedIds = JSON.parse(rawDel)
+            } catch (e) {}
+            if (Array.isArray(deletedIds) && deletedIds.length > 0) {
+              finalVal = finalVal.filter(ev => !deletedIds.includes(ev.id))
+            }
+          }
+
+          const serialized = typeof finalVal === 'string' ? finalVal : JSON.stringify(finalVal)
+          if (currentRaw !== serialized) {
             localStorage.setItem(key, serialized)
           }
         }

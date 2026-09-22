@@ -44,6 +44,60 @@ const COLOR_PRESETS = [
   '#06B6D4', '#EC4899', '#6366F1', '#14B8A6', '#F97316'
 ]
 
+const CANONICAL_PAST_EVENTS: CalendarEvent[] = [
+  {
+    id: 'cal-revicion-listas-1',
+    title: 'Revicion de las listas de gente para Ciberseguridad, Marketing y Abogados',
+    description: 'Revisión y coordinación de listas de postulantes y contactos para Ciberseguridad, Marketing y Abogados.',
+    category: 'Tarea',
+    color: '#F59E0B',
+    startDate: '2026-09-22',
+    endDate: '2026-09-22',
+    startTime: '10:00',
+    endTime: '12:00',
+    isAllDay: false,
+    importance: 'alta',
+    taggedAdmins: ['Alejandro', 'Nestor'],
+    isVirtualMeeting: true,
+    createdBy: 'Alejandro',
+    createdAt: '2026-09-21T18:00:00.000Z'
+  },
+  {
+    id: 'ev-1',
+    title: 'Reunión de Coordinación de Líneas de Colectivo',
+    description: 'Revisión de flota de Línea 12 y nuevas líneas creadas en el panel con todo el equipo de Super Administradores.',
+    category: 'Reunión',
+    color: '#3B82F6',
+    startDate: '2026-09-22',
+    endDate: '2026-09-22',
+    startTime: '10:30',
+    endTime: '11:30',
+    isAllDay: false,
+    importance: 'alta',
+    taggedAdmins: ['Nestor', 'Alejandro'],
+    isVirtualMeeting: true,
+    createdBy: 'Alejandro',
+    createdAt: '2026-09-21T18:00:00.000Z'
+  },
+  {
+    id: 'ev-2',
+    title: 'Inspección de GPS y Frecuencias Línea 12',
+    description: 'Verificación del funcionamiento del reporte de choferes y tracking en vivo.',
+    category: 'Inspección de Línea',
+    color: '#F59E0B',
+    startDate: '2026-09-22',
+    endDate: '2026-09-22',
+    startTime: '14:00',
+    endTime: '16:00',
+    isAllDay: false,
+    importance: 'media',
+    taggedAdmins: ['Nestor'],
+    isVirtualMeeting: false,
+    createdBy: 'Super Admin',
+    createdAt: '2026-09-21T18:00:00.000Z'
+  }
+]
+
 interface SuperAdminCalendarViewProps {
   currentAdminName: string
   onStartVirtualMeeting: (targetAdmin?: string, meetingTitle?: string) => void
@@ -120,50 +174,41 @@ export default function SuperAdminCalendarView({
 
       // 3. Load Events
       const storedEvents = localStorage.getItem('bu_super_admin_calendar_events')
-      if (storedEvents) {
-        setEvents(JSON.parse(storedEvents))
-      } else {
-        // Initial baseline events
-        const todayStr = format(new Date(), 'yyyy-MM-dd')
-        const initial: CalendarEvent[] = [
-          {
-            id: 'ev-1',
-            title: 'Reunión de Coordinación de Líneas de Colectivo',
-            description: 'Revisión de flota de Línea 12 y nuevas líneas creadas en el panel con todo el equipo de Super Administradores.',
-            category: 'Reunión',
-            color: '#3B82F6',
-            startDate: todayStr,
-            endDate: todayStr,
-            startTime: '10:30',
-            endTime: '11:30',
-            isAllDay: false,
-            importance: 'alta',
-            taggedAdmins: ['Nestor', 'Alejandro'],
-            isVirtualMeeting: true,
-            createdBy: 'Alejandro',
-            createdAt: new Date().toISOString()
-          },
-          {
-            id: 'ev-2',
-            title: 'Inspección de GPS y Frecuencias Línea 12',
-            description: 'Verificación del funcionamiento del reporte de choferes y tracking en vivo.',
-            category: 'Inspección de Línea',
-            color: '#F59E0B',
-            startDate: todayStr,
-            endDate: todayStr,
-            startTime: '14:00',
-            endTime: '16:00',
-            isAllDay: false,
-            importance: 'media',
-            taggedAdmins: ['Nestor'],
-            isVirtualMeeting: false,
-            createdBy: 'Super Admin',
-            createdAt: new Date().toISOString()
-          }
-        ]
-        setEvents(initial)
-        localStorage.setItem('bu_super_admin_calendar_events', JSON.stringify(initial))
+      const storedDeleted = localStorage.getItem('deleted_calendar_event_ids')
+      let deletedIds: string[] = []
+      if (storedDeleted) {
+        try {
+          deletedIds = JSON.parse(storedDeleted)
+        } catch (e) {}
       }
+
+      let loadedEvents: CalendarEvent[] = []
+      if (storedEvents) {
+        try {
+          loadedEvents = JSON.parse(storedEvents)
+        } catch (e) {
+          loadedEvents = []
+        }
+      }
+
+      // Filter out explicitly deleted events
+      loadedEvents = loadedEvents.filter(e => !deletedIds.includes(e.id))
+
+      // Check if canonical past events are present; if not and not explicitly deleted, bring them back!
+      let changed = false
+      CANONICAL_PAST_EVENTS.forEach(canon => {
+        if (!deletedIds.includes(canon.id) && !loadedEvents.some(e => e.id === canon.id || e.title === canon.title)) {
+          loadedEvents.push(canon)
+          changed = true
+        }
+      })
+
+      if (changed || !storedEvents) {
+        localStorage.setItem('bu_super_admin_calendar_events', JSON.stringify(loadedEvents))
+        pushGlobalKey('bu_super_admin_calendar_events', loadedEvents).catch(() => {})
+      }
+
+      setEvents(loadedEvents)
     } catch (e) {
       console.error(e)
     }
@@ -328,6 +373,20 @@ export default function SuperAdminCalendarView({
 
   // Delete Event
   const handleDeleteEvent = async (id: string) => {
+    // Record deletion so non-destructive sync does not resurrect it
+    const storedDeleted = localStorage.getItem('deleted_calendar_event_ids')
+    let delIds: string[] = []
+    if (storedDeleted) {
+      try {
+        delIds = JSON.parse(storedDeleted)
+      } catch (e) {}
+    }
+    if (!delIds.includes(id)) {
+      delIds.push(id)
+      localStorage.setItem('deleted_calendar_event_ids', JSON.stringify(delIds))
+      await pushGlobalKey('deleted_calendar_event_ids', delIds)
+    }
+
     const updated = events.filter(e => e.id !== id)
     setEvents(updated)
     localStorage.setItem('bu_super_admin_calendar_events', JSON.stringify(updated))
