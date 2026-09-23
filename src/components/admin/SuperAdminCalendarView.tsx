@@ -167,7 +167,12 @@ export default function SuperAdminCalendarView({
       // 2. Load Categories
       const storedCats = localStorage.getItem('bu_super_admin_calendar_categories')
       if (storedCats) {
-        setCategories(JSON.parse(storedCats))
+        try {
+          const parsedCats = JSON.parse(storedCats)
+          if (Array.isArray(parsedCats) && parsedCats.length > 0) {
+            setCategories(parsedCats)
+          }
+        } catch (e) {}
       } else {
         const defaultCatNames = DEFAULT_CATEGORIES.map(c => c.name)
         setCategories(defaultCatNames)
@@ -221,10 +226,10 @@ export default function SuperAdminCalendarView({
     // Perform initial cloud sync
     syncAllGlobalKeys(true).then(() => loadData()).catch(() => {})
 
-    // Periodic synchronization every 4s so events added by other Super Admins show live
+    // Periodic synchronization every 3s so events added by other Super Admins show live in real-time
     const pollInterval = setInterval(() => {
-      syncAllGlobalKeys().then(() => loadData()).catch(() => {})
-    }, 4000)
+      syncAllGlobalKeys(true).then(() => loadData()).catch(() => {})
+    }, 3000)
 
     const handleUpdate = () => loadData()
     window.addEventListener('storage', handleUpdate)
@@ -399,13 +404,15 @@ export default function SuperAdminCalendarView({
   }
 
   // Add Custom Category
-  const handleAddNewCategory = () => {
+  const handleAddNewCategory = async () => {
     if (!newCategoryName.trim()) return
     const trimmed = newCategoryName.trim()
     if (!categories.includes(trimmed)) {
       const updated = [...categories, trimmed]
       setCategories(updated)
       localStorage.setItem('bu_super_admin_calendar_categories', JSON.stringify(updated))
+      await pushGlobalKey('bu_super_admin_calendar_categories', updated)
+      window.dispatchEvent(new Event('super_admin_calendar_updated'))
       setFormCategory(trimmed)
       toast.success(`Categoría "${trimmed}" agregada`)
     }

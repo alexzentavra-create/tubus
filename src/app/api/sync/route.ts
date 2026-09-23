@@ -242,6 +242,22 @@ export async function POST(request: NextRequest) {
           const incomingEmails = val.map((a: any) => (a.email || '').toLowerCase().trim()).filter(Boolean)
           globalMemoryStore.deleted_super_admins = deletedAdmins.filter((d: string) => !incomingEmails.includes(d))
           globalMemoryStore.bu_super_admins = val.filter((a: any) => !globalMemoryStore.deleted_super_admins.includes((a.email || '').toLowerCase().trim()))
+        } else if (k === 'deleted_calendar_event_ids' && Array.isArray(val)) {
+          globalMemoryStore.deleted_calendar_event_ids = Array.from(new Set([...(globalMemoryStore.deleted_calendar_event_ids || []), ...val]))
+          if (Array.isArray(globalMemoryStore.bu_super_admin_calendar_events)) {
+            globalMemoryStore.bu_super_admin_calendar_events = globalMemoryStore.bu_super_admin_calendar_events.filter(
+              (ev: any) => !globalMemoryStore.deleted_calendar_event_ids.includes(ev.id)
+            )
+          }
+        } else if (k === 'bu_super_admin_calendar_events' && Array.isArray(val)) {
+          const deletedIds = globalMemoryStore.deleted_calendar_event_ids || []
+          const incomingIds = val.map((e: any) => e.id).filter(Boolean)
+          // If an incoming event was previously in deletedIds, allow re-creation
+          globalMemoryStore.deleted_calendar_event_ids = deletedIds.filter((id: string) => !incomingIds.includes(id))
+          globalMemoryStore.bu_super_admin_calendar_events = val.filter((e: any) => !globalMemoryStore.deleted_calendar_event_ids.includes(e.id))
+        } else if (k === 'bu_super_admin_calendar_categories' && Array.isArray(val)) {
+          const existing = Array.isArray(globalMemoryStore.bu_super_admin_calendar_categories) ? globalMemoryStore.bu_super_admin_calendar_categories : []
+          globalMemoryStore.bu_super_admin_calendar_categories = Array.from(new Set([...existing, ...val]))
         } else if (Array.isArray(val)) {
           const existing = Array.isArray(globalMemoryStore[k]) ? globalMemoryStore[k] : []
           // Smart merge for arrays of objects with id or email
@@ -291,6 +307,22 @@ export async function POST(request: NextRequest) {
       const incomingEmails = data.map((a: any) => (a.email || '').toLowerCase().trim()).filter(Boolean)
       globalMemoryStore.deleted_super_admins = deletedAdmins.filter((d: string) => !incomingEmails.includes(d))
       globalMemoryStore.bu_super_admins = data.filter((a: any) => !globalMemoryStore.deleted_super_admins.includes((a.email || '').toLowerCase().trim()))
+    } else if (key === 'deleted_calendar_event_ids' && Array.isArray(data)) {
+      globalMemoryStore.deleted_calendar_event_ids = Array.from(new Set([...(globalMemoryStore.deleted_calendar_event_ids || []), ...data]))
+      if (Array.isArray(globalMemoryStore.bu_super_admin_calendar_events)) {
+        globalMemoryStore.bu_super_admin_calendar_events = globalMemoryStore.bu_super_admin_calendar_events.filter(
+          (ev: any) => !globalMemoryStore.deleted_calendar_event_ids.includes(ev.id)
+        )
+      }
+    } else if (key === 'bu_super_admin_calendar_events' && Array.isArray(data)) {
+      const deletedIds = globalMemoryStore.deleted_calendar_event_ids || []
+      const incomingIds = data.map((e: any) => e.id).filter(Boolean)
+      // If an incoming event was previously in deletedIds, allow re-creation
+      globalMemoryStore.deleted_calendar_event_ids = deletedIds.filter((id: string) => !incomingIds.includes(id))
+      globalMemoryStore.bu_super_admin_calendar_events = data.filter((e: any) => !globalMemoryStore.deleted_calendar_event_ids.includes(e.id))
+    } else if (key === 'bu_super_admin_calendar_categories' && Array.isArray(data)) {
+      const existing = Array.isArray(globalMemoryStore.bu_super_admin_calendar_categories) ? globalMemoryStore.bu_super_admin_calendar_categories : []
+      globalMemoryStore.bu_super_admin_calendar_categories = Array.from(new Set([...existing, ...data]))
     } else if (Array.isArray(data)) {
       const existing = Array.isArray(globalMemoryStore[key]) ? globalMemoryStore[key] : []
       const map = new Map<string, any>()

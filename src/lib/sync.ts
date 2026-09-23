@@ -42,9 +42,9 @@ export async function syncAllGlobalKeys(force = false): Promise<Record<string, a
     return {}
   }
 
-  // 2. Throttle calls so multiple components don't spam the API simultaneously (min 15s between syncs unless forced)
+  // 2. Throttle calls so multiple components don't spam the API simultaneously (min 2.5s between syncs unless forced)
   const now = Date.now()
-  if (!force && now - lastSyncTimestamp < 15_000) {
+  if (!force && now - lastSyncTimestamp < 2_500) {
     return {}
   }
   lastSyncTimestamp = now
@@ -86,8 +86,8 @@ export async function syncAllGlobalKeys(force = false): Promise<Record<string, a
           let finalVal = serverVal
 
           // Non-destructive merge for arrays (calendar events, registered users, super admins, etc.)
+          let localArr: any[] = []
           if (Array.isArray(serverVal)) {
-            let localArr: any[] = []
             if (currentRaw) {
               try {
                 localArr = JSON.parse(currentRaw)
@@ -115,16 +115,43 @@ export async function syncAllGlobalKeys(force = false): Promise<Record<string, a
             }
           }
 
-          // Special check for bu_super_admin_calendar_events: filter out deleted ones
+          // Special check for bu_super_admin_calendar_events: filter out deleted ones and prioritize server events
           if (key === 'bu_super_admin_calendar_events' && Array.isArray(finalVal)) {
             let deletedIds: string[] = []
-            const rawDel = localStorage.getItem('deleted_calendar_event_ids') || JSON.stringify(globalData['deleted_calendar_event_ids'] || [])
             try {
-              deletedIds = JSON.parse(rawDel)
+              const localDel = JSON.parse(localStorage.getItem('deleted_calendar_event_ids') || '[]')
+              const serverDel = Array.isArray(globalData['deleted_calendar_event_ids']) ? globalData['deleted_calendar_event_ids'] : []
+              deletedIds = Array.from(new Set([...localDel, ...serverDel]))
             } catch (e) {}
-            if (Array.isArray(deletedIds) && deletedIds.length > 0) {
-              finalVal = finalVal.filter(ev => !deletedIds.includes(ev.id))
+
+            // When server has events, serverVal contains the latest updates from all super admins
+            if (Array.isArray(serverVal) && serverVal.length > 0) {
+              const map = new Map<string, any>()
+              // Server items (latest edits / additions from any super admin)
+              serverVal.forEach((item: any) => {
+                if (item?.id && !deletedIds.includes(item.id)) {
+                  map.set(item.id, item)
+                }
+              })
+              // Merge any local items that haven't reached server yet
+              localArr.forEach((item: any) => {
+                if (item?.id && !deletedIds.includes(item.id) && !map.has(item.id)) {
+                  map.set(item.id, item)
+                }
+              })
+              finalVal = Array.from(map.values())
             }
+
+            if (deletedIds.length > 0) {
+              finalVal = finalVal.filter((ev: any) => !deletedIds.includes(ev.id))
+            }
+          }
+
+          // Special check for bu_super_admin_calendar_categories: union merge across all super admins
+          if (key === 'bu_super_admin_calendar_categories' && Array.isArray(finalVal)) {
+            const serverCats = Array.isArray(serverVal) ? serverVal : []
+            const localCats = Array.isArray(localArr) ? localArr : []
+            finalVal = Array.from(new Set([...localCats, ...serverCats]))
           }
 
           // Special check for bu_super_admins: filter out deleted super admins
