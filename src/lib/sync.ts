@@ -127,6 +127,18 @@ export async function syncAllGlobalKeys(force = false): Promise<Record<string, a
             }
           }
 
+          // Special check for bu_super_admins: filter out deleted super admins
+          if (key === 'bu_super_admins' && Array.isArray(finalVal)) {
+            let deletedSuperAdmins: string[] = []
+            const rawDel = localStorage.getItem('deleted_super_admins') || JSON.stringify(globalData['deleted_super_admins'] || ['admin@admin.com'])
+            try {
+              deletedSuperAdmins = JSON.parse(rawDel).map((e: string) => String(e).toLowerCase().trim())
+            } catch (e) {}
+            if (Array.isArray(deletedSuperAdmins) && deletedSuperAdmins.length > 0) {
+              finalVal = finalVal.filter(sa => !deletedSuperAdmins.includes((sa.email || '').toLowerCase().trim()))
+            }
+          }
+
           const serialized = typeof finalVal === 'string' ? finalVal : JSON.stringify(finalVal)
           if (currentRaw !== serialized) {
             localStorage.setItem(key, serialized)

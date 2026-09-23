@@ -152,10 +152,12 @@ export default function SuperAdminCalendarView({
     try {
       // 1. Load Admins
       const storedAdmins = localStorage.getItem('bu_super_admins')
+      const deletedSuperAdmins = JSON.parse(localStorage.getItem('deleted_super_admins') || '["admin@admin.com"]').map((e: string) => e.toLowerCase().trim())
       let adminNames = ['Alejandro', 'Nestor']
       if (storedAdmins) {
         const parsed = JSON.parse(storedAdmins)
         parsed.forEach((a: any) => {
+          if (a.email && deletedSuperAdmins.includes(a.email.toLowerCase().trim())) return
           const n = a.name || a.email
           if (!adminNames.includes(n)) adminNames.push(n)
         })

@@ -82,20 +82,22 @@ export default function SuperAdminVideoCallModal({
     const updateAdminsAndPresence = () => {
       try {
         const stored = localStorage.getItem('bu_super_admins')
+        const deletedSuperAdmins = JSON.parse(localStorage.getItem('deleted_super_admins') || '["admin@admin.com"]').map((e: string) => e.toLowerCase().trim())
         let admins: any[] = []
         if (stored) admins = JSON.parse(stored)
 
         const defaults = [
-          { id: 'sa-0', name: 'Super Admin', email: 'admin@admin.com', role: 'Super Admin Principal' },
           { id: 'sa-1', name: 'Alejandro', email: 'alejandro.finochietti@yahoo.com.ar', role: 'Super Admin Principal' },
           { id: 'sa-2', name: 'Nestor Admin', email: 'nestoradmin@nestoradmin.com', role: 'Super Admin Completo' }
         ]
 
         defaults.forEach(d => {
+          if (deletedSuperAdmins.includes(d.email.toLowerCase())) return
           if (!admins.some(a => (a.email && a.email.toLowerCase() === d.email.toLowerCase()) || (a.name && a.name.toLowerCase() === d.name.toLowerCase()))) {
             admins.unshift(d)
           }
         })
+        admins = admins.filter(a => !deletedSuperAdmins.includes((a.email || '').toLowerCase().trim()))
         setRegisteredAdmins(admins)
 
         // Read presence map

@@ -406,7 +406,7 @@ export default function LoginPage() {
       }
 
       // Check if Super Admin was deleted
-      const deletedSuperAdmins = JSON.parse(localStorage.getItem('deleted_super_admins') || '[]').map((e: string) => e.toLowerCase())
+      const deletedSuperAdmins = JSON.parse(localStorage.getItem('deleted_super_admins') || '["admin@admin.com"]').map((e: string) => e.toLowerCase().trim())
       if (deletedSuperAdmins.includes(lowerEmail)) {
         toast.error('⚠️ Acceso denegado: Esta cuenta de Super Administrador ha sido eliminada por la administración.')
         setLoading(false)
@@ -421,13 +421,20 @@ export default function LoginPage() {
         } catch (e) {}
 
         const defaultSuperAdmins = [
-          { id: 'sa-0', name: 'Super Admin', email: 'admin@admin.com', password: 'Admin', role: 'Super Admin Principal', status: 'Activo' },
           { id: 'sa-1', name: 'Alejandro', email: 'alejandro.finochietti@yahoo.com.ar', password: 'Admin', role: 'Super Admin Principal', status: 'Activo' },
           { id: 'sa-2', name: 'Nestor Admin', email: 'nestoradmin@nestoradmin.com', password: 'NestorAdmin123!', role: 'Super Admin Completo', status: 'Activo' }
         ]
 
         let superAdminsUpdated = false
+        // Filter out any deleted super admins from stored list
+        const preFiltered = registeredSuperAdmins.filter((sa: any) => !deletedSuperAdmins.includes((sa.email || '').toLowerCase().trim()))
+        if (preFiltered.length !== registeredSuperAdmins.length) {
+          registeredSuperAdmins = preFiltered
+          superAdminsUpdated = true
+        }
+
         defaultSuperAdmins.forEach(dsa => {
+          if (deletedSuperAdmins.includes(dsa.email.toLowerCase())) return
           const existing = registeredSuperAdmins.find((sa: any) => sa.email?.toLowerCase() === dsa.email.toLowerCase())
           if (!existing) {
             registeredSuperAdmins.unshift(dsa)
@@ -463,13 +470,7 @@ export default function LoginPage() {
           let expectedSaPass = (matchedSuperAdmin.password || 'Admin').trim()
           // Strict canonical passwords for primary super admins:
           if (lowerEmail === 'admin@admin.com') {
-            expectedSaPass = 'Admin'
-            if (matchedSuperAdmin.password !== 'Admin') {
-              matchedSuperAdmin.password = 'Admin'
-              try {
-                localStorage.setItem('bu_super_admins', JSON.stringify(registeredSuperAdmins))
-              } catch (e) {}
-            }
+            expectedSaPass = (matchedSuperAdmin.password || 'Admin').trim()
           } else if (lowerEmail === 'alejandro.finochietti@yahoo.com.ar') {
             expectedSaPass = 'Admin'
             // If Alejandro inputs 'Afodes18', allow him to login as passenger user directly:

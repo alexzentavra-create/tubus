@@ -79,7 +79,6 @@ const globalMemoryStore: Record<string, any> = {
   ],
   mock_users: [],
   bu_super_admins: [
-    { id: 'sa-0', name: 'Super Admin', email: 'admin@admin.com', password: 'Admin', role: 'Super Admin Principal', status: 'Activo' },
     { id: 'sa-1', name: 'Alejandro Finochietti', email: 'alejandro.finochietti@yahoo.com.ar', password: 'Admin', role: 'Super Admin Principal', status: 'Activo' },
     { id: 'sa-2', name: 'Nestor Admin', email: 'nestoradmin@nestoradmin.com', password: 'NestorAdmin123!', role: 'Super Admin Completo', status: 'Activo' }
   ],
@@ -92,7 +91,7 @@ const globalMemoryStore: Record<string, any> = {
   deleted_users: [],
   blocked_users: [],
   banned_users: [],
-  deleted_super_admins: [],
+  deleted_super_admins: ['admin@admin.com'],
   deleted_line_admins: [],
   deleted_drivers: [],
   deleted_ad_ids: ['ad-alex-1', 'Anuncio Publicitario Alex - 20% OFF'],
@@ -225,7 +224,25 @@ export async function POST(request: NextRequest) {
       // Process multiple keys in a single sync call
       Object.keys(batch).forEach(k => {
         const val = batch[k]
-        if (Array.isArray(val)) {
+        if (k === 'deleted_super_admins' && Array.isArray(val)) {
+          globalMemoryStore.deleted_super_admins = Array.from(new Set([...(globalMemoryStore.deleted_super_admins || []), ...val.map(e => String(e).toLowerCase().trim())]))
+          if (Array.isArray(globalMemoryStore.bu_super_admins)) {
+            globalMemoryStore.bu_super_admins = globalMemoryStore.bu_super_admins.filter(
+              (a: any) => !globalMemoryStore.deleted_super_admins.includes((a.email || '').toLowerCase().trim())
+            )
+          }
+          if (Array.isArray(globalMemoryStore.mock_users)) {
+            globalMemoryStore.mock_users = globalMemoryStore.mock_users.filter(
+              (u: any) => !globalMemoryStore.deleted_super_admins.includes((u.email || '').toLowerCase().trim())
+            )
+          }
+        } else if (k === 'bu_super_admins' && Array.isArray(val)) {
+          const deletedAdmins = (globalMemoryStore.deleted_super_admins || []).map((e: string) => e.toLowerCase().trim())
+          // Allow re-registering: if val contains an email that was deleted, un-delete it
+          const incomingEmails = val.map((a: any) => (a.email || '').toLowerCase().trim()).filter(Boolean)
+          globalMemoryStore.deleted_super_admins = deletedAdmins.filter((d: string) => !incomingEmails.includes(d))
+          globalMemoryStore.bu_super_admins = val.filter((a: any) => !globalMemoryStore.deleted_super_admins.includes((a.email || '').toLowerCase().trim()))
+        } else if (Array.isArray(val)) {
           const existing = Array.isArray(globalMemoryStore[k]) ? globalMemoryStore[k] : []
           // Smart merge for arrays of objects with id or email
           const map = new Map<string, any>()
@@ -256,7 +273,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Key is required' }, { status: 400 })
     }
 
-    if (Array.isArray(data)) {
+    if (key === 'deleted_super_admins' && Array.isArray(data)) {
+      globalMemoryStore.deleted_super_admins = Array.from(new Set([...(globalMemoryStore.deleted_super_admins || []), ...data.map(e => String(e).toLowerCase().trim())]))
+      if (Array.isArray(globalMemoryStore.bu_super_admins)) {
+        globalMemoryStore.bu_super_admins = globalMemoryStore.bu_super_admins.filter(
+          (a: any) => !globalMemoryStore.deleted_super_admins.includes((a.email || '').toLowerCase().trim())
+        )
+      }
+      if (Array.isArray(globalMemoryStore.mock_users)) {
+        globalMemoryStore.mock_users = globalMemoryStore.mock_users.filter(
+          (u: any) => !globalMemoryStore.deleted_super_admins.includes((u.email || '').toLowerCase().trim())
+        )
+      }
+    } else if (key === 'bu_super_admins' && Array.isArray(data)) {
+      const deletedAdmins = (globalMemoryStore.deleted_super_admins || []).map((e: string) => e.toLowerCase().trim())
+      // Allow re-registering: if data contains an email that was deleted, un-delete it
+      const incomingEmails = data.map((a: any) => (a.email || '').toLowerCase().trim()).filter(Boolean)
+      globalMemoryStore.deleted_super_admins = deletedAdmins.filter((d: string) => !incomingEmails.includes(d))
+      globalMemoryStore.bu_super_admins = data.filter((a: any) => !globalMemoryStore.deleted_super_admins.includes((a.email || '').toLowerCase().trim()))
+    } else if (Array.isArray(data)) {
       const existing = Array.isArray(globalMemoryStore[key]) ? globalMemoryStore[key] : []
       const map = new Map<string, any>()
       existing.forEach((item: any) => {

@@ -593,18 +593,21 @@ export default function SuperAdminDashboard() {
   // Super Admin Accounts Management State
   const [superAdminAccounts, setSuperAdminAccounts] = useState<any[]>(() => {
     const defaultAdmins = [
-      { id: 'sa-0', name: 'Super Admin', email: 'admin@admin.com', password: 'Admin', role: 'Super Admin Principal', avatar: 'SA', status: 'Activo', lastLogin: 'Hoy 09:00 hs' },
       { id: 'sa-1', name: 'Alejandro', email: 'alejandro.finochietti@yahoo.com.ar', password: 'Admin', role: 'Super Admin Principal', avatar: 'A', status: 'Activo', lastLogin: 'Hoy 09:30 hs' },
       { id: 'sa-2', name: 'Nestor', email: 'nestoradmin@nestoradmin.com', password: 'NestorAdmin123!', role: 'Super Admin Completo', avatar: 'N', status: 'Activo', lastLogin: 'Hoy 10:00 hs' }
     ]
     if (typeof window === 'undefined') return defaultAdmins
     try {
+      const deletedList: string[] = JSON.parse(localStorage.getItem('deleted_super_admins') || '["admin@admin.com"]').map((e: string) => e.toLowerCase().trim())
       const stored = localStorage.getItem('bu_super_admins')
       if (stored) {
-        const parsed = JSON.parse(stored)
+        let parsed = JSON.parse(stored)
         if (Array.isArray(parsed) && parsed.length > 0) {
+          // Filter out deleted super admins immediately
+          parsed = parsed.filter((a: any) => a && a.email && !deletedList.includes(a.email.toLowerCase().trim()))
           let updated = false
           defaultAdmins.forEach(dsa => {
+            if (deletedList.includes(dsa.email.toLowerCase())) return
             const existing = parsed.find((a: any) => a.email?.toLowerCase() === dsa.email.toLowerCase())
             if (!existing) {
               parsed.unshift(dsa)
@@ -620,16 +623,41 @@ export default function SuperAdminDashboard() {
               }
             }
           })
-          if (updated) {
-            localStorage.setItem('bu_super_admins', JSON.stringify(parsed))
-          }
+          localStorage.setItem('bu_super_admins', JSON.stringify(parsed))
           return parsed
         }
       }
       localStorage.setItem('bu_super_admins', JSON.stringify(defaultAdmins))
+      return defaultAdmins
     } catch (e) {}
     return defaultAdmins
   })
+
+  // Synchronize superAdminAccounts when storage or global sync updates
+  useEffect(() => {
+    const syncLocalSuperAdmins = () => {
+      try {
+        const deletedList: string[] = JSON.parse(localStorage.getItem('deleted_super_admins') || '["admin@admin.com"]').map((e: string) => e.toLowerCase().trim())
+        const stored = localStorage.getItem('bu_super_admins')
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          if (Array.isArray(parsed)) {
+            const filtered = parsed.filter((a: any) => a && a.email && !deletedList.includes(a.email.toLowerCase().trim()))
+            setSuperAdminAccounts(filtered)
+          }
+        }
+      } catch (e) {}
+    }
+
+    window.addEventListener('storage', syncLocalSuperAdmins)
+    window.addEventListener('global_sync_completed', syncLocalSuperAdmins)
+    window.addEventListener('super_admin_accounts_updated', syncLocalSuperAdmins)
+    return () => {
+      window.removeEventListener('storage', syncLocalSuperAdmins)
+      window.removeEventListener('global_sync_completed', syncLocalSuperAdmins)
+      window.removeEventListener('super_admin_accounts_updated', syncLocalSuperAdmins)
+    }
+  }, [])
 
   // Global Platform Settings State
   const [superAdminSettings, setSuperAdminSettings] = useState(() => {
@@ -690,37 +718,60 @@ export default function SuperAdminDashboard() {
     localStorage.setItem('bu_super_admins', JSON.stringify(updated))
   }
 
-  const handleConfirmDeleteSuperAdmin = () => {
+  const handleConfirmDeleteSuperAdmin = async () => {
     if (!deletingSuperAdmin) return
 
-    const emailLower = deletingSuperAdmin.email.toLowerCase()
+    const emailLower = deletingSuperAdmin.email.toLowerCase().trim()
 
     // 1. Remove from superAdminAccounts
-    const updated = superAdminAccounts.filter((a: any) => a.id !== deletingSuperAdmin.id && a.email.toLowerCase() !== emailLower)
+    const updated = superAdminAccounts.filter((a: any) => a.id !== deletingSuperAdmin.id && a.email?.toLowerCase().trim() !== emailLower)
     setSuperAdminAccounts(updated)
     localStorage.setItem('bu_super_admins', JSON.stringify(updated))
 
     // 2. Add to deleted_super_admins
-    const deletedList = JSON.parse(localStorage.getItem('deleted_super_admins') || '[]')
-    if (!deletedList.includes(emailLower)) {
+    const deletedList: string[] = JSON.parse(localStorage.getItem('deleted_super_admins') || '[]')
+    if (!deletedList.some(e => e.toLowerCase() === emailLower)) {
       deletedList.push(emailLower)
-      localStorage.setItem('deleted_super_admins', JSON.stringify(deletedList))
     }
+    localStorage.setItem('deleted_super_admins', JSON.stringify(deletedList))
 
     // 3. Remove from mock_users and mock_super_users
     const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
-    const filteredMockUsers = mockUsers.filter((u: any) => u.email.toLowerCase() !== emailLower)
+    const filteredMockUsers = mockUsers.filter((u: any) => u.email?.toLowerCase().trim() !== emailLower)
     localStorage.setItem('mock_users', JSON.stringify(filteredMockUsers))
 
     const mockSuper = JSON.parse(localStorage.getItem('mock_super_users') || '[]')
-    const filteredMockSuper = mockSuper.filter((u: any) => u.email.toLowerCase() !== emailLower)
+    const filteredMockSuper = mockSuper.filter((u: any) => u.email?.toLowerCase().trim() !== emailLower)
     localStorage.setItem('mock_super_users', JSON.stringify(filteredMockSuper))
 
-    toast.success(`Super Administrador ${deletingSuperAdmin.name} eliminado permanentemente del sistema.`)
+    // 4. Remove from active presence maps
+    let activeSuperAdmins: Record<string, any> = {}
+    try {
+      activeSuperAdmins = JSON.parse(localStorage.getItem('bu_active_super_admins') || '{}')
+      delete activeSuperAdmins[emailLower]
+      delete activeSuperAdmins[deletingSuperAdmin.name]
+      localStorage.setItem('bu_active_super_admins', JSON.stringify(activeSuperAdmins))
 
-    // 4. If current logged in user is the deleted user, log them out immediately
+      const presenceMap = JSON.parse(localStorage.getItem('bu_super_admin_presence_map') || '{}')
+      delete presenceMap[emailLower]
+      delete presenceMap[deletingSuperAdmin.name]
+      localStorage.setItem('bu_super_admin_presence_map', JSON.stringify(presenceMap))
+    } catch (e) {}
+
+    // 5. PUSH PERMANENTLY TO BACKEND
+    await pushGlobalKey('deleted_super_admins', deletedList)
+    await pushGlobalKey('bu_super_admins', updated)
+    await pushGlobalKey('mock_users', filteredMockUsers)
+    await pushGlobalKey('bu_active_super_admins', activeSuperAdmins)
+
+    window.dispatchEvent(new Event('storage'))
+    window.dispatchEvent(new Event('super_admin_accounts_updated'))
+
+    toast.success(`Super Administrador ${deletingSuperAdmin.name} (${emailLower}) eliminado permanentemente del sistema.`)
+
+    // 6. If current logged in user is the deleted user, log them out immediately
     const activeUser = JSON.parse(localStorage.getItem('active_user') || '{}')
-    if (activeUser.email && activeUser.email.toLowerCase() === emailLower) {
+    if (activeUser.email && activeUser.email.toLowerCase().trim() === emailLower) {
       localStorage.removeItem('active_user')
       window.location.href = '/login'
     }
@@ -728,7 +779,7 @@ export default function SuperAdminDashboard() {
     setDeletingSuperAdmin(null)
   }
 
-  const handleAddSuperAdmin = (e: React.FormEvent) => {
+  const handleAddSuperAdmin = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newSaName.trim() || !newSaEmail.trim() || !newSaPassword.trim()) {
       toast.error('Completá todos los campos requeridos.')
@@ -740,6 +791,12 @@ export default function SuperAdminDashboard() {
       toast.error('Ya existe un Super Admin registrado con ese correo.')
       return
     }
+
+    // Un-delete if this email was previously deleted, so it acts like a clean, fresh registration
+    const deletedList: string[] = JSON.parse(localStorage.getItem('deleted_super_admins') || '[]')
+    const updatedDeleted = deletedList.filter(e => e.toLowerCase() !== emailClean)
+    localStorage.setItem('deleted_super_admins', JSON.stringify(updatedDeleted))
+    await pushGlobalKey('deleted_super_admins', updatedDeleted)
 
     const initials = newSaName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
     const newAdmin = {
@@ -756,13 +813,16 @@ export default function SuperAdminDashboard() {
     const updatedList = [...superAdminAccounts, newAdmin]
     setSuperAdminAccounts(updatedList)
     localStorage.setItem('bu_super_admins', JSON.stringify(updatedList))
-    pushGlobalKey('bu_super_admins', updatedList).catch(() => {})
+    await pushGlobalKey('bu_super_admins', updatedList)
 
     // Also add to registered users/mock users if not present so they can login
     const mockUsers = JSON.parse(localStorage.getItem('mock_users') || '[]')
     mockUsers.push({ id: newAdmin.id, name: newAdmin.name, email: newAdmin.email, password: newAdmin.password, role: 'superadmin' })
     localStorage.setItem('mock_users', JSON.stringify(mockUsers))
-    pushGlobalKey('mock_users', mockUsers).catch(() => {})
+    await pushGlobalKey('mock_users', mockUsers)
+
+    window.dispatchEvent(new Event('storage'))
+    window.dispatchEvent(new Event('super_admin_accounts_updated'))
 
     setNewSaName('')
     setNewSaEmail('')
