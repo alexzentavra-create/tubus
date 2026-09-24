@@ -5,7 +5,10 @@ export async function POST(request: NextRequest) {
     const { password } = await request.json()
     const expectedPassword = process.env.SITE_ACCESS_PASSWORD || 'bienparada2026'
 
-    if (password === expectedPassword) {
+    const cleanInput = (password || '').trim().toLowerCase()
+    const cleanExpected = expectedPassword.trim().toLowerCase()
+
+    if (cleanInput === cleanExpected) {
       const response = NextResponse.json({ success: true })
       // Set secure cookie for 30 days
       response.cookies.set('bp_access', 'granted_2026', {
