@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { getStoredGeneralTerms, getStoredAdsTerms, getStoredGeneralVersion, getStoredAdsVersion, saveStoredGeneralTerms, saveStoredAdsTerms, getStoredTermsHistory, deleteTermsHistoryEntry, TermsHistoryEntry } from '@/lib/termsData'
+import { getAccessCodesInfo } from '@/lib/dailyAccessCode'
 import { QRCodeDisplay } from '@/components/common/QRCodeDisplay'
 import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre'
 import { MOCK_LINES, MOCK_PLACES, getMockStopsForLine, getMockRoutePathForLine } from '@/lib/mockData'
@@ -878,6 +879,76 @@ export default function SuperAdminDashboard() {
   const handleSaveSuperAdminSettings = () => {
     localStorage.setItem('bu_super_admin_settings', JSON.stringify(superAdminSettings))
     toast.success('¡Ajustes generales del Super Administrador guardados!')
+  }
+
+  // Daily access code state & handlers
+  const [accessCodeInfo, setAccessCodeInfo] = useState(() => {
+    try {
+      return getAccessCodesInfo()
+    } catch {
+      return {
+        masterPassword: 'BienParadaAleyNess2026',
+        dailyCode: 'BienParadaAleyNess2026',
+        dateString: new Date().toISOString().split('T')[0],
+        nextRotationTime: '',
+        characterCount: 22
+      }
+    }
+  })
+  const [accessEmailInput, setAccessEmailInput] = useState(() => {
+    try {
+      return localStorage.getItem('bu_access_code_recipient_email') || ''
+    } catch {
+      return ''
+    }
+  })
+  const [sendingAccessEmail, setSendingAccessEmail] = useState(false)
+  const [copiedMaster, setCopiedMaster] = useState(false)
+  const [copiedDaily, setCopiedDaily] = useState(false)
+
+  const handleCopyAccessCode = (text: string, type: 'master' | 'daily') => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text)
+    }
+    if (type === 'master') {
+      setCopiedMaster(true)
+      setTimeout(() => setCopiedMaster(false), 2000)
+    } else {
+      setCopiedDaily(true)
+      setTimeout(() => setCopiedDaily(false), 2000)
+    }
+    toast.success('¡Código copiado al portapapeles!')
+  }
+
+  const handleSendAccessEmail = async () => {
+    const emailToUse = accessEmailInput.trim().toLowerCase()
+    if (!emailToUse || !emailToUse.includes('@')) {
+      toast.error('Por favor ingresá un correo electrónico válido')
+      return
+    }
+
+    try {
+      localStorage.setItem('bu_access_code_recipient_email', emailToUse)
+    } catch {}
+
+    setSendingAccessEmail(true)
+    try {
+      const res = await fetch('/api/access/daily-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailToUse })
+      })
+      const data = await res.json()
+      if (data.success) {
+        toast.success(data.message || `Código enviado a ${emailToUse}`)
+      } else {
+        toast.error(data.error || 'No se pudo enviar el correo.')
+      }
+    } catch (e: any) {
+      toast.error('Error de red al enviar el código: ' + e.message)
+    } finally {
+      setSendingAccessEmail(false)
+    }
   }
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
@@ -3529,6 +3600,170 @@ export default function SuperAdminDashboard() {
                 <Plus size={16} /> Crear Cuenta de Super Admin
               </button>
             </form>
+          </div>
+        </div>
+
+        {/* Card: Código de Acceso a la Plataforma y Rotación Diaria (24 hs) */}
+        <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.2))', border: '1px solid rgba(16, 185, 129, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Lock size={20} style={{ color: '#10B981' }} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#FFFFFF' }}>
+                  Código de Acceso a la Plataforma & Rotación Diaria (24 hs)
+                </h3>
+                <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#8F94A5' }}>
+                  Protege el ingreso a la app privada. Desordena y permuta las letras de la contraseña automáticamente cada 24 hs a la medianoche.
+                </p>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 700, background: 'rgba(16, 185, 129, 0.15)', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '5px 12px', borderRadius: '20px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981', display: 'inline-block' }} />
+                Motor Activo 24h
+              </span>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+            {/* Master Backup Password */}
+            <div style={{ background: '#1B1D2E', borderRadius: '14px', padding: '18px', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Contraseña Maestra (Respaldo Permanente)
+                </span>
+                <span style={{ fontSize: '10px', background: 'rgba(59, 130, 246, 0.15)', color: '#60A5FA', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '2px 8px', borderRadius: '12px', fontWeight: 600 }}>
+                  Anti-Bloqueo
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0F121E', padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <code style={{ fontSize: '14px', fontWeight: 800, color: '#FFFFFF', letterSpacing: '0.5px', fontFamily: 'monospace' }}>
+                  {accessCodeInfo.masterPassword}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => handleCopyAccessCode(accessCodeInfo.masterPassword, 'master')}
+                  style={{
+                    background: copiedMaster ? '#10B981' : 'rgba(255,255,255,0.08)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '6px 10px',
+                    color: '#fff',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 200ms'
+                  }}
+                >
+                  {copiedMaster ? <CheckCircle2 size={13} /> : <Copy size={13} />}
+                  {copiedMaster ? 'Copiado' : 'Copiar'}
+                </button>
+              </div>
+              <p style={{ margin: 0, fontSize: '11px', color: '#64748B', lineHeight: '1.4' }}>
+                Esta clave original nunca expira y siempre te permitirá ingresar directamente al portal en caso de emergencia.
+              </p>
+            </div>
+
+            {/* Daily Randomized Code */}
+            <div style={{ background: '#1B1D2E', borderRadius: '14px', padding: '18px', border: '1px solid rgba(16, 185, 129, 0.3)', display: 'flex', flexDirection: 'column', gap: '12px', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '12px', fontWeight: 700, color: '#34D399', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Código Aleatorio de Hoy (24 hs)
+                </span>
+                <span style={{ fontSize: '10px', background: 'rgba(16, 185, 129, 0.2)', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.4)', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>
+                  {accessCodeInfo.dateString}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0F121E', padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                <code style={{ fontSize: '14px', fontWeight: 800, color: '#10B981', letterSpacing: '0.5px', fontFamily: 'monospace' }}>
+                  {accessCodeInfo.dailyCode}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => handleCopyAccessCode(accessCodeInfo.dailyCode, 'daily')}
+                  style={{
+                    background: copiedDaily ? '#10B981' : 'rgba(16, 185, 129, 0.2)',
+                    border: '1px solid rgba(16, 185, 129, 0.4)',
+                    borderRadius: '8px',
+                    padding: '6px 10px',
+                    color: copiedDaily ? '#fff' : '#10B981',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 200ms'
+                  }}
+                >
+                  {copiedDaily ? <CheckCircle2 size={13} /> : <Copy size={13} />}
+                  {copiedDaily ? 'Copiado' : 'Copiar'}
+                </button>
+              </div>
+              <p style={{ margin: 0, fontSize: '11px', color: '#64748B', lineHeight: '1.4' }}>
+                Generado con las mismas {accessCodeInfo.characterCount} letras de la clave original. Rota cada día a las 00:00 hs (Buenos Aires).
+              </p>
+            </div>
+          </div>
+
+          {/* Email Delivery Dispatcher */}
+          <div style={{ background: '#171B2D', borderRadius: '12px', padding: '16px', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Mail size={16} style={{ color: '#3B82F6' }} />
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#FFFFFF' }}>
+                Envío Automático / Notificación por Correo Electrónico
+              </span>
+            </div>
+            <p style={{ margin: 0, fontSize: '12px', color: '#8F94A5' }}>
+              Ingresá tu correo para recibir el código generado cada día o disparar un envío de prueba al instante:
+            </p>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <input
+                type="email"
+                placeholder="tu-correo@ejemplo.com"
+                value={accessEmailInput}
+                onChange={e => setAccessEmailInput(e.target.value)}
+                style={{
+                  flex: 1,
+                  minWidth: '240px',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  background: '#0F121E',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: '#FFFFFF',
+                  fontSize: '13px',
+                  outline: 'none'
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleSendAccessEmail}
+                disabled={sendingAccessEmail}
+                style={{
+                  padding: '10px 18px',
+                  borderRadius: '10px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)',
+                  color: '#fff',
+                  fontSize: '12px',
+                  fontWeight: 700,
+                  cursor: sendingAccessEmail ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  opacity: sendingAccessEmail ? 0.7 : 1,
+                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)'
+                }}
+              >
+                {sendingAccessEmail ? <RefreshCw size={14} className="animate-spin" /> : <Mail size={14} />}
+                {sendingAccessEmail ? 'Enviando...' : 'Enviar Código a mi Correo'}
+              </button>
+            </div>
           </div>
         </div>
 

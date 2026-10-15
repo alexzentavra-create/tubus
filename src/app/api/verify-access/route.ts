@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { isValidAccessPassword } from '@/lib/dailyAccessCode'
 
 export async function POST(request: NextRequest) {
   try {
     const { password } = await request.json()
-    const expectedPassword = process.env.SITE_ACCESS_PASSWORD || 'bienparada2026'
 
-    const cleanInput = (password || '').trim().toLowerCase()
-    const cleanExpected = expectedPassword.trim().toLowerCase()
-
-    if (cleanInput === cleanExpected) {
+    if (isValidAccessPassword(password)) {
       const response = NextResponse.json({ success: true })
       // Set secure cookie for 30 days
       response.cookies.set('bp_access', 'granted_2026', {
