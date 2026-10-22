@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { isValidAccessPassword } from '@/lib/dailyAccessCode'
+import { isValidAccessPassword, checkAndAutoSendDailyAccessCode } from '@/lib/dailyAccessCode'
 
 export async function POST(request: NextRequest) {
   try {
     const { password } = await request.json()
+
+    // Trigger auto-send in background if new day arrived
+    checkAndAutoSendDailyAccessCode().catch(() => {})
 
     if (isValidAccessPassword(password)) {
       const response = NextResponse.json({ success: true })

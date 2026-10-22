@@ -28,7 +28,8 @@ const SYNC_KEYS = [
   'registered_drivers',
   'bu_active_super_admins',
   'bu_super_admin_incoming_call',
-  'bu_super_admin_call_response'
+  'bu_super_admin_call_response',
+  'bu_access_code_recipient_email'
 ]
 
 let hasPushedInitialBatch = false

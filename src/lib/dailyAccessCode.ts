@@ -6,6 +6,7 @@
  */
 
 export const BASE_ACCESS_PASSWORD = 'BienParadaAleyNess2026'
+export const DEFAULT_ACCESS_RECIPIENT_EMAIL = 'alejandro.finochietti@yahoo.com.ar'
 
 // Mulberry32 deterministic PRNG
 function mulberry32(seed: number) {
@@ -117,8 +118,8 @@ export function getAccessCodesInfo() {
  * Sends the daily access code to the specified email address.
  * Supports Resend API, SMTP if configured, or logs to global sync notifications.
  */
-export async function sendDailyAccessCodeEmail(recipientEmail: string): Promise<{ success: boolean; message: string }> {
-  const cleanEmail = (recipientEmail || '').trim().toLowerCase()
+export async function sendDailyAccessCodeEmail(recipientEmail?: string): Promise<{ success: boolean; message: string }> {
+  const cleanEmail = (recipientEmail || process.env.ACCESS_CODE_EMAIL || DEFAULT_ACCESS_RECIPIENT_EMAIL).trim().toLowerCase()
   if (!cleanEmail || !cleanEmail.includes('@')) {
     return { success: false, message: 'Dirección de correo electrónico inválida.' }
   }
@@ -185,6 +186,30 @@ export async function sendDailyAccessCodeEmail(recipientEmail: string): Promise<
   // 2. Return success status with delivery info
   return {
     success: true,
-    message: `Código de acceso (${dailyCode}) preparado para enviar a ${cleanEmail}.`
+    message: `Código de acceso (${dailyCode}) listo para ${cleanEmail}.`
+  }
+}
+
+let lastAutoSentDate = ''
+
+/**
+ * Automatically checks and sends the daily access code to the default recipient
+ * if a new day has arrived and it hasn't been dispatched yet.
+ */
+export async function checkAndAutoSendDailyAccessCode(): Promise<void> {
+  try {
+    const { dateString } = getAccessCodesInfo()
+    if (lastAutoSentDate === dateString) {
+      return
+    }
+    if (process.env.RESEND_API_KEY) {
+      const res = await sendDailyAccessCodeEmail(DEFAULT_ACCESS_RECIPIENT_EMAIL)
+      if (res.success) {
+        lastAutoSentDate = dateString
+        console.log(`[DailyAccessCode] Auto-dispatched daily code for ${dateString} to ${DEFAULT_ACCESS_RECIPIENT_EMAIL}`)
+      }
+    }
+  } catch (err) {
+    console.error('[DailyAccessCode] Error during checkAndAutoSendDailyAccessCode:', err)
   }
 }

@@ -897,9 +897,9 @@ export default function SuperAdminDashboard() {
   })
   const [accessEmailInput, setAccessEmailInput] = useState(() => {
     try {
-      return localStorage.getItem('bu_access_code_recipient_email') || ''
+      return localStorage.getItem('bu_access_code_recipient_email') || 'alejandro.finochietti@yahoo.com.ar'
     } catch {
-      return ''
+      return 'alejandro.finochietti@yahoo.com.ar'
     }
   })
   const [sendingAccessEmail, setSendingAccessEmail] = useState(false)
