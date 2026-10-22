@@ -177,6 +177,46 @@ export async function sendDailyAccessCodeEmail(recipientEmail?: string): Promise
 
       if (res.ok) {
         return { success: true, message: `Código diario enviado con éxito a ${cleanEmail} vía Resend.` }
+      } else {
+        const errorData = await res.json().catch(() => ({}))
+        console.warn('[DailyAccessCode] Resend status:', res.status, errorData)
+
+        // Resend sandbox only allows sending to the registered account email unless a custom domain is verified
+        if (res.status === 403 && errorData?.message?.includes('own email address')) {
+          const accountMatch = errorData.message.match(/\(([^)]+)\)/)
+          const fallbackEmail = accountMatch ? accountMatch[1] : 'alex.finochietti@gmail.com'
+
+          try {
+            const retryRes = await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                from: process.env.EMAIL_FROM || 'BienParada Seguridad <onboarding@resend.dev>',
+                to: [fallbackEmail],
+                subject,
+                text: textBody,
+                html: htmlBody
+              })
+            })
+
+            if (retryRes.ok) {
+              return {
+                success: true,
+                message: `Código enviado con éxito a tu correo de Resend (${fallbackEmail}). En modo gratuito, Resend solo envía a tu email registrado hasta verificar un dominio propio en resend.com/domains.`
+              }
+            }
+          } catch (retryErr) {
+            console.error('[DailyAccessCode] Retry error:', retryErr)
+          }
+        }
+
+        return {
+          success: false,
+          message: errorData?.message || `Error ${res.status} al enviar correo vía Resend.`
+        }
       }
     } catch (e: any) {
       console.error('[DailyAccessCode] Resend error:', e)
