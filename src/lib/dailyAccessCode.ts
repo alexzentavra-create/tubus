@@ -61,12 +61,82 @@ export function generateDailyAccessCode(targetDate: Date = new Date()): string {
   return arr.join('')
 }
 
+export interface OnDemandCodeEntry {
+  code: string
+  createdAt: number
+  ip?: string
+}
+
+let inMemoryOnDemandCodes: OnDemandCodeEntry[] = []
+
+/**
+ * Generates a fresh randomized permutation of BienParadaAleyNess2026 on demand.
+ */
+export function generateOnDemandAccessCode(): string {
+  const arr = BASE_ACCESS_PASSWORD.split('')
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    const temp = arr[i]
+    arr[i] = arr[j]
+    arr[j] = temp
+  }
+  return arr.join('')
+}
+
+export function getStoredOnDemandCodes(): OnDemandCodeEntry[] {
+  const now = Date.now()
+  let codes = [...inMemoryOnDemandCodes]
+
+  if (typeof window === 'undefined') {
+    try {
+      const fs = require('fs')
+      const path = require('path')
+      const os = require('os')
+      const filePath = path.join(os.tmpdir(), 'bienparada_active_access_codes.json')
+      if (fs.existsSync(filePath)) {
+        const fileContent = fs.readFileSync(filePath, 'utf8')
+        const fileCodes: OnDemandCodeEntry[] = JSON.parse(fileContent)
+        if (Array.isArray(fileCodes)) {
+          const seen = new Set(codes.map(c => c.code.toLowerCase()))
+          for (const item of fileCodes) {
+            if (item && item.code && !seen.has(item.code.toLowerCase())) {
+              codes.push(item)
+              seen.add(item.code.toLowerCase())
+            }
+          }
+        }
+      }
+    } catch {}
+  }
+
+  // Keep codes active for 24 hours
+  return codes.filter(entry => entry && entry.code && (now - entry.createdAt < 24 * 60 * 60 * 1000))
+}
+
+export function saveOnDemandCode(entry: OnDemandCodeEntry): void {
+  inMemoryOnDemandCodes = [
+    entry,
+    ...inMemoryOnDemandCodes.filter(c => c.code.toLowerCase() !== entry.code.toLowerCase())
+  ].slice(0, 50)
+
+  if (typeof window === 'undefined') {
+    try {
+      const fs = require('fs')
+      const path = require('path')
+      const os = require('os')
+      const filePath = path.join(os.tmpdir(), 'bienparada_active_access_codes.json')
+      fs.writeFileSync(filePath, JSON.stringify(inMemoryOnDemandCodes), 'utf8')
+    } catch {}
+  }
+}
+
 /**
  * Validates whether an entered password matches:
  * 1. The master password BienParadaAleyNess2026 (case-insensitive)
- * 2. Today's 24-hour randomized permutation
- * 3. Yesterday's randomized permutation (grace period around midnight transitions)
- * 4. The legacy password bienparada2026 (for transition tolerance)
+ * 2. Any active on-demand generated access code from clicking "Send Code"
+ * 3. Today's 24-hour randomized permutation
+ * 4. Yesterday's randomized permutation (grace period around midnight transitions)
+ * 5. The legacy password bienparada2026 (for transition tolerance)
  */
 export function isValidAccessPassword(inputPassword?: string): boolean {
   if (!inputPassword) return false
@@ -76,16 +146,22 @@ export function isValidAccessPassword(inputPassword?: string): boolean {
   // 1. Master password
   if (cleanInput === BASE_ACCESS_PASSWORD.toLowerCase()) return true
 
-  // 2. Today's randomized code
+  // 2. Active on-demand requested codes
+  const onDemandCodes = getStoredOnDemandCodes()
+  if (onDemandCodes.some(entry => entry.code.toLowerCase() === cleanInput)) {
+    return true
+  }
+
+  // 3. Today's randomized code
   const todayCode = generateDailyAccessCode(new Date()).toLowerCase()
   if (cleanInput === todayCode) return true
 
-  // 3. Yesterday's code (midnight grace period)
+  // 4. Yesterday's code (midnight grace period)
   const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
   const yesterdayCode = generateDailyAccessCode(yesterday).toLowerCase()
   if (cleanInput === yesterdayCode) return true
 
-  // 4. Configured custom env password or legacy password
+  // 5. Configured custom env password or legacy password
   const customEnvPass = (process.env.SITE_ACCESS_PASSWORD || '').trim().toLowerCase()
   if (customEnvPass && cleanInput === customEnvPass) return true
   if (cleanInput === 'bienparada2026') return true
@@ -251,5 +327,144 @@ export async function checkAndAutoSendDailyAccessCode(): Promise<void> {
     }
   } catch (err) {
     console.error('[DailyAccessCode] Error during checkAndAutoSendDailyAccessCode:', err)
+  }
+}
+
+/**
+ * Sends an on-demand generated access code to Alejandro via email.
+ */
+export async function sendOnDemandAccessCodeEmail(code: string, ip?: string): Promise<{ success: boolean; message: string }> {
+  const cleanEmail = (process.env.ACCESS_CODE_EMAIL || DEFAULT_ACCESS_RECIPIENT_EMAIL).trim().toLowerCase()
+  const nowStr = new Date().toLocaleString('es-AR', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    dateStyle: 'medium',
+    timeStyle: 'medium'
+  })
+
+  const subject = `🔔 Solicitud de Código de Acceso - BienParada`
+  const textBody = `Hola Alejandro,\n\nUn usuario acaba de solicitar acceso a BienParada presionando "Enviar Código".\n\n👉 Código de Acceso Generado:\n${code}\n\n📅 Fecha y hora: ${nowStr} (Buenos Aires)\n🌐 IP solicitante: ${ip || 'No detectada'}\n\nPodés facilitarle este código a la persona para que ingrese, o recordarle la clave maestra permanente (${BASE_ACCESS_PASSWORD}).\n\nSaludos,\nSistema de Seguridad BienParada`
+
+  const htmlBody = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #0f172a; color: #f8fafc; padding: 32px; border-radius: 16px; border: 1px solid #1e293b;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <span style="background: #10b981; color: #022c22; font-weight: 800; font-size: 11px; padding: 4px 10px; border-radius: 999px; letter-spacing: 0.05em; text-transform: uppercase;">BienParada Acceso</span>
+        <h2 style="color: #ffffff; margin: 12px 0 4px; font-size: 22px;">Nuevo Código de Acceso Solicitado</h2>
+        <p style="color: #94a3b8; font-size: 13px; margin: 0;">Un usuario presionó <strong>"Enviar Código"</strong> para ingresar al sistema.</p>
+      </div>
+
+      <div style="background: #1e293b; border: 2px dashed #10b981; border-radius: 12px; padding: 22px; text-align: center; margin-bottom: 24px;">
+        <span style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Código de Acceso de Ingreso:</span>
+        <code style="font-size: 24px; font-weight: 800; color: #10b981; letter-spacing: 2px; font-family: monospace; background: #0f172a; padding: 10px 20px; border-radius: 8px; display: inline-block;">
+          ${code}
+        </code>
+      </div>
+
+      <div style="background: #1B2236; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px 16px; margin-bottom: 24px; font-size: 12px; color: #cbd5e1; line-height: 1.6;">
+        <div>📍 <strong>Fecha y Hora:</strong> ${nowStr} (Buenos Aires)</div>
+        <div>🌐 <strong>IP Solicitante:</strong> <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-family: monospace;">${ip || 'No disponible'}</code></div>
+      </div>
+
+      <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 10px; padding: 14px; margin-bottom: 24px;">
+        <p style="margin: 0; font-size: 12px; color: #93c5fd; line-height: 1.5;">
+          <strong>💡 ¿Cómo proceder?</strong><br />
+          Facilitale este código a la persona que esté intentando ingresar para que lo tipee en la pantalla de bienvenida.
+          (También podés darle directamente tu contraseña maestra <strong>${BASE_ACCESS_PASSWORD}</strong> si es de tu total confianza).
+        </p>
+      </div>
+
+      <div style="text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid #1e293b; padding-top: 16px;">
+        Este código fue generado aleatoriamente a demanda con las letras de la contraseña base y ya se encuentra habilitado para ingresar.
+      </div>
+    </div>
+  `
+
+  if (process.env.RESEND_API_KEY) {
+    try {
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: process.env.EMAIL_FROM || 'BienParada Seguridad <onboarding@resend.dev>',
+          to: [cleanEmail],
+          subject,
+          text: textBody,
+          html: htmlBody
+        })
+      })
+
+      if (res.ok) {
+        return { success: true, message: `Código de acceso enviado a ${cleanEmail} vía Resend.` }
+      } else {
+        const errorData = await res.json().catch(() => ({}))
+        console.warn('[DailyAccessCode] Resend on-demand error:', res.status, errorData)
+
+        // Sandbox fallback to registered account email
+        if (res.status === 403 && errorData?.message?.includes('own email address')) {
+          const accountMatch = errorData.message.match(/\(([^)]+)\)/)
+          const fallbackEmail = accountMatch ? accountMatch[1] : 'alex.finochietti@gmail.com'
+
+          try {
+            const retryRes = await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                from: process.env.EMAIL_FROM || 'BienParada Seguridad <onboarding@resend.dev>',
+                to: [fallbackEmail],
+                subject,
+                text: textBody,
+                html: htmlBody
+              })
+            })
+
+            if (retryRes.ok) {
+              return {
+                success: true,
+                message: `Código enviado con éxito al correo de la administración (${fallbackEmail}).`
+              }
+            }
+          } catch (retryErr) {
+            console.error('[DailyAccessCode] Retry error:', retryErr)
+          }
+        }
+
+        return {
+          success: false,
+          message: errorData?.message || `Error ${res.status} al enviar correo vía Resend.`
+        }
+      }
+    } catch (e: any) {
+      console.error('[DailyAccessCode] Resend error:', e)
+    }
+  }
+
+  return {
+    success: true,
+    message: `Código generado (${code}) preparado para la administración.`
+  }
+}
+
+/**
+ * Creates a new on-demand access code, stores it, and emails it to the administrator.
+ */
+export async function requestNewAccessCode(ip?: string): Promise<{ success: boolean; code: string; message: string }> {
+  const code = generateOnDemandAccessCode()
+  saveOnDemandCode({
+    code,
+    createdAt: Date.now(),
+    ip
+  })
+
+  const emailResult = await sendOnDemandAccessCodeEmail(code, ip)
+
+  return {
+    success: true,
+    code,
+    message: emailResult.message || 'Código generado y enviado al correo de la administración.'
   }
 }

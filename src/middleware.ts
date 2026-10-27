@@ -42,7 +42,11 @@ export async function middleware(request: NextRequest) {
   }
 
   // 3. Allow access to verification endpoints and the access gate
-  if (pathname === '/access' || pathname === '/api/verify-access') {
+  if (
+    pathname === '/access' ||
+    pathname === '/api/verify-access' ||
+    pathname.startsWith('/api/access')
+  ) {
     return NextResponse.next()
   }
 
