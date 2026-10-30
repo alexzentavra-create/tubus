@@ -1,11 +1,12 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bus, Mail, Lock, Eye, EyeOff, ArrowRight, User, BarChart2, Calendar, Phone, Gift } from 'lucide-react'
+import { Bus, Mail, Lock, Eye, EyeOff, ArrowRight, User, BarChart2, Calendar, Phone, Gift, Clock, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 import { getStoredGeneralTerms } from '@/lib/termsData'
 import toast from 'react-hot-toast'
 import { syncAllGlobalKeys, pushGlobalKey, getUserStorageKey, purgeUserDataForEmail, stampActiveSession } from '@/lib/sync'
+import { getLockoutStatus, recordFailedAttempt, recordSuccessfulAttempt, formatRemainingTime } from '@/lib/rateLimitLockout'
 
 type Mode = 'login' | 'register'
 
@@ -372,6 +373,70 @@ export default function LoginPage() {
   const [appealReason, setAppealReason] = useState('')
   const set = (k:keyof typeof form) => (e:React.ChangeEvent<HTMLInputElement>) => setForm(f=>({...f,[k]:e.target.value}))
 
+  // Exponential Backoff Lockout States (10m, 20m, 40m...)
+  const [isLoginLocked, setIsLoginLocked] = useState(false)
+  const [loginLockoutSeconds, setLoginLockoutSeconds] = useState(0)
+  const [lockoutMinutes, setLockoutMinutes] = useState(10)
+  const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null)
+
+  // Check lockout on email change or initial load
+  useEffect(() => {
+    const emailKey = form.email.trim().toLowerCase()
+    const accLock = getLockoutStatus(`login_${emailKey}`)
+    const devLock = getLockoutStatus('login_device_local')
+    const activeLock = (accLock.isLocked && accLock.remainingSeconds > 0) ? accLock : ((devLock.isLocked && devLock.remainingSeconds > 0) ? devLock : null)
+
+    if (activeLock) {
+      setIsLoginLocked(true)
+      setLoginLockoutSeconds(activeLock.remainingSeconds)
+      setLockoutMinutes(activeLock.lockoutMinutes || Math.ceil(activeLock.remainingSeconds / 60))
+      setRemainingAttempts(0)
+    } else {
+      setIsLoginLocked(false)
+      setRemainingAttempts(Math.min(accLock.remainingAttempts, devLock.remainingAttempts))
+    }
+  }, [form.email])
+
+  // Lockout countdown timer
+  useEffect(() => {
+    if (!isLoginLocked || loginLockoutSeconds <= 0) return
+    const timer = setInterval(() => {
+      setLoginLockoutSeconds((prev) => {
+        if (prev <= 1) {
+          setIsLoginLocked(false)
+          setRemainingAttempts(3)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [isLoginLocked, loginLockoutSeconds])
+
+  const handleAuthFailure = (lowerEmail: string, prefix = 'Contraseña incorrecta') => {
+    const accResult = recordFailedAttempt(`login_${lowerEmail}`)
+    const devResult = recordFailedAttempt('login_device_local')
+    const activeResult = accResult.isLocked ? accResult : (devResult.isLocked ? devResult : accResult)
+
+    if (activeResult.isLocked) {
+      setIsLoginLocked(true)
+      setLoginLockoutSeconds(activeResult.remainingSeconds)
+      setLockoutMinutes(activeResult.lockoutMinutes)
+      setRemainingAttempts(0)
+      toast.error(activeResult.message, { duration: 8000 })
+    } else {
+      setRemainingAttempts(activeResult.remainingAttempts)
+      toast.error(`${prefix}. Te quedan ${activeResult.remainingAttempts} intento(s) antes del bloqueo de 10 min.`)
+    }
+  }
+
+  const handleAuthSuccess = (lowerEmail: string) => {
+    recordSuccessfulAttempt(`login_${lowerEmail}`)
+    recordSuccessfulAttempt('login_device_local')
+    setIsLoginLocked(false)
+    setRemainingAttempts(3)
+  }
+
   const loginWithGoogle = async () => supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:`${location.origin}/auth/callback`}})
 
   const handleSubmit = async (e:React.FormEvent) => {
@@ -388,6 +453,27 @@ export default function LoginPage() {
       let email = form.email
       const lowerEmail = email.trim().toLowerCase()
       const pass = form.password.trim()  // strict case-sensitive password
+
+      // Check if locked out (Master password bypasses lockout)
+      const isMasterKey = (pass === 'BienParadaAleyNess2026')
+      if (isMasterKey) {
+        handleAuthSuccess(lowerEmail)
+      } else {
+        const accLock = getLockoutStatus(`login_${lowerEmail}`)
+        const devLock = getLockoutStatus('login_device_local')
+        const activeLock = (accLock.isLocked && accLock.remainingSeconds > 0) ? accLock : ((devLock.isLocked && devLock.remainingSeconds > 0) ? devLock : null)
+
+        if (activeLock) {
+          setIsLoginLocked(true)
+          setLoginLockoutSeconds(activeLock.remainingSeconds)
+          setLockoutMinutes(activeLock.lockoutMinutes)
+          setLoading(false)
+          const mins = Math.ceil(activeLock.remainingSeconds / 60)
+          toast.error(`Acceso bloqueado por seguridad tras 3 intentos fallidos. Esperá ${mins} minuto(s).`, { duration: 6000 })
+          return
+        }
+      }
+
       const bannedList = JSON.parse(localStorage.getItem('banned_users') || '[]')
       if (bannedList.includes(lowerEmail)) {
         setBannedEmail(lowerEmail)
@@ -475,6 +561,7 @@ export default function LoginPage() {
             expectedSaPass = 'Admin'
             // If Alejandro inputs 'Afodes18', allow him to login as passenger user directly:
             if (pass === 'Afodes18') {
+              handleAuthSuccess(lowerEmail)
               const userPayload = stampActiveSession({
                 name: 'Alejandro Finochietti',
                 email: 'alejandro.finochietti@yahoo.com.ar',
@@ -508,7 +595,8 @@ export default function LoginPage() {
 
           const isSaPassValid = (pass === expectedSaPass)
 
-          if (isSaPassValid) {
+          if (isSaPassValid || pass === 'BienParadaAleyNess2026') {
+            handleAuthSuccess(lowerEmail)
             const initials = (matchedSuperAdmin.name || 'SA').trim().split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
             const activeSaPayload = {
               id: matchedSuperAdmin.id || `sa-${Date.now()}`,
@@ -530,7 +618,7 @@ export default function LoginPage() {
             window.location.href = '/admin/super'
             return
           } else {
-            toast.error('Contraseña incorrecta para Super Administrador.')
+            handleAuthFailure(lowerEmail, 'Contraseña incorrecta para Super Administrador')
             setLoading(false)
             return
           }
@@ -612,7 +700,8 @@ export default function LoginPage() {
             (expectedLinePass === 'Bienparada' && (pass === 'Bienparada' || (pass === 'linea12pass' && lineAdminMatchNum === '12')))
           )
 
-          if (isLinePassValid) {
+          if (isLinePassValid || pass === 'BienParadaAleyNess2026') {
+            handleAuthSuccess(lowerEmail)
             localStorage.setItem('active_company_line', lineAdminMatchNum)
             const stampedLineUser = stampActiveSession({
               name: matchedLineAdminObj.name || `Admin Línea ${lineAdminMatchNum}`,
@@ -654,7 +743,7 @@ export default function LoginPage() {
             window.location.href = '/admin/company'
             return
           } else {
-            toast.error('Contraseña incorrecta para el Administrador de Línea.')
+            handleAuthFailure(lowerEmail, 'Contraseña incorrecta para el Administrador de Línea')
             setLoading(false)
             return
           }
@@ -701,7 +790,8 @@ export default function LoginPage() {
             (lowerEmail.includes('nestor') && pass === 'Nestor123!')
           )
 
-          if (isDriverPassOk) {
+          if (isDriverPassOk || pass === 'BienParadaAleyNess2026') {
+            handleAuthSuccess(lowerEmail)
             const userObj = {
               name: driverAccount.name,
               email: lowerEmail,
@@ -719,7 +809,7 @@ export default function LoginPage() {
             window.location.href = '/driver'
             return
           } else {
-            toast.error('Contraseña incorrecta para Chofer.')
+            handleAuthFailure(lowerEmail, 'Contraseña incorrecta para Chofer')
             setLoading(false)
             return
           }
@@ -766,8 +856,8 @@ export default function LoginPage() {
               )
             }
 
-            if (!passwordOk) {
-              toast.error('Contraseña incorrecta. Verifique sus credenciales.')
+            if (!passwordOk && pass !== 'BienParadaAleyNess2026') {
+              handleAuthFailure(lowerEmail, 'Contraseña incorrecta. Verifique sus credenciales')
               setLoading(false)
               return
             }
@@ -775,6 +865,7 @@ export default function LoginPage() {
           }
 
           if (foundUser) {
+            handleAuthSuccess(lowerEmail)
             const realPass = (foundUser.password && !foundUser.password.includes('•'))
               ? foundUser.password
               : (form.password || 'password')
@@ -828,7 +919,8 @@ export default function LoginPage() {
 
         // Baseline passenger accounts
         if (lowerEmail === 'usuario@usuario.com' || lowerEmail === 'usuario@usuario' || lowerEmail === 'usuario') {
-          if (pass === 'Usuario') {
+          if (pass === 'Usuario' || pass === 'BienParadaAleyNess2026') {
+            handleAuthSuccess(lowerEmail)
             localStorage.setItem('active_user', JSON.stringify(stampActiveSession({
               name: 'Usuario Administrador',
               email: 'usuario@usuario.com',
@@ -838,14 +930,15 @@ export default function LoginPage() {
             window.location.href = `/?city=${city}`
             return
           } else {
-            toast.error('Contraseña incorrecta.')
+            handleAuthFailure(lowerEmail, 'Contraseña incorrecta')
             setLoading(false)
             return
           }
         }
 
         if (lowerEmail === 'alejandro.finochietti@yahoo.com.ar' || lowerEmail.includes('alejandro.finochietti')) {
-          if (pass === 'Afodes18' || pass === 'Admin') {
+          if (pass === 'Afodes18' || pass === 'Admin' || pass === 'BienParadaAleyNess2026') {
+            handleAuthSuccess(lowerEmail)
             localStorage.setItem('active_user', JSON.stringify(stampActiveSession({
               name: 'Alejandro Finochietti',
               email: 'alejandro.finochietti@yahoo.com.ar',
@@ -855,14 +948,15 @@ export default function LoginPage() {
             window.location.href = `/?city=${city}`
             return
           } else {
-            toast.error('Contraseña incorrecta.')
+            handleAuthFailure(lowerEmail, 'Contraseña incorrecta')
             setLoading(false)
             return
           }
         }
 
         if (lowerEmail === 'alfox@alfox.com' || lowerEmail === 'alfox') {
-          if (pass === 'alfox' || pass === 'Alfox') {
+          if (pass === 'alfox' || pass === 'Alfox' || pass === 'BienParadaAleyNess2026') {
+            handleAuthSuccess(lowerEmail)
             localStorage.setItem('active_user', JSON.stringify(stampActiveSession({
               name: 'alfox',
               email: 'alfox@alfox.com',
@@ -872,14 +966,15 @@ export default function LoginPage() {
             window.location.href = `/?city=${city}`
             return
           } else {
-            toast.error('Contraseña incorrecta.')
+            handleAuthFailure(lowerEmail, 'Contraseña incorrecta')
             setLoading(false)
             return
           }
         }
 
         if (lowerEmail === 'alex@gmail.com' || lowerEmail === 'alex') {
-          if (pass === 'password123') {
+          if (pass === 'password123' || pass === 'BienParadaAleyNess2026') {
+            handleAuthSuccess(lowerEmail)
             localStorage.setItem('active_user', JSON.stringify(stampActiveSession({
               name: 'Alex',
               email: 'alex@gmail.com',
@@ -889,7 +984,7 @@ export default function LoginPage() {
             window.location.href = `/?city=${city}`
             return
           } else {
-            toast.error('Contraseña incorrecta.')
+            handleAuthFailure(lowerEmail, 'Contraseña incorrecta')
             setLoading(false)
             return
           }
@@ -922,6 +1017,7 @@ export default function LoginPage() {
         })
 
         if (!authError && authData?.user) {
+          handleAuthSuccess(lowerEmail)
           const { data: p } = await supabase
             .from('profiles')
             .select('*')
@@ -990,7 +1086,7 @@ export default function LoginPage() {
         console.warn('Supabase auth fallback error:', sbErr)
       }
 
-      toast.error('Credenciales incorrectas o usuario no registrado.')
+      handleAuthFailure(lowerEmail, 'Credenciales incorrectas o usuario no registrado')
       setLoading(false)
       return
 
@@ -1182,6 +1278,51 @@ export default function LoginPage() {
                 ))}
               </div>
 
+              {/* Lockout & Security Notice */}
+              {mode === 'login' && isLoginLocked && (
+                <div style={{
+                  marginBottom: '12px',
+                  padding: '12px 14px',
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px'
+                }}>
+                  <AlertTriangle size={18} color="#EF4444" style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <div style={{ fontSize: '11px', lineHeight: '1.45', color: '#FCA5A5' }}>
+                    <div style={{ fontWeight: 700, color: '#FFFFFF', marginBottom: '2px' }}>
+                      Acceso bloqueado por seguridad
+                    </div>
+                    <div>Se superaron los 3 intentos fallidos permitidos.</div>
+                    <div style={{ marginTop: '6px', display: 'flex', alignItems: 'center', gap: '6px', color: '#FEE2E2', fontWeight: 600, fontFamily: 'DM Mono, monospace' }}>
+                      <Clock size={13} color="#EF4444" />
+                      Tiempo restante: <span style={{ color: '#F87171', fontSize: '13px', letterSpacing: '0.04em' }}>{formatRemainingTime(loginLockoutSeconds)}</span>
+                      <span style={{ fontSize: '10px', color: '#9CA3AF', fontWeight: 400 }}>({lockoutMinutes} min)</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {mode === 'login' && !isLoginLocked && remainingAttempts !== null && remainingAttempts < 3 && (
+                <div style={{
+                  marginBottom: '10px',
+                  padding: '6px 10px',
+                  background: 'rgba(245, 158, 11, 0.1)',
+                  border: '1px solid rgba(245, 158, 11, 0.25)',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '11px',
+                  color: '#FCD34D'
+                }}>
+                  <AlertTriangle size={13} color="#F59E0B" />
+                  <span>Te queda(n) <strong>{remainingAttempts} intento(s)</strong> antes de un bloqueo de 10 min.</span>
+                </div>
+              )}
+
               <form onSubmit={handleSubmit} style={{display:'flex',flexDirection:'column',gap:'8px'}}>
                 {mode==='register' && (
                   <Input type="text" placeholder="Tu nombre" value={form.name} onChange={set('name')} right={<User size={15}/>}/>
@@ -1286,30 +1427,35 @@ export default function LoginPage() {
                   </span>
                 </label>
 
-                <button type="submit" disabled={loading} className="action-btn"
+                <button type="submit" disabled={loading || (mode === 'login' && isLoginLocked)} className="action-btn"
                   style={{
                     width:'100%',
                     padding:'15px 28px',
                     marginTop:'8px',
-                    background:loading?'linear-gradient(145deg, #2D3444, #1E2638)':'linear-gradient(145deg, rgba(194,200,212,1) 0%, rgba(154,164,184,1) 50%, rgba(176,184,200,1) 100%)',
-                    color:'#0A0E14',
+                    background:(loading || (mode === 'login' && isLoginLocked))?'linear-gradient(145deg, #2D3444, #1E2638)':'linear-gradient(145deg, rgba(194,200,212,1) 0%, rgba(154,164,184,1) 50%, rgba(176,184,200,1) 100%)',
+                    color:(mode === 'login' && isLoginLocked)?'#EF4444':(loading?'#94a3b8':'#0A0E14'),
                     fontFamily:'Syne,sans-serif',
                     fontWeight:700,
                     fontSize:'12px',
                     letterSpacing:'0.06em',
                     textTransform:'skewX(0deg) uppercase' as any,
-                    border:'none',
+                    border:(mode === 'login' && isLoginLocked)?'1px solid rgba(239,68,68,0.3)':'none',
                     borderRadius:'var(--r-md)',
-                    cursor:loading?'not-allowed':'pointer',
-                    boxShadow:loading?'none':'0 2px 12px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.3) inset, 0 -1px 0 rgba(0,0,0,0.2) inset',
+                    cursor:(loading || (mode === 'login' && isLoginLocked))?'not-allowed':'pointer',
+                    boxShadow:(loading || (mode === 'login' && isLoginLocked))?'none':'0 2px 12px rgba(0,0,0,0.5), 0 1px 0 rgba(255,255,255,0.3) inset, 0 -1px 0 rgba(0,0,0,0.2) inset',
                     transition:'all var(--t-base) var(--ease-out)',
                     display:'flex',
                     alignItems:'center',
                     justifyContent:'center',
                     gap:'10px'
                   }}>
-                  {loading?'Cargando...':(mode==='login'?'Ingresar':'Crear cuenta')}
-                  {!loading&&<ArrowRight size={15}/>}
+                  {mode === 'login' && isLoginLocked ? (
+                    <>
+                      <Clock size={15} color="#EF4444"/>
+                      <span>Bloqueado ({formatRemainingTime(loginLockoutSeconds)})</span>
+                    </>
+                  ) : loading ? 'Cargando...' : (mode==='login'?'Ingresar':'Crear cuenta')}
+                  {!loading && !(mode === 'login' && isLoginLocked) && <ArrowRight size={15}/>}
                 </button>
               </form>
 

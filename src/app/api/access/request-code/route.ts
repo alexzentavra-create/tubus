@@ -10,8 +10,9 @@ export async function POST(request: NextRequest) {
     const result = await requestNewAccessCode(ip)
 
     return NextResponse.json({
-      success: true,
-      message: result.message
+      success: result.success,
+      message: result.message,
+      targetEmail: result.targetEmail
     })
   } catch (error: any) {
     console.error('[RequestAccessCode] Error:', error)

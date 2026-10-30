@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { Lock, ShieldCheck, ArrowRight, Eye, EyeOff, Mail, CheckCircle2, RefreshCw, KeyRound, Sparkles } from 'lucide-react'
+import { Lock, ShieldCheck, ArrowRight, Eye, EyeOff, Mail, CheckCircle2, RefreshCw, KeyRound, Sparkles, AlertTriangle, Clock } from 'lucide-react'
+import { formatRemainingTime } from '@/lib/rateLimitLockout'
 
 export default function AccessPage() {
   const [password, setPassword] = useState('')
@@ -12,7 +13,46 @@ export default function AccessPage() {
   const [requestMessage, setRequestMessage] = useState('')
   const [cooldown, setCooldown] = useState(0)
 
-  // Countdown timer for cooldown
+  // Exponential Lockout states
+  const [isLocked, setIsLocked] = useState(false)
+  const [lockoutSeconds, setLockoutSeconds] = useState(0)
+  const [lockoutMinutes, setLockoutMinutes] = useState(10)
+  const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null)
+
+  // Query initial lockout state from backend on mount
+  useEffect(() => {
+    fetch('/api/verify-access')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.isLocked && data.remainingSeconds > 0) {
+          setIsLocked(true)
+          setLockoutSeconds(data.remainingSeconds)
+          setLockoutMinutes(data.lockoutMinutes || Math.ceil(data.remainingSeconds / 60))
+        } else if (typeof data.remainingAttempts === 'number') {
+          setRemainingAttempts(data.remainingAttempts)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  // Lockout countdown timer
+  useEffect(() => {
+    if (!isLocked || lockoutSeconds <= 0) return
+    const timer = setInterval(() => {
+      setLockoutSeconds((prev) => {
+        if (prev <= 1) {
+          setIsLocked(false)
+          setError('')
+          setRemainingAttempts(3)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [isLocked, lockoutSeconds])
+
+  // Countdown timer for send code button cooldown
   useEffect(() => {
     if (cooldown <= 0) return
     const timer = setInterval(() => {
@@ -37,8 +77,9 @@ export default function AccessPage() {
       const data = await res.json()
 
       if (res.ok && data.success) {
-        setRequestMessage('¡Código enviado con éxito! Pedile a Alejandro el código que acaba de recibir en su correo y escribilo abajo.')
-        setCooldown(30) // 30 seconds cooldown to protect against spam
+        const dest = data.targetEmail || 'alex.finochietti@gmail.com'
+        setRequestMessage(data.message || `¡Código enviado con éxito a ${dest}! Revisá tu correo (o carpeta Spam) e ingresalo abajo.`)
+        setCooldown(30) // 30 seconds cooldown
       } else {
         setError(data.error || 'No se pudo despachar el código. Intenta de nuevo.')
       }
@@ -51,7 +92,7 @@ export default function AccessPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!password.trim()) return
+    if (!password.trim() || isLocked) return
 
     setIsLoading(true)
     setError('')
@@ -68,6 +109,14 @@ export default function AccessPage() {
         window.location.href = '/'
       } else {
         setError(data.error || 'Código incorrecto. Intenta nuevamente.')
+        if (data.isLocked) {
+          setIsLocked(true)
+          setLockoutSeconds(data.remainingSeconds || 600)
+          setLockoutMinutes(data.lockoutMinutes || 10)
+          setRemainingAttempts(0)
+        } else if (typeof data.remainingAttempts === 'number') {
+          setRemainingAttempts(data.remainingAttempts)
+        }
       }
     } catch {
       setError('Error al comunicarse con el servidor. Intenta de nuevo.')
@@ -94,6 +143,25 @@ export default function AccessPage() {
             Plataforma reservada para desarrollo y administración. Generá o ingresá tu código para entrar.
           </p>
         </div>
+
+        {/* Lockout Banner with Live Countdown Timer */}
+        {isLocked && (
+          <div className="mb-6 p-4 bg-rose-950/60 border border-rose-500/40 rounded-xl text-center shadow-lg animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-center gap-2 text-rose-400 font-bold text-xs uppercase tracking-wider mb-1">
+              <Clock className="w-4 h-4 animate-spin text-rose-400" />
+              <span>Acceso Bloqueado por Seguridad</span>
+            </div>
+            <p className="text-slate-300 text-xs mt-1">
+              Has alcanzado el límite de 3 intentos incorrectos. Debés esperar para intentar nuevamente:
+            </p>
+            <div className="text-3xl font-black text-rose-400 font-mono tracking-widest my-2 drop-shadow">
+              {formatRemainingTime(lockoutSeconds)}
+            </div>
+            <p className="text-[11px] text-rose-300/80">
+              Penalización: <strong>{lockoutMinutes} min</strong> (se duplicará a {lockoutMinutes * 2} min si vuelve a ser incorrecto).
+            </p>
+          </div>
+        )}
 
         {/* On-Demand Code Generation Card (Send Code Button) */}
         <div className="bg-slate-950/80 border border-emerald-500/30 rounded-xl p-4 mb-6 shadow-md relative overflow-hidden">
@@ -153,23 +221,38 @@ export default function AccessPage() {
         {/* Access Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5 uppercase tracking-wider">
-              Código de Acceso
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-medium text-slate-300 uppercase tracking-wider">
+                Código de Acceso
+              </label>
+              {!isLocked && remainingAttempts !== null && remainingAttempts < 3 && (
+                <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  {remainingAttempts} intento{remainingAttempts === 1 ? '' : 's'} restante{remainingAttempts === 1 ? '' : 's'}
+                </span>
+              )}
+            </div>
+
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
-                autoFocus
+                autoFocus={!isLocked}
+                disabled={isLocked || isLoading}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Pegá o escribí el código aquí..."
-                className="w-full pl-4 pr-12 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition text-sm font-mono tracking-wide"
+                placeholder={isLocked ? 'Acceso bloqueado temporalmente' : 'Pegá o escribí el código aquí...'}
+                className={`w-full pl-4 pr-12 py-3 bg-slate-950 border rounded-xl text-white placeholder-slate-500 focus:outline-none transition text-sm font-mono tracking-wide ${
+                  isLocked
+                    ? 'border-rose-900/50 bg-slate-950/50 text-slate-500 cursor-not-allowed'
+                    : 'border-slate-700 focus:ring-2 focus:ring-emerald-500 focus:border-transparent'
+                }`}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
+                disabled={isLocked}
                 tabIndex={-1}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition p-1 cursor-pointer"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition p-1 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                 title={showPassword ? 'Ocultar código' : 'Ver código'}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -177,7 +260,7 @@ export default function AccessPage() {
             </div>
           </div>
 
-          {error && (
+          {error && !isLocked && (
             <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-xs text-center font-medium animate-in fade-in">
               {error}
             </div>
@@ -185,11 +268,13 @@ export default function AccessPage() {
 
           <button
             type="submit"
-            disabled={isLoading || !password.trim()}
-            className="w-full py-3.5 px-4 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 disabled:hover:bg-emerald-500 text-slate-950 font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer"
+            disabled={isLoading || isLocked || !password.trim()}
+            className="w-full py-3.5 px-4 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 disabled:hover:bg-emerald-500 text-slate-950 font-bold rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 cursor-pointer disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <span>Verificando...</span>
+            ) : isLocked ? (
+              <span>Bloqueado ({formatRemainingTime(lockoutSeconds)})</span>
             ) : (
               <>
                 <span>Entrar a BienParada</span>
@@ -207,7 +292,7 @@ export default function AccessPage() {
           </div>
           <div className="flex items-center gap-1.5 text-slate-600 text-[11px] mt-1">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-500/80" />
-            <span>Protección activa contra bots y accesos no autorizados</span>
+            <span>Protección activa con bloqueo exponencial (3 intentos)</span>
           </div>
         </div>
       </div>
