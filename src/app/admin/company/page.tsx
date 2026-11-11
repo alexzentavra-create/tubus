@@ -6794,7 +6794,7 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
               longitude={p.lng}
               anchor="center"
               draggable={true}
-              onDragEnd={(e) => handleMarkerDragEnd(idx, e)}
+              onDragEnd={(e: any) => handleMarkerDragEnd(idx, e)}
             >
               <div
                 onClick={(e) => {

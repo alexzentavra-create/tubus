@@ -54,24 +54,23 @@ export function getBuenosAiresDateString(date: Date = new Date()): string {
   }
 }
 
+// ─── 6-Character Access Code Engine ──────────────────────────────────────────
+// Unambiguous character set (32 chars: digits 2-9 + uppercase letters, omitting easily confused 0/O and 1/I)
+export const ACCESS_CODE_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
+
 /**
- * Generates a deterministic permutation of the characters of BienParadaAleyNess2026 for any given date.
+ * Generates a deterministic 6-character access code for any given date in Buenos Aires.
  */
 export function generateDailyAccessCode(targetDate: Date = new Date()): string {
   const dateStr = getBuenosAiresDateString(targetDate)
-  const seedStr = `${dateStr}-bienparada-aleness-2026`
-  const arr = BASE_ACCESS_PASSWORD.split('')
+  const seedStr = `${dateStr}-bienparada-2026-rot`
   const rng = mulberry32(hashCode(seedStr))
-
-  // Fisher-Yates shuffle
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1))
-    const temp = arr[i]
-    arr[i] = arr[j]
-    arr[j] = temp
+  let result = ''
+  for (let i = 0; i < 6; i++) {
+    const idx = Math.floor(rng() * ACCESS_CODE_CHARS.length)
+    result += ACCESS_CODE_CHARS.charAt(idx)
   }
-
-  return arr.join('')
+  return result
 }
 
 export interface OnDemandCodeEntry {
@@ -83,38 +82,54 @@ export interface OnDemandCodeEntry {
 let inMemoryOnDemandCodes: OnDemandCodeEntry[] = []
 
 /**
- * Generates a fresh randomized permutation of BienParadaAleyNess2026 on demand.
+ * Generates a fresh 6-character randomized access code on demand.
  */
 export function generateOnDemandAccessCode(): string {
-  const arr = BASE_ACCESS_PASSWORD.split('')
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    const temp = arr[i]
-    arr[i] = arr[j]
-    arr[j] = temp
+  let result = ''
+  for (let i = 0; i < 6; i++) {
+    const randomIndex = Math.floor(Math.random() * ACCESS_CODE_CHARS.length)
+    result += ACCESS_CODE_CHARS.charAt(randomIndex)
   }
-  return arr.join('')
+  return result
+}
+
+function getStorageFilePaths(): string[] {
+  const paths: string[] = []
+  if (typeof window === 'undefined') {
+    try {
+      const os = require('os')
+      const path = require('path')
+      paths.push(path.join(os.tmpdir(), 'bienparada_active_access_codes.json'))
+      paths.push(path.join(process.cwd(), '.active_access_codes.json'))
+    } catch {}
+  }
+  return paths
 }
 
 export function getStoredOnDemandCodes(): OnDemandCodeEntry[] {
   const now = Date.now()
-  let codes = [...inMemoryOnDemandCodes]
+  const map = new Map<string, OnDemandCodeEntry>()
 
+  // 1. In-memory entries
+  for (const entry of inMemoryOnDemandCodes) {
+    if (entry && entry.code) {
+      map.set(entry.code.toUpperCase(), entry)
+    }
+  }
+
+  // 2. Read from persistent disk files
   if (typeof window === 'undefined') {
     try {
       const fs = require('fs')
-      const path = require('path')
-      const os = require('os')
-      const filePath = path.join(os.tmpdir(), 'bienparada_active_access_codes.json')
-      if (fs.existsSync(filePath)) {
-        const fileContent = fs.readFileSync(filePath, 'utf8')
-        const fileCodes: OnDemandCodeEntry[] = JSON.parse(fileContent)
-        if (Array.isArray(fileCodes)) {
-          const seen = new Set(codes.map(c => c.code.toLowerCase()))
-          for (const item of fileCodes) {
-            if (item && item.code && !seen.has(item.code.toLowerCase())) {
-              codes.push(item)
-              seen.add(item.code.toLowerCase())
+      for (const filePath of getStorageFilePaths()) {
+        if (fs.existsSync(filePath)) {
+          const fileContent = fs.readFileSync(filePath, 'utf8')
+          const fileCodes = JSON.parse(fileContent)
+          if (Array.isArray(fileCodes)) {
+            for (const item of fileCodes) {
+              if (item && item.code) {
+                map.set(item.code.toUpperCase(), item)
+              }
             }
           }
         }
@@ -123,61 +138,81 @@ export function getStoredOnDemandCodes(): OnDemandCodeEntry[] {
   }
 
   // Keep codes active for 24 hours
-  return codes.filter(entry => entry && entry.code && (now - entry.createdAt < 24 * 60 * 60 * 1000))
+  const validCodes = Array.from(map.values())
+    .filter(entry => entry && entry.code && (now - entry.createdAt < 24 * 60 * 60 * 1000))
+    .sort((a, b) => b.createdAt - a.createdAt)
+
+  inMemoryOnDemandCodes = validCodes
+  return validCodes
 }
 
 export function saveOnDemandCode(entry: OnDemandCodeEntry): void {
-  inMemoryOnDemandCodes = [
-    entry,
-    ...inMemoryOnDemandCodes.filter(c => c.code.toLowerCase() !== entry.code.toLowerCase())
-  ].slice(0, 50)
+  const existing = getStoredOnDemandCodes()
+  const map = new Map<string, OnDemandCodeEntry>()
+  for (const item of existing) {
+    map.set(item.code.toUpperCase(), item)
+  }
+  map.set(entry.code.toUpperCase(), {
+    code: entry.code.toUpperCase(),
+    createdAt: entry.createdAt || Date.now(),
+    ip: entry.ip
+  })
+
+  const merged = Array.from(map.values())
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, 50)
+
+  inMemoryOnDemandCodes = merged
 
   if (typeof window === 'undefined') {
     try {
       const fs = require('fs')
-      const path = require('path')
-      const os = require('os')
-      const filePath = path.join(os.tmpdir(), 'bienparada_active_access_codes.json')
-      fs.writeFileSync(filePath, JSON.stringify(inMemoryOnDemandCodes), 'utf8')
+      const json = JSON.stringify(merged)
+      for (const filePath of getStorageFilePaths()) {
+        try {
+          fs.writeFileSync(filePath, json, 'utf8')
+        } catch {}
+      }
     } catch {}
   }
 }
 
 /**
  * Validates whether an entered password matches:
- * 1. The master password BienParadaAleyNess2026 (case-insensitive)
- * 2. Any active on-demand generated access code from clicking "Send Code"
- * 3. Today's 24-hour randomized permutation
- * 4. Yesterday's randomized permutation (grace period around midnight transitions)
- * 5. The legacy password bienparada2026 (for transition tolerance)
+ * 1. The master passwords (BP2026, BienParadaAleyNess2026, bienparada2026)
+ * 2. Any active on-demand generated 6-character access code from clicking "Send Code"
+ * 3. Today's 6-character daily code
+ * 4. Yesterday's 6-character daily code (midnight grace period)
+ * 5. Configured custom env password
  */
 export function isValidAccessPassword(inputPassword?: string): boolean {
   if (!inputPassword) return false
-  const cleanInput = inputPassword.trim().toLowerCase()
+  const cleanInput = inputPassword.trim().replace(/[-\s]/g, '').toUpperCase()
   if (!cleanInput) return false
 
-  // 1. Master password
-  if (cleanInput === BASE_ACCESS_PASSWORD.toLowerCase()) return true
+  // 1. Master passwords (permanent fail-safes)
+  if (cleanInput === BASE_ACCESS_PASSWORD.toUpperCase()) return true
+  if (cleanInput === 'BP2026') return true
+  if (cleanInput === 'BIENPARADA2026') return true
 
-  // 2. Active on-demand requested codes
+  // 2. Active on-demand requested codes (6 characters)
   const onDemandCodes = getStoredOnDemandCodes()
-  if (onDemandCodes.some(entry => entry.code.toLowerCase() === cleanInput)) {
+  if (onDemandCodes.some(entry => entry.code.toUpperCase() === cleanInput)) {
     return true
   }
 
-  // 3. Today's randomized code
-  const todayCode = generateDailyAccessCode(new Date()).toLowerCase()
+  // 3. Today's 6-character code
+  const todayCode = generateDailyAccessCode(new Date()).toUpperCase()
   if (cleanInput === todayCode) return true
 
-  // 4. Yesterday's code (midnight grace period)
+  // 4. Yesterday's 6-character code (midnight grace period)
   const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
-  const yesterdayCode = generateDailyAccessCode(yesterday).toLowerCase()
+  const yesterdayCode = generateDailyAccessCode(yesterday).toUpperCase()
   if (cleanInput === yesterdayCode) return true
 
-  // 5. Configured custom env password or legacy password
-  const customEnvPass = (process.env.SITE_ACCESS_PASSWORD || '').trim().toLowerCase()
+  // 5. Configured custom env password
+  const customEnvPass = (process.env.SITE_ACCESS_PASSWORD || '').trim().replace(/[-\s]/g, '').toUpperCase()
   if (customEnvPass && cleanInput === customEnvPass) return true
-  if (cleanInput === 'bienparada2026') return true
 
   return false
 }
@@ -196,10 +231,11 @@ export function getAccessCodesInfo() {
 
   return {
     masterPassword: BASE_ACCESS_PASSWORD,
+    masterPassword6: 'BP2026',
     dailyCode: currentDailyCode,
     dateString: todayStr,
     nextRotationTime: nextRotation.toISOString(),
-    characterCount: BASE_ACCESS_PASSWORD.length
+    characterCount: 6
   }
 }
 
@@ -215,8 +251,8 @@ export async function sendDailyAccessCodeEmail(recipientEmail?: string): Promise
 
   const { dailyCode, masterPassword, dateString } = getAccessCodesInfo()
 
-  const subject = `🔐 Código de Acceso BienParada - ${dateString}`
-  const textBody = `Hola Alejandro / Néstor,\n\nTu código de acceso diario para BienParada (${dateString}) es:\n\n👉 ${dailyCode}\n\n(Este código cambia automáticamente cada 24 horas usando las mismas letras que la contraseña original).\n\nTambién podés utilizar en cualquier momento la contraseña maestra de respaldo:\n👉 ${masterPassword}\n\nSaludos,\nEquipo BienParada`
+  const subject = `🔐 Código de Acceso Diario (${dailyCode}) - BienParada`
+  const textBody = `Hola Alejandro / Néstor,\n\nTu código de acceso diario de 6 caracteres para BienParada (${dateString}) es:\n\n👉 ${dailyCode}\n\n(Este código cambia automáticamente cada 24 horas y tiene solo 6 caracteres para facilitar el tipeo).\n\nTambién podés utilizar en cualquier momento la contraseña maestra de respaldo permanente:\n👉 BP2026 (o ${masterPassword})\n\nSaludos,\nEquipo BienParada`
 
   const htmlBody = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #0f172a; color: #f8fafc; padding: 32px; border-radius: 16px; border: 1px solid #1e293b;">
@@ -226,22 +262,22 @@ export async function sendDailyAccessCodeEmail(recipientEmail?: string): Promise
         <p style="color: #94a3b8; font-size: 13px; margin: 0;">Válido por 24 horas (${dateString})</p>
       </div>
 
-      <div style="background: #1e293b; border: 2px dashed #10b981; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 24px;">
-        <span style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; font-weight: 700;">Código Aleatorio de Hoy:</span>
-        <code style="font-size: 20px; font-weight: 800; color: #10b981; letter-spacing: 2px; font-family: monospace; background: #0f172a; padding: 8px 16px; border-radius: 8px; display: inline-block;">
+      <div style="background: #1e293b; border: 2px dashed #10b981; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 24px;">
+        <span style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 10px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.08em;">Código Diario (6 Caracteres):</span>
+        <code style="font-size: 34px; font-weight: 900; color: #10b981; letter-spacing: 6px; font-family: monospace; background: #0f172a; padding: 12px 24px; border-radius: 10px; display: inline-block; border: 1px solid rgba(16,185,129,0.3);">
           ${dailyCode}
         </code>
       </div>
 
       <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 10px; padding: 14px; margin-bottom: 24px;">
         <p style="margin: 0; font-size: 12px; color: #93c5fd; line-height: 1.5;">
-          <strong>💡 Contraseña Maestra de Respaldo Permanente:</strong><br />
-          Si alguna vez no tenés acceso a este correo, siempre podés ingresar con: <strong style="color: #ffffff;">${masterPassword}</strong>
+          <strong>💡 Contraseñas Maestras de Respaldo Permanente:</strong><br />
+          Si alguna vez no tenés acceso a este correo, siempre podés ingresar con: <strong style="color: #ffffff;">BP2026</strong> o <strong style="color: #ffffff;">${masterPassword}</strong>
         </p>
       </div>
 
       <div style="text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid #1e293b; padding-top: 16px;">
-        Este código se actualiza y desordena aleatoriamente cada 24 horas a la medianoche con los mismos caracteres de la contraseña base.
+        Este código de 6 caracteres se actualiza automáticamente cada 24 horas a la medianoche.
       </div>
     </div>
   `
@@ -355,8 +391,8 @@ export async function sendOnDemandAccessCodeEmail(code: string, ip?: string): Pr
     timeStyle: 'medium'
   })
 
-  const subject = `🔔 Solicitud de Código de Acceso - BienParada`
-  const textBody = `Hola Alejandro,\n\nUn usuario acaba de solicitar acceso a BienParada presionando "Enviar Código".\n\n👉 Código de Acceso Generado:\n${code}\n\n📅 Fecha y hora: ${nowStr} (Buenos Aires)\n🌐 IP solicitante: ${ip || 'No detectada'}\n\nPodés facilitarle este código a la persona para que ingrese, o recordarle la clave maestra permanente (${BASE_ACCESS_PASSWORD}).\n\nSaludos,\nSistema de Seguridad BienParada`
+  const subject = `🔔 Código de Acceso (6 caracteres): ${code} - BienParada`
+  const textBody = `Hola Alejandro,\n\nUn usuario acaba de solicitar acceso a BienParada presionando "Enviar Código".\n\n👉 CÓDIGO DE ACCESO (6 caracteres):\n${code}\n\n📅 Fecha y hora: ${nowStr} (Buenos Aires)\n🌐 IP solicitante: ${ip || 'No detectada'}\n\nPodés facilitarle este código a la persona para que ingrese desde cualquier dispositivo o computadora.\n(También podés recordarle la clave maestra permanente de 6 caracteres: BP2026 o BienParadaAleyNess2026).\n\nSaludos,\nSistema de Seguridad BienParada`
 
   const htmlBody = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #0f172a; color: #f8fafc; padding: 32px; border-radius: 16px; border: 1px solid #1e293b;">
@@ -366,9 +402,9 @@ export async function sendOnDemandAccessCodeEmail(code: string, ip?: string): Pr
         <p style="color: #94a3b8; font-size: 13px; margin: 0;">Un usuario presionó <strong>"Enviar Código"</strong> para ingresar al sistema.</p>
       </div>
 
-      <div style="background: #1e293b; border: 2px dashed #10b981; border-radius: 12px; padding: 22px; text-align: center; margin-bottom: 24px;">
-        <span style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em;">Código de Acceso de Ingreso:</span>
-        <code style="font-size: 24px; font-weight: 800; color: #10b981; letter-spacing: 2px; font-family: monospace; background: #0f172a; padding: 10px 20px; border-radius: 8px; display: inline-block;">
+      <div style="background: #1e293b; border: 2px dashed #10b981; border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 24px;">
+        <span style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 10px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.08em;">Código de Acceso (6 Caracteres):</span>
+        <code style="font-size: 34px; font-weight: 900; color: #10b981; letter-spacing: 6px; font-family: monospace; background: #0f172a; padding: 12px 24px; border-radius: 10px; display: inline-block; border: 1px solid rgba(16,185,129,0.3);">
           ${code}
         </code>
       </div>
@@ -380,14 +416,14 @@ export async function sendOnDemandAccessCodeEmail(code: string, ip?: string): Pr
 
       <div style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 10px; padding: 14px; margin-bottom: 24px;">
         <p style="margin: 0; font-size: 12px; color: #93c5fd; line-height: 1.5;">
-          <strong>💡 ¿Cómo proceder?</strong><br />
-          Facilitale este código a la persona que esté intentando ingresar para que lo tipee en la pantalla de bienvenida.
-          (También podés darle directamente tu contraseña maestra <strong>${BASE_ACCESS_PASSWORD}</strong> si es de tu total confianza).
+          <strong>💡 ¿Cómo ingresar?</strong><br />
+          Facilitale este código de 6 caracteres a tu amigo o usuario para que lo tipee en la pantalla de bienvenida desde cualquier dispositivo o computadora. Funciona sin importar su ubicación.<br /><br />
+          (Contraseña maestra de respaldo: <strong style="color: #ffffff;">BP2026</strong> o <strong style="color: #ffffff;">${BASE_ACCESS_PASSWORD}</strong>).
         </p>
       </div>
 
       <div style="text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid #1e293b; padding-top: 16px;">
-        Este código fue generado aleatoriamente a demanda con las letras de la contraseña base y ya se encuentra habilitado para ingresar.
+        Este código de 6 caracteres es único, fue generado al instante y ya se encuentra activo para ingresar.
       </div>
     </div>
   `

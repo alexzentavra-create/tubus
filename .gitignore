@@ -44,3 +44,5 @@ supabase/docker/
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+.active_access_codes.json

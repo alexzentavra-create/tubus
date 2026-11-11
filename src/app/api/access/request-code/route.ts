@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requestNewAccessCode } from '@/lib/dailyAccessCode'
+import { recordSuccessfulAttempt } from '@/lib/rateLimitLockout'
 
 export async function POST(request: NextRequest) {
   try {
     const forwardedFor = request.headers.get('x-forwarded-for')
     const realIp = request.headers.get('x-real-ip')
     const ip = (forwardedFor ? forwardedFor.split(',')[0].trim() : realIp) || 'IP pública'
+
+    // Reset any previous failed attempts on this IP so they can immediately test the new code
+    const lockKey = `access_ip_${ip}`
+    recordSuccessfulAttempt(lockKey)
 
     const result = await requestNewAccessCode(ip)
 

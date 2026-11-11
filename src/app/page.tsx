@@ -25698,7 +25698,7 @@ function MapAdBanner({
               longitude={originCoord.lng}
               latitude={originCoord.lat}
               draggable
-              onDragEnd={e => {
+              onDragEnd={(e: any) => {
                 const coord = { lat: e.lngLat.lat, lng: e.lngLat.lng }
                 setOriginCoord(coord)
                 setOriginInput(getNearestStreetName(coord.lat, coord.lng))
@@ -25736,7 +25736,7 @@ function MapAdBanner({
               longitude={destCoord.lng}
               latitude={destCoord.lat}
               draggable
-              onDragEnd={e => {
+              onDragEnd={(e: any) => {
                 const coord = { lat: e.lngLat.lat, lng: e.lngLat.lng }
                 setDestCoord(coord)
                 setDestInput(getNearestStreetName(coord.lat, coord.lng))

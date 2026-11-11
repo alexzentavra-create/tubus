@@ -77,6 +77,9 @@ export default function AccessPage() {
       const data = await res.json()
 
       if (res.ok && data.success) {
+        setIsLocked(false)
+        setLockoutSeconds(0)
+        setRemainingAttempts(3)
         const dest = data.targetEmail || 'alex.finochietti@gmail.com'
         setRequestMessage(data.message || `¡Código enviado con éxito a ${dest}! Revisá tu correo (o carpeta Spam) e ingresalo abajo.`)
         setCooldown(30) // 30 seconds cooldown
@@ -92,7 +95,8 @@ export default function AccessPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!password.trim() || isLocked) return
+    const cleanPassword = password.trim().replace(/[-\s]/g, '').toUpperCase()
+    if (!cleanPassword || isLocked) return
 
     setIsLoading(true)
     setError('')
@@ -101,7 +105,7 @@ export default function AccessPage() {
       const res = await fetch('/api/verify-access', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: password.trim() }),
+        body: JSON.stringify({ password: cleanPassword }),
       })
 
       const data = await res.json()
@@ -140,7 +144,7 @@ export default function AccessPage() {
             <Sparkles className="w-3.5 h-3.5" /> Acceso Privado
           </p>
           <p className="text-xs text-slate-400 mt-2 max-w-xs leading-relaxed">
-            Plataforma reservada para desarrollo y administración. Generá o ingresá tu código para entrar.
+            Plataforma reservada para desarrollo y administración. Generá o ingresá tu código de 6 caracteres para entrar.
           </p>
         </div>
 
@@ -158,7 +162,7 @@ export default function AccessPage() {
               {formatRemainingTime(lockoutSeconds)}
             </div>
             <p className="text-[11px] text-rose-300/80">
-              Penalización: <strong>{lockoutMinutes} min</strong> (se duplicará a {lockoutMinutes * 2} min si vuelve a ser incorrecto).
+              Penalización: <strong>{lockoutMinutes} min</strong> (se duplicará si vuelve a ser incorrecto).
             </p>
           </div>
         )}
@@ -170,7 +174,7 @@ export default function AccessPage() {
             <span>¿No tenés el código actual?</span>
           </div>
           <p className="text-xs text-slate-400 mb-3 leading-relaxed">
-            Presioná el botón para generar un nuevo código de acceso y enviarlo al instante al correo de la administración (Alejandro).
+            Presioná el botón para generar un nuevo código de acceso de 6 caracteres y enviarlo al instante al correo de la administración (Alejandro).
           </p>
 
           <button
@@ -213,7 +217,7 @@ export default function AccessPage() {
         <div className="relative flex items-center justify-center my-5">
           <div className="border-t border-slate-800 w-full" />
           <span className="bg-slate-900 px-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wider shrink-0">
-            Ingreso con Código
+            Ingreso con Código (6 caracteres)
           </span>
           <div className="border-t border-slate-800 w-full" />
         </div>
@@ -239,9 +243,10 @@ export default function AccessPage() {
                 autoFocus={!isLocked}
                 disabled={isLocked || isLoading}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={isLocked ? 'Acceso bloqueado temporalmente' : 'Pegá o escribí el código aquí...'}
-                className={`w-full pl-4 pr-12 py-3 bg-slate-950 border rounded-xl text-white placeholder-slate-500 focus:outline-none transition text-sm font-mono tracking-wide ${
+                maxLength={30}
+                onChange={(e) => setPassword(e.target.value.toUpperCase().replace(/\s+/g, ''))}
+                placeholder={isLocked ? 'Acceso bloqueado temporalmente' : 'Ej: K7M4P9 (código de 6 caracteres)'}
+                className={`w-full pl-4 pr-12 py-3 bg-slate-950 border rounded-xl text-white placeholder-slate-500 focus:outline-none transition text-base font-mono tracking-widest uppercase ${
                   isLocked
                     ? 'border-rose-900/50 bg-slate-950/50 text-slate-500 cursor-not-allowed'
                     : 'border-slate-700 focus:ring-2 focus:ring-emerald-500 focus:border-transparent'
@@ -288,11 +293,11 @@ export default function AccessPage() {
         <div className="mt-6 pt-5 border-t border-slate-800/80 flex flex-col items-center gap-2 text-center text-xs text-slate-500">
           <div className="flex items-center gap-1.5 text-slate-400 text-[11px]">
             <KeyRound className="w-3.5 h-3.5 text-amber-400" />
-            <span>La contraseña maestra de respaldo siempre permanece válida.</span>
+            <span>Clave maestra de respaldo: <strong className="text-white">BP2026</strong> o <strong className="text-white">BienParadaAleyNess2026</strong></span>
           </div>
           <div className="flex items-center gap-1.5 text-slate-600 text-[11px] mt-1">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-500/80" />
-            <span>Protección activa con bloqueo exponencial (3 intentos)</span>
+            <span>Protección activa con bloqueo de seguridad tras 3 intentos</span>
           </div>
         </div>
       </div>
