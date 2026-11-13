@@ -1,3 +1,4 @@
+import { recordAdminActivity } from '@/lib/admin-collaboration'
 /**
  * Global Cross-Device Sync Engine for BienParada / Tubus
  * Bridges localStorage with the global cloud sync API so users, admins,
@@ -99,7 +100,7 @@ export async function syncAllGlobalKeys(force = false): Promise<Record<string, a
               if (serverVal.length === 0) {
                 // Server restarted or empty: keep local and re-seed server in background
                 finalVal = localArr
-                pushGlobalKey(key, localArr).catch(() => {})
+                pushGlobalKey(key, localArr, false).catch(() => {})
               } else {
                 // Merge non-destructively by item id or email
                 const map = new Map<string, any>()
@@ -186,7 +187,7 @@ export async function syncAllGlobalKeys(force = false): Promise<Record<string, a
   return {}
 }
 
-export async function pushGlobalKey(key: string, data: any): Promise<void> {
+export async function pushGlobalKey(key: string, data: any, notify = true): Promise<void> {
   if (typeof window === 'undefined') return
 
   try {
@@ -195,11 +196,22 @@ export async function pushGlobalKey(key: string, data: any): Promise<void> {
     localStorage.setItem(key, serialized)
 
     // Push to global cloud sync API
-    await fetch('/api/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key, data })
-    }).catch(() => {})
+    const response = await fetch('/api/sync', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, data })
+    })
+    if (!response.ok) throw new Error('No se pudo sincronizar el cambio.')
+    const activityKeys: Record<string, string> = {
+      bu_registered_users: 'Actualizó los usuarios registrados.', bu_ad_reports: 'Actualizó las denuncias de publicidad.',
+      bu_super_admins: 'Actualizó las cuentas de Super Admin.', registered_line_admins: 'Actualizó los administradores de línea.',
+      bu_created_lines: 'Actualizó las líneas.', registered_drivers: 'Actualizó los choferes.',
+      bu_super_admin_calendar_events: 'Actualizó el calendario del equipo.', bu_super_admin_calendar_categories: 'Actualizó las categorías del calendario.',
+      bu_submitted_ads: 'Actualizó la publicidad.', deleted_users: 'Actualizó las bajas de usuarios.', blocked_users: 'Actualizó los bloqueos de usuarios.',
+      banned_users: 'Actualizó las suspensiones.', deleted_super_admins: 'Actualizó las bajas de Super Admins.', deleted_line_admins: 'Actualizó las bajas de administradores.',
+      deleted_drivers: 'Actualizó las bajas de choferes.', deleted_ad_ids: 'Actualizó las bajas de anuncios.', deleted_calendar_event_ids: 'Eliminó un evento del calendario.'
+    }
+    if (notify && activityKeys[key] && getValidActiveUser()?.role === 'superadmin') {
+      recordAdminActivity(activityKeys[key]).catch(() => window.dispatchEvent(new Event('admin_activity_save_failed')))
+    }
 
     window.dispatchEvent(new Event('storage'))
   } catch (e) {

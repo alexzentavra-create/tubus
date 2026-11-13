@@ -1,0 +1,71 @@
+.sa-dashboard { background: radial-gradient(ellipse at 15% 0%, #15304a80, transparent 45%), radial-gradient(ellipse at 90% 15%, #14473b40, transparent 40%), #080e19 !important; }
+.sa-dashboard .super-header { background: #111d2ed9 !important; border-bottom: 1px solid #829cb633 !important; backdrop-filter: blur(22px); box-shadow: 0 8px 32px #00000024; gap: 20px; min-height: 78px; flex-wrap: wrap; }
+.sa-dashboard .sa-navigation { background: #0e1929b8 !important; border-bottom: 1px solid #829cb633 !important; backdrop-filter: blur(18px); }
+.sa-dashboard .sa-navigation button { padding: 16px 2px !important; letter-spacing: .01em; }
+.sa-dashboard .sa-surface { border: 1px solid #829cb633 !important; border-radius: 12px !important; background: linear-gradient(130deg, #172437e6, #101a2bd9) !important; box-shadow: 0 10px 28px #00000018, inset 0 1px #ffffff05; }
+.sa-dashboard button:focus-visible, .sa-dashboard input:focus-visible, .sa-dashboard select:focus-visible, .sa-dashboard a:focus-visible { outline: 2px solid #67d8cf; outline-offset: 3px; }
+.sa-dashboard.light-mode { background: radial-gradient(ellipse at 10% 0%, #dceef5, transparent 55%), #eef3f8 !important; }
+.sa-dashboard.light-mode .super-header, .sa-dashboard.light-mode .sa-navigation, .sa-dashboard.light-mode .sa-surface { background: #ffffffd9 !important; border-color: #a3b4c866 !important; }
+.sa-collaboration { display:flex; align-items:center; gap:9px; color:#e6edf7; font-size:13px; }
+.sa-button { display:inline-flex; gap:8px; align-items:center; justify-content:center; border:1px solid #9aafca40; border-radius:9px; padding:10px 13px; color:#dbe8f6; background:#24344970; font:inherit; font-weight:600; cursor:pointer; transition:background .15s,border-color .15s; }
+.sa-button:hover:not(:disabled) { background:#304a64a0; border-color:#b3c9e077; }
+.sa-button:disabled { opacity:.45; cursor:not-allowed; }
+.sa-primary { background:#2563eb; border-color:#6493f5; color:white; }
+.sa-accent { color:#8ce8d3; background:#12524980; border-color:#40b89c66; }
+.sa-danger { color:#ffb6b6; background:#7b2c3655; border-color:#e4787855; }
+.sa-connection { font-size:11px; color:#a5b6ca; display:flex; gap:7px; align-items:center; white-space:nowrap; }
+.sa-connection:before { content:''; display:block; width:6px; height:6px; border-radius:50%; background:#8091a5; }
+.sa-connection.is-online:before { background:#42dbad; box-shadow:0 0 0 4px #42dbad15; }
+.sa-connection.is-offline:before { background:#f1b66b; }
+.sa-bell { position:relative; }
+.sa-bell b { position:absolute; right:-5px; top:-5px; background:#e65a6c; color:white; border:2px solid #101b2b; border-radius:20px; padding:1px 4px; font-size:10px; }
+.sa-overlay { position:fixed; inset:0; z-index:100000; background:#030914b8; backdrop-filter:blur(12px); display:flex; align-items:center; justify-content:center; padding:24px; }
+.sa-dialog { font-family:DM Sans,sans-serif; font-size:13px; display:flex; flex-direction:column; width:min(720px,100%); max-height:90dvh; min-height:360px; overflow:hidden; border:1px solid #829cb655; border-radius:16px; background:linear-gradient(145deg,#18283af5,#0c1524f5); color:#e6edf7; box-shadow:0 32px 100px #0008,inset 0 1px #ffffff0a; }
+.sa-dialog header { display:flex; justify-content:space-between; align-items:center; gap:20px; padding:24px; border-bottom:1px solid #9aafca28; }
+.sa-dialog h2 { margin:8px 0; font-size:21px; font-weight:700; letter-spacing:-.025em; }
+.sa-dialog header small { color:#73cdbb; letter-spacing:.14em; font-size:10px; font-weight:700; }
+.sa-dialog header p { margin:0; color:#9fb0c5; font-size:12px; }
+.sa-messages { height:400px; min-height:180px; overflow:auto; padding:24px; display:flex; flex-direction:column; gap:18px; overscroll-behavior:contain; }
+.sa-message { align-self:flex-start; max-width:85%; min-width:150px; }
+.sa-message.is-mine { align-self:flex-end; }
+.sa-message > div { display:flex; flex-wrap:wrap; gap:12px; margin:0 2px 6px; font-size:11px; color:#adc0d7; }
+.sa-message time { color:#899ab0; }
+.sa-message p { white-space:pre-wrap; overflow-wrap:anywhere; margin:0; padding:12px 16px; border:1px solid #829cb63d; border-radius:12px 12px 12px 3px; background:#23354b80; line-height:1.6; }
+.sa-message.is-mine p { background:#1d528d60; border-color:#5990cf60; border-radius:12px 12px 3px 12px; }
+.sa-message small { display:flex; gap:4px; align-items:center; justify-content:flex-end; margin-top:4px; color:#8aa5bb; font-size:10px; }
+.sa-compose { padding:18px 24px; border-top:1px solid #9aafca28; display:flex; gap:10px; }
+.sa-compose input,.sa-call-setup select { background:#07111f80; border:1px solid #9aafca40; color:#edf3fa; border-radius:9px; padding:12px; font:inherit; min-width:0; flex:1; }
+.sa-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; flex:1; padding:40px 20px; text-align:center; color:#819ab5; }
+.sa-empty h3 { color:#c7d8ea; margin:16px 0 8px; font-size:17px; }
+.sa-empty p { margin:0; max-width:320px; line-height:1.6; }
+.sa-error { margin:16px 24px 0; border:1px solid #e0a45c55; padding:12px; background:#754b182a; border-radius:9px; color:#f2c589; line-height:1.6; }
+.sa-error .sa-button { margin:8px; }
+.sa-row { display:flex; align-items:center; gap:12px; justify-content:space-between; }
+.sa-notifications { padding:24px; overflow:auto; }
+.sa-notification { display:block; width:100%; text-align:left; padding:16px; margin-top:10px; border:1px solid #829cb62a; border-radius:10px; background:#16253980; color:#c1d0e2; cursor:pointer; }
+.sa-notification.is-unread { border-left:3px solid #4ed5b9; background:#17403945; }
+.sa-notification p { margin:6px 0; line-height:1.5; }
+.sa-notification time { color:#90a4ba; font-size:11px; }
+.sa-call-setup { padding:28px; display:flex; flex-direction:column; gap:22px; }
+.sa-call-setup label { display:flex; flex-direction:column; gap:9px; }
+.sa-call-setup select option { background:#132136; color:#f1f5f9; }
+.sa-call-setup p,.sa-hint { font-size:12px; color:#a0b3c9; line-height:1.65; }
+.sa-incoming { position:fixed; right:24px; bottom:24px; z-index:100001; display:flex; gap:14px; align-items:center; padding:22px; border:1px solid #50c5ac80; border-radius:14px; background:#112a30f5; box-shadow:0 20px 60px #0008; }
+.sa-incoming p { margin:5px 0 0; color:#a6c8c7; }
+.sa-meeting { width:min(1000px,100%); overflow:auto; }
+.sa-video-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:20px; }
+.sa-video-grid > div { position:relative; border-radius:12px; overflow:hidden; border:1px solid #829cb633; background:#070e19; }
+.sa-video-grid video { width:100%; aspect-ratio:4/3; object-fit:contain; display:block; }
+.sa-video-grid span { position:absolute; bottom:12px; left:12px; background:#07111fd9; padding:6px 10px; border-radius:6px; }
+.sa-call-controls { display:flex; flex-wrap:wrap; justify-content:center; gap:10px; padding:16px; }
+.sa-hint { padding:0 24px; }
+.sa-consent { margin:8px 20px; padding:18px; border:1px solid #60a5fa66; border-radius:10px; background:#1c375c80; }
+.sa-consent .sa-button { margin:4px; }
+.sa-download { margin:8px 24px; display:flex; align-items:center; gap:8px; color:#80dec5; padding:12px; border:1px solid #50c5ac55; border-radius:8px; }
+.light-mode .sa-collaboration > .sa-button { color:#244565; background:#e0ebf580; border-color:#8ca6c766; }
+.light-mode .sa-connection { color:#47617c; }
+@media(max-width:900px) { .sa-dashboard .super-header { padding:14px 16px !important; } .sa-dashboard .super-header > div:last-child { gap:10px !important; flex-wrap:wrap; } .sa-connection { display:none; } }
+@media(max-width:600px) { .sa-overlay { padding:10px; } .sa-dialog { max-height:95dvh; } .sa-dialog header,.sa-messages,.sa-notifications { padding:16px; } .sa-dialog h2 { font-size:18px; } .sa-compose { padding:12px; } .sa-button { padding:9px; } .sa-incoming { left:10px; right:10px; bottom:10px; flex-wrap:wrap; } .sa-video-grid { grid-template-columns:1fr; } }
+@media(prefers-reduced-motion:reduce) { .sa-dashboard * { scroll-behavior:auto !important; transition:none !important; } }
+
+.sa-dialog :is(button,input,select,a):focus-visible { outline:2px solid #67d8cf; outline-offset:3px; }

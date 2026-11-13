@@ -1,4 +1,5 @@
 'use client'
+import { recordAdminActivity } from '@/lib/admin-collaboration'
 
 import { useState, useEffect, useMemo } from 'react'
 import {
@@ -347,7 +348,8 @@ export default function SuperAdminCalendarView({
 
     setEvents(updatedList)
     localStorage.setItem('bu_super_admin_calendar_events', JSON.stringify(updatedList))
-    await pushGlobalKey('bu_super_admin_calendar_events', updatedList)
+    await pushGlobalKey('bu_super_admin_calendar_events', updatedList, false)
+    recordAdminActivity(`${editingEventId ? 'Actualizó' : 'Creó'} el evento: ${formTitle.trim()}. ${formTaggedAdmins.length ? 'Menciones: ' + formTaggedAdmins.join(', ') : ''}`, 'calendar').catch(() => toast.error('No se pudo guardar la notificación del evento.'))
 
     // Notify tagged admins
     if (formTaggedAdmins.length > 0) {

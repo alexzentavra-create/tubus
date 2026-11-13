@@ -46,3 +46,6 @@ supabase/docker/
 next-env.d.ts
 
 .active_access_codes.json
+
+# Generated collaboration verification artifacts
+scratch/admin-*-verification*

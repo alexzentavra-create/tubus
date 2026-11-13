@@ -27,9 +27,16 @@ import toast from 'react-hot-toast'
 import { syncAllGlobalKeys, pushGlobalKey, purgeUserDataForEmail, getValidActiveUser, clearActiveSession } from '@/lib/sync'
 import SessionConcurrencyGuard from '@/components/SessionConcurrencyGuard'
 import { CARTODB_DARK, CARTODB_LIGHT } from '@/lib/mapStyles'
-import SuperAdminVideoCallModal from '@/components/admin/SuperAdminVideoCallModal'
+import SuperAdminCollaboration from '@/components/admin/SuperAdminCollaboration'
+import { useAdminCollaboration } from '@/hooks/useAdminCollaboration'
+import { recordAdminActivity } from '@/lib/admin-collaboration'
+import './super-admin.css'
 import SuperAdminCalendarView from '@/components/admin/SuperAdminCalendarView'
-import SuperAdminCallNotification from '@/components/admin/SuperAdminCallNotification'
+
+function notifyLocalAdminChange(detail: string) {
+  recordAdminActivity(detail + ' (Cambio guardado en este dispositivo.)')
+    .catch(() => toast.error('No se pudo guardar la notificación del cambio.'))
+}
 
 // Visual graphs mock data
 const METRICS_BY_PERIOD = {
@@ -303,6 +310,11 @@ interface Todo {
 }
 
 export default function SuperAdminDashboard() {
+  const collaboration = useAdminCollaboration()
+  const isAdminOnline = (admin: { email?: string }) => {
+    const account = collaboration.data?.admins.find(a => a.email.toLowerCase() === admin.email?.toLowerCase())
+    return !collaboration.error && !!account && !!collaboration.data?.presence.some(p => p.user_id === account.id && Date.now() - Date.parse(p.last_seen) < 90000)
+  }
   useEffect(() => {
     if (typeof window === 'undefined') return
     const activeUser = getValidActiveUser()
@@ -334,33 +346,6 @@ export default function SuperAdminDashboard() {
   const [videoCallMeetingTitle, setVideoCallMeetingTitle] = useState<string | undefined>(undefined)
   const [isIncomingCallAccepted, setIsIncomingCallAccepted] = useState<boolean>(false)
 
-  // Calendar Notifications Center State
-  const [showNotificationsDropdown, setShowNotificationsDropdown] = useState<boolean>(false)
-  const [superAdminNotifications, setSuperAdminNotifications] = useState<any[]>([])
-
-  const loadSuperAdminNotifications = () => {
-    try {
-      const stored = localStorage.getItem('bu_super_admin_notifications')
-      if (stored) {
-        setSuperAdminNotifications(JSON.parse(stored))
-      } else {
-        setSuperAdminNotifications([])
-      }
-    } catch (e) {
-      setSuperAdminNotifications([])
-    }
-  }
-
-  useEffect(() => {
-    loadSuperAdminNotifications()
-    window.addEventListener('storage', loadSuperAdminNotifications)
-    window.addEventListener('super_admin_notifications_updated', loadSuperAdminNotifications)
-    return () => {
-      window.removeEventListener('storage', loadSuperAdminNotifications)
-      window.removeEventListener('super_admin_notifications_updated', loadSuperAdminNotifications)
-    }
-  }, [])
-
   // Super Admin Dual Identity (Alejandro / Nestor)
   const [adminIdentity, setAdminIdentity] = useState<string | null>(null)
   const [showIdentityModal, setShowIdentityModal] = useState<boolean>(false)
@@ -369,15 +354,8 @@ export default function SuperAdminDashboard() {
   const [adminColors, setAdminColors] = useState<Record<string, string>>({})
   const [showColorPickerFor, setShowColorPickerFor] = useState<string | null>(null)
   const [hoveredAdminId, setHoveredAdminId] = useState<string | null>(null)
-  const [onlineAdminsMap, setOnlineAdminsMap] = useState<Record<string, number>>({})
 
   const ADMIN_COLOR_PALETTE = ['#EF4444', '#8B5CF6', '#3B82F6', '#10B981', '#F59E0B', '#EC4899', '#06B6D4', '#6366F1']
-
-  // Real-time Chat Drawer State
-  const [showSuperAdminChat, setShowSuperAdminChat] = useState<boolean>(false)
-  const [chatMessages, setChatMessages] = useState<any[]>([])
-  const [chatInputText, setChatInputText] = useState<string>('')
-  const [counterpartOnline, setCounterpartOnline] = useState<boolean>(true)
 
   // Super Admin Line Generator State
   const [newLineNumber, setNewLineNumber] = useState<string>('')
@@ -411,37 +389,7 @@ export default function SuperAdminDashboard() {
     const savedLogs = JSON.parse(localStorage.getItem('bu_super_admin_audit_logs') || '[]')
     setAuditLogs(savedLogs)
 
-    const savedChat = JSON.parse(localStorage.getItem('bu_super_admin_internal_chat') || '[]')
-    setChatMessages(savedChat)
-
-    // Online Presence Heartbeat
-    const pingPresence = () => {
-      try {
-        const curId = sessionStorage.getItem('super_admin_identity') || localStorage.getItem('super_admin_identity') || 'Alejandro'
-        const currentPresence = JSON.parse(localStorage.getItem('bu_super_admin_presence_map') || '{}')
-        currentPresence[curId] = Date.now()
-        const now = Date.now()
-        Object.keys(currentPresence).forEach(k => {
-          if (now - currentPresence[k] > 45000) delete currentPresence[k]
-        })
-        localStorage.setItem('bu_super_admin_presence_map', JSON.stringify(currentPresence))
-        setOnlineAdminsMap({ ...currentPresence })
-        pushGlobalKey('bu_super_admin_presence_map', currentPresence).catch(() => {})
-      } catch (e) {}
-    }
-
-    pingPresence()
-    const presenceInterval = setInterval(pingPresence, 6000)
-
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'bu_super_admin_presence_map' && e.newValue) {
-        try {
-          setOnlineAdminsMap(JSON.parse(e.newValue))
-        } catch (err) {}
-      }
-      if (e.key === 'bu_super_admin_internal_chat' && e.newValue) {
-        setChatMessages(JSON.parse(e.newValue))
-      }
       if (e.key === 'bu_super_admin_audit_logs' && e.newValue) {
         setAuditLogs(JSON.parse(e.newValue))
       }
@@ -458,7 +406,6 @@ export default function SuperAdminDashboard() {
     }
     window.addEventListener('storage', handleStorageChange)
     return () => {
-      clearInterval(presenceInterval)
       window.removeEventListener('storage', handleStorageChange)
     }
   }, [])
@@ -471,6 +418,7 @@ export default function SuperAdminDashboard() {
     const updated = [entry, ...auditLogs]
     setAuditLogs(updated)
     localStorage.setItem('bu_super_admin_audit_logs', JSON.stringify(updated))
+    recordAdminActivity(action).catch(() => toast.error('No se pudo guardar la notificación de actividad.'))
   }
 
   const handleSelectIdentity = (name: 'Alejandro' | 'Nestor') => {
@@ -480,24 +428,6 @@ export default function SuperAdminDashboard() {
     setShowIdentityModal(false)
     toast.success(`¡Bienvenido ${name}!`)
     logActivity(`Inicio de sesión en panel Super Admin como ${name}`)
-  }
-
-  const handleSendChatMessage = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!chatInputText.trim()) return
-    const sender = adminIdentity || 'Alejandro'
-    const now = new Date()
-    const msg = {
-      id: Date.now().toString(),
-      sender,
-      text: chatInputText.trim(),
-      timestamp: `${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-    }
-    const updated = [...chatMessages, msg]
-    setChatMessages(updated)
-    localStorage.setItem('bu_super_admin_internal_chat', JSON.stringify(updated))
-    setChatInputText('')
-    logActivity(`Envió mensaje a chat interno de Super Admin`)
   }
 
   const handleCreateNewLineAdmin = (e: React.FormEvent) => {
@@ -560,6 +490,7 @@ export default function SuperAdminDashboard() {
     const updated = [newFeature, ...upcomingFeatures]
     setUpcomingFeatures(updated)
     localStorage.setItem('bu_upcoming_features', JSON.stringify(updated))
+    notifyLocalAdminChange('Actualizó las funciones anunciadas.')
     setNewFeatureTitle('')
     toast.success('¡Función "Próximamente" agregada con éxito para los usuarios!')
   }
@@ -568,6 +499,7 @@ export default function SuperAdminDashboard() {
     const updated = upcomingFeatures.filter(f => f.id !== id)
     setUpcomingFeatures(updated)
     localStorage.setItem('bu_upcoming_features', JSON.stringify(updated))
+    notifyLocalAdminChange('Actualizó las funciones anunciadas.')
     toast.success('Función eliminada del panel del usuario')
   }
 
@@ -588,6 +520,7 @@ export default function SuperAdminDashboard() {
 
   const handleSave2FaConfig = () => {
     localStorage.setItem('bu_super_admin_2fa_config', JSON.stringify(twoFaConfig))
+    notifyLocalAdminChange('Actualizó las preferencias de seguridad del panel.')
     toast.success('¡Configuración de Seguridad 2FA y Mensajería guardada correctamente!')
   }
 
@@ -878,6 +811,7 @@ export default function SuperAdminDashboard() {
 
   const handleSaveSuperAdminSettings = () => {
     localStorage.setItem('bu_super_admin_settings', JSON.stringify(superAdminSettings))
+    logActivity('Actualizó los ajustes generales del Super Admin en este dispositivo.')
     toast.success('¡Ajustes generales del Super Administrador guardados!')
   }
 
@@ -1624,6 +1558,7 @@ export default function SuperAdminDashboard() {
   const saveTodos = (newTodos: Todo[]) => {
     setTodos(newTodos)
     localStorage.setItem('mock_super_todos', JSON.stringify(newTodos))
+    notifyLocalAdminChange('Actualizó las tareas del equipo.')
   }
 
   const saveAds = (newAds: any[]) => {
@@ -2960,23 +2895,23 @@ export default function SuperAdminDashboard() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {/* Header Summary Cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
-          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px' }}>
+          <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px' }}>
             <span style={{ fontSize: '10px', color: '#8f94a5', textTransform: 'uppercase', fontWeight: 600 }}>Total Admins de Línea</span>
             <div style={{ fontSize: '22px', fontWeight: 800, color: '#fff', marginTop: '4px' }}>{liveLineAdmins.length} Registrados</div>
           </div>
-          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px' }}>
+          <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px' }}>
             <span style={{ fontSize: '10px', color: '#8f94a5', textTransform: 'uppercase', fontWeight: 600 }}>En Sesión Activa</span>
             <div style={{ fontSize: '22px', fontWeight: 800, color: '#10B981', marginTop: '4px' }}>
               {liveLineAdmins.filter(a => a.status === 'Activo').length} Admins
             </div>
           </div>
-          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px' }}>
+          <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px' }}>
             <span style={{ fontSize: '10px', color: '#8f94a5', textTransform: 'uppercase', fontWeight: 600 }}>Acciones Auditadas</span>
             <div style={{ fontSize: '22px', fontWeight: 800, color: '#3B82F6', marginTop: '4px' }}>
               {liveLineAdmins.reduce((acc, a) => acc + (a.activityLogs?.length || 0), 0)} Registros
             </div>
           </div>
-          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px' }}>
+          <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px' }}>
             <span style={{ fontSize: '10px', color: '#8f94a5', textTransform: 'uppercase', fontWeight: 600 }}>Sincronización</span>
             <div style={{ fontSize: '14px', fontWeight: 700, color: '#10B981', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#10B981' }} /> En Tiempo Real
@@ -2985,7 +2920,7 @@ export default function SuperAdminDashboard() {
         </div>
 
         {/* Search Toolbar */}
-        <div style={{ background: '#121527', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+        <div className="sa-surface" style={{ background: '#121527', padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <div style={{ fontSize: '13px', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Building2 size={16} style={{ color: '#10B981' }} /> Control de Administradores de Empresa y Línea
           </div>
@@ -3268,7 +3203,9 @@ export default function SuperAdminDashboard() {
   )
 
   const logout = async () => {
+    await collaboration.leave().catch(() => {})
     await supabase.auth.signOut()
+    clearActiveSession()
     window.location.href = '/login'
   }
 
@@ -3294,7 +3231,7 @@ export default function SuperAdminDashboard() {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '28px', maxWidth: '1100px', margin: '0 auto', paddingBottom: '40px' }}>
         {/* Header */}
-        <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px' }}>
+        <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(59, 130, 246, 0.4)' }}>
               <Settings size={24} style={{ color: '#FFFFFF' }} />
@@ -3309,7 +3246,7 @@ export default function SuperAdminDashboard() {
         {/* Grid Section: Super Admin Accounts List + Add Super Admin Form */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
           {/* Card 1: Existing Super Admins & Password Management */}
-          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Shield size={20} style={{ color: '#10B981' }} />
@@ -3319,12 +3256,7 @@ export default function SuperAdminDashboard() {
                 const activeUserEmail = (typeof window !== 'undefined' ? (JSON.parse(localStorage.getItem('active_user') || '{}')?.email || localStorage.getItem('profile_email') || '') : '').toLowerCase().trim()
                 const activeSuperAdminsCount = superAdminAccounts.filter((admin: any) => {
                   if (admin.status === 'Bloqueado') return false
-                  return Boolean(
-                    (onlineAdminsMap[admin.name] && (Date.now() - onlineAdminsMap[admin.name] < 45000)) ||
-                    (onlineAdminsMap[admin.email] && (Date.now() - onlineAdminsMap[admin.email] < 45000)) ||
-                    (adminIdentity && admin.name && adminIdentity.trim().toLowerCase() === admin.name.trim().toLowerCase()) ||
-                    (activeUserEmail && admin.email && activeUserEmail === admin.email.trim().toLowerCase())
-                  )
+                  return isAdminOnline(admin)
                 }).length
                 const inactiveSuperAdminsCount = superAdminAccounts.length - activeSuperAdminsCount
 
@@ -3345,12 +3277,7 @@ export default function SuperAdminDashboard() {
               {superAdminAccounts.map((admin: any) => {
                 const isBlocked = admin.status === 'Bloqueado'
                 const activeUserEmail = (typeof window !== 'undefined' ? (JSON.parse(localStorage.getItem('active_user') || '{}')?.email || localStorage.getItem('profile_email') || '') : '').toLowerCase().trim()
-                const isOnline = !isBlocked && Boolean(
-                  (onlineAdminsMap[admin.name] && (Date.now() - onlineAdminsMap[admin.name] < 45000)) ||
-                  (onlineAdminsMap[admin.email] && (Date.now() - onlineAdminsMap[admin.email] < 45000)) ||
-                  (adminIdentity && admin.name && adminIdentity.trim().toLowerCase() === admin.name.trim().toLowerCase()) ||
-                  (activeUserEmail && admin.email && activeUserEmail === admin.email.trim().toLowerCase())
-                )
+                const isOnline = !isBlocked && isAdminOnline(admin)
 
                 return (
                   <div key={admin.id} style={{ background: '#1B1D2E', border: '1px solid ' + (isBlocked ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255,255,255,0.08)'), borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -3517,7 +3444,7 @@ export default function SuperAdminDashboard() {
           </div>
 
           {/* Card 2: Add New Super Admin */}
-          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px' }}>
+          <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px' }}>
               <UserPlus size={20} style={{ color: '#3B82F6' }} />
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#FFFFFF' }}>Agregar Nuevo Super Administrador</h3>
@@ -3604,7 +3531,7 @@ export default function SuperAdminDashboard() {
         </div>
 
         {/* Card: Código de Acceso a la Plataforma y Rotación Diaria (24 hs) */}
-        <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.2))', border: '1px solid rgba(16, 185, 129, 0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -3768,7 +3695,7 @@ export default function SuperAdminDashboard() {
         </div>
 
         {/* Global Platform Settings */}
-        <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px' }}>
+        <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px' }}>
             <KeyRound size={20} style={{ color: '#F59E0B' }} />
             <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#FFFFFF' }}>Ajustes Globales del Sistema y Plataforma</h3>
@@ -3856,7 +3783,7 @@ export default function SuperAdminDashboard() {
         {/* Change Password Modal */}
         {editingPasswordAdmin && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-            <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', width: '100%', maxWidth: '440px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+            <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '16px', width: '100%', maxWidth: '440px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <KeyRound size={20} style={{ color: '#F59E0B' }} />
@@ -3915,7 +3842,7 @@ export default function SuperAdminDashboard() {
         {/* Delete Super Admin Confirmation Modal */}
         {deletingSuperAdmin && (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-            <div style={{ background: '#121527', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '16px', width: '100%', maxWidth: '440px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 20px 40px rgba(239,68,68,0.2)' }}>
+            <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '16px', width: '100%', maxWidth: '440px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '18px', boxShadow: '0 20px 40px rgba(239,68,68,0.2)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '14px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <Trash2 size={22} style={{ color: '#EF4444' }} />
@@ -3965,7 +3892,7 @@ export default function SuperAdminDashboard() {
     .reduce((sum, a) => sum + a.budget, 0)
 
   return (
-    <div className={theme === 'light' ? 'light-mode main-layout' : 'dark-mode main-layout'} style={{
+    <div className={theme === 'light' ? 'sa-dashboard light-mode main-layout' : 'sa-dashboard dark-mode main-layout'} style={{
       height: '100vh',
       overflow: 'hidden',
       background: '#0b0f19',
@@ -4158,7 +4085,7 @@ export default function SuperAdminDashboard() {
           fill: #475569 !important;
         }
       `}</style>
-      <SessionConcurrencyGuard userEmail={adminIdentity ? `${adminIdentity.toLowerCase()}@bienparada.ar` : 'superadmin@bienparada.ar'} />
+      <SessionConcurrencyGuard userEmail={collaboration.data?.me.email || null} />
       {/* Horizontal Header */}
       <header className="super-header" style={{
         background: '#121527',
@@ -4195,10 +4122,7 @@ export default function SuperAdminDashboard() {
             {/* Online Registered Super Admins Avatar Circles */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
               {superAdminAccounts.map((admin: any, idx: number) => {
-                const isOnline = Boolean(
-                  (onlineAdminsMap[admin.name] && (Date.now() - onlineAdminsMap[admin.name] < 45000)) ||
-                  (adminIdentity === admin.name)
-                )
+                const isOnline = isAdminOnline(admin)
                 const initial = admin.name.trim().charAt(0).toUpperCase() || 'A'
                 const storedColor = adminColors[admin.id] || (typeof window !== 'undefined' ? localStorage.getItem(`admin_color_${admin.id}`) : null)
                 const currentColor = storedColor || ADMIN_COLOR_PALETTE[idx % ADMIN_COLOR_PALETTE.length]
@@ -4328,117 +4252,7 @@ export default function SuperAdminDashboard() {
               })}
             </div>
 
-            {/* Chat Super Admin Button */}
-            <button
-              onClick={() => setShowSuperAdminChat(prev => !prev)}
-              style={{
-                padding: '8px 14px', borderRadius: '10px', background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.35)',
-                color: '#60A5FA', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px',
-                transition: 'all 200ms'
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(59,130,246,0.25)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(59,130,246,0.15)'}
-            >
-              💬 Chat entre Super Admins
-            </button>
-
-            {/* Videollamada Super Admin Green Button */}
-            <button
-              onClick={() => {
-                setVideoCallInitialTarget(undefined)
-                setVideoCallMeetingTitle(undefined)
-                setIsIncomingCallAccepted(false)
-                setShowVideoCallModal(true)
-              }}
-              style={{
-                padding: '8px 14px', borderRadius: '10px',
-                background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.4)',
-                color: '#10B981', fontSize: '12px', fontWeight: 800, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: '6px',
-                transition: 'all 200ms', boxShadow: '0 0 12px rgba(16, 185, 129, 0.15)'
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(16, 185, 129, 0.25)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(16, 185, 129, 0.15)'}
-              title="Iniciar videollamada con otro Super Administrador"
-            >
-              <Video size={14} /> 📞 Videollamada
-            </button>
-
-            {/* Notifications Dropdown for Calendar Tagged Events */}
-            <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => setShowNotificationsDropdown(prev => !prev)}
-                style={{
-                  position: 'relative', width: '34px', height: '34px', borderRadius: '8px',
-                  background: showNotificationsDropdown ? 'rgba(59, 130, 246, 0.25)' : '#1b1d2e',
-                  border: '1px solid rgba(255, 255, 255, 0.1)', color: '#FFF', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 150ms'
-                }}
-                title="Notificaciones de eventos y menciones"
-              >
-                <Bell size={15} style={{ color: superAdminNotifications.filter((n: any) => !n.read && (!n.recipient || n.recipient.toLowerCase().includes((adminIdentity || '').toLowerCase()))).length > 0 ? '#10B981' : '#8F94A5' }} />
-                {superAdminNotifications.filter((n: any) => !n.read && (!n.recipient || n.recipient.toLowerCase().includes((adminIdentity || '').toLowerCase()))).length > 0 && (
-                  <span style={{
-                    position: 'absolute', top: '-4px', right: '-4px', width: '16px', height: '16px',
-                    borderRadius: '50%', background: '#EF4444', color: '#FFF', fontSize: '9px', fontWeight: 900,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 8px rgba(239, 68, 68, 0.8)'
-                  }}>
-                    {superAdminNotifications.filter((n: any) => !n.read && (!n.recipient || n.recipient.toLowerCase().includes((adminIdentity || '').toLowerCase()))).length}
-                  </span>
-                )}
-              </button>
-
-              {showNotificationsDropdown && (
-                <div style={{
-                  position: 'absolute', top: '44px', right: 0, width: '320px', background: '#121527',
-                  border: '1px solid rgba(255, 255, 255, 0.12)', borderRadius: '12px', padding: '12px',
-                  boxShadow: '0 15px 40px rgba(0,0,0,0.8)', zIndex: 99999, display: 'flex', flexDirection: 'column', gap: '8px'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '8px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 800, color: '#FFF' }}>🔔 Notificaciones y Menciones</span>
-                    {superAdminNotifications.length > 0 && (
-                      <button
-                        onClick={() => {
-                          const marked = superAdminNotifications.map((n: any) => ({ ...n, read: true }))
-                          setSuperAdminNotifications(marked)
-                          localStorage.setItem('bu_super_admin_notifications', JSON.stringify(marked))
-                        }}
-                        style={{ background: 'none', border: 'none', color: '#10B981', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}
-                      >
-                        Marcar leídas
-                      </button>
-                    )}
-                  </div>
-
-                  <div style={{ maxHeight: '240px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {superAdminNotifications.length === 0 ? (
-                      <div style={{ padding: '20px 0', textAlign: 'center', color: '#64748B', fontSize: '11px' }}>
-                        No tienes notificaciones pendientes.
-                      </div>
-                    ) : (
-                      superAdminNotifications.slice(0, 8).map((notif: any) => (
-                        <div
-                          key={notif.id}
-                          onClick={() => {
-                            setTab('calendar')
-                            setShowNotificationsDropdown(false)
-                          }}
-                          style={{
-                            background: notif.read ? '#181b2e' : 'rgba(16, 185, 129, 0.1)',
-                            borderLeft: `3px solid ${notif.read ? 'rgba(255,255,255,0.1)' : '#10B981'}`,
-                            padding: '8px 10px', borderRadius: '6px', cursor: 'pointer'
-                          }}
-                        >
-                          <div style={{ fontSize: '12px', fontWeight: 700, color: '#FFF' }}>{notif.title}</div>
-                          <div style={{ fontSize: '11px', color: '#8F94A5', marginTop: '2px' }}>{notif.detail}</div>
-                          <div style={{ fontSize: '10px', color: '#64748B', marginTop: '4px' }}>{notif.time}</div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+            <SuperAdminCollaboration data={collaboration.data} error={collaboration.error} refresh={collaboration.refresh} initialTarget={videoCallInitialTarget} onOpenCalendar={() => setTab('calendar')} openCall={showVideoCallModal} onCallOpened={() => setShowVideoCallModal(false)} />
           {/* Light/Dark Mode Toggle Button */}
           <button
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
@@ -4500,48 +4314,8 @@ export default function SuperAdminDashboard() {
         </div>
       </header>
 
-      {/* Super Admin Internal Chat Modal */}
-      {showSuperAdminChat && (
-        <SuperAdminInternalChatModal
-          onClose={() => setShowSuperAdminChat(false)}
-          onStartCall={(target) => {
-            setVideoCallInitialTarget(target)
-            setVideoCallMeetingTitle(`Videollamada iniciada desde Chat Interno`)
-            setIsIncomingCallAccepted(false)
-            setShowVideoCallModal(true)
-          }}
-        />
-      )}
-
-      {/* Super Admin Video Call Modal */}
-      {showVideoCallModal && (
-        <SuperAdminVideoCallModal
-          onClose={() => {
-            setShowVideoCallModal(false)
-            setVideoCallInitialTarget(undefined)
-            setVideoCallMeetingTitle(undefined)
-            setIsIncomingCallAccepted(false)
-          }}
-          initialTarget={videoCallInitialTarget}
-          meetingTitle={videoCallMeetingTitle}
-          currentAdminName={adminIdentity || 'Alejandro'}
-          isIncoming={isIncomingCallAccepted}
-        />
-      )}
-
-      {/* Incoming Call Notification Banner */}
-      <SuperAdminCallNotification
-        currentAdminName={adminIdentity || 'Alejandro'}
-        onAcceptCall={(caller, title) => {
-          setVideoCallInitialTarget(caller)
-          setVideoCallMeetingTitle(title || `Llamada con ${caller}`)
-          setIsIncomingCallAccepted(true)
-          setShowVideoCallModal(true)
-        }}
-      />
-
       {/* Main Horizontal Navigation */}
-      <div style={{
+      <div className="sa-navigation" style={{
         background: '#121527',
         borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
         padding: '0 24px',
@@ -4650,7 +4424,7 @@ export default function SuperAdminDashboard() {
             </div>
 
             {/* Performance Visual Graph Selector */}
-            <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '24px' }}>
+            <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
                 <div>
                   <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Gráfico de Rendimiento General</h3>
@@ -4688,7 +4462,7 @@ export default function SuperAdminDashboard() {
             </div>
 
             {/* Todo reminders */}
-            <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '24px' }}>
+            <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Recordatorios del Super Administrador</h3>
                 <span style={{ fontSize: '11px', color: '#8f94a5', fontFamily: 'DM Mono' }}>{todos.filter(t=>!t.done).length} pendientes</span>
@@ -4948,7 +4722,7 @@ export default function SuperAdminDashboard() {
 
         {/* 7. Dedicated Todos/Reminders */}
         {tab === 'todos' && (
-          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '24px' }}>
+          <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '24px' }}>
             <CRMTasksTab
               todos={todos}
               onUpdateTodo={updateTodo}
@@ -5099,7 +4873,7 @@ export default function SuperAdminDashboard() {
         {tab === 'security_2fa' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '900px', margin: '0 auto' }}>
             {/* 2FA Messaging Settings */}
-            <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px' }}>
+            <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '16px' }}>
                 <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Lock size={22} style={{ color: '#3B82F6' }} />
@@ -5198,7 +4972,7 @@ export default function SuperAdminDashboard() {
             </div>
 
             {/* Upcoming Features Manager */}
-            <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px' }}>
+            <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '16px', padding: '24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '16px' }}>
                 <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Megaphone size={22} style={{ color: '#10B981' }} />
@@ -5461,7 +5235,7 @@ function SingleLineMap({ line, onMessageAdmin, theme }: { line: any, onMessageAd
   const totalPassengers = activeBuses.reduce((acc: number, b: any) => acc + (b.total_passengers || b.passengers || 0), 0)
 
   return (
-    <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+    <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: line.color }} />
@@ -5880,7 +5654,7 @@ function DriversTab() {
         </div>
       </div>
 
-      <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', overflow: 'hidden' }}>
+      <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
           <thead>
             <tr style={{ background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -6331,6 +6105,7 @@ function PoisTab() {
 
     setCustomPois(updatedCustom)
     localStorage.setItem('bu_custom_pois', JSON.stringify(updatedCustom))
+    notifyLocalAdminChange('Actualizó los puntos de interés.')
 
     // Restore from deleted list if present
     if (editingPoi) {
@@ -6350,6 +6125,7 @@ function PoisTab() {
     const updatedCustom = customPois.filter(p => p.id !== id)
     setCustomPois(updatedCustom)
     localStorage.setItem('bu_custom_pois', JSON.stringify(updatedCustom))
+    notifyLocalAdminChange('Actualizó los puntos de interés.')
 
     const newDeletedIds = Array.from(new Set([...deletedPoiIds, id]))
     setDeletedPoiIds(newDeletedIds)
@@ -6398,7 +6174,7 @@ function PoisTab() {
       </div>
 
       {/* Filter & Search Bar */}
-      <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+      <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {[
             { id: 'all', label: 'Todos los Puntos', icon: '📍' },
@@ -6535,7 +6311,7 @@ function PoisTab() {
       {/* Create / Edit POI Modal */}
       {showPoiModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,8,16,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '16px' }}>
-          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '16px', padding: '24px', maxWidth: '520px', width: '100%', color: '#FFFFFF', boxShadow: '0 20px 50px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '16px', padding: '24px', maxWidth: '520px', width: '100%', color: '#FFFFFF', boxShadow: '0 20px 50px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800 }}>{editingPoi ? '✏️ Editar Punto de Interés' : '➕ Crear Nuevo Punto de Interés'}</h3>
               <button onClick={() => setShowPoiModal(false)} style={{ background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', fontSize: '16px' }}>✕</button>
@@ -6686,7 +6462,7 @@ function PoisTab() {
       {/* MAP PIN PICKER MODAL */}
       {showPoiMapPicker && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,8,16,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999, padding: '16px' }}>
-          <div style={{ background: '#121527', border: '1px solid rgba(59,130,246,0.4)', borderRadius: '16px', padding: '24px', maxWidth: '650px', width: '100%', color: '#FFFFFF', boxShadow: '0 20px 50px rgba(0,0,0,0.7)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(59,130,246,0.4)', borderRadius: '16px', padding: '24px', maxWidth: '650px', width: '100%', color: '#FFFFFF', boxShadow: '0 20px 50px rgba(0,0,0,0.7)', display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#3B82F6' }}>📍 Seleccionar Ubicación Exacta en el Mapa</h3>
@@ -6744,7 +6520,7 @@ function PoisTab() {
       {/* Delete Confirmation Modal */}
       {deletePoiTarget && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,8,16,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: '16px' }}>
-          <div style={{ background: '#121527', border: '1.5px solid rgba(239, 68, 68, 0.4)', borderRadius: '16px', padding: '24px', maxWidth: '420px', width: '100%', color: '#FFFFFF', boxShadow: '0 20px 50px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="sa-surface" style={{ background: '#121527', border: '1.5px solid rgba(239, 68, 68, 0.4)', borderRadius: '16px', padding: '24px', maxWidth: '420px', width: '100%', color: '#FFFFFF', boxShadow: '0 20px 50px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EF4444' }}>
                 <AlertTriangle size={22} />
@@ -7170,7 +6946,7 @@ function AdsTab({
       </div>
 
       {/* Interactive Bus Lines Stop-by-Stop Ads Monitor across ALL LINES */}
-      <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
         <div>
           <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: 0 }}>Monitoreo de Campañas por Parada (Todas las Líneas de Colectivo)</h4>
           <p style={{ fontSize: '11px', color: '#8f94a5', margin: '4px 0 0' }}>Seleccione cualquier parada para inspeccionar en tiempo real todas las campañas activas, fechas de vigencia y presupuestos contratados</p>
@@ -7631,7 +7407,7 @@ function ChatTab({
   })
 
   return (
-    <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', display: 'flex', height: '580px', overflow: 'hidden' }}>
+    <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', display: 'flex', height: '580px', overflow: 'hidden' }}>
       {/* 1. Search and chat list sidebar */}
       <div style={{ width: '290px', borderRight: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', background: 'rgba(0,0,0,0.15)' }}>
         <div style={{ padding: '16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -7915,7 +7691,7 @@ function ChatTab({
       {/* Add support chat modal */}
       {showAddChatModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '24px', width: '320px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '24px', width: '320px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Nueva Conversación</h3>
             <div>
               <label style={{ fontSize: '11px', color: '#8f94a5', display: 'block', marginBottom: '6px' }}>Nombre del Contacto</label>
@@ -8060,6 +7836,7 @@ function ReportsTab({ bannedUsers, onToggleBan }: { bannedUsers: string[]; onTog
     })
     setComplaints(updated)
     localStorage.setItem('bu_reports', JSON.stringify(updated))
+    notifyLocalAdminChange('Actualizó las denuncias.')
     try { window.dispatchEvent(new Event('storage')) } catch (e) {}
   }
 
@@ -8074,6 +7851,7 @@ function ReportsTab({ bannedUsers, onToggleBan }: { bannedUsers: string[]; onTog
     if (!deletedReportIds.includes(id)) deletedReportIds.push(id)
     localStorage.setItem('bu_deleted_report_ids', JSON.stringify(deletedReportIds))
     localStorage.setItem('bu_reports', JSON.stringify(updated))
+    notifyLocalAdminChange('Actualizó las denuncias.')
 
     try { window.dispatchEvent(new Event('storage')) } catch (e) {}
     toast.success(`🗑️ "${name}" eliminada permanentemente del sistema.`)
@@ -8155,7 +7933,7 @@ function ReportsTab({ bannedUsers, onToggleBan }: { bannedUsers: string[]; onTog
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {filteredComplaints.length === 0 ? (
-          <div style={{ background: '#121527', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '12px', padding: '30px', textAlign: 'center', color: '#8f94a5', fontSize: '13px' }}>
+          <div className="sa-surface" style={{ background: '#121527', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '12px', padding: '30px', textAlign: 'center', color: '#8f94a5', fontSize: '13px' }}>
             No hay denuncias de choferes registradas en este estado.
           </div>
         ) : (
@@ -8257,7 +8035,7 @@ function ReportsTab({ bannedUsers, onToggleBan }: { bannedUsers: string[]; onTog
       {/* Reporter Profile Detail Modal & Banning Controls */}
       {selectedReporter && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,8,16,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999 }}>
-          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '24px', width: '380px', display: 'flex', flexDirection: 'column', gap: '16px', color: '#fff' }}>
+          <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '24px', width: '380px', display: 'flex', flexDirection: 'column', gap: '16px', color: '#fff' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Perfil del Denunciante</h3>
               <button onClick={() => setSelectedReporter(null)} style={{ background: 'none', border: 'none', color: '#8f94a5', cursor: 'pointer', fontSize: '16px' }}>✕</button>
@@ -8315,7 +8093,7 @@ function ReportsTab({ bannedUsers, onToggleBan }: { bannedUsers: string[]; onTog
       {/* Confirmation Modal for Permanent Report Deletion */}
       {deleteReportTarget && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,8,16,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999 }}>
-          <div style={{ background: '#121527', border: '1.5px solid rgba(239, 68, 68, 0.4)', borderRadius: '16px', padding: '24px', maxWidth: '400px', width: '100%', color: '#FFFFFF', boxShadow: '0 20px 50px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="sa-surface" style={{ background: '#121527', border: '1.5px solid rgba(239, 68, 68, 0.4)', borderRadius: '16px', padding: '24px', maxWidth: '400px', width: '100%', color: '#FFFFFF', boxShadow: '0 20px 50px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#EF4444' }}>
                 <AlertTriangle size={22} />
@@ -8972,7 +8750,7 @@ function ProvinceMapTab({
 
         {/* Right: Demographics & Analytics Panel */}
         <div style={{ gridColumn: 'span 5', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* Header & Date / Time Filter */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -9309,7 +9087,7 @@ function CRMTasksTab({
       {/* Edit Task Modal */}
       {editingTodo && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '24px', width: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '24px', width: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Editar Tarea Operativa</h3>
             
             <div>
@@ -9406,7 +9184,7 @@ function CRMTasksTab({
       {/* Add Task Modal */}
       {showAddModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '24px', width: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '24px', width: '360px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Nueva Tarea Operativa</h3>
             
             <div>
@@ -9625,6 +9403,7 @@ function RealtimeNewsAndTipsTab({
   const saveTips = (newTips: any[]) => {
     setTips(newTips)
     localStorage.setItem('bu_passenger_tips', JSON.stringify(newTips))
+    notifyLocalAdminChange('Actualizó los consejos para pasajeros.')
   }
 
   const handleAddTip = () => {
@@ -9923,7 +9702,7 @@ function RealtimeNewsAndTipsTab({
       {/* Modal to add custom passenger tip */}
       {showAddTipModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-          <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '24px', width: '100%', maxWidth: '480px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', padding: '24px', width: '100%', maxWidth: '480px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0, color: '#fff' }}>💡 Crear Nuevo Tip para Pasajeros</h3>
             
             <div>
@@ -10026,6 +9805,7 @@ function TermsAndConditionsManagerTab({
       saveStoredAdsTerms(adsTermsInput, adsVersionInput)
     }
     loadHistory()
+    notifyLocalAdminChange('Actualizó los términos y condiciones.')
     toast.success(`¡Términos y condiciones (${adminTermsTab === 'general' ? 'Generales' : 'Anuncios'}) guardados y versión registrada en tiempo real!`)
   }
 
@@ -10040,6 +9820,7 @@ function TermsAndConditionsManagerTab({
       saveStoredAdsTerms(entry.content, entry.version)
     }
     loadHistory()
+    notifyLocalAdminChange('Restauró una versión de términos y condiciones.')
     toast.success(`🔄 Versión ${entry.version} restaurada y activada como vigente en la app.`)
   }
 
@@ -10052,7 +9833,7 @@ function TermsAndConditionsManagerTab({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* Header Card */}
-      <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+      <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <div style={{ fontSize: '18px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <ShieldCheck size={20} style={{ color: adminTermsTab === 'general' ? '#10B981' : '#3B82F6' }} /> Editor de Términos y Condiciones Sincronizados
@@ -10092,7 +9873,7 @@ function TermsAndConditionsManagerTab({
       {/* Content Grid: Left Editor | Right Live Popup Preview */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
         {/* Left Column: Editor Form */}
-        <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+        <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>
               {adminTermsTab === 'general' ? 'Editando: Términos y Condiciones Generales' : 'Editando: Términos y Reglas de Publicación de Anuncios'}
@@ -10148,7 +9929,7 @@ function TermsAndConditionsManagerTab({
         </div>
 
         {/* Right Column: Live Popup Preview */}
-        <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '13px', fontWeight: 600, color: '#fff' }}>
               👁️ Vista Previa del Popup para el Usuario
@@ -10189,7 +9970,7 @@ function TermsAndConditionsManagerTab({
       </div>
 
       {/* Bottom Full-Width Section: Version History & One-Click Restore */}
-      <div style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div className="sa-surface" style={{ background: '#121527', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h4 style={{ fontSize: '15px', fontWeight: 700, color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -10261,291 +10042,6 @@ function TermsAndConditionsManagerTab({
         )}
       </div>
 
-    </div>
-  )
-}
-
-
-function SuperAdminInternalChatModal({
-  onClose,
-  onStartCall
-}: {
-  onClose: () => void
-  onStartCall?: (target: string) => void
-}) {
-  const [messages, setMessages] = useState<any[]>([])
-  const [inputText, setInputText] = useState('')
-  const [adminNames, setAdminNames] = useState<string[]>(() => {
-    try {
-      const stored = localStorage.getItem('bu_super_admin_names')
-      if (stored) {
-        const parsed = JSON.parse(stored)
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed
-      }
-    } catch (e) {}
-    return ['Alejandro', 'Nestor']
-  })
-  const [newAdminNameInput, setNewAdminNameInput] = useState('')
-  const [senderName, setSenderName] = useState(() => {
-    if (typeof window === 'undefined') return 'Alejandro'
-    const storedId = sessionStorage.getItem('super_admin_identity') || localStorage.getItem('super_admin_identity')
-    return storedId === 'Nestor' ? 'Nestor' : 'Alejandro'
-  })
-
-  const loadMessages = () => {
-    try {
-      const stored = localStorage.getItem('mock_super_admin_internal_chat')
-      if (stored) {
-        setMessages(JSON.parse(stored))
-      } else {
-        const initial = [
-          { id: '1', sender: 'Alejandro', text: 'Canal de chat interno habilitado para el equipo de Super Admins.', time: '09:00', role: 'Super Admin' },
-          { id: '2', sender: 'Nestor', text: 'Excelente. Todas las líneas activas sincronizadas en tiempo real.', time: '09:05', role: 'Super Admin' }
-        ]
-        setMessages(initial)
-        localStorage.setItem('mock_super_admin_internal_chat', JSON.stringify(initial))
-      }
-    } catch (e) {
-      setMessages([])
-    }
-  }
-
-  useEffect(() => {
-    loadMessages()
-    window.addEventListener('storage', loadMessages)
-    window.addEventListener('super_internal_chat_updated', loadMessages)
-    return () => {
-      window.removeEventListener('storage', loadMessages)
-      window.removeEventListener('super_internal_chat_updated', loadMessages)
-    }
-  }, [])
-
-  const handleSendMessage = (e?: any) => {
-    if (e) e.preventDefault()
-    if (!inputText.trim()) return
-
-    const now = new Date()
-    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-    const newMsg = {
-      id: `msg-${Date.now()}`,
-      sender: senderName,
-      text: inputText.trim(),
-      time: timeStr,
-      role: 'Super Admin'
-    }
-
-    const updated = [...messages, newMsg]
-    setMessages(updated)
-    localStorage.setItem('mock_super_admin_internal_chat', JSON.stringify(updated))
-    setInputText('')
-    window.dispatchEvent(new Event('storage'))
-    window.dispatchEvent(new Event('super_internal_chat_updated'))
-  }
-
-  const handleClearHistory = () => {
-    setMessages([])
-    localStorage.setItem('mock_super_admin_internal_chat', JSON.stringify([]))
-    window.dispatchEvent(new Event('storage'))
-    window.dispatchEvent(new Event('super_internal_chat_updated'))
-  }
-
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 99999, background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
-    }}>
-      <div style={{
-        background: '#121527', border: '1px solid rgba(59,130,246,0.3)', borderRadius: '16px',
-        width: '100%', maxWidth: '580px', height: '620px', display: 'flex', flexDirection: 'column',
-        overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.6)'
-      }}>
-        {/* Modal Header */}
-        <div style={{
-          padding: '16px 20px', background: 'rgba(59,130,246,0.08)', borderBottom: '1px solid rgba(255,255,255,0.08)',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-        }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              💬 Chat Interno entre Super Admins
-            </h3>
-            <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#8f94a5' }}>
-              Canal privado de comunicación en tiempo real entre Alejandro y Néstor
-            </p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {onStartCall && (
-              <button
-                type="button"
-                onClick={() => {
-                  const target = adminNames.find(n => n !== senderName) || (senderName === 'Alejandro' ? 'Nestor' : 'Alejandro')
-                  onStartCall(target)
-                }}
-                style={{
-                  background: 'rgba(16, 185, 129, 0.18)', border: '1px solid #10B981', borderRadius: '8px',
-                  color: '#10B981', padding: '6px 12px', fontSize: '11px', fontWeight: 800, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 150ms'
-                }}
-                title="Iniciar videollamada con el otro Super Administrador"
-              >
-                <Video size={13} /> 📞 Videollamada
-              </button>
-            )}
-            <button
-              onClick={onClose}
-              style={{
-                background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '8px', color: '#fff',
-                fontSize: '14px', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-
-        {/* Sender Identity Switcher */}
-        <div style={{ padding: '10px 20px', background: 'rgba(0,0,0,0.2)', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: '11px', color: '#8f94a5' }}>Tu Identidad en el Chat:</span>
-          <select
-            value={senderName}
-            onChange={e => setSenderName(e.target.value)}
-            style={{
-              background: '#1b1d2e', border: '1px solid rgba(255,255,255,0.1)', color: '#60A5FA',
-              fontSize: '11px', fontWeight: 600, borderRadius: '6px', padding: '4px 8px', outline: 'none', cursor: 'pointer'
-            }}
-          >
-            {adminNames.map(name => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Add New Participant Box */}
-        <div style={{ padding: '8px 20px', background: 'rgba(0,0,0,0.3)', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <input
-            type="text"
-            placeholder="Agregar nuevo nombre para el chat..."
-            value={newAdminNameInput}
-            onChange={e => setNewAdminNameInput(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                if (!newAdminNameInput.trim()) return
-                const n = newAdminNameInput.trim()
-                if (!adminNames.includes(n)) {
-                  const updated = [...adminNames, n]
-                  setAdminNames(updated)
-                  localStorage.setItem('bu_super_admin_names', JSON.stringify(updated))
-                  setSenderName(n)
-                  toast.success(`"${n}" añadido al chat`)
-                }
-                setNewAdminNameInput('')
-              }
-            }}
-            style={{
-              flex: 1, padding: '6px 10px', background: '#181b2e', border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '6px', color: '#fff', fontSize: '11px', outline: 'none'
-            }}
-          />
-          <button
-            type="button"
-            onClick={() => {
-              if (!newAdminNameInput.trim()) return
-              const n = newAdminNameInput.trim()
-              if (!adminNames.includes(n)) {
-                const updated = [...adminNames, n]
-                setAdminNames(updated)
-                localStorage.setItem('bu_super_admin_names', JSON.stringify(updated))
-                setSenderName(n)
-                toast.success(`"${n}" añadido al chat`)
-              }
-              setNewAdminNameInput('')
-            }}
-            style={{
-              padding: '6px 12px', background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.4)',
-              borderRadius: '6px', color: '#60A5FA', fontSize: '11px', fontWeight: 700, cursor: 'pointer'
-            }}
-          >
-            + Agregar
-          </button>
-        </div>
-
-        {/* Messages Body */}
-        <div style={{ flex: 1, padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', background: '#0b0d19' }}>
-          {messages.length === 0 ? (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: '12px' }}>
-              <div style={{ fontSize: '32px', marginBottom: '8px' }}>💬</div>
-              <div>No hay mensajes en el chat interno entre Super Admins.</div>
-              <div style={{ fontSize: '11px', marginTop: '4px' }}>Escribí un mensaje abajo para iniciar la conversación.</div>
-            </div>
-          ) : (
-            messages.map((m, idx) => {
-              const isSelf = m.sender === senderName
-              return (
-                <div
-                  key={m.id || idx}
-                  style={{
-                    alignSelf: isSelf ? 'flex-end' : 'flex-start',
-                    maxWidth: '82%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: isSelf ? 'flex-end' : 'flex-start'
-                  }}
-                >
-                  <div style={{ fontSize: '10px', color: '#8f94a5', marginBottom: '2px', display: 'flex', gap: '6px' }}>
-                    <span style={{ fontWeight: 600, color: isSelf ? '#60A5FA' : '#10B981' }}>{m.sender}</span>
-                    <span>· {m.time}</span>
-                  </div>
-                  <div style={{
-                    padding: '10px 14px',
-                    borderRadius: isSelf ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
-                    background: isSelf ? 'rgba(59,130,246,0.18)' : 'rgba(255,255,255,0.06)',
-                    border: '1px solid ' + (isSelf ? 'rgba(59,130,246,0.3)' : 'rgba(255,255,255,0.1)'),
-                    color: '#fff',
-                    fontSize: '13px',
-                    lineHeight: '1.4',
-                    wordBreak: 'break-word'
-                  }}>
-                    {m.text}
-                  </div>
-                </div>
-              )
-            })
-          )}
-        </div>
-
-        {/* Input Bar */}
-        <form onSubmit={handleSendMessage} style={{ padding: '14px 20px', background: '#121527', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', gap: '10px' }}>
-          <input
-            type="text"
-            placeholder="Escribí un mensaje para los demás Super Admins..."
-            value={inputText}
-            onChange={e => setInputText(e.target.value)}
-            style={{
-              flex: 1, background: '#181b2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px',
-              color: '#fff', fontSize: '13px', padding: '10px 14px', outline: 'none'
-            }}
-          />
-          <button
-            type="submit"
-            disabled={!inputText.trim()}
-            style={{
-              padding: '10px 18px', background: inputText.trim() ? 'linear-gradient(135deg, #3B82F6, #1D4ED8)' : 'rgba(255,255,255,0.05)',
-              border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: 700,
-              cursor: inputText.trim() ? 'pointer' : 'not-allowed', opacity: inputText.trim() ? 1 : 0.5
-            }}
-          >
-            Enviar
-          </button>
-        </form>
-
-        {/* Footer info */}
-        <div style={{ padding: '6px 20px', background: 'rgba(0,0,0,0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px', color: '#64748b' }}>
-          <span>Mensajes sincronizados en tiempo real entre Super Admins</span>
-          <button onClick={handleClearHistory} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '10px', cursor: 'pointer' }}>
-            Vaciar Chat
-          </button>
-        </div>
-      </div>
     </div>
   )
 }

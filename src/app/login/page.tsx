@@ -595,33 +595,30 @@ export default function LoginPage() {
 
           const isSaPassValid = (pass === expectedSaPass)
 
-          if (isSaPassValid || pass === 'BienParadaAleyNess2026') {
-            handleAuthSuccess(lowerEmail)
-            const initials = (matchedSuperAdmin.name || 'SA').trim().split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
-            const activeSaPayload = {
-              id: matchedSuperAdmin.id || `sa-${Date.now()}`,
-              name: matchedSuperAdmin.name,
-              email: matchedSuperAdmin.email,
-              password: matchedSuperAdmin.password || pass,
-              role: 'superadmin',
-              saRole: matchedSuperAdmin.role || 'Super Admin Completo',
-              avatar: initials || 'SA'
-            }
-            const stampedSa = stampActiveSession(activeSaPayload)
-            localStorage.setItem('active_user', JSON.stringify(stampedSa))
-            localStorage.setItem('active_super_admin', JSON.stringify(stampedSa))
-            localStorage.setItem('super_admin_identity', matchedSuperAdmin.name || 'Super Admin')
-            sessionStorage.setItem('super_admin_identity', matchedSuperAdmin.name || 'Super Admin')
-            try {
-              supabase.auth.signInWithPassword({ email: matchedSuperAdmin.email, password: form.password }).catch(() => {})
-            } catch (e) {}
-            window.location.href = '/admin/super'
-            return
-          } else {
-            handleAuthFailure(lowerEmail, 'Contraseña incorrecta para Super Administrador')
+          // Super-admin collaboration requires a real server-verifiable Auth session.
+          const authEmail = lowerEmail === 'alejandro.finochietti@yahoo.com.ar' ? 'admin@admin.com' : lowerEmail
+          const { data: signedIn, error: signInError } = await supabase.auth.signInWithPassword({ email: authEmail, password: form.password })
+          if (signInError || !signedIn.user) {
+            handleAuthFailure(lowerEmail, 'No se pudo verificar tu cuenta de Super Admin. Revisá tus credenciales y la conexión.')
             setLoading(false)
             return
           }
+          const { data: verifiedProfile, error: profileError } = await supabase.from('profiles').select('id,name,role').eq('id', signedIn.user.id).single()
+          if (profileError || verifiedProfile?.role !== 'superadmin') {
+            await supabase.auth.signOut()
+            toast.error('La cuenta no tiene permisos de Super Admin en el servidor.')
+            setLoading(false)
+            return
+          }
+          handleAuthSuccess(lowerEmail)
+          const name = lowerEmail === 'alejandro.finochietti@yahoo.com.ar' ? 'Alejandro' : verifiedProfile.name
+          const stampedSa = stampActiveSession({ id: signedIn.user.id, name, email: lowerEmail, role: 'superadmin', avatar: name.charAt(0) })
+          localStorage.setItem('active_user', JSON.stringify(stampedSa))
+          localStorage.setItem('active_super_admin', JSON.stringify(stampedSa))
+          localStorage.setItem('super_admin_identity', name)
+          sessionStorage.setItem('super_admin_identity', name)
+          window.location.href = '/admin/super'
+          return
         }
 
         // Check if Line Admin was deleted
