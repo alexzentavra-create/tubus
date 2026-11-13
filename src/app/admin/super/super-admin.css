@@ -1,6 +1,6 @@
 .sa-dashboard { background: radial-gradient(ellipse at 15% 0%, #15304a80, transparent 45%), radial-gradient(ellipse at 90% 15%, #14473b40, transparent 40%), #080e19 !important; }
-.sa-dashboard .super-header { background: #111d2ed9 !important; border-bottom: 1px solid #829cb633 !important; backdrop-filter: blur(22px); box-shadow: 0 8px 32px #00000024; gap: 20px; min-height: 78px; flex-wrap: wrap; }
-.sa-dashboard .sa-navigation { background: #0e1929b8 !important; border-bottom: 1px solid #829cb633 !important; backdrop-filter: blur(18px); }
+.sa-dashboard .super-header { position:relative; z-index:50; overflow:visible; background: #111d2ed9 !important; border-bottom: 1px solid #829cb633 !important; backdrop-filter: blur(22px); box-shadow: 0 8px 32px #00000024; gap: 20px; min-height: 78px; flex-wrap: wrap; }
+.sa-dashboard .sa-navigation { position:relative; z-index:40; background: #0e1929b8 !important; border-bottom: 1px solid #829cb633 !important; backdrop-filter: blur(18px); }
 .sa-dashboard .sa-navigation button { padding: 16px 2px !important; letter-spacing: .01em; }
 .sa-dashboard .sa-surface { border: 1px solid #829cb633 !important; border-radius: 12px !important; background: linear-gradient(130deg, #172437e6, #101a2bd9) !important; box-shadow: 0 10px 28px #00000018, inset 0 1px #ffffff05; }
 .sa-dashboard button:focus-visible, .sa-dashboard input:focus-visible, .sa-dashboard select:focus-visible, .sa-dashboard a:focus-visible { outline: 2px solid #67d8cf; outline-offset: 3px; }
@@ -17,6 +17,7 @@
 .sa-connection:before { content:''; display:block; width:6px; height:6px; border-radius:50%; background:#8091a5; }
 .sa-connection.is-online:before { background:#42dbad; box-shadow:0 0 0 4px #42dbad15; }
 .sa-connection.is-offline:before { background:#f1b66b; }
+.sa-connection-button { border:0; background:transparent; padding:0; cursor:pointer; font:inherit; }
 .sa-bell { position:relative; }
 .sa-bell b { position:absolute; right:-5px; top:-5px; background:#e65a6c; color:white; border:2px solid #101b2b; border-radius:20px; padding:1px 4px; font-size:10px; }
 .sa-overlay { position:fixed; inset:0; z-index:100000; background:#030914b8; backdrop-filter:blur(12px); display:flex; align-items:center; justify-content:center; padding:24px; }

@@ -80,8 +80,14 @@ export default function SuperAdminCollaboration({ data, error, refresh, openCall
     try { await collaborationRequest({ action: 'read', ids }); await refresh() }
     catch (e) { toast.error((e as Error).message) }
   }
+  const needsLogin = error.toLowerCase().includes('sesión') || error.toLowerCase().includes('iniciá sesión')
   return <div className="sa-collaboration">
-    <span className={'sa-connection ' + (error ? 'is-offline' : data ? 'is-online' : '')} title={error || 'Sincronización entre dispositivos'} role="status">{error ? 'Sin conexión' : data ? 'Conectado' : 'Conectando…'}</span>
+    {error ? <button
+      className="sa-connection sa-connection-button is-offline"
+      title={error}
+      onClick={() => { if (needsLogin) window.location.href = '/login?expired=1&next=/admin/super'; else void refresh() }}
+    >{needsLogin ? 'Sesión vencida · Reconectar' : 'Sin conexión · Reintentar'}</button>
+      : <span className={'sa-connection ' + (data ? 'is-online' : '')} title="Sincronización entre dispositivos" role="status">{data ? 'Conectado' : 'Conectando…'}</span>}
     <button className="sa-button" onClick={() => setPanel('chat')}><MessageSquare size={16} /><span>Chat interno</span></button>
     <button className="sa-button sa-accent" onClick={() => setPanel('call')}><Video size={16} /><span>Llamar</span></button>
     <button className="sa-button sa-bell" aria-label={`Notificaciones, ${unread} sin leer`} onClick={() => setPanel('notifications')}><Bell size={17} />{unread > 0 && <b>{unread > 99 ? '99+' : unread}</b>}</button>
