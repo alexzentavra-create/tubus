@@ -383,8 +383,7 @@ export default function LoginPage() {
   useEffect(() => {
     const emailKey = form.email.trim().toLowerCase()
     const accLock = getLockoutStatus(`login_${emailKey}`)
-    const devLock = getLockoutStatus('login_device_local')
-    const activeLock = (accLock.isLocked && accLock.remainingSeconds > 0) ? accLock : ((devLock.isLocked && devLock.remainingSeconds > 0) ? devLock : null)
+    const activeLock = accLock.isLocked && accLock.remainingSeconds > 0 ? accLock : null
 
     if (activeLock) {
       setIsLoginLocked(true)
@@ -393,7 +392,7 @@ export default function LoginPage() {
       setRemainingAttempts(0)
     } else {
       setIsLoginLocked(false)
-      setRemainingAttempts(Math.min(accLock.remainingAttempts, devLock.remainingAttempts))
+      setRemainingAttempts(accLock.remainingAttempts)
     }
   }, [form.email])
 
@@ -415,24 +414,20 @@ export default function LoginPage() {
 
   const handleAuthFailure = (lowerEmail: string, prefix = 'Contraseña incorrecta') => {
     const accResult = recordFailedAttempt(`login_${lowerEmail}`)
-    const devResult = recordFailedAttempt('login_device_local')
-    const activeResult = accResult.isLocked ? accResult : (devResult.isLocked ? devResult : accResult)
-
-    if (activeResult.isLocked) {
+    if (accResult.isLocked) {
       setIsLoginLocked(true)
-      setLoginLockoutSeconds(activeResult.remainingSeconds)
-      setLockoutMinutes(activeResult.lockoutMinutes)
+      setLoginLockoutSeconds(accResult.remainingSeconds)
+      setLockoutMinutes(accResult.lockoutMinutes)
       setRemainingAttempts(0)
-      toast.error(activeResult.message, { duration: 8000 })
+      toast.error(accResult.message, { duration: 8000 })
     } else {
-      setRemainingAttempts(activeResult.remainingAttempts)
-      toast.error(`${prefix}. Te quedan ${activeResult.remainingAttempts} intento(s) antes del bloqueo de 10 min.`)
+      setRemainingAttempts(accResult.remainingAttempts)
+      toast.error(`${prefix}. Te quedan ${accResult.remainingAttempts} intento(s) antes del bloqueo de 10 min.`)
     }
   }
 
   const handleAuthSuccess = (lowerEmail: string) => {
     recordSuccessfulAttempt(`login_${lowerEmail}`)
-    recordSuccessfulAttempt('login_device_local')
     setIsLoginLocked(false)
     setRemainingAttempts(3)
   }
@@ -460,8 +455,7 @@ export default function LoginPage() {
         handleAuthSuccess(lowerEmail)
       } else {
         const accLock = getLockoutStatus(`login_${lowerEmail}`)
-        const devLock = getLockoutStatus('login_device_local')
-        const activeLock = (accLock.isLocked && accLock.remainingSeconds > 0) ? accLock : ((devLock.isLocked && devLock.remainingSeconds > 0) ? devLock : null)
+        const activeLock = accLock.isLocked && accLock.remainingSeconds > 0 ? accLock : null
 
         if (activeLock) {
           setIsLoginLocked(true)
