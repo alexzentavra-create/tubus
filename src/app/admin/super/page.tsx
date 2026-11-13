@@ -1185,7 +1185,7 @@ export default function SuperAdminDashboard() {
         }))
         localStorage.setItem('bu_registered_users', JSON.stringify(mergedList))
         localStorage.setItem('mock_super_users', JSON.stringify(mergedList))
-        pushGlobalKey('bu_registered_users', mergedList).catch(() => {})
+        pushGlobalKey('bu_registered_users', mergedList, false).catch(() => {})
       } catch (err) {
         console.error('Error syncing real-time user data:', err)
       }

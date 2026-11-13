@@ -10,6 +10,7 @@ const input = z.discriminatedUnion('action', [
   z.object({ action: z.literal('leave'), sessionId: uuid }),
   z.object({ action: z.literal('message'), id: uuid, text: z.string().trim().min(1).max(4000) }),
   z.object({ action: z.literal('read'), ids: z.array(uuid).max(100) }),
+  z.object({ action: z.literal('read-all') }),
   z.object({ action: z.literal('activity'), kind: z.enum(['activity','calendar']).default('activity'), detail: z.string().trim().min(1).max(300) }),
   z.object({ action: z.literal('call'), id: uuid, target: uuid, mode: z.enum(['audio', 'video']) }),
   z.object({ action: z.literal('call-status'), id: uuid, status: z.enum(['accepted', 'rejected', 'ended']) }),
@@ -108,6 +109,12 @@ export async function POST(request: NextRequest) {
       await event(body.id, 'Mensaje de ' + profile.name, 'Nuevo mensaje en el chat de Super Admin.', 'chat')
     } else if (body.action === 'read') {
       if (body.ids.length) checked(await db.from('admin_event_reads').upsert(body.ids.map(event_id => ({ user_id: profile.id, event_id }))))
+    } else if (body.action === 'read-all') {
+      const { data: events } = checked(await db.from('admin_events').select('id'))
+      for (let index = 0; index < (events || []).length; index += 500) {
+        const rows = events!.slice(index, index + 500).map(({ id: event_id }) => ({ user_id: profile.id, event_id }))
+        if (rows.length) checked(await db.from('admin_event_reads').upsert(rows))
+      }
     } else if (body.action === 'activity') {
       await event(crypto.randomUUID(), 'Actividad de ' + profile.name, body.detail, body.kind)
     } else if (body.action === 'call') {

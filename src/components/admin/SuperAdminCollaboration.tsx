@@ -23,11 +23,14 @@ export default function SuperAdminCollaboration({ data, error, refresh, openCall
   const [mode, setMode] = useState<'audio' | 'video'>('video')
   const [starting, setStarting] = useState(false)
   const [stream, setStream] = useState<MediaStream | null>(null)
+  const [locallyRead, setLocallyRead] = useState<Set<string>>(() => new Set())
   const bottom = useRef<HTMLDivElement>(null)
   const box = useRef<HTMLDivElement>(null)
   const modal = useRef<HTMLElement>(null)
   const follow = useRef(true)
-  const unread = data?.events.filter(e => !e.read).length || 0
+  const isRead = (id: string, serverRead: boolean) => serverRead || locallyRead.has(id)
+  const unreadEvents = data?.events.filter(e => !isRead(e.id, e.read)) || []
+  const unread = unreadEvents.length
   const messages = [...new Map([...older, ...(data?.messages || [])].map(m => [m.id, m])).values()].sort((a,b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
   useEffect(() => { if (openCall) { setPanel('call'); const person = data?.admins.find(a => a.name === initialTarget || a.email === initialTarget); if (person) setTarget(person.id); onCallOpened?.() } }, [openCall, onCallOpened, initialTarget, data?.admins])
   useEffect(() => {
@@ -77,8 +80,23 @@ export default function SuperAdminCollaboration({ data, error, refresh, openCall
     finally { setStarting(false) }
   }
   const markRead = async (ids: string[]) => {
+    if (!ids.length) return
+    setLocallyRead(previous => { const next = new Set(previous); ids.forEach(id => next.add(id)); return next })
     try { await collaborationRequest({ action: 'read', ids }); await refresh() }
-    catch (e) { toast.error((e as Error).message) }
+    catch (e) {
+      setLocallyRead(previous => { const next = new Set(previous); ids.forEach(id => next.delete(id)); return next })
+      toast.error((e as Error).message)
+    }
+  }
+  const markAllRead = async () => {
+    const ids = unreadEvents.map(event => event.id)
+    if (!ids.length) return
+    setLocallyRead(previous => { const next = new Set(previous); ids.forEach(id => next.add(id)); return next })
+    try { await collaborationRequest({ action: 'read-all' }); await refresh() }
+    catch (e) {
+      setLocallyRead(previous => { const next = new Set(previous); ids.forEach(id => next.delete(id)); return next })
+      toast.error((e as Error).message)
+    }
   }
   const needsLogin = error.toLowerCase().includes('sesión') || error.toLowerCase().includes('iniciá sesión')
   return <div className="sa-collaboration">
@@ -113,9 +131,9 @@ export default function SuperAdminCollaboration({ data, error, refresh, openCall
         {sendError && <div role="alert" className="sa-error">{sendError}</div>}
         <form className="sa-compose" onSubmit={send}><input aria-label="Mensaje" placeholder="Escribí un mensaje para el equipo…" maxLength={4000} value={draft} disabled={sending} onChange={e => setDraft(e.target.value)} /><button className="sa-button sa-primary" disabled={sending || !draft.trim() || !!error || !data}><Send size={16} />{sending ? 'Guardando…' : 'Enviar'}</button></form>
       </>}
-      {panel === 'notifications' && <div className="sa-notifications"><div className="sa-row"><span>{unread} sin leer</span><button className="sa-button" disabled={!unread} onClick={() => void markRead(data!.events.filter(e => !e.read).map(e => e.id))}>Marcar leídas</button></div>
+      {panel === 'notifications' && <div className="sa-notifications"><div className="sa-row"><span>{unread} sin leer</span><button className="sa-button" disabled={!unread} onClick={() => void markAllRead()}>Marcar leídas</button></div>
         {!data?.events.length && <div className="sa-empty"><Bell size={32} /><h3>Todo al día</h3><p>Acá aparecerán mensajes, llamadas y actividad del panel.</p></div>}
-        {data?.events.map(e => <button key={e.id} className={'sa-notification ' + (!e.read ? 'is-unread' : '')} onClick={() => { void markRead([e.id]); if (e.kind === 'chat') setPanel('chat'); else if (e.kind === 'calendar') { setPanel(null); onOpenCalendar?.() } }}><strong>{e.title}</strong><p>{e.detail}</p><time>{date(e.created_at)}</time></button>)}
+        {data?.events.map(e => <button key={e.id} className={'sa-notification ' + (!isRead(e.id, e.read) ? 'is-unread' : '')} onClick={() => { void markRead([e.id]); if (e.kind === 'chat') setPanel('chat'); else if (e.kind === 'calendar') { setPanel(null); onOpenCalendar?.() } }}><strong>{e.title}</strong><p>{e.detail}</p><time>{date(e.created_at)}</time></button>)}
       </div>}
       {panel === 'call' && <div className="sa-call-setup"><label>Participante<select value={target} onChange={e => setTarget(e.target.value)}><option value="">Seleccioná un Super Admin</option>{data?.admins.filter(a => a.id !== data.me.id).map(a => <option key={a.id} value={a.id}>{a.name} — {data.presence.some(p => p.user_id === a.id) ? 'En línea' : 'Desconectado'}</option>)}</select></label><div className="sa-row"><button className={'sa-button ' + (mode === 'audio' ? 'sa-primary' : '')} aria-pressed={mode === 'audio'} onClick={() => setMode('audio')}><Phone size={18} />Sólo voz</button><button className={'sa-button ' + (mode === 'video' ? 'sa-primary' : '')} aria-pressed={mode === 'video'} onClick={() => setMode('video')}><Video size={18} />Videollamada</button></div><p>El navegador te pedirá acceso al micrófono{mode === 'video' ? ' y a la cámara' : ''}. El otro participante debe tener abierto su panel.</p><button className="sa-button sa-accent" disabled={!target || !data || !!error || starting} onClick={() => void start()}>{starting ? 'Conectando…' : 'Iniciar llamada'}</button></div>}
     </section></div>, document.body)}
