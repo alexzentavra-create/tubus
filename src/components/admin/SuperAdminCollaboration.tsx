@@ -27,7 +27,6 @@ export default function SuperAdminCollaboration({ data, error, refresh, openCall
   const box = useRef<HTMLDivElement>(null)
   const modal = useRef<HTMLElement>(null)
   const follow = useRef(true)
-  useEffect(() => { const failed = () => toast.error('El cambio se guardó, pero no su notificación.'); window.addEventListener('admin_activity_save_failed', failed); return () => window.removeEventListener('admin_activity_save_failed', failed) }, [])
   const unread = data?.events.filter(e => !e.read).length || 0
   const messages = [...new Map([...older, ...(data?.messages || [])].map(m => [m.id, m])).values()].sort((a,b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
   useEffect(() => { if (openCall) { setPanel('call'); const person = data?.admins.find(a => a.name === initialTarget || a.email === initialTarget); if (person) setTarget(person.id); onCallOpened?.() } }, [openCall, onCallOpened, initialTarget, data?.admins])

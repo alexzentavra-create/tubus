@@ -210,7 +210,9 @@ export async function pushGlobalKey(key: string, data: any, notify = true): Prom
       deleted_drivers: 'Actualizó las bajas de choferes.', deleted_ad_ids: 'Actualizó las bajas de anuncios.', deleted_calendar_event_ids: 'Eliminó un evento del calendario.'
     }
     if (notify && activityKeys[key] && getValidActiveUser()?.role === 'superadmin') {
-      recordAdminActivity(activityKeys[key]).catch(() => window.dispatchEvent(new Event('admin_activity_save_failed')))
+      // The global write already succeeded. Activity notifications are secondary and
+      // must never turn a background refresh into a repeating dashboard error.
+      recordAdminActivity(activityKeys[key]).catch(error => console.warn('[GlobalSync] Activity notification failed:', error))
     }
 
     window.dispatchEvent(new Event('storage'))
