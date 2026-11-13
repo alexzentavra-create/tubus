@@ -3,8 +3,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { BusPosition } from '@/types'
 import { OFFICIAL_ROUTES } from '@/lib/officialRoutes'
 import { createClient } from '@supabase/supabase-js'
+import { normalizeSupabaseUrl } from '@/lib/supabase-url'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+const supabaseUrl = normalizeSupabaseUrl()
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key'
 const supabase = createClient(supabaseUrl, supabaseKey)
 
