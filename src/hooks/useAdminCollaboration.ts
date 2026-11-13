@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { collaborationRequest, CollaborationState } from '@/lib/admin-collaboration'
 import { createClient } from '@/lib/supabase'
+import { getValidActiveUser } from '@/lib/sync'
 
 export function useAdminCollaboration() {
   const [data, setData] = useState<CollaborationState | null>(null)
@@ -33,11 +34,47 @@ export function useAdminCollaboration() {
         authRepairAt.current = Date.now()
         try {
           if (!supabase.current) supabase.current = createClient()
-          const { data: repaired } = await supabase.current.auth.refreshSession()
-          if (repaired.session) {
+          let refreshed = false
+          try {
+            const { data: repaired } = await supabase.current.auth.refreshSession()
+            refreshed = !!repaired.session
+          } catch { /* Legacy sessions may not have a refresh token yet. */ }
+          if (refreshed) {
             heartbeatAt.current = 0
             await load()
             return
+          }
+          // One-time bridge for sessions created by the older local Super Admin login.
+          // The password is only used if it is already present in that browser's
+          // existing account registry, and is removed from active-session storage
+          // immediately after Supabase verifies it.
+          const active = getValidActiveUser()
+          if (active && (active.role === 'superadmin' || active.role === 'Super Admin Principal')) {
+            const email = String(active.email || '').trim().toLowerCase()
+            const storedAdmin = JSON.parse(localStorage.getItem('active_super_admin') || 'null')
+            const registry = JSON.parse(localStorage.getItem('bu_super_admins') || '[]')
+            const registered = Array.isArray(registry)
+              ? registry.find((admin: any) => String(admin?.email || '').trim().toLowerCase() === email)
+              : null
+            const candidates = [...new Set([active.password, storedAdmin?.password, registered?.password]
+              .filter((password): password is string => typeof password === 'string' && password.length > 0 && !/[•*]/.test(password)))]
+            const authEmail = email === 'alejandro.finochietti@yahoo.com.ar' ? 'admin@admin.com' : email
+            for (const password of candidates) {
+              const { data: signedIn } = await supabase.current.auth.signInWithPassword({ email: authEmail, password })
+              if (!signedIn.session) continue
+              for (const key of ['active_user', 'active_super_admin']) {
+                try {
+                  const stored = JSON.parse(localStorage.getItem(key) || 'null')
+                  if (stored && typeof stored === 'object') {
+                    delete stored.password
+                    localStorage.setItem(key, JSON.stringify(stored))
+                  }
+                } catch { /* Ignore malformed legacy storage. */ }
+              }
+              heartbeatAt.current = 0
+              await load()
+              return
+            }
           }
         } catch { /* The reconnect control handles a missing refresh session. */ }
       }
