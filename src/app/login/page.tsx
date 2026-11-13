@@ -379,6 +379,21 @@ export default function LoginPage() {
   const [lockoutMinutes, setLockoutMinutes] = useState(10)
   const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null)
 
+  // Version 7c76410 fixed a malformed production Supabase URL that made valid
+  // credentials return 404 and incorrectly accumulated login failures. Clear
+  // those pre-fix browser records once, then retain normal per-account lockouts.
+  useEffect(() => {
+    const migrationKey = 'bp_auth_url_lockout_cleanup_v1'
+    if (localStorage.getItem(migrationKey)) return
+    Object.keys(localStorage)
+      .filter(key => key.startsWith('bp_lockout_login_'))
+      .forEach(key => localStorage.removeItem(key))
+    localStorage.setItem(migrationKey, 'done')
+    setIsLoginLocked(false)
+    setLoginLockoutSeconds(0)
+    setRemainingAttempts(3)
+  }, [])
+
   // Check lockout on email change or initial load
   useEffect(() => {
     const emailKey = form.email.trim().toLowerCase()
