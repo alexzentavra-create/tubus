@@ -5,7 +5,7 @@ import { Bus, Navigation, Wifi, WifiOff, Users, Power, AlertCircle, Gauge, Clock
 import { createClient } from '@/lib/supabase'
 import { MOCK_LINES, getMockRoutePathForLine, getMockStopsForLine } from '@/lib/mockData'
 import toast from 'react-hot-toast'
-import { syncAllGlobalKeys, pushGlobalKey } from '@/lib/sync'
+import { syncAllGlobalKeys, pushGlobalKey, getValidActiveUser } from '@/lib/sync'
 import { CARTODB_DARK, CARTODB_LIGHT } from '@/lib/mapStyles'
 import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre'
 import SessionConcurrencyGuard from '@/components/SessionConcurrencyGuard'
@@ -404,14 +404,9 @@ export default function DriverPage() {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
     const isMock = url.includes('placeholder.supabase.co')
 
-    if (isMock) {
-      // Read real driver identity saved at login — no auto-mock session
+    const resumeRegisteredDriver = () => {
       const rawIdentity = typeof window !== 'undefined' ? localStorage.getItem('mock_driver_identity') : null
-      if (!rawIdentity) {
-        // No identity found — redirect to login
-        window.location.href = '/login'
-        return
-      }
+      if (!rawIdentity) return false
       try {
         const identity = JSON.parse(rawIdentity)
         setDriverName(identity.name || 'Chofer')
@@ -431,10 +426,21 @@ export default function DriverPage() {
           )
         }
         // Do NOT auto-start a session — driver must scan a QR code to begin their shift
+        return true
       } catch (e) {
         console.error('Error reading driver identity:', e)
-        window.location.href = '/login'
+        return false
       }
+    }
+
+    // Drivers created from the line-admin dashboard use the application's shared
+    // registry and a stamped local session. Supabase being configured must not
+    // invalidate that legitimate session immediately after login.
+    const activeUser = getValidActiveUser()
+    if (activeUser?.role === 'driver' && resumeRegisteredDriver()) return
+
+    if (isMock) {
+      if (!resumeRegisteredDriver()) window.location.href = '/login'
       return
     }
 

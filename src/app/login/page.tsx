@@ -901,12 +901,19 @@ export default function LoginPage() {
               : (form.password || 'password')
 
             if (foundUser.role === 'driver') {
-              localStorage.removeItem('active_user')
+              const driverSession = stampActiveSession({
+                ...foundUser,
+                email: foundUser.email || lowerEmail,
+                password: realPass,
+                role: 'driver',
+                lineNumber: foundUser.lineNumber || foundUser.line_number || '0'
+              })
+              localStorage.setItem('active_user', JSON.stringify(driverSession))
               localStorage.setItem('mock_driver_identity', JSON.stringify({
                 name: foundUser.name,
-                email: foundUser.email,
-                lineNumber: foundUser.lineNumber || '0',
-                driverId: `driver-${foundUser.email}`
+                email: foundUser.email || lowerEmail,
+                lineNumber: foundUser.lineNumber || foundUser.line_number || '0',
+                driverId: foundUser.id || `driver-${foundUser.email || lowerEmail}`
               }))
               window.location.href = '/driver'
             } else if (foundUser.role === 'company_admin' || foundUser.role === 'admin') {
