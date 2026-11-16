@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { timingSafeEqual } from 'crypto'
+import { createAdminSupabase } from '@/lib/supabase-server'
 
 // Global in-memory cloud store for cross-device synchronization
 // Retains synchronized state across all devices, browsers, and IPs connecting to the deployment
@@ -153,6 +155,7 @@ const globalMemoryStore: Record<string, any> = {
   bu_super_admin_calendar_categories: ['Reunión', 'Tarea', 'Evento', 'Inspección de Línea', 'Auditoría General', 'Mantenimiento Flota', 'Seguridad Vial'],
   bu_super_admin_notifications: [],
   registered_drivers: [],
+  mock_bus_qr_codes: [],
   bu_active_super_admins: {},
   bu_super_admin_incoming_call: null,
   bu_super_admin_call_response: null
@@ -218,6 +221,43 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
+    if (body.action === 'driver-auth') {
+      const email = String(body.email || '').trim().toLowerCase()
+      const password = String(body.password || '')
+      if (!email || !password || email.length > 254 || password.length > 200) {
+        return NextResponse.json({ success: false, error: 'Credenciales inválidas' }, { status: 400 })
+      }
+      const registered = Array.isArray(globalMemoryStore.registered_drivers) ? globalMemoryStore.registered_drivers : []
+      const mockDrivers = (Array.isArray(globalMemoryStore.mock_users) ? globalMemoryStore.mock_users : []).filter((u: any) => u?.role === 'driver')
+      const driver = [...registered, ...mockDrivers].find((item: any) => String(item?.email || '').trim().toLowerCase() === email)
+      const deleted = (globalMemoryStore.deleted_drivers || []).map((item: any) => String(item).trim().toLowerCase())
+      const expected = String(driver?.password || driver?.pass || '')
+      const suppliedBuffer = Buffer.from(password)
+      const expectedBuffer = Buffer.from(expected)
+      const passwordMatches = suppliedBuffer.length === expectedBuffer.length && suppliedBuffer.length > 0 && timingSafeEqual(suppliedBuffer, expectedBuffer)
+      if (!driver || deleted.includes(email) || !passwordMatches) {
+        return NextResponse.json({ success: false, error: 'Credenciales inválidas' }, { status: 401 })
+      }
+
+      const db = createAdminSupabase()
+      const { data: listed, error: listError } = await db.auth.admin.listUsers({ page: 1, perPage: 1000 })
+      if (listError) return NextResponse.json({ success: false, error: 'No se pudo preparar la cuenta' }, { status: 503 })
+      let authUser = listed.users.find(user => user.email?.toLowerCase() === email)
+      if (authUser) {
+        const { data, error } = await db.auth.admin.updateUserById(authUser.id, { password, user_metadata: { name: driver.name, role: 'driver', line_number: driver.lineNumber || driver.line_number || '0' } })
+        if (error) return NextResponse.json({ success: false, error: 'No se pudo actualizar la cuenta' }, { status: 503 })
+        authUser = data.user
+      } else {
+        const { data, error } = await db.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { name: driver.name, role: 'driver', line_number: driver.lineNumber || driver.line_number || '0' } })
+        if (error || !data.user) return NextResponse.json({ success: false, error: 'No se pudo crear la cuenta' }, { status: 503 })
+        authUser = data.user
+      }
+      const lineNumber = String(driver.lineNumber || driver.line_number || '0')
+      const { data: line } = await db.from('bus_lines').select('id').eq('line_number', lineNumber).maybeSingle()
+      await db.from('profiles').upsert({ id: authUser.id, email, name: driver.name || 'Chofer', role: 'driver' })
+      await db.from('driver_profiles').upsert({ id: authUser.id, driver_number: String(driver.legajo || email.split('@')[0]), line_id: line?.id || null, is_active: true, verified: true })
+      return NextResponse.json({ success: true, userId: authUser.id, lineNumber })
+    }
     const { key, data, batch } = body
 
     if (batch && typeof batch === 'object') {

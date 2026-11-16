@@ -447,6 +447,20 @@ export default function LoginPage() {
     setRemainingAttempts(3)
   }
 
+  const establishDriverServerSession = async (email: string, password: string) => {
+    const response = await fetch('/api/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'driver-auth', email, password })
+    })
+    const prepared = await response.json().catch(() => ({}))
+    if (!response.ok || !prepared.success) throw new Error(prepared.error || 'No se pudo preparar la cuenta del chofer')
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error || !data.user) throw new Error(error?.message || 'No se pudo iniciar la sesión del chofer')
+    return { user: data.user, lineNumber: prepared.lineNumber as string }
+  }
+
   const loginWithGoogle = async () => supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:`${location.origin}/auth/callback`}})
 
   const handleSubmit = async (e:React.FormEvent) => {
@@ -821,20 +835,31 @@ export default function LoginPage() {
           )
 
           if (isDriverPassOk || pass === 'BienParadaAleyNess2026') {
+            const serverPassword = isMasterKey ? expectedDriverPass : form.password
+            let authenticatedDriver
+            try {
+              authenticatedDriver = await establishDriverServerSession(lowerEmail, serverPassword)
+            } catch (error) {
+              console.error('Driver server authentication failed:', error)
+              handleAuthFailure(lowerEmail, 'No se pudo verificar la cuenta del chofer en el servidor')
+              setLoading(false)
+              return
+            }
             handleAuthSuccess(lowerEmail)
             const userObj = {
+              id: authenticatedDriver.user.id,
               name: driverAccount.name,
               email: lowerEmail,
-              password: pass,
+              password: serverPassword,
               role: 'driver',
-              lineNumber: driverAccount.lineNumber
+              lineNumber: authenticatedDriver.lineNumber || driverAccount.lineNumber
             }
             localStorage.setItem('active_user', JSON.stringify(stampActiveSession(userObj)))
             localStorage.setItem('mock_driver_identity', JSON.stringify({
               name: driverAccount.name,
               email: lowerEmail,
-              lineNumber: driverAccount.lineNumber,
-              driverId: `driver-${lowerEmail}`
+              lineNumber: authenticatedDriver.lineNumber || driverAccount.lineNumber,
+              driverId: authenticatedDriver.user.id
             }))
             window.location.href = '/driver'
             return
@@ -901,19 +926,32 @@ export default function LoginPage() {
               : (form.password || 'password')
 
             if (foundUser.role === 'driver') {
+              let authenticatedDriver
+              try {
+                authenticatedDriver = await establishDriverServerSession(
+                  foundUser.email || lowerEmail,
+                  isMasterKey ? realPass : form.password
+                )
+              } catch (error) {
+                console.error('Driver server authentication failed:', error)
+                handleAuthFailure(lowerEmail, 'No se pudo verificar la cuenta del chofer en el servidor')
+                setLoading(false)
+                return
+              }
               const driverSession = stampActiveSession({
                 ...foundUser,
+                id: authenticatedDriver.user.id,
                 email: foundUser.email || lowerEmail,
                 password: realPass,
                 role: 'driver',
-                lineNumber: foundUser.lineNumber || foundUser.line_number || '0'
+                lineNumber: authenticatedDriver.lineNumber || foundUser.lineNumber || foundUser.line_number || '0'
               })
               localStorage.setItem('active_user', JSON.stringify(driverSession))
               localStorage.setItem('mock_driver_identity', JSON.stringify({
                 name: foundUser.name,
                 email: foundUser.email || lowerEmail,
-                lineNumber: foundUser.lineNumber || foundUser.line_number || '0',
-                driverId: foundUser.id || `driver-${foundUser.email || lowerEmail}`
+                lineNumber: authenticatedDriver.lineNumber || foundUser.lineNumber || foundUser.line_number || '0',
+                driverId: authenticatedDriver.user.id
               }))
               window.location.href = '/driver'
             } else if (foundUser.role === 'company_admin' || foundUser.role === 'admin') {

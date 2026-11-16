@@ -1018,6 +1018,24 @@ export default function CompanyDashboard() {
     })
   }, [activeLine])
 
+  // Migrate QR codes created before cloud synchronization was enabled. Opening
+  // the line dashboard once makes its existing fleet QR codes available to
+  // drivers on every device, without requiring them to be regenerated.
+  useEffect(() => {
+    if (!activeLine || qrCodes.length === 0) return
+    const globalQRs: any[] = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
+    const normalized = qrCodes.map((qr: any) => ({
+      ...qr,
+      line_number: qr.line_number || activeLine.line_number,
+      line_name: qr.line_name || activeLine.name,
+      company_name: qr.company_name || activeLine.company
+    }))
+    const tokens = new Set(normalized.map((qr: any) => qr.qr_token))
+    const merged = [...globalQRs.filter((qr: any) => !tokens.has(qr.qr_token)), ...normalized]
+    localStorage.setItem('mock_bus_qr_codes', JSON.stringify(merged))
+    pushGlobalKey('mock_bus_qr_codes', merged, false).catch(() => {})
+  }, [activeLine, qrCodes])
+
   // Fetch live fleet details from user app's simulator
   useEffect(() => {
     if (!activeLine) return
@@ -1392,10 +1410,16 @@ export default function CompanyDashboard() {
       return;
     }
 
+    const { data: realLine } = await supabase
+      .from('bus_lines')
+      .select('id')
+      .eq('line_number', String(activeLine.line_number))
+      .maybeSingle()
+    const databaseLineId = realLine?.id || activeLine.id
     let qrData: any = null
     const {data,error} = await supabase.from('bus_qr_codes').insert({
       company_id: company.id,
-      line_id: activeLine.id,
+      line_id: databaseLineId,
       bus_unit: newBusUnit.trim(),
     }).select().single()
 
@@ -1404,7 +1428,7 @@ export default function CompanyDashboard() {
       qrData = {
         id: `mock-qr-${Date.now()}`,
         company_id: company.id,
-        line_id: activeLine.id,
+        line_id: databaseLineId,
         bus_unit: newBusUnit.trim(),
         qr_token: `QR-L${activeLine.line_number}-${newBusUnit.trim()}-${Math.floor(Math.random() * 1000)}`,
         is_active: true,
@@ -1420,6 +1444,15 @@ export default function CompanyDashboard() {
     }
 
     setQrCodes(prev => [...prev, qrData])
+    const globalQRs = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
+    const synchronizedQRs = [...globalQRs.filter((item: any) => item.qr_token !== qrData.qr_token), {
+      ...qrData,
+      line_number: activeLine.line_number,
+      line_name: activeLine.name,
+      company_name: activeLine.company
+    }]
+    localStorage.setItem('mock_bus_qr_codes', JSON.stringify(synchronizedQRs))
+    pushGlobalKey('mock_bus_qr_codes', synchronizedQRs, false).catch(() => {})
     setNewBusUnit('')
     setNewBusHasAC(true)
     setNewBusIsNew(true)
@@ -1447,6 +1480,7 @@ export default function CompanyDashboard() {
       const globalQRs = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
       const updatedGlobalQRs = globalQRs.filter((q: any) => q.id !== id && q.qr_token !== targetQR?.qr_token && q.bus_unit !== targetQR?.bus_unit)
       localStorage.setItem('mock_bus_qr_codes', JSON.stringify(updatedGlobalQRs))
+      pushGlobalKey('mock_bus_qr_codes', updatedGlobalQRs, false).catch(() => {})
 
       setQrCodes(prev => prev.filter(qr => qr.id !== id && qr.qr_token !== targetQR?.qr_token && qr.bus_unit !== targetQR?.bus_unit))
       if (selectedQR?.id === id) setSelectedQR(null)
@@ -1466,6 +1500,10 @@ export default function CompanyDashboard() {
       const prevQRs = JSON.parse((localStorage.getItem(`mock_bus_qr_codes_${activeLine.line_number}`) || localStorage.getItem('mock_bus_qr_codes')) || '[]')
       const updated = prevQRs.map((q: any) => q.id === id ? { ...q, is_active: nextStatus } : q)
       localStorage.setItem(`mock_bus_qr_codes_${activeLine.line_number}`, JSON.stringify(updated))
+      const globalQRs = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
+      const updatedGlobal = globalQRs.map((q: any) => q.id === id ? { ...q, is_active: nextStatus } : q)
+      localStorage.setItem('mock_bus_qr_codes', JSON.stringify(updatedGlobal))
+      pushGlobalKey('mock_bus_qr_codes', updatedGlobal, false).catch(() => {})
     } catch (e) {
       console.error(e)
     }

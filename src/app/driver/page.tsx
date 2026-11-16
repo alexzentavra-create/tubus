@@ -9,6 +9,7 @@ import { syncAllGlobalKeys, pushGlobalKey, getValidActiveUser } from '@/lib/sync
 import { CARTODB_DARK, CARTODB_LIGHT } from '@/lib/mapStyles'
 import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre'
 import SessionConcurrencyGuard from '@/components/SessionConcurrencyGuard'
+import QrScanner from 'qr-scanner'
 
 interface ActiveSession {
   sessionId: string
@@ -295,6 +296,8 @@ export default function DriverPage() {
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
   const lastPosRef  = useRef<GeolocationPosition | null>(null)
   const lastTransmittedPosRef = useRef<{ lat: number; lng: number; heading: number; time: number } | null>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const qrScannerRef = useRef<QrScanner | null>(null)
   const startRef    = useRef<Date | null>(null)
 
   const [mounted, setMounted]           = useState(false)
@@ -342,6 +345,54 @@ export default function DriverPage() {
   const [showScanner,setShowScanner]    = useState(false)
   const [qrToken,    setQrToken]        = useState('')
   const [scanning,   setScanning]       = useState(false)
+  const [cameraStatus, setCameraStatus] = useState<'idle' | 'starting' | 'scanning' | 'detected' | 'error'>('idle')
+  const [cameraError, setCameraError]   = useState('')
+
+  useEffect(() => {
+    if (!showScanner || session || !videoRef.current) return
+    let cancelled = false
+    setCameraStatus('starting')
+    setCameraError('')
+
+    const scanner = new QrScanner(
+      videoRef.current,
+      result => {
+        if (cancelled) return
+        setQrToken(result.data)
+        setCameraStatus('detected')
+        scanner.stop()
+        toast.success('Código QR detectado')
+      },
+      {
+        preferredCamera: 'environment',
+        maxScansPerSecond: 10,
+        highlightScanRegion: true,
+        highlightCodeOutline: true,
+        returnDetailedScanResult: true
+      }
+    )
+    qrScannerRef.current = scanner
+    scanner.start().then(() => {
+      if (!cancelled) setCameraStatus('scanning')
+    }).catch((error: any) => {
+      if (cancelled) return
+      const message = String(error?.message || error || '')
+      const permissionDenied = error?.name === 'NotAllowedError' || /permission|denied|notallowed/i.test(message)
+      const noCamera = error?.name === 'NotFoundError' || /not found|no camera/i.test(message)
+      setCameraStatus('error')
+      setCameraError(permissionDenied
+        ? 'Permití el acceso a la cámara desde el candado del navegador y volvé a intentarlo.'
+        : noCamera
+          ? 'No encontramos una cámara disponible en este dispositivo.'
+          : 'No se pudo iniciar la cámara. Verificá que estés usando HTTPS y que ninguna otra app la esté usando.')
+    })
+
+    return () => {
+      cancelled = true
+      scanner.destroy()
+      if (qrScannerRef.current === scanner) qrScannerRef.current = null
+    }
+  }, [showScanner, session])
 
   // Map Controls State
   const [autoCenter, setAutoCenter]     = useState(true)
@@ -412,19 +463,6 @@ export default function DriverPage() {
         setDriverName(identity.name || 'Chofer')
         setDriverId(identity.driverId || `driver-${Date.now()}`)
         setDriverLineNumber(identity.lineNumber || '0')
-        // Request GPS permission immediately so the browser dialog appears on panel load
-        if (typeof navigator !== 'undefined' && navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            (pos) => {
-              // Permission granted — GPS ready for when QR is scanned
-              console.log('[BienParada] GPS listo:', pos.coords.latitude, pos.coords.longitude)
-            },
-            (err) => {
-              console.warn('[BienParada] GPS no disponible:', err.message)
-            },
-            { enableHighAccuracy: true, timeout: 10000 }
-          )
-        }
         // Do NOT auto-start a session — driver must scan a QR code to begin their shift
         return true
       } catch (e) {
@@ -530,7 +568,10 @@ export default function DriverPage() {
   }, [session])
 
   const startGPS = useCallback((uid: string, sid: string, lid: string, unit: string, initPass: number) => {
-    if (!navigator.geolocation) { toast.error('GPS no disponible'); return }
+    if (!navigator.geolocation) { setGpsError('Este dispositivo no ofrece ubicación GPS.'); toast.error('GPS no disponible'); return }
+    if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current)
+    if (intervalRef.current) clearInterval(intervalRef.current)
+    lastTransmittedPosRef.current = null
     watchIdRef.current = navigator.geolocation.watchPosition(
       p => {
         lastPosRef.current = p
@@ -538,7 +579,9 @@ export default function DriverPage() {
         setPos({ lat: p.coords.latitude, lng: p.coords.longitude, speed: spd, heading: p.coords.heading || 0 })
         setGpsError(null)
       },
-      err => setGpsError(err.message),
+      err => setGpsError(err.code === err.PERMISSION_DENIED
+        ? 'Permití el acceso a tu ubicación para que el colectivo aparezca en tiempo real.'
+        : `No se pudo obtener tu ubicación: ${err.message}`),
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 2000 }
     )
     intervalRef.current = setInterval(async () => {
@@ -590,14 +633,17 @@ export default function DriverPage() {
       if (shouldTransmit) {
         lastTransmittedPosRef.current = { lat, lng, heading, time: now }
         try {
-          await supabase.from('bus_positions').upsert({
-            driver_id: uid, line_id: lid, bus_unit: unit,
+          const response = await fetch('/api/drivers/location', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ line_id: lid, bus_unit: unit,
             latitude: lat, longitude: lng,
             heading, speed_kmh: spd,
             status,
             passenger_count: initPass,
-            timestamp: ts,
-          }, { onConflict: 'driver_id' })
+            })
+          })
+          if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'No se pudo publicar la ubicación')
         } catch (e) {
           console.error('Error broadcasting GPS to Supabase bus_positions:', e)
         }
@@ -609,13 +655,13 @@ export default function DriverPage() {
     if (!session || !isOnline || !lastPosRef.current) return
     const p = lastPosRef.current
     const spd = p.coords.speed ? Math.round(p.coords.speed * 3.6) : 0
-    supabase.from('bus_positions').upsert({
-      driver_id: session.driverId, line_id: session.lineId, bus_unit: session.busUnit,
-      latitude: p.coords.latitude, longitude: p.coords.longitude,
-      heading: Math.round(p.coords.heading || 0), speed_kmh: spd,
-      status: spd > 2 ? 'moving' : 'stopped', passenger_count: passengers,
-      timestamp: new Date().toISOString(),
-    }, { onConflict: 'driver_id' })
+    fetch('/api/drivers/location', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ line_id: session.lineId, bus_unit: session.busUnit,
+        latitude: p.coords.latitude, longitude: p.coords.longitude,
+        heading: Math.round(p.coords.heading || 0), speed_kmh: spd,
+        status: spd > 2 ? 'moving' : 'stopped', passenger_count: passengers })
+    }).catch(() => {})
   }, [passengers])
 
   // ─── Real GPS stop arrival & punctuality control ───────────────────────────
@@ -782,6 +828,24 @@ export default function DriverPage() {
       return
     }
 
+    // Local QR records may still carry the old mock line id. Resolve the real
+    // Supabase line before creating the session or publishing GPS coordinates.
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    const requestedLineNumber = String((matchedQr.bus_lines as any)?.line_number || matchedQr.line_number || driverLineNumber || '')
+    if (!uuidPattern.test(String(matchedQr.line_id || '')) && requestedLineNumber) {
+      const { data: realLine } = await supabase
+        .from('bus_lines')
+        .select('id,line_number,name')
+        .eq('line_number', requestedLineNumber)
+        .maybeSingle()
+      if (realLine) matchedQr = { ...matchedQr, line_id: realLine.id, bus_lines: realLine }
+    }
+    if (!uuidPattern.test(String(matchedQr.line_id || ''))) {
+      toast.error('No se pudo vincular este QR con una línea activa. Pedile al administrador que lo regenere.')
+      setScanning(false)
+      return
+    }
+
     // Validate that driver scans a QR code belonging to their assigned line
     const qrLineNumber = (matchedQr.bus_lines as any)?.line_number
     if (driverLineNumber && qrLineNumber && driverLineNumber !== qrLineNumber) {
@@ -807,7 +871,7 @@ export default function DriverPage() {
         driver_id: driverId,
         qr_code_id: matchedQr.id.startsWith('qr-') ? null : matchedQr.id,
         company_id: matchedQr.company_id === 'comp-1' ? null : matchedQr.company_id,
-        line_id: matchedQr.line_id.startsWith('line-') ? null : matchedQr.line_id,
+        line_id: matchedQr.line_id,
         bus_unit: matchedQr.bus_unit,
         is_active: true,
         started_at: new Date().toISOString(),
@@ -825,6 +889,16 @@ export default function DriverPage() {
       lineNumber:  (matchedQr.bus_lines as any)?.line_number || '—',
       companyName: (matchedQr.bus_companies as any)?.company_name || '—',
     }
+    const activeSessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+      .filter((item: any) => item.driverId !== driverId && item.bus_unit !== matchedQr.bus_unit)
+    activeSessions.push({
+      id: sessionId, driver_id: driverId, driverId, driver_name: driverName,
+      bus_unit: matchedQr.bus_unit, line_id: matchedQr.line_id,
+      line_number: (matchedQr.bus_lines as any)?.line_number || requestedLineNumber,
+      status: 'stopped', passenger_count: 0, timestamp: new Date().toISOString()
+    })
+    localStorage.setItem('mock_active_sessions', JSON.stringify(activeSessions))
+    pushGlobalKey('mock_active_sessions', activeSessions, false).catch(() => {})
     setSession(sess)
     setPassengers(0)
     startGPS(driverId, sessionId, matchedQr.line_id, matchedQr.bus_unit, 0)
@@ -843,8 +917,9 @@ export default function DriverPage() {
     // Clean up local mock session
     if (typeof window !== 'undefined') {
       const activeSessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
-      const updated = activeSessions.filter((s: any) => s.profiles?.name !== driverName)
+      const updated = activeSessions.filter((s: any) => s.driverId !== driverId && s.driver_id !== driverId && s.profiles?.name !== driverName)
       localStorage.setItem('mock_active_sessions', JSON.stringify(updated))
+      pushGlobalKey('mock_active_sessions', updated, false).catch(() => {})
       if (typeof window !== 'undefined') { window.dispatchEvent(new Event('storage')); window.dispatchEvent(new Event('mock_active_sessions_updated')); }
     }
 
@@ -1095,13 +1170,14 @@ export default function DriverPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <QrCode size={18} style={{ color: 'var(--platinum)' }} />
                   <h3 style={{ fontFamily: 'Syne,sans-serif', fontWeight: 700, fontSize: '16px', color: 'var(--text-primary)', margin: 0 }}>
-                    Ingresar código QR
+                    Escanear código QR
                   </h3>
                 </div>
               </div>
 
               {/* Viewfinder */}
               <div style={{ width: '100%', aspectRatio: '1.6', borderRadius: '14px', background: 'rgba(6,8,16,0.8)', border: '1px solid rgba(184,200,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', position: 'relative', overflow: 'hidden' }}>
+                <video ref={videoRef} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 {[
                   { top: '15%', left: '15%', borderTop: '2px solid rgba(34,211,160,0.6)', borderLeft: '2px solid rgba(34,211,160,0.6)' },
                   { top: '15%', right: '15%', borderTop: '2px solid rgba(34,211,160,0.6)', borderRight: '2px solid rgba(34,211,160,0.6)' },
@@ -1110,13 +1186,17 @@ export default function DriverPage() {
                 ].map((s, i) => (
                   <div key={i} style={{ position: 'absolute', width: '24px', height: '24px', ...s as any }} />
                 ))}
-                <div style={{ textAlign: 'center' }}>
-                  <QrCode size={36} style={{ color: 'rgba(184,200,224,0.15)' }} />
-                  <div style={{ color: 'var(--text-muted)', fontSize: '11px', fontFamily: 'DM Mono', marginTop: '8px' }}>Cámara no disponible</div>
+                <div style={{ position: 'absolute', left: 12, right: 12, bottom: 10, textAlign: 'center', background: 'rgba(6,8,16,0.72)', borderRadius: 8, padding: '7px 9px' }}>
+                  <div style={{ color: cameraStatus === 'error' ? '#ff8a9c' : cameraStatus === 'detected' ? '#62e2b5' : 'var(--text-primary)', fontSize: '11px', fontFamily: 'DM Mono' }}>
+                    {cameraStatus === 'starting' && 'Solicitando permiso para usar la cámara…'}
+                    {cameraStatus === 'scanning' && 'Apuntá la cámara al QR del colectivo'}
+                    {cameraStatus === 'detected' && 'QR detectado. Confirmá para iniciar el turno.'}
+                    {cameraStatus === 'error' && cameraError}
+                  </div>
                 </div>
               </div>
 
-              <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '10px' }}>Pegá el token del QR:</p>
+              <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '10px' }}>También podés ingresar el token manualmente:</p>
               <input
                 className="input-dark"
                 placeholder="Token QR (ej: QR-L12-001)"
@@ -1126,7 +1206,7 @@ export default function DriverPage() {
                 style={{ marginBottom: '12px' }}
               />
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <button onClick={() => { setShowScanner(false); setQrToken('') }} className="btn-glass">Cancelar</button>
+                <button onClick={() => { qrScannerRef.current?.stop(); setShowScanner(false); setQrToken(''); setCameraStatus('idle') }} className="btn-glass">Cancelar</button>
                 <button
                   onClick={handleQRScan}
                   disabled={!qrToken.trim() || scanning}
