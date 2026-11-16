@@ -72,8 +72,40 @@ export async function DELETE(request: NextRequest) {
 
   const db = createAdminSupabase()
   const endedAt = new Date().toISOString()
-  await db.from('driver_sessions').update({ is_active: false, ended_at: endedAt }).eq('line_id', line.id).ilike('bus_unit', busUnit)
-  await db.from('bus_positions').update({ status: 'offline', timestamp: endedAt }).eq('line_id', line.id).ilike('bus_unit', busUnit)
+  const { data: qrRows, error: qrLookupError } = await db
+    .from('bus_qr_codes')
+    .select('id')
+    .eq('line_id', line.id)
+    .ilike('bus_unit', busUnit)
+  if (qrLookupError) return NextResponse.json({ error: qrLookupError.message }, { status: 500 })
+
+  // Keep historical trips, but detach their QR foreign key before deleting the
+  // physical unit. Some production databases use NO ACTION for this relation,
+  // so relying on ON DELETE SET NULL is not safe across existing deployments.
+  const qrIds = (qrRows || []).map(row => row.id).filter(Boolean)
+  if (qrIds.length > 0) {
+    const { error: detachError } = await db
+      .from('driver_sessions')
+      .update({ qr_code_id: null })
+      .in('qr_code_id', qrIds)
+    if (detachError) return NextResponse.json({ error: detachError.message }, { status: 500 })
+  }
+
+  const { error: sessionError } = await db
+    .from('driver_sessions')
+    .update({ is_active: false, ended_at: endedAt })
+    .eq('line_id', line.id)
+    .ilike('bus_unit', busUnit)
+    .eq('is_active', true)
+  if (sessionError) return NextResponse.json({ error: sessionError.message }, { status: 500 })
+
+  const { error: positionError } = await db
+    .from('bus_positions')
+    .update({ status: 'offline', timestamp: endedAt })
+    .eq('line_id', line.id)
+    .ilike('bus_unit', busUnit)
+  if (positionError) return NextResponse.json({ error: positionError.message }, { status: 500 })
+
   const { error } = await db.from('bus_qr_codes').delete().eq('line_id', line.id).ilike('bus_unit', busUnit)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
