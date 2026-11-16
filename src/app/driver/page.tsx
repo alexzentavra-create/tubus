@@ -22,6 +22,7 @@ interface ActiveSession {
   companyName: string
   qrCodeId?: string | null
   companyId?: string | null
+  direction: 'ida' | 'vuelta'
 }
 
 // CARTODB_DARK, CARTODB_LIGHT are imported from @/lib/mapStyles
@@ -508,6 +509,7 @@ export default function DriverPage() {
           lineName:    (s.bus_lines as any)?.name || '—',
           lineNumber:  (s.bus_lines as any)?.line_number || '—',
           companyName: (s.bus_companies as any)?.company_name || '—',
+          direction: 'ida',
         }
         setSession(sess)
         setDriverLineNumber((s.bus_lines as any)?.line_number || '')
@@ -545,11 +547,11 @@ export default function DriverPage() {
   useEffect(() => {
     if (!session) return
     try {
-      const logsKey = `driver_passage_logs_${session.lineNumber}_${session.busUnit}`
+      const logsKey = `driver_passage_logs_${session.lineNumber}_${session.busUnit}_${session.direction}`
       const logs = JSON.parse(localStorage.getItem(logsKey) || '[]')
       const mockLine = MOCK_LINES.find(l => l.id === session.lineId || l.line_number === session.lineNumber)
       if (mockLine) {
-        const stops = getMockStopsForLine(mockLine)
+        const stops = getMockStopsForLine(mockLine, session.direction)
         if (logs.length > 0) {
           const lastLog = logs[logs.length - 1]
           setLastCrossedStop({ name: lastLog.stopName, time: lastLog.arrivalTime, status: lastLog.status })
@@ -648,6 +650,19 @@ export default function DriverPage() {
             passenger_count: initPass,
             })
           })
+          if (response.status === 410) {
+            if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current)
+            if (intervalRef.current) clearInterval(intervalRef.current)
+            const activeSessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+              .filter((item: any) => item.id !== sid && item.bus_unit !== unit)
+            localStorage.setItem('mock_active_sessions', JSON.stringify(activeSessions))
+            pushGlobalKey('mock_active_sessions', activeSessions, false).catch(() => {})
+            setIsOnline(false)
+            setSession(null)
+            setPos(null)
+            toast.error('La administración eliminó esta unidad. El viaje fue finalizado.')
+            return
+          }
           if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'No se pudo publicar la ubicación')
         } catch (e) {
           console.error('Error broadcasting GPS to Supabase bus_positions:', e)
@@ -674,7 +689,7 @@ export default function DriverPage() {
     if (!session || !isOnline || !pos) return
     const mockLine = MOCK_LINES.find(l => l.id === session.lineId || l.line_number === session.lineNumber)
     if (!mockLine) return
-    const stops = getMockStopsForLine(mockLine)
+    const stops = getMockStopsForLine(mockLine, session.direction)
     const expectedStop = stops[nextStopIndexRef.current]
     if (!expectedStop) return
 
@@ -706,7 +721,7 @@ export default function DriverPage() {
         status
       }
 
-      const logsKey = `driver_passage_logs_${session.lineNumber}_${session.busUnit}`
+      const logsKey = `driver_passage_logs_${session.lineNumber}_${session.busUnit}_${session.direction}`
       const logs = JSON.parse(localStorage.getItem(logsKey) || '[]')
       if (!logs.some((l: any) => l.stopId === expectedStop.id)) {
         logs.push(newLog)
@@ -748,7 +763,7 @@ export default function DriverPage() {
     if (!session) return []
     const mockLine = MOCK_LINES.find(l => l.id === session.lineId || l.line_number === session.lineNumber)
     if (!mockLine) return []
-    const stops = getMockStopsForLine(mockLine)
+    const stops = getMockStopsForLine(mockLine, session.direction)
     if (!pos) return stops.slice(0, 4).map(s => ({ stop: s, distance: 0 }))
 
     // Calculate distance to each stop in KM
@@ -876,6 +891,7 @@ export default function DriverPage() {
       companyName: (matchedQr.bus_companies as any)?.company_name || '—',
       qrCodeId: uuidPattern.test(String(matchedQr.id || '')) ? matchedQr.id : null,
       companyId: uuidPattern.test(String(matchedQr.company_id || '')) ? matchedQr.company_id : null,
+      direction: 'ida',
     }
     setSession(sess)
     setDriverLineNumber(sess.lineNumber)
@@ -914,6 +930,7 @@ export default function DriverPage() {
         id: sessionId, driver_id: driverId, driverId, driver_name: driverName,
         bus_unit: session.busUnit, line_id: session.lineId, line_number: session.lineNumber,
         company_id: session.companyId || null, status: 'stopped', passenger_count: 0,
+        direction: session.direction,
         started_at: new Date().toISOString(), timestamp: new Date().toISOString()
       })
       localStorage.setItem('mock_active_sessions', JSON.stringify(activeSessions))
@@ -942,6 +959,8 @@ export default function DriverPage() {
     setDuration(0)
     setPassengers(0)
     setQrToken('')
+    setNextStopIndex(0)
+    setLastCrossedStop(null)
     setShowScanner(true)
   }
 
@@ -1052,7 +1071,22 @@ export default function DriverPage() {
     () => mockLine ? getMockRoutePathsForLine(mockLine, 'all').filter(path => path.length > 0) : [],
     [mockLine, routeUpdateTick]
   )
-  const stops = useMemo(() => mockLine ? getMockStopsForLine(mockLine, 'all') : [], [mockLine, routeUpdateTick])
+  const allStops = useMemo(() => mockLine ? getMockStopsForLine(mockLine, 'all') : [], [mockLine, routeUpdateTick])
+  const stops = useMemo(
+    () => mockLine ? getMockStopsForLine(mockLine, session?.direction || 'ida') : [],
+    [mockLine, session?.direction, routeUpdateTick]
+  )
+  const directionOptions = useMemo(() => {
+    if (!mockLine) return []
+    return (['ida', 'vuelta'] as const).map(direction => {
+      const directionStops = getMockStopsForLine(mockLine, direction)
+      return {
+        direction,
+        from: directionStops[0]?.name || 'Inicio del recorrido',
+        to: directionStops[directionStops.length - 1]?.name || 'Fin del recorrido',
+      }
+    })
+  }, [mockLine, routeUpdateTick])
 
   const fitRouteInView = useCallback(() => {
     const points = routePaths.flat()
@@ -1077,7 +1111,8 @@ export default function DriverPage() {
   // Load active detour for driver
   const activeDetour = useMemo(() => {
     if (typeof window === 'undefined' || !mockLine) return null
-    const stored = localStorage.getItem(`mock_detour_${mockLine.line_number}_ida`)
+    const direction = session?.direction || 'ida'
+    const stored = localStorage.getItem(`mock_detour_${mockLine.line_number}_${direction}`)
     if (stored) {
       try {
         return JSON.parse(stored)
@@ -1087,11 +1122,11 @@ export default function DriverPage() {
     }
     try {
       const synchronizedRoutes = JSON.parse(localStorage.getItem('mock_line_routes') || '{}')
-      return synchronizedRoutes[`${mockLine.line_number}_ida`]?.detour || null
+      return synchronizedRoutes[`${mockLine.line_number}_${direction}`]?.detour || null
     } catch (e) {
       return null
     }
-  }, [mockLine, routeUpdateTick])
+  }, [mockLine, session?.direction, routeUpdateTick])
 
   const upcomingStops = getUpcomingStops()
 
@@ -1101,7 +1136,7 @@ export default function DriverPage() {
 
   const handleResetTrip = () => {
     if (!session) return
-    const logsKey = `driver_passage_logs_${session.lineNumber}_${session.busUnit}`
+    const logsKey = `driver_passage_logs_${session.lineNumber}_${session.busUnit}_${session.direction}`
     localStorage.removeItem(logsKey)
     setNextStopIndex(0)
     setLastCrossedStop(null)
@@ -1318,6 +1353,40 @@ export default function DriverPage() {
                 <div style={{ fontSize: '14px', color: '#fff', fontWeight: 700, marginBottom: '6px' }}>El colectivo ya quedó vinculado</div>
                 <div style={{ color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.5, marginBottom: '14px' }}>
                   Cuando estés listo, iniciá el viaje. En ese momento comenzarán el cronómetro, el GPS en vivo, las paradas y el conteo del recorrido.
+                </div>
+                <div style={{ fontSize: '10px', fontFamily: 'DM Mono', color: 'var(--text-muted)', letterSpacing: '0.08em', marginBottom: '8px' }}>
+                  ELEGÍ EL SENTIDO DEL VIAJE
+                </div>
+                <div style={{ display: 'grid', gap: '8px', marginBottom: '14px' }}>
+                  {directionOptions.map(option => {
+                    const selected = session.direction === option.direction
+                    return (
+                      <button
+                        key={option.direction}
+                        type="button"
+                        onClick={() => {
+                          setSession(current => current ? { ...current, direction: option.direction } : current)
+                          setNextStopIndex(0)
+                          setLastCrossedStop(null)
+                        }}
+                        disabled={tripStarting}
+                        style={{
+                          padding: '11px 12px', borderRadius: '10px', cursor: 'pointer', textAlign: 'left',
+                          border: `1px solid ${selected ? accentColor : 'rgba(184,200,224,0.14)'}`,
+                          background: selected ? hexToRgba(accentColor, 0.16) : 'rgba(6,8,16,0.45)',
+                          color: '#fff', opacity: tripStarting ? 0.65 : 1,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                          <strong style={{ fontSize: '12px' }}>{option.direction === 'ida' ? 'IDA' : 'VUELTA'}</strong>
+                          {selected && <CheckCircle size={14} style={{ color: accentColor }} />}
+                        </div>
+                        <div style={{ marginTop: '4px', fontSize: '10px', color: 'var(--text-secondary)', lineHeight: 1.35 }}>
+                          {option.from} → {option.to}
+                        </div>
+                      </button>
+                    )
+                  })}
                 </div>
                 <button
                   onClick={startTrip}
@@ -1798,21 +1867,23 @@ export default function DriverPage() {
             style={{ width: '100%', height: '100%' }}
           >
             {/* Active line route path rendering */}
-            {mockLine && routePaths.map((path, pathIndex) => (
+            {mockLine && routePaths.map((path, pathIndex) => {
+              const isSelectedDirection = pathIndex === (session?.direction === 'vuelta' ? 1 : 0)
+              return (
               <Source key={`route-line-${pathIndex}`} id={`route-line-source-${pathIndex}`} type="geojson" data={{
                 type: 'Feature', properties: { direction: pathIndex === 0 ? 'ida' : 'vuelta' },
                 geometry: { type: 'LineString', coordinates: path.map(point => [point.lng, point.lat]) }
               }}>
                 <Layer id={`route-line-glow-${pathIndex}`} type="line"
-                  paint={{ 'line-color': accentColor, 'line-width': 9, 'line-opacity': pathIndex === 0 ? 0.22 : 0.14, 'line-blur': 2 }} />
+                  paint={{ 'line-color': accentColor, 'line-width': 9, 'line-opacity': isSelectedDirection ? 0.22 : 0.1, 'line-blur': 2 }} />
                 <Layer id={`route-line-solid-${pathIndex}`} type="line"
                   paint={{
                     'line-color': accentColor,
-                    'line-width': pathIndex === 0 ? 4 : 3,
-                    'line-opacity': pathIndex === 0 ? 0.9 : 0.65,
-                    ...(pathIndex === 1 ? { 'line-dasharray': [2, 1.5] } : {})
+                    'line-width': isSelectedDirection ? 4 : 2.5,
+                    'line-opacity': isSelectedDirection ? 0.95 : 0.45,
+                    ...(!isSelectedDirection ? { 'line-dasharray': [2, 1.5] } : {})
                   }} />
-                {gpsGuideActive && pathIndex === 0 && (
+                {gpsGuideActive && isSelectedDirection && (
                   <Layer
                     id={`gps-guide-glow-${pathIndex}`}
                     type="line"
@@ -1820,13 +1891,14 @@ export default function DriverPage() {
                   />
                 )}
               </Source>
-            ))}
+              )
+            })}
 
             {/* Markers for stops */}
-            {mockLine && stops.map((stop) => {
+            {mockLine && allStops.map((stop) => {
               const isBlocked = (stop as any).isBlocked || stop.name.includes('[BLOQUEADA]')
               const isUpcoming = upcomingStops.some(u => u.stop.id === stop.id)
-              const isOnCurrentTrip = !stop.direction || stop.direction === 'ida'
+              const isOnCurrentTrip = !stop.direction || stop.direction === (session?.direction || 'ida')
               return (
                 <Marker key={stop.id} longitude={stop.longitude} latitude={stop.latitude} pitchAlignment="map" rotationAlignment="map" anchor="center">
                   <div

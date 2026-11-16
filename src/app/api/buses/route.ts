@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const lineId = searchParams.get('line_id')
   const lineNumber = searchParams.get('line_number')
+  const managedOnly = searchParams.get('managed_only') === '1'
 
   if (!lineId || !lineNumber) {
     return NextResponse.json({ error: 'line_id and line_number are required' }, { status: 400 })
@@ -53,11 +54,23 @@ export async function GET(request: NextRequest) {
     console.error('[API Buses] Could not resolve persisted line id:', error)
   }
 
+  let managedUnits: string[] = []
+  if (managedOnly) {
+    const { data: qrRows, error: qrError } = await supabase
+      .from('bus_qr_codes')
+      .select('bus_unit')
+      .eq('line_id', resolvedLineId)
+      .eq('is_active', true)
+    if (qrError) return NextResponse.json({ error: qrError.message }, { status: 500 })
+    managedUnits = Array.from(new Set((qrRows || []).map(row => String(row.bus_unit || '').trim()).filter(Boolean)))
+    if (managedUnits.length === 0) return NextResponse.json({ data: [], count: 0, source: 'managed_fleet' })
+  }
+
   // 1. Fetch active buses from Supabase
   let activeDbBuses: Array<BusPosition & { tracking_source?: 'driver_gps' | 'driver_session' }> = []
   try {
-    const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString()
-    const { data: dbBuses, error: dbError } = await supabase
+    const cutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString()
+    let positionQuery = supabase
       .from('bus_positions')
       .select(`
         id, driver_id, line_id, bus_unit, latitude, longitude,
@@ -68,6 +81,8 @@ export async function GET(request: NextRequest) {
       .eq('line_id', resolvedLineId)
       .neq('status', 'offline')
       .gte('timestamp', cutoff)
+    if (managedOnly) positionQuery = positionQuery.in('bus_unit', managedUnits)
+    const { data: dbBuses, error: dbError } = await positionQuery
 
     if (!dbError && dbBuses) {
       activeDbBuses = dbBuses.map((b: any) => ({
@@ -101,7 +116,8 @@ export async function GET(request: NextRequest) {
   // a Render restart. driver_sessions is persistent and is the authoritative
   // fallback; a fresher bus_positions row replaces it when available.
   try {
-    const { data: persistedSessions, error: sessionsError } = await supabase
+    const sessionCutoff = new Date(Date.now() - 2 * 60 * 1000).toISOString()
+    let sessionQuery = supabase
       .from('driver_sessions')
       .select(`
         id, driver_id, line_id, bus_unit, total_passengers, started_at,
@@ -109,6 +125,9 @@ export async function GET(request: NextRequest) {
       `)
       .eq('line_id', resolvedLineId)
       .eq('is_active', true)
+      .gte('started_at', sessionCutoff)
+    if (managedOnly) sessionQuery = sessionQuery.in('bus_unit', managedUnits)
+    const { data: persistedSessions, error: sessionsError } = await sessionQuery
 
     if (!sessionsError && persistedSessions) {
       const firstPoint = OFFICIAL_ROUTES[lineNumber]?.ida?.path?.[0] || { lat: -34.6037, lng: -58.3816 }
@@ -143,6 +162,18 @@ export async function GET(request: NextRequest) {
     }
   } catch (error) {
     console.error('[API Buses] Error querying persistent driver sessions:', error)
+  }
+
+
+  if (managedOnly) {
+    const byUnit = new Map<string, BusPosition & { tracking_source?: 'driver_gps' | 'driver_session' }>()
+    activeDbBuses.forEach(bus => {
+      const key = String(bus.bus_unit || '').trim().toLowerCase()
+      const current = byUnit.get(key)
+      if (!current || bus.tracking_source === 'driver_gps') byUnit.set(key, bus)
+    })
+    const data = Array.from(byUnit.values())
+    return NextResponse.json({ data, count: data.length, source: 'managed_fleet' })
   }
 
   const apiKey = process.env.TRANSITLAND_API_KEY || 'dummy_transitland_key'

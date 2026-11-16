@@ -1018,6 +1018,41 @@ export default function CompanyDashboard() {
     })
   }, [activeLine])
 
+  // The database is the authoritative inventory: exactly one visible QR/unit.
+  // Query by persisted line number rather than company_id because legacy and
+  // line-admin generated QR rows may not have a company row attached.
+  useEffect(() => {
+    if (!activeLine) return
+    let cancelled = false
+    const refreshQRInventory = async () => {
+      try {
+        const response = await fetch(`/api/fleet/qr?line_number=${encodeURIComponent(activeLine.line_number)}`, { cache: 'no-store' })
+        const payload = await response.json()
+        if (!response.ok || !payload.success || cancelled) return
+        const localMetadata: any[] = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
+        const metadataByUnit = new globalThis.Map(localMetadata.map((qr: any) => [String(qr.bus_unit || '').trim().toLowerCase(), qr]))
+        const authoritative = (payload.data || []).map((qr: any) => ({
+          ...(metadataByUnit.get(String(qr.bus_unit || '').trim().toLowerCase()) || {}),
+          ...qr,
+          line_number: activeLine.line_number,
+          line_name: activeLine.name,
+          company_name: activeLine.company
+        }))
+        setQrCodes(authoritative)
+        localStorage.setItem(`mock_bus_qr_codes_${activeLine.line_number}`, JSON.stringify(authoritative))
+        const otherLines = localMetadata.filter((qr: any) => String(qr.line_number || '') !== String(activeLine.line_number))
+        const synchronized = [...otherLines, ...authoritative]
+        localStorage.setItem('mock_bus_qr_codes', JSON.stringify(synchronized))
+        pushGlobalKey('mock_bus_qr_codes', synchronized, false).catch(() => {})
+      } catch (error) {
+        console.error('Could not refresh authoritative QR inventory:', error)
+      }
+    }
+    refreshQRInventory()
+    const interval = window.setInterval(refreshQRInventory, 15000)
+    return () => { cancelled = true; window.clearInterval(interval) }
+  }, [activeLine])
+
   // Migrate QR codes created before cloud synchronization was enabled. Opening
   // the line dashboard once makes its existing fleet QR codes available to
   // drivers on every device, without requiring them to be regenerated.
@@ -1052,30 +1087,21 @@ export default function CompanyDashboard() {
         console.error('Could not refresh active driver sessions:', error)
       }
 
-      fetch(`/api/buses?line_id=${activeLine.id}&line_number=${activeLine.line_number}`)
+      fetch(`/api/buses?line_id=${activeLine.id}&line_number=${activeLine.line_number}&managed_only=1`)
         .then(res => res.json())
         .then(json => {
           // Load local mock active sessions from localStorage
-          const localSessions = typeof window !== 'undefined'
+          const lineSessions = typeof window !== 'undefined'
             ? JSON.parse(localStorage.getItem('mock_active_sessions') || '[]').filter((s: any) =>
                 s.line_id === activeLine.id || String(s.line_number || s.lineNumber || '') === String(activeLine.line_number)
               )
             : []
+          const localSessions = lineSessions.filter((s: any) =>
+            Date.now() - new Date(s.last_gps || s.timestamp || s.started_at || 0).getTime() < 2 * 60 * 1000
+          )
 
-          // Load QR codes from localStorage for the active line
-          const companyId = `mock-company-${activeLine.id}`
-          const storedQRs: any[] = typeof window !== 'undefined'
-            ? [
-                ...JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]'),
-                ...JSON.parse(localStorage.getItem(`mock_bus_qr_codes_${activeLine.line_number}`) || '[]')
-              ].filter((q: any, index: number, list: any[]) =>
-                (q.line_id === activeLine.id || q.company_id === companyId || String(q.line_number || '') === String(activeLine.line_number)) &&
-                list.findIndex(item => (item.id && item.id === q.id) || (item.qr_token && item.qr_token === q.qr_token)) === index
-              )
-            : []
-
-          // Find all active QR codes for this line
-          const activeQRs = storedQRs.filter((q: any) => q.is_active)
+          // Only the server-confirmed QR inventory can create fleet units.
+          const activeQRs = qrCodes.filter((q: any) => q.is_active !== false)
 
           // Build active buses list from active QR codes
           const activeBuses: any[] = activeQRs.map((qr: any) => {
@@ -1109,7 +1135,7 @@ export default function CompanyDashboard() {
                 passenger_count: Number(sess.passenger_count || sess.total_passengers || 0),
                 timestamp: sess.timestamp || new Date().toISOString(),
                 reports_count: 0,
-                direction: 'ida',
+                direction: sess.direction || 'ida',
                 ramal: `${activeLine.line_number}-A`,
                 qr_code: qr.qr_token
               }
@@ -1140,32 +1166,6 @@ export default function CompanyDashboard() {
             }
           })
 
-          // A valid started trip must appear even if its QR metadata has not
-          // reached this browser yet or GPS permission is still pending.
-          localSessions.forEach((sess: any) => {
-            const unit = String(sess.busUnit || sess.bus_unit || '')
-            if (!unit || activeBuses.some((bus: any) => String(bus.bus_unit) === unit)) return
-            const routePath = getMockRoutePathForLine(activeLine)
-            const firstStop = routePath[0] || { lat: -34.6037, lng: -58.3816 }
-            const speed = Number(sess.speed_kmh || sess.speed || 0)
-            activeBuses.push({
-              id: sess.sessionId || sess.id,
-              driver_id: sess.driverId || sess.driver_id,
-              line_id: sess.line_id || activeLine.id,
-              line_number: sess.lineNumber || sess.line_number || activeLine.line_number,
-              bus_unit: unit,
-              driver_name: sess.driverName || sess.driver_name || sess.profiles?.name || 'Chofer en servicio',
-              latitude: Number(sess.latitude || firstStop.lat), longitude: Number(sess.longitude || firstStop.lng),
-              heading: Number(sess.heading || 0), speed_kmh: speed,
-              next_stop_name: 'Esperando primera ubicación GPS', eta_minutes: 0,
-              status: speed > 2 ? 'moving' : 'stopped',
-              passenger_count: Number(sess.passenger_count || sess.total_passengers || 0),
-              timestamp: sess.timestamp || sess.started_at || new Date().toISOString(),
-              direction: sess.direction || 'ida', ramal: `${activeLine.line_number}-A`,
-              qr_code: sess.qr_code || null, tracking_source: 'driver_session'
-            })
-          })
-
           // Merge with simulated buses from json.data (skip for Line 0 to keep it strictly real-world GPS only)
           const mergedBuses = [...activeBuses]
           if (json.data) {
@@ -1178,11 +1178,19 @@ export default function CompanyDashboard() {
                 return bUnit && mbUnit && bUnit === mbUnit
               })
               if (existingIndex < 0) {
+                const directionSession = lineSessions.find((session: any) =>
+                  String(session.bus_unit || session.busUnit || '').trim().toLowerCase() === String(mb.bus_unit || '').trim().toLowerCase()
+                )
+                mb.direction = mb.direction || directionSession?.direction || 'ida'
                 mergedBuses.push(mb)
               } else if (['driver_gps', 'driver_session'].includes(mb.tracking_source)) {
+                const directionSession = lineSessions.find((session: any) =>
+                  String(session.bus_unit || session.busUnit || '').trim().toLowerCase() === String(mb.bus_unit || '').trim().toLowerCase()
+                )
                 mergedBuses[existingIndex] = {
                   ...mergedBuses[existingIndex],
                   ...mb,
+                  direction: mb.direction || directionSession?.direction || mergedBuses[existingIndex].direction || 'ida',
                   qr_code: mergedBuses[existingIndex].qr_code || mb.qr_code,
                   driver_name: mb.driver_name || mergedBuses[existingIndex].driver_name
                 }
@@ -1221,7 +1229,8 @@ export default function CompanyDashboard() {
               longitude: bus.longitude,
               speed_kmh: bus.speed_kmh,
               heading: bus.heading,
-              status: bus.status
+              status: bus.status,
+              direction: bus.direction || 'ida'
             }))
 
           setActiveSessions(sessionsFromBuses)
@@ -1465,40 +1474,26 @@ export default function CompanyDashboard() {
       return;
     }
 
-    const { data: realLine } = await supabase
-      .from('bus_lines')
-      .select('id')
-      .eq('line_number', String(activeLine.line_number))
-      .maybeSingle()
-    const databaseLineId = realLine?.id || activeLine.id
-    let qrData: any = null
-    const {data,error} = await supabase.from('bus_qr_codes').insert({
-      company_id: company.id,
-      line_id: databaseLineId,
-      bus_unit: newBusUnit.trim(),
-    }).select().single()
-
-    if (error || !data) {
-      // Fallback fallback storage
-      qrData = {
-        id: `mock-qr-${Date.now()}`,
-        company_id: company.id,
-        line_id: databaseLineId,
-        bus_unit: newBusUnit.trim(),
-        qr_token: `QR-L${activeLine.line_number}-${newBusUnit.trim()}-${Math.floor(Math.random() * 1000)}`,
-        is_active: true,
-        created_at: new Date().toISOString(),
-        has_ac: newBusHasAC,
-        is_new: newBusIsNew,
-        has_ramp: newBusHasRamp,
-      }
-      const prevQRs = JSON.parse((localStorage.getItem(`mock_bus_qr_codes_${activeLine.line_number}`) || localStorage.getItem('mock_bus_qr_codes')) || '[]')
-      localStorage.setItem(`mock_bus_qr_codes_${activeLine.line_number}`, JSON.stringify([...prevQRs, qrData]))
-    } else {
-      qrData = data
+    const response = await fetch('/api/fleet/qr', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lineNumber: activeLine.line_number, busUnit: newBusUnit.trim() })
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok || !payload.success) {
+      toast.error(payload.error || 'No se pudo generar el código QR')
+      return
+    }
+    const qrData: any = {
+      ...payload.data,
+      line_number: activeLine.line_number,
+      line_name: activeLine.name,
+      company_name: activeLine.company,
+      has_ac: newBusHasAC,
+      is_new: newBusIsNew,
+      has_ramp: newBusHasRamp,
     }
 
-    setQrCodes(prev => [...prev, qrData])
+    setQrCodes(prev => [...prev.filter(qr => String(qr.bus_unit).toLowerCase() !== String(qrData.bus_unit).toLowerCase()), qrData])
     const globalQRs = JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]')
     const synchronizedQRs = [...globalQRs.filter((item: any) => item.qr_token !== qrData.qr_token), {
       ...qrData,
@@ -1514,17 +1509,26 @@ export default function CompanyDashboard() {
     setNewBusHasRamp(false)
     setSelectedQR(qrData)
     setShowQRModal(true)
-    toast.success(`QR generado para unidad ${newBusUnit}`)
+    toast.success(payload.existing ? `La unidad ${newBusUnit} ya tenía un QR; fue restaurado.` : `QR generado para unidad ${newBusUnit}`)
     recordLineAdminAuditLog(activeLine, 'Generación de QR', `Creó código QR para Unidad ${newBusUnit}.`)
   }
 
   const deleteQR = async (id: string) => {
     try {
       const targetQR = qrCodes.find((q: any) => q.id === id)
+      if (!targetQR) return
+      const response = await fetch('/api/fleet/qr', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lineNumber: activeLine.line_number, busUnit: targetQR.bus_unit })
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok || !payload.success) {
+        toast.error(payload.error || 'No se pudo eliminar la unidad')
+        return
+      }
       const deletedQrIds: string[] = JSON.parse(localStorage.getItem('deleted_qr_ids') || '[]')
       if (id && !deletedQrIds.includes(id)) deletedQrIds.push(id)
       if (targetQR?.qr_token && !deletedQrIds.includes(targetQR.qr_token)) deletedQrIds.push(targetQR.qr_token)
-      if (targetQR?.bus_unit && !deletedQrIds.includes(targetQR.bus_unit)) deletedQrIds.push(targetQR.bus_unit)
       localStorage.setItem('deleted_qr_ids', JSON.stringify(deletedQrIds))
 
       const lineKey = `mock_bus_qr_codes_${activeLine.line_number}`
@@ -1536,6 +1540,13 @@ export default function CompanyDashboard() {
       const updatedGlobalQRs = globalQRs.filter((q: any) => q.id !== id && q.qr_token !== targetQR?.qr_token && q.bus_unit !== targetQR?.bus_unit)
       localStorage.setItem('mock_bus_qr_codes', JSON.stringify(updatedGlobalQRs))
       pushGlobalKey('mock_bus_qr_codes', updatedGlobalQRs, false).catch(() => {})
+
+      const activeSessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+      const remainingSessions = activeSessions.filter((session: any) => String(session.bus_unit || session.busUnit) !== String(targetQR.bus_unit))
+      localStorage.setItem('mock_active_sessions', JSON.stringify(remainingSessions))
+      pushGlobalKey('mock_active_sessions', remainingSessions, false).catch(() => {})
+      setActiveSessions(prev => prev.filter((session: any) => String(session.bus_unit) !== String(targetQR.bus_unit)))
+      setBuses(prev => prev.filter((bus: any) => String(bus.bus_unit) !== String(targetQR.bus_unit)))
 
       setQrCodes(prev => prev.filter(qr => qr.id !== id && qr.qr_token !== targetQR?.qr_token && qr.bus_unit !== targetQR?.bus_unit))
       if (selectedQR?.id === id) setSelectedQR(null)

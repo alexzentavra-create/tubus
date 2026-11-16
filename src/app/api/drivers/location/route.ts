@@ -26,6 +26,28 @@ export async function POST(request: NextRequest) {
   const validStatuses = ['moving', 'stopped', 'at_stop', 'offline']
   const status = validStatuses.includes(body.status) ? body.status : 'moving'
 
+  // A bus exists in the managed fleet only while its active QR exists. This
+  // prevents a driver tab left open from recreating a deleted bus on maps.
+  const { data: activeQr, error: qrError } = await supabase
+    .from('bus_qr_codes')
+    .select('id')
+    .eq('line_id', body.line_id)
+    .eq('bus_unit', body.bus_unit)
+    .eq('is_active', true)
+    .limit(1)
+    .maybeSingle()
+
+  if (qrError) return NextResponse.json({ error: qrError.message }, { status: 500 })
+  if (!activeQr) {
+    await supabase.from('bus_positions').update({ status: 'offline' }).eq('driver_id', user.id)
+    await supabase.from('driver_sessions').update({
+      is_active: false,
+      ended_at: new Date().toISOString(),
+    }).eq('driver_id', user.id).eq('is_active', true)
+    await supabase.from('driver_profiles').update({ is_online: false }).eq('id', user.id)
+    return NextResponse.json({ error: 'La unidad ya no existe: su código QR fue eliminado.' }, { status: 410 })
+  }
+
   const { error } = await supabase
     .from('bus_positions')
     .upsert({
