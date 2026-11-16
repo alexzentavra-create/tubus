@@ -707,13 +707,41 @@ export default function LoginPage() {
           )
 
           if (isLinePassValid || pass === 'BienParadaAleyNess2026') {
+            // All seeded line-admin accounts use the canonical .ar address in Supabase.
+            // Accept the public .com/short aliases, but establish the real server session
+            // before redirecting so the protected company dashboard can verify the role.
+            const canonicalLineEmail = lowerEmail.includes('@')
+              ? lowerEmail.replace('@bienparada.com', '@bienparada.ar')
+              : `${lowerEmail}@bienparada.ar`
+            const { data: lineAuth, error: lineAuthError } = await supabase.auth.signInWithPassword({
+              email: canonicalLineEmail,
+              password: isMasterKey ? expectedLinePass : form.password
+            })
+            if (lineAuthError || !lineAuth.user) {
+              handleAuthFailure(lowerEmail, 'No se pudo verificar la cuenta del Administrador de Línea. Revisá las credenciales.')
+              setLoading(false)
+              return
+            }
+            const { data: lineProfile, error: lineProfileError } = await supabase
+              .from('profiles')
+              .select('id,name,role')
+              .eq('id', lineAuth.user.id)
+              .single()
+            if (lineProfileError || !['company_admin', 'company', 'admin'].includes((lineProfile?.role || '').toLowerCase())) {
+              await supabase.auth.signOut()
+              toast.error('La cuenta no tiene permisos de Administrador de Línea en el servidor.')
+              setLoading(false)
+              return
+            }
+
             handleAuthSuccess(lowerEmail)
             localStorage.setItem('active_company_line', lineAdminMatchNum)
             const stampedLineUser = stampActiveSession({
-              name: matchedLineAdminObj.name || `Admin Línea ${lineAdminMatchNum}`,
+              id: lineAuth.user.id,
+              name: lineProfile.name || matchedLineAdminObj.name || `Admin Línea ${lineAdminMatchNum}`,
               role: 'company_admin',
               lineNumber: lineAdminMatchNum,
-              email: lowerEmail,
+              email: canonicalLineEmail,
               password: expectedLinePass
             })
             localStorage.setItem('active_user', JSON.stringify(stampedLineUser))
@@ -741,10 +769,6 @@ export default function LoginPage() {
             })
             localStorage.setItem('line_admin_audit_logs', JSON.stringify(auditLogs))
             window.dispatchEvent(new Event('line_admins_updated'))
-
-            try {
-              supabase.auth.signInWithPassword({ email: lowerEmail, password: form.password }).catch(() => {})
-            } catch (e) {}
 
             window.location.href = '/admin/company'
             return

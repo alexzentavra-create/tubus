@@ -972,7 +972,7 @@ export default function CompanyDashboard() {
     supabase.auth.getUser().then(async ({data:{user}}) => {
       if (!user) { window.location.href='/login'; return }
       const {data:p} = await supabase.from('profiles').select('role').eq('id',user.id).single()
-      if (p?.role !== 'company') { window.location.href='/'; return }
+      if (!['company_admin', 'company', 'admin'].includes((p?.role || '').toLowerCase())) { window.location.href='/'; return }
 
       const {data:comp} = await supabase.from('bus_companies').select('*').eq('profile_id',user.id).single()
       if (comp) {
@@ -1000,6 +1000,19 @@ export default function CompanyDashboard() {
           .eq('is_active',true)
         const localSessions = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('mock_active_sessions') || '[]').filter((s: any) => s.company_id === comp.id) : []
         setActiveSessions(sessions ? [...sessions, ...localSessions] : localSessions)
+      } else {
+        // Seeded line admins are linked to their line through Auth metadata/local session.
+        // Some deployments do not have a profile_id column/row in bus_companies yet,
+        // so keep the authenticated dashboard usable with a line-derived company.
+        setCompany({
+          id: null,
+          company_name: `${activeLine.line_number === 'T-Amarillo' || activeLine.line_number === 'T-Rojo' ? '' : 'Línea '}${activeLine.line_number} (${activeLine.company})`,
+          username: `linea${activeLine.line_number.toLowerCase()}`,
+          is_active: true
+        })
+        const storedQRs: any[] = JSON.parse((localStorage.getItem(`mock_bus_qr_codes_${activeLine.line_number}`) || localStorage.getItem('mock_bus_qr_codes')) || '[]')
+          .filter((q: any) => q.line_id === activeLine.id)
+        setQrCodes(storedQRs)
       }
       setLoading(false)
     })

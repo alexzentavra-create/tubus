@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
         .single()
 
       if (profile?.role === 'superadmin') return NextResponse.redirect(`${origin}/admin/super`)
-      if (profile?.role === 'company')    return NextResponse.redirect(`${origin}/admin/company`)
+      if (profile?.role === 'company' || profile?.role === 'company_admin' || profile?.role === 'admin') return NextResponse.redirect(`${origin}/admin/company`)
       if (profile?.role === 'driver')     return NextResponse.redirect(`${origin}/driver`)
       return NextResponse.redirect(`${origin}/`)
     }
