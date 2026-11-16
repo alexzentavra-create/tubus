@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
 import { syncAllGlobalKeys, pushGlobalKey, getValidActiveUser, clearActiveSession } from '@/lib/sync'
-import { CARTODB_DARK } from '@/lib/mapStyles'
+import { CARTODB_DARK, CARTODB_LIGHT } from '@/lib/mapStyles'
 import SessionConcurrencyGuard from '@/components/SessionConcurrencyGuard'
 
 // Helper to log line admin actions for Super Admin audit log
@@ -271,6 +271,7 @@ export default function CompanyDashboard() {
   }, [])
   const supabase = createClient()
   const [tab, setTab] = useState<Tab>('overview')
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark')
   const [loading, setLoading] = useState(true)
   const [company, setCompany] = useState<any>(null)
   const [qrCodes, setQrCodes] = useState<any[]>([])
@@ -281,6 +282,19 @@ export default function CompanyDashboard() {
   const [newBusIsNew, setNewBusIsNew] = useState(true)
   const [newBusHasRamp, setNewBusHasRamp] = useState(false)
   const [activeSessions, setActiveSessions] = useState<any[]>([])
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('bp_company_dashboard_theme')
+    if (savedTheme === 'light' || savedTheme === 'dark') setTheme(savedTheme)
+  }, [])
+
+  const toggleTheme = () => {
+    setTheme(current => {
+      const next = current === 'dark' ? 'light' : 'dark'
+      localStorage.setItem('bp_company_dashboard_theme', next)
+      return next
+    })
+  }
 
   const [selectedLineNumber, setSelectedLineNumber] = useState<string>('12')
 
@@ -1870,7 +1884,7 @@ export default function CompanyDashboard() {
   )
 
   return (
-    <div style={{
+    <div className={`company-dashboard ${theme === 'light' ? 'light-mode' : 'dark-mode'}`} style={{
       height: '100vh',
       overflowY: 'auto',
       background: '#0b0f19',
@@ -1879,6 +1893,74 @@ export default function CompanyDashboard() {
       flexDirection: 'column',
       fontFamily: 'DM Sans, sans-serif',
     }}>
+      <style>{`
+        .company-dashboard.light-mode {
+          background: #f1f5f9 !important;
+          color: #0f172a !important;
+        }
+        .company-dashboard.light-mode header,
+        .company-dashboard.light-mode [style*="background: rgb(18, 21, 39)"],
+        .company-dashboard.light-mode [style*="background: #121527"],
+        .company-dashboard.light-mode [style*="background:#121527"] {
+          background: rgba(255,255,255,0.96) !important;
+          border-color: rgba(15,23,42,0.12) !important;
+          color: #0f172a !important;
+        }
+        .company-dashboard.light-mode [style*="background: rgb(11, 15, 25)"],
+        .company-dashboard.light-mode [style*="background: #0b0f19"],
+        .company-dashboard.light-mode [style*="background:#0b0f19"] {
+          background: #f1f5f9 !important;
+          color: #0f172a !important;
+        }
+        .company-dashboard.light-mode [style*="background: rgb(27, 29, 46)"],
+        .company-dashboard.light-mode [style*="background: #1b1d2e"],
+        .company-dashboard.light-mode [style*="background:#1b1d2e"],
+        .company-dashboard.light-mode [style*="background: rgb(24, 27, 46)"],
+        .company-dashboard.light-mode [style*="background: #181b2e"],
+        .company-dashboard.light-mode [style*="background: rgb(14, 17, 34)"],
+        .company-dashboard.light-mode [style*="background: #0e1122"],
+        .company-dashboard.light-mode [style*="background: rgb(10, 13, 26)"],
+        .company-dashboard.light-mode [style*="background: #0a0d1a"] {
+          background: #f8fafc !important;
+          border-color: rgba(15,23,42,0.12) !important;
+          color: #1e293b !important;
+        }
+        .company-dashboard.light-mode [style*="background: rgba(255, 255, 255, 0.02)"],
+        .company-dashboard.light-mode [style*="background: rgba(255,255,255,0.02)"],
+        .company-dashboard.light-mode [style*="background: rgba(255, 255, 255, 0.04)"],
+        .company-dashboard.light-mode [style*="background: rgba(255,255,255,0.04)"],
+        .company-dashboard.light-mode [style*="background: rgba(255, 255, 255, 0.05)"],
+        .company-dashboard.light-mode [style*="background: rgba(255,255,255,0.05)"] {
+          background: #eef2f7 !important;
+          border-color: rgba(15,23,42,0.12) !important;
+          color: #1e293b !important;
+        }
+        .company-dashboard.light-mode input,
+        .company-dashboard.light-mode select,
+        .company-dashboard.light-mode textarea {
+          background: #ffffff !important;
+          color: #0f172a !important;
+          border-color: #cbd5e1 !important;
+        }
+        .company-dashboard.light-mode input::placeholder,
+        .company-dashboard.light-mode textarea::placeholder { color: #64748b !important; }
+        .company-dashboard.light-mode h1,
+        .company-dashboard.light-mode h2,
+        .company-dashboard.light-mode h3,
+        .company-dashboard.light-mode h4,
+        .company-dashboard.light-mode h5,
+        .company-dashboard.light-mode h6,
+        .company-dashboard.light-mode [style*="color: rgb(255, 255, 255)"],
+        .company-dashboard.light-mode [style*="color: #fff"],
+        .company-dashboard.light-mode [style*="color:#fff"] { color: #0f172a !important; }
+        .company-dashboard.light-mode [style*="color: rgb(143, 148, 165)"],
+        .company-dashboard.light-mode [style*="color: #8f94a5"],
+        .company-dashboard.light-mode [style*="color: rgb(163, 166, 184)"],
+        .company-dashboard.light-mode [style*="color: #a3a6b8"] { color: #475569 !important; }
+        .company-dashboard.light-mode .company-line-badge,
+        .company-dashboard.light-mode .company-primary-action { color: #ffffff !important; }
+        .company-dashboard.light-mode svg { stroke: currentColor; }
+      `}</style>
       <SessionConcurrencyGuard userEmail={(activeLine as any)?.email || `linea${activeLine?.line_number || '12'}@bienparada.ar`} />
       {/* Horizontal Header */}
       <header style={{
@@ -1903,7 +1985,7 @@ export default function CompanyDashboard() {
             </span>
             
             {/* Static Isolated Line Badge */}
-            <div style={{
+            <div className="company-line-badge" style={{
               fontSize: '9px',
               color: '#fff',
               background: themeColor,
@@ -1938,6 +2020,21 @@ export default function CompanyDashboard() {
             }}
           >
             <span style={{ fontSize: '13px' }}>💬</span> Contactar Super Admin
+          </button>
+
+          <button
+            onClick={toggleTheme}
+            aria-label={theme === 'dark' ? 'Activar modo claro' : 'Activar modo oscuro'}
+            title={theme === 'dark' ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: '32px', height: '32px', borderRadius: '6px', cursor: 'pointer',
+              background: theme === 'dark' ? '#1b1d2e' : '#f8fafc',
+              border: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(15,23,42,0.14)'}`,
+              color: theme === 'dark' ? '#eab308' : '#475569', fontSize: '16px', transition: 'all 200ms'
+            }}
+          >
+            {theme === 'dark' ? '☀️' : '🌙'}
           </button>
 
           {/* Date display */}
@@ -2068,7 +2165,7 @@ export default function CompanyDashboard() {
           >
             <Share2 size={13} /> Compartir
           </button>
-          <button
+          <button className="company-primary-action"
             onClick={() => setShowExportModal(true)}
             style={{
               display: 'flex',
@@ -2707,6 +2804,7 @@ export default function CompanyDashboard() {
                 activeSessions={activeSessions}
                 driversList={driversList}
                 themeColor={themeColor}
+                theme={theme}
               />
             )}
           </div>
@@ -6092,7 +6190,7 @@ function getDetourOption(p1: any, p2: any, optionIndex: number) {
   return path;
 }
 
-function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor }: { activeLine: any; activeSessions?: any[]; driversList?: any[]; themeColor: string }) {
+function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor, theme = 'dark' }: { activeLine: any; activeSessions?: any[]; driversList?: any[]; themeColor: string; theme?: 'light' | 'dark' }) {
   const [direction, setDirection] = useState<'ida' | 'vuelta'>('ida')
   const [stops, setStops] = useState<any[]>([])
   const [routePath, setRoutePath] = useState<any[]>([])
@@ -6829,7 +6927,7 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
         <Map
           {...viewState}
           onMove={e => setViewState(e.viewState)}
-          mapStyle={CARTODB_DARK as any}
+          mapStyle={(theme === 'light' ? CARTODB_LIGHT : CARTODB_DARK) as any}
           style={{ width: '100%', height: '100%' }}
           onClick={handleMapClick}
         >
