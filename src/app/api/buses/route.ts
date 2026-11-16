@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
   }
 
   // 1. Fetch active buses from Supabase
-  let activeDbBuses: Array<BusPosition & { tracking_source?: 'driver_gps' }> = []
+  let activeDbBuses: Array<BusPosition & { tracking_source?: 'driver_gps' | 'driver_session' }> = []
   try {
     const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString()
     const { data: dbBuses, error: dbError } = await supabase
@@ -95,6 +95,54 @@ export async function GET(request: NextRequest) {
     }
   } catch (err) {
     console.error('[API Buses] Error querying Supabase active buses:', err)
+  }
+
+  // A started trip must remain visible even before the first GPS fix and after
+  // a Render restart. driver_sessions is persistent and is the authoritative
+  // fallback; a fresher bus_positions row replaces it when available.
+  try {
+    const { data: persistedSessions, error: sessionsError } = await supabase
+      .from('driver_sessions')
+      .select(`
+        id, driver_id, line_id, bus_unit, total_passengers, started_at,
+        profiles!driver_id ( name )
+      `)
+      .eq('line_id', resolvedLineId)
+      .eq('is_active', true)
+
+    if (!sessionsError && persistedSessions) {
+      const firstPoint = OFFICIAL_ROUTES[lineNumber]?.ida?.path?.[0] || { lat: -34.6037, lng: -58.3816 }
+      persistedSessions.forEach((session: any) => {
+        const alreadyTracked = activeDbBuses.some(bus =>
+          bus.driver_id === session.driver_id || String(bus.bus_unit) === String(session.bus_unit)
+        )
+        if (alreadyTracked) return
+        activeDbBuses.push({
+          id: session.id,
+          driver_id: session.driver_id,
+          line_id: session.line_id,
+          line_number: lineNumber,
+          bus_unit: session.bus_unit,
+          driver_name: session.profiles?.name || 'Chofer en servicio',
+          latitude: Number(firstPoint.lat),
+          longitude: Number(firstPoint.lng),
+          heading: 0,
+          speed_kmh: 0,
+          next_stop_id: `stop-${lineNumber}-start`,
+          next_stop_name: 'Esperando primera ubicación GPS',
+          eta_minutes: 0,
+          status: 'stopped',
+          passenger_count: Number(session.total_passengers || 0),
+          timestamp: session.started_at,
+          reports_count: 0,
+          direction: 'ida',
+          ramal: `${lineNumber}-A`,
+          tracking_source: 'driver_session'
+        })
+      })
+    }
+  } catch (error) {
+    console.error('[API Buses] Error querying persistent driver sessions:', error)
   }
 
   const apiKey = process.env.TRANSITLAND_API_KEY || 'dummy_transitland_key'

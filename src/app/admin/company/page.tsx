@@ -1170,7 +1170,7 @@ export default function CompanyDashboard() {
           const mergedBuses = [...activeBuses]
           if (json.data) {
             json.data
-              .filter((mb: any) => activeLine.line_number !== '0' || mb.tracking_source === 'driver_gps')
+              .filter((mb: any) => activeLine.line_number !== '0' || ['driver_gps', 'driver_session'].includes(mb.tracking_source))
               .forEach((mb: any) => {
               const existingIndex = mergedBuses.findIndex(b => {
                 const bUnit = (b.bus_unit || '').replace(/\D/g, '')
@@ -1179,7 +1179,7 @@ export default function CompanyDashboard() {
               })
               if (existingIndex < 0) {
                 mergedBuses.push(mb)
-              } else if (mb.tracking_source === 'driver_gps') {
+              } else if (['driver_gps', 'driver_session'].includes(mb.tracking_source)) {
                 mergedBuses[existingIndex] = {
                   ...mergedBuses[existingIndex],
                   ...mb,
