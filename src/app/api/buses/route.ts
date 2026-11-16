@@ -39,8 +39,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'line_id and line_number are required' }, { status: 400 })
   }
 
+  // The UI catalog uses ids such as "line-0", while persisted GPS rows use
+  // the real Supabase UUID. Resolve by line number before filtering positions.
+  let resolvedLineId = lineId
+  try {
+    const { data: persistedLine } = await supabase
+      .from('bus_lines')
+      .select('id')
+      .eq('line_number', lineNumber)
+      .maybeSingle()
+    if (persistedLine?.id) resolvedLineId = persistedLine.id
+  } catch (error) {
+    console.error('[API Buses] Could not resolve persisted line id:', error)
+  }
+
   // 1. Fetch active buses from Supabase
-  let activeDbBuses: BusPosition[] = []
+  let activeDbBuses: Array<BusPosition & { tracking_source?: 'driver_gps' }> = []
   try {
     const cutoff = new Date(Date.now() - 5 * 60 * 1000).toISOString()
     const { data: dbBuses, error: dbError } = await supabase
@@ -51,7 +65,7 @@ export async function GET(request: NextRequest) {
         eta_minutes, timestamp,
         profiles!driver_id ( name )
       `)
-      .eq('line_id', lineId)
+      .eq('line_id', resolvedLineId)
       .neq('status', 'offline')
       .gte('timestamp', cutoff)
 
@@ -75,7 +89,8 @@ export async function GET(request: NextRequest) {
         timestamp: b.timestamp,
         reports_count: 0,
         direction: 'ida',
-        ramal: `${lineNumber}-A`
+        ramal: `${lineNumber}-A`,
+        tracking_source: 'driver_gps'
       }))
     }
   } catch (err) {

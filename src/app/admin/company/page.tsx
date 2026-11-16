@@ -1039,26 +1039,46 @@ export default function CompanyDashboard() {
   // Fetch live fleet details from user app's simulator
   useEffect(() => {
     if (!activeLine) return
-    const fetchBuses = () => {
+    const fetchBuses = async () => {
+      // Pull the driver's just-started session directly so Flota does not wait
+      // for the slower whole-dashboard synchronization interval.
+      try {
+        const syncResponse = await fetch('/api/sync?key=mock_active_sessions', { cache: 'no-store' })
+        const synchronized = await syncResponse.json()
+        if (syncResponse.ok && synchronized.success && Array.isArray(synchronized.data)) {
+          localStorage.setItem('mock_active_sessions', JSON.stringify(synchronized.data))
+        }
+      } catch (error) {
+        console.error('Could not refresh active driver sessions:', error)
+      }
+
       fetch(`/api/buses?line_id=${activeLine.id}&line_number=${activeLine.line_number}`)
         .then(res => res.json())
         .then(json => {
           // Load local mock active sessions from localStorage
           const localSessions = typeof window !== 'undefined'
-            ? JSON.parse(localStorage.getItem('mock_active_sessions') || '[]').filter((s: any) => s.line_id === activeLine.id)
+            ? JSON.parse(localStorage.getItem('mock_active_sessions') || '[]').filter((s: any) =>
+                s.line_id === activeLine.id || String(s.line_number || s.lineNumber || '') === String(activeLine.line_number)
+              )
             : []
 
           // Load QR codes from localStorage for the active line
           const companyId = `mock-company-${activeLine.id}`
           const storedQRs: any[] = typeof window !== 'undefined'
-            ? JSON.parse((localStorage.getItem(`mock_bus_qr_codes_${activeLine.line_number}`) || localStorage.getItem('mock_bus_qr_codes')) || '[]').filter((q: any) => q.line_id === activeLine.id || q.company_id === companyId)
+            ? [
+                ...JSON.parse(localStorage.getItem('mock_bus_qr_codes') || '[]'),
+                ...JSON.parse(localStorage.getItem(`mock_bus_qr_codes_${activeLine.line_number}`) || '[]')
+              ].filter((q: any, index: number, list: any[]) =>
+                (q.line_id === activeLine.id || q.company_id === companyId || String(q.line_number || '') === String(activeLine.line_number)) &&
+                list.findIndex(item => (item.id && item.id === q.id) || (item.qr_token && item.qr_token === q.qr_token)) === index
+              )
             : []
 
           // Find all active QR codes for this line
           const activeQRs = storedQRs.filter((q: any) => q.is_active)
 
           // Build active buses list from active QR codes
-          const activeBuses = activeQRs.map((qr: any) => {
+          const activeBuses: any[] = activeQRs.map((qr: any) => {
             const sess = localSessions.find((s: any) => {
               const sUnit = (s.busUnit || s.bus_unit || '').replace(/\D/g, '')
               const qrUnit = (qr.bus_unit || '').replace(/\D/g, '')
@@ -1077,7 +1097,7 @@ export default function CompanyDashboard() {
                 line_id: sess.line_id || activeLine.id,
                 line_number: sess.lineNumber || sess.line_number || activeLine.line_number,
                 bus_unit: qr.bus_unit,
-                driver_name: sess.driverName || sess.profiles?.name || 'Chofer Real',
+                driver_name: sess.driverName || sess.driver_name || sess.profiles?.name || 'Chofer en servicio',
                 latitude: Number(sess.latitude || firstStop.lat),
                 longitude: Number(sess.longitude || firstStop.lng),
                 heading: Number(sess.heading || 0),
@@ -1120,19 +1140,54 @@ export default function CompanyDashboard() {
             }
           })
 
+          // A valid started trip must appear even if its QR metadata has not
+          // reached this browser yet or GPS permission is still pending.
+          localSessions.forEach((sess: any) => {
+            const unit = String(sess.busUnit || sess.bus_unit || '')
+            if (!unit || activeBuses.some((bus: any) => String(bus.bus_unit) === unit)) return
+            const routePath = getMockRoutePathForLine(activeLine)
+            const firstStop = routePath[0] || { lat: -34.6037, lng: -58.3816 }
+            const speed = Number(sess.speed_kmh || sess.speed || 0)
+            activeBuses.push({
+              id: sess.sessionId || sess.id,
+              driver_id: sess.driverId || sess.driver_id,
+              line_id: sess.line_id || activeLine.id,
+              line_number: sess.lineNumber || sess.line_number || activeLine.line_number,
+              bus_unit: unit,
+              driver_name: sess.driverName || sess.driver_name || sess.profiles?.name || 'Chofer en servicio',
+              latitude: Number(sess.latitude || firstStop.lat), longitude: Number(sess.longitude || firstStop.lng),
+              heading: Number(sess.heading || 0), speed_kmh: speed,
+              next_stop_name: 'Esperando primera ubicación GPS', eta_minutes: 0,
+              status: speed > 2 ? 'moving' : 'stopped',
+              passenger_count: Number(sess.passenger_count || sess.total_passengers || 0),
+              timestamp: sess.timestamp || sess.started_at || new Date().toISOString(),
+              direction: sess.direction || 'ida', ramal: `${activeLine.line_number}-A`,
+              qr_code: sess.qr_code || null, tracking_source: 'driver_session'
+            })
+          })
+
           // Merge with simulated buses from json.data (skip for Line 0 to keep it strictly real-world GPS only)
           const mergedBuses = [...activeBuses]
-          if (json.data && activeLine.line_number !== '0') {
-            json.data.forEach((mb: any) => {
-              const exists = mergedBuses.some(b => {
+          if (json.data) {
+            json.data
+              .filter((mb: any) => activeLine.line_number !== '0' || mb.tracking_source === 'driver_gps')
+              .forEach((mb: any) => {
+              const existingIndex = mergedBuses.findIndex(b => {
                 const bUnit = (b.bus_unit || '').replace(/\D/g, '')
                 const mbUnit = (mb.bus_unit || '').replace(/\D/g, '')
                 return bUnit && mbUnit && bUnit === mbUnit
               })
-              if (!exists) {
+              if (existingIndex < 0) {
                 mergedBuses.push(mb)
+              } else if (mb.tracking_source === 'driver_gps') {
+                mergedBuses[existingIndex] = {
+                  ...mergedBuses[existingIndex],
+                  ...mb,
+                  qr_code: mergedBuses[existingIndex].qr_code || mb.qr_code,
+                  driver_name: mb.driver_name || mergedBuses[existingIndex].driver_name
+                }
               }
-            })
+              })
           }
 
           setBuses(mergedBuses)
