@@ -6394,6 +6394,18 @@ function MapTab({ activeLine, activeSessions = [], driversList = [], themeColor 
       localStorage.removeItem(`mock_route_path_${activeLine.line_number}_${direction}`)
       localStorage.removeItem(`mock_detour_${activeLine.line_number}_${direction}`)
     }
+    const synchronizedRoutes = JSON.parse(localStorage.getItem('mock_line_routes') || '{}')
+    synchronizedRoutes[`${activeLine.line_number}_${direction}`] = {
+      lineNumber: activeLine.line_number,
+      direction,
+      stops,
+      routePath,
+      blockedStops,
+      detour: activeDetour || null,
+      updatedAt: new Date().toISOString()
+    }
+    localStorage.setItem('mock_line_routes', JSON.stringify(synchronizedRoutes))
+    pushGlobalKey('mock_line_routes', synchronizedRoutes, false).catch(() => {})
     setIsDirty(false)
     window.dispatchEvent(new Event('storage'))
     window.dispatchEvent(new Event('map_updated'))

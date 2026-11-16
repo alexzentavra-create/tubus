@@ -28,6 +28,7 @@ const SYNC_KEYS = [
   'bu_super_admin_notifications',
   'registered_drivers',
   'mock_bus_qr_codes',
+  'mock_line_routes',
   'bu_active_super_admins',
   'bu_super_admin_incoming_call',
   'bu_super_admin_call_response',

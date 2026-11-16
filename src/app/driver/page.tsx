@@ -3,11 +3,11 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bus, Navigation, Wifi, WifiOff, Users, Power, AlertCircle, Gauge, Clock, QrCode, CheckCircle, LogOut, Zap, MapPin, Sun, Moon, FileText, Trash2, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
-import { MOCK_LINES, getMockRoutePathForLine, getMockStopsForLine } from '@/lib/mockData'
+import { MOCK_LINES, getMockRoutePathsForLine, getMockStopsForLine } from '@/lib/mockData'
 import toast from 'react-hot-toast'
 import { syncAllGlobalKeys, pushGlobalKey, getValidActiveUser } from '@/lib/sync'
 import { CARTODB_DARK, CARTODB_LIGHT } from '@/lib/mapStyles'
-import Map, { Marker, Source, Layer } from 'react-map-gl/maplibre'
+import Map, { Marker, Source, Layer, type MapRef } from 'react-map-gl/maplibre'
 import SessionConcurrencyGuard from '@/components/SessionConcurrencyGuard'
 import QrScanner from 'qr-scanner'
 
@@ -20,6 +20,8 @@ interface ActiveSession {
   lineName: string
   lineNumber: string
   companyName: string
+  qrCodeId?: string | null
+  companyId?: string | null
 }
 
 // CARTODB_DARK, CARTODB_LIGHT are imported from @/lib/mapStyles
@@ -298,13 +300,14 @@ export default function DriverPage() {
   const lastTransmittedPosRef = useRef<{ lat: number; lng: number; heading: number; time: number } | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const qrScannerRef = useRef<QrScanner | null>(null)
+  const mapRef = useRef<MapRef | null>(null)
   const startRef    = useRef<Date | null>(null)
 
   const [mounted, setMounted]           = useState(false)
   const [routeUpdateTick, setRouteUpdateTick] = useState(0)
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key && (e.key.startsWith('mock_route_path_') || e.key.startsWith('mock_custom_stops_') || e.key.startsWith('mock_blocked_stops_'))) {
+      if (!e.key || e.key === 'mock_line_routes' || e.key.startsWith('mock_route_path_') || e.key.startsWith('mock_custom_stops_') || e.key.startsWith('mock_blocked_stops_')) {
         setRouteUpdateTick(prev => prev + 1)
       }
     }
@@ -345,6 +348,7 @@ export default function DriverPage() {
   const [showScanner,setShowScanner]    = useState(false)
   const [qrToken,    setQrToken]        = useState('')
   const [scanning,   setScanning]       = useState(false)
+  const [tripStarting, setTripStarting] = useState(false)
   const [cameraStatus, setCameraStatus] = useState<'idle' | 'starting' | 'scanning' | 'detected' | 'error'>('idle')
   const [cameraError, setCameraError]   = useState('')
 
@@ -506,6 +510,7 @@ export default function DriverPage() {
           companyName: (s.bus_companies as any)?.company_name || '—',
         }
         setSession(sess)
+        setDriverLineNumber((s.bus_lines as any)?.line_number || '')
         startGPS(user.id, s.id, s.line_id, s.bus_unit, 0)
         setIsOnline(true)
       }
@@ -542,7 +547,7 @@ export default function DriverPage() {
     try {
       const logsKey = `driver_passage_logs_${session.lineNumber}_${session.busUnit}`
       const logs = JSON.parse(localStorage.getItem(logsKey) || '[]')
-      const mockLine = MOCK_LINES.find(l => l.id === session.lineId)
+      const mockLine = MOCK_LINES.find(l => l.id === session.lineId || l.line_number === session.lineNumber)
       if (mockLine) {
         const stops = getMockStopsForLine(mockLine)
         if (logs.length > 0) {
@@ -667,7 +672,7 @@ export default function DriverPage() {
   // ─── Real GPS stop arrival & punctuality control ───────────────────────────
   useEffect(() => {
     if (!session || !isOnline || !pos) return
-    const mockLine = MOCK_LINES.find(l => l.id === session.lineId)
+    const mockLine = MOCK_LINES.find(l => l.id === session.lineId || l.line_number === session.lineNumber)
     if (!mockLine) return
     const stops = getMockStopsForLine(mockLine)
     const expectedStop = stops[nextStopIndexRef.current]
@@ -741,7 +746,7 @@ export default function DriverPage() {
   // Get upcoming stops dynamically
   const getUpcomingStops = () => {
     if (!session) return []
-    const mockLine = MOCK_LINES.find(l => l.id === session.lineId)
+    const mockLine = MOCK_LINES.find(l => l.id === session.lineId || l.line_number === session.lineNumber)
     if (!mockLine) return []
     const stops = getMockStopsForLine(mockLine)
     if (!pos) return stops.slice(0, 4).map(s => ({ stop: s, distance: 0 }))
@@ -860,27 +865,8 @@ export default function DriverPage() {
       return
     }
 
-    try {
-      await supabase.from('driver_sessions').update({ is_active: false, ended_at: new Date().toISOString() }).eq('driver_id', driverId).eq('is_active', true)
-      await supabase.from('bus_positions').update({ status: 'offline' }).eq('driver_id', driverId)
-    } catch (e) {}
-
-    let sessionId = `sess-${Date.now()}`
-    try {
-      const { data: newS } = await supabase.from('driver_sessions').insert({
-        driver_id: driverId,
-        qr_code_id: matchedQr.id.startsWith('qr-') ? null : matchedQr.id,
-        company_id: matchedQr.company_id === 'comp-1' ? null : matchedQr.company_id,
-        line_id: matchedQr.line_id,
-        bus_unit: matchedQr.bus_unit,
-        is_active: true,
-        started_at: new Date().toISOString(),
-      }).select().single()
-      if (newS?.id) sessionId = newS.id
-    } catch (e) {}
-
     const sess: ActiveSession = {
-      sessionId,
+      sessionId: `pending-${Date.now()}`,
       driverId,
       driverName,
       busUnit: matchedQr.bus_unit,
@@ -888,25 +874,75 @@ export default function DriverPage() {
       lineName:    (matchedQr.bus_lines as any)?.name || '—',
       lineNumber:  (matchedQr.bus_lines as any)?.line_number || '—',
       companyName: (matchedQr.bus_companies as any)?.company_name || '—',
+      qrCodeId: uuidPattern.test(String(matchedQr.id || '')) ? matchedQr.id : null,
+      companyId: uuidPattern.test(String(matchedQr.company_id || '')) ? matchedQr.company_id : null,
     }
-    const activeSessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
-      .filter((item: any) => item.driverId !== driverId && item.bus_unit !== matchedQr.bus_unit)
-    activeSessions.push({
-      id: sessionId, driver_id: driverId, driverId, driver_name: driverName,
-      bus_unit: matchedQr.bus_unit, line_id: matchedQr.line_id,
-      line_number: (matchedQr.bus_lines as any)?.line_number || requestedLineNumber,
-      status: 'stopped', passenger_count: 0, timestamp: new Date().toISOString()
-    })
-    localStorage.setItem('mock_active_sessions', JSON.stringify(activeSessions))
-    pushGlobalKey('mock_active_sessions', activeSessions, false).catch(() => {})
     setSession(sess)
+    setDriverLineNumber(sess.lineNumber)
     setPassengers(0)
-    startGPS(driverId, sessionId, matchedQr.line_id, matchedQr.bus_unit, 0)
-    setIsOnline(true)
+    setIsOnline(false)
+    setAutoCenter(false)
     setShowScanner(false)
     setQrToken('')
     setScanning(false)
-    toast.success(`¡Turno iniciado! Unidad ${matchedQr.bus_unit}`)
+    toast.success(`Unidad ${matchedQr.bus_unit} vinculada. Presioná “Iniciar viaje”.`)
+  }
+
+  const startTrip = async () => {
+    if (!session || !driverId || isOnline || tripStarting) return
+    setTripStarting(true)
+    try {
+      await supabase.from('driver_sessions').update({ is_active: false, ended_at: new Date().toISOString() }).eq('driver_id', driverId).eq('is_active', true)
+      await supabase.from('bus_positions').update({ status: 'offline' }).eq('driver_id', driverId)
+
+      let sessionId = `sess-${Date.now()}`
+      const { data: newSession, error: sessionError } = await supabase.from('driver_sessions').insert({
+        driver_id: driverId,
+        qr_code_id: session.qrCodeId || null,
+        company_id: session.companyId || null,
+        line_id: session.lineId,
+        bus_unit: session.busUnit,
+        is_active: true,
+        started_at: new Date().toISOString(),
+      }).select().single()
+      if (!sessionError && newSession?.id) sessionId = newSession.id
+
+      const activeSession = { ...session, sessionId }
+      const activeSessions = JSON.parse(localStorage.getItem('mock_active_sessions') || '[]')
+        .filter((item: any) => item.driverId !== driverId && item.driver_id !== driverId && item.bus_unit !== session.busUnit)
+      activeSessions.push({
+        id: sessionId, driver_id: driverId, driverId, driver_name: driverName,
+        bus_unit: session.busUnit, line_id: session.lineId, line_number: session.lineNumber,
+        company_id: session.companyId || null, status: 'stopped', passenger_count: 0,
+        started_at: new Date().toISOString(), timestamp: new Date().toISOString()
+      })
+      localStorage.setItem('mock_active_sessions', JSON.stringify(activeSessions))
+      await pushGlobalKey('mock_active_sessions', activeSessions, false).catch(() => {})
+
+      setSession(activeSession)
+      setDuration(0)
+      setPassengers(0)
+      setNextStopIndex(0)
+      setLastCrossedStop(null)
+      startRef.current = new Date()
+      startGPS(driverId, sessionId, session.lineId, session.busUnit, 0)
+      setIsOnline(true)
+      toast.success(`¡Viaje iniciado! Unidad ${session.busUnit}`)
+    } catch (error) {
+      console.error('Error starting trip:', error)
+      toast.error('No se pudo iniciar el viaje. Revisá la conexión e intentá nuevamente.')
+    } finally {
+      setTripStarting(false)
+    }
+  }
+
+  const changeAssignedBus = () => {
+    if (isOnline) return
+    setSession(null)
+    setDuration(0)
+    setPassengers(0)
+    setQrToken('')
+    setShowScanner(true)
   }
 
   const endShift = useCallback(async () => {
@@ -934,8 +970,8 @@ export default function DriverPage() {
       }
     }
     setIsOnline(false); setSession(null); setPos(null); setDuration(0); setPassengers(0)
-    toast('Turno finalizado')
-  }, [session, passengers, driverName])
+    toast('Viaje finalizado')
+  }, [session, passengers, driverName, driverId])
 
   const logout = async () => {
     if (isOnline) await endShift()
@@ -1000,7 +1036,7 @@ export default function DriverPage() {
 
   const mockLine = useMemo(() => {
     if (session) {
-      return MOCK_LINES.find(l => l.id === session.lineId) || null
+      return MOCK_LINES.find(l => l.id === session.lineId || l.line_number === session.lineNumber) || null
     }
     if (driverLineNumber) {
       return MOCK_LINES.find(l => l.line_number === driverLineNumber) || null
@@ -1009,9 +1045,34 @@ export default function DriverPage() {
   }, [session, driverLineNumber])
   const accentColor = mockLine?.color || '#EF4444'
 
-  // Map route geometries
-  const routePath = mockLine ? getMockRoutePathForLine(mockLine) : []
-  const stops = mockLine ? getMockStopsForLine(mockLine) : []
+  // Always keep both directions and every stop available on the driver map.
+  // Database-backed sessions use UUID line ids, so mockLine is resolved by
+  // line_number above and does not depend on the driver's current GPS position.
+  const routePaths = useMemo(
+    () => mockLine ? getMockRoutePathsForLine(mockLine, 'all').filter(path => path.length > 0) : [],
+    [mockLine, routeUpdateTick]
+  )
+  const stops = useMemo(() => mockLine ? getMockStopsForLine(mockLine, 'all') : [], [mockLine, routeUpdateTick])
+
+  const fitRouteInView = useCallback(() => {
+    const points = routePaths.flat()
+    if (!mapRef.current || points.length === 0) return
+    const minLng = Math.min(...points.map(point => point.lng))
+    const maxLng = Math.max(...points.map(point => point.lng))
+    const minLat = Math.min(...points.map(point => point.lat))
+    const maxLat = Math.max(...points.map(point => point.lat))
+    mapRef.current.fitBounds([[minLng, minLat], [maxLng, maxLat]], {
+      padding: isMobile ? 28 : 70,
+      duration: 700,
+      maxZoom: 15
+    })
+  }, [routePaths, isMobile])
+
+  useEffect(() => {
+    if (!mockLine || routePaths.length === 0) return
+    const timer = window.setTimeout(fitRouteInView, 250)
+    return () => window.clearTimeout(timer)
+  }, [mockLine, routePaths, fitRouteInView])
 
   // Load active detour for driver
   const activeDetour = useMemo(() => {
@@ -1024,7 +1085,12 @@ export default function DriverPage() {
         return null
       }
     }
-    return null
+    try {
+      const synchronizedRoutes = JSON.parse(localStorage.getItem('mock_line_routes') || '{}')
+      return synchronizedRoutes[`${mockLine.line_number}_ida`]?.detour || null
+    } catch (e) {
+      return null
+    }
   }, [mockLine, routeUpdateTick])
 
   const upcomingStops = getUpcomingStops()
@@ -1227,8 +1293,10 @@ export default function DriverPage() {
             {/* Session Info card */}
             <div className="platinum-card" style={{ borderRadius: 'var(--r-lg)', padding: '16px', marginBottom: '14px', borderLeft: `4px solid ${accentColor}` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-                <CheckCircle size={15} style={{ color: 'var(--go)' }} />
-                <span style={{ color: 'var(--go)', fontSize: '10px', fontFamily: 'DM Mono', fontWeight: 600, letterSpacing: '0.06em' }}>TURNO ACTIVO</span>
+                {isOnline ? <CheckCircle size={15} style={{ color: 'var(--go)' }} /> : <QrCode size={15} style={{ color: accentColor }} />}
+                <span style={{ color: isOnline ? 'var(--go)' : accentColor, fontSize: '10px', fontFamily: 'DM Mono', fontWeight: 600, letterSpacing: '0.06em' }}>
+                  {isOnline ? 'VIAJE EN CURSO' : 'UNIDAD ASIGNADA · VIAJE SIN INICIAR'}
+                </span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 {[
@@ -1244,6 +1312,31 @@ export default function DriverPage() {
                 ))}
               </div>
             </div>
+
+            {!isOnline && (
+              <div className="glass" style={{ padding: '18px', marginBottom: '14px', border: `1px solid ${hexToRgba(accentColor, 0.32)}`, background: hexToRgba(accentColor, 0.08) }}>
+                <div style={{ fontSize: '14px', color: '#fff', fontWeight: 700, marginBottom: '6px' }}>El colectivo ya quedó vinculado</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '12px', lineHeight: 1.5, marginBottom: '14px' }}>
+                  Cuando estés listo, iniciá el viaje. En ese momento comenzarán el cronómetro, el GPS en vivo, las paradas y el conteo del recorrido.
+                </div>
+                <button
+                  onClick={startTrip}
+                  disabled={tripStarting}
+                  className="btn-platinum action-btn"
+                  style={{ width: '100%', padding: '15px', opacity: tripStarting ? 0.65 : 1, fontSize: '14px', fontWeight: 800 }}
+                >
+                  <Navigation size={17} /> {tripStarting ? 'Iniciando viaje…' : 'Iniciar viaje'}
+                </button>
+                <button
+                  onClick={changeAssignedBus}
+                  disabled={tripStarting}
+                  className="btn-glass"
+                  style={{ width: '100%', marginTop: '9px' }}
+                >
+                  Escanear otro colectivo
+                </button>
+              </div>
+            )}
 
             {gpsError && (
               <div style={{ display: 'flex', gap: '10px', background: 'rgba(255,77,106,0.07)', border: '1px solid rgba(255,77,106,0.2)', borderRadius: 'var(--r-md)', padding: '12px 14px', marginBottom: '14px' }}>
@@ -1563,13 +1656,15 @@ export default function DriverPage() {
               </div>
             )}
 
-            <button
-              onClick={endShift}
-              className="action-btn"
-              style={{ width: '100%', padding: '16px', borderRadius: 'var(--r-lg)', fontFamily: 'Syne,sans-serif', fontWeight: 700, fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', border: '2px solid rgba(255,77,106,0.3)', background: 'rgba(255,77,106,0.08)', color: '#FF4D6A', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', transition: 'all 250ms', boxShadow: '0 0 32px rgba(255,77,106,0.08)', flexShrink: 0 }}
-            >
-              <Power size={18} /> Finalizar turno
-            </button>
+            {isOnline && (
+              <button
+                onClick={endShift}
+                className="action-btn"
+                style={{ width: '100%', padding: '16px', borderRadius: 'var(--r-lg)', fontFamily: 'Syne,sans-serif', fontWeight: 700, fontSize: '14px', letterSpacing: '0.06em', textTransform: 'uppercase', border: '2px solid rgba(255,77,106,0.3)', background: 'rgba(255,77,106,0.08)', color: '#FF4D6A', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', transition: 'all 250ms', boxShadow: '0 0 32px rgba(255,77,106,0.08)', flexShrink: 0 }}
+              >
+                <Power size={18} /> Finalizar viaje
+              </button>
+            )}
           </motion.div>
         )}
 
@@ -1668,8 +1763,27 @@ export default function DriverPage() {
           {dayMode ? <Moon size={20} /> : <Sun size={20} />}
         </button>
 
+        {mockLine && routePaths.length > 0 && (
+          <button
+            onClick={() => { setAutoCenter(false); setFirstPersonView(false); fitRouteInView() }}
+            className="action-btn"
+            style={{
+              position: 'absolute', top: '74px', right: '20px', zIndex: 10,
+              padding: '10px 13px', borderRadius: '10px', cursor: 'pointer',
+              background: dayMode ? '#ffffff' : 'rgba(19,25,33,0.9)',
+              border: `1px solid ${hexToRgba(accentColor, 0.38)}`,
+              color: dayMode ? '#1e293b' : '#f8fafc', fontSize: '11px', fontWeight: 700,
+              display: 'flex', alignItems: 'center', gap: '7px', boxShadow: '0 4px 18px rgba(0,0,0,0.28)'
+            }}
+            title="Mostrar la línea completa y todas sus paradas"
+          >
+            <MapPin size={14} style={{ color: accentColor }} /> Ver recorrido completo
+          </button>
+        )}
+
         {mounted ? (
           <Map
+            ref={mapRef}
             {...viewState}
             maxZoom={17.8}
             onMove={e => {
@@ -1684,37 +1798,29 @@ export default function DriverPage() {
             style={{ width: '100%', height: '100%' }}
           >
             {/* Active line route path rendering */}
-            {mockLine && routePath.length > 0 && (
-              <Source id="route-line-source" type="geojson" data={{
-                type: 'Feature',
-                properties: {},
-                geometry: {
-                  type: 'LineString',
-                  coordinates: routePath.map(point => [point.lng, point.lat])
-                }
+            {mockLine && routePaths.map((path, pathIndex) => (
+              <Source key={`route-line-${pathIndex}`} id={`route-line-source-${pathIndex}`} type="geojson" data={{
+                type: 'Feature', properties: { direction: pathIndex === 0 ? 'ida' : 'vuelta' },
+                geometry: { type: 'LineString', coordinates: path.map(point => [point.lng, point.lat]) }
               }}>
-                {/* Route line thickness guide */}
-                <Layer
-                  id="route-line-glow"
-                  type="line"
-                  paint={{ 'line-color': accentColor, 'line-width': 8, 'line-opacity': 0.18, 'line-blur': 2 }}
-                />
-                <Layer
-                  id="route-line-solid"
-                  type="line"
-                  paint={{ 'line-color': accentColor, 'line-width': 3, 'line-opacity': 0.7 }}
-                />
-
-                {/* Navigation neon path overlay */}
-                {gpsGuideActive && (
+                <Layer id={`route-line-glow-${pathIndex}`} type="line"
+                  paint={{ 'line-color': accentColor, 'line-width': 9, 'line-opacity': pathIndex === 0 ? 0.22 : 0.14, 'line-blur': 2 }} />
+                <Layer id={`route-line-solid-${pathIndex}`} type="line"
+                  paint={{
+                    'line-color': accentColor,
+                    'line-width': pathIndex === 0 ? 4 : 3,
+                    'line-opacity': pathIndex === 0 ? 0.9 : 0.65,
+                    ...(pathIndex === 1 ? { 'line-dasharray': [2, 1.5] } : {})
+                  }} />
+                {gpsGuideActive && pathIndex === 0 && (
                   <Layer
-                    id="gps-guide-glow"
+                    id={`gps-guide-glow-${pathIndex}`}
                     type="line"
                     paint={{ 'line-color': '#22D3A0', 'line-width': 8, 'line-opacity': 0.35, 'line-blur': 3 }}
                   />
                 )}
               </Source>
-            )}
+            ))}
 
             {/* Markers for stops */}
             {mockLine && stops.map((stop) => {

@@ -289,6 +289,15 @@ export function getMockStopsForLine(line: BusLine, direction: 'all' | 'ida' | 'v
     const storedCustom = localStorage.getItem(customKey);
     if (storedCustom) {
       stopsList = JSON.parse(storedCustom);
+    } else {
+      const synchronizedRoutes = JSON.parse(localStorage.getItem('mock_line_routes') || '{}');
+      if (direction === 'all') {
+        const outbound = synchronizedRoutes[`${line.line_number}_ida`]?.stops || [];
+        const inbound = synchronizedRoutes[`${line.line_number}_vuelta`]?.stops || [];
+        stopsList = [...outbound, ...inbound];
+      } else {
+        stopsList = synchronizedRoutes[`${line.line_number}_${direction}`]?.stops || [];
+      }
     }
   }
 
@@ -304,7 +313,14 @@ export function getMockStopsForLine(line: BusLine, direction: 'all' | 'ida' | 'v
 
   // Inject blocked state if configured
   if (typeof window !== 'undefined') {
-    const blockedStops = JSON.parse(localStorage.getItem(`mock_blocked_stops_${line.line_number}`) || '[]');
+    const directBlocked = localStorage.getItem(`mock_blocked_stops_${line.line_number}`);
+    const synchronizedRoutes = JSON.parse(localStorage.getItem('mock_line_routes') || '{}');
+    const blockedStops = directBlocked
+      ? JSON.parse(directBlocked)
+      : Array.from(new Set([
+          ...(synchronizedRoutes[`${line.line_number}_ida`]?.blockedStops || []),
+          ...(synchronizedRoutes[`${line.line_number}_vuelta`]?.blockedStops || [])
+        ]));
     stopsList = stopsList.map(s => {
       const isBlocked = blockedStops.includes(s.id);
       return {
@@ -325,6 +341,9 @@ function getRoutePathForLine(line: BusLine, direction: 'ida' | 'vuelta' = 'ida')
     if (storedPath) {
       return JSON.parse(storedPath);
     }
+    const synchronizedRoutes = JSON.parse(localStorage.getItem('mock_line_routes') || '{}');
+    const synchronizedPath = synchronizedRoutes[`${line.line_number}_${direction}`]?.routePath;
+    if (Array.isArray(synchronizedPath) && synchronizedPath.length > 0) return synchronizedPath;
   }
 
   const numKey = line.line_number === '0' ? '0' : line.line_number.replace(/^0+/, '');
